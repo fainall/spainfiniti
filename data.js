@@ -817,3 +817,27 @@ function getServiceById(id) {
 function getActivePromoForService(svcId) {
   return PROMOS.find(p => p.active && p.serviceIds && p.serviceIds.includes(svcId))
 }
+
+/* ── Supabase live data loader ─────────────────────── */
+let _supabaseReady = false
+async function initSupabaseData() {
+  if (typeof loadFromSupabase !== 'function') return false
+  try {
+    const cats = await loadFromSupabase()
+    if (!cats || !cats.length) return false
+    // Replace CATEGORIES contents with Supabase data
+    CATEGORIES.length = 0
+    cats.forEach(c => CATEGORIES.push(c))
+    _supabaseReady = true
+    console.log('✓ Data loaded from Supabase:', CATEGORIES.length, 'categories')
+    return true
+  } catch (e) {
+    console.warn('Supabase init failed, using static data:', e)
+    return false
+  }
+}
+
+/* Auto-init if supabase-client.js loaded before data.js */
+if (typeof loadFromSupabase === 'function') {
+  initSupabaseData()
+}

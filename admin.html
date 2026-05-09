@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -759,6 +759,7 @@ body {
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<script src="supabase-client.js"></script>
 <script src="data.js"></script>
 <script>
 /* ═══════════════════════════════════════════
@@ -990,6 +991,13 @@ function saveCategory(catId) {
   saveAdminData()
   renderCatList()
   toast('Categoría actualizada', 'success')
+
+  // Sync to Supabase
+  if (typeof supabase !== 'undefined') {
+    supabase.update('categories', catId, categoryToRow(cat))
+      .then(() => console.log('✓ Category synced:', catId))
+      .catch(e => { console.error('Supabase cat sync fail:', e); toast('Error sincronizando con servidor', 'error') })
+  }
 }
 
 function closeCatEdit() {
@@ -1258,6 +1266,13 @@ function saveService(catId, svcId) {
   renderDashboard()
   toast('Servicio actualizado', 'success')
   backToSvcList(catId)
+
+  // Sync to Supabase
+  if (typeof supabase !== 'undefined') {
+    supabase.update('services', svcId, serviceToRow(svc))
+      .then(() => console.log('✓ Service synced:', svcId))
+      .catch(e => { console.error('Supabase svc sync fail:', e); toast('Error sincronizando con servidor', 'error') })
+  }
 }
 
 function closeSvcList() {
@@ -1373,6 +1388,13 @@ function quickToggleDiscount(catId, svcId, on) {
     renderDiscounts()
     renderDashboard()
     toast('Descuento desactivado', 'success')
+
+    // Sync to Supabase
+    if (typeof supabase !== 'undefined') {
+      supabase.update('services', svcId, serviceToRow(svc))
+        .then(() => console.log('✓ Discount removed synced:', svcId))
+        .catch(e => { console.error('Supabase discount sync fail:', e); toast('Error sincronizando con servidor', 'error') })
+    }
   }
 }
 
@@ -1400,6 +1422,13 @@ function applyQuickDiscount(catId, svcId) {
   renderDiscounts()
   renderDashboard()
   toast('Descuento del ' + pct + '% aplicado', 'success')
+
+  // Sync to Supabase
+  if (typeof supabase !== 'undefined') {
+    supabase.update('services', svcId, serviceToRow(svc))
+      .then(() => console.log('✓ Discount synced:', svcId))
+      .catch(e => { console.error('Supabase discount sync fail:', e); toast('Error sincronizando con servidor', 'error') })
+  }
 }
 
 function cancelQuickDiscount(svcId) {
@@ -1953,6 +1982,15 @@ function saveNewService() {
   renderDiscounts()
   toast('Servicio creado exitosamente', 'success')
   showSvcList(catId)
+
+  // Sync to Supabase
+  if (typeof supabase !== 'undefined') {
+    const row = serviceToRow(newSvc)
+    row.sort_order = cat.services.length
+    supabase.insert('services', row)
+      .then(() => console.log('✓ New service created in Supabase:', newSvc.id))
+      .catch(e => { console.error('Supabase new svc fail:', e); toast('Error creando servicio en servidor', 'error') })
+  }
 }
 
 /* ── UTILITIES ────────────────── */
@@ -1987,3 +2025,4 @@ function resizeAndStore(file, maxW, cb) {
 </script>
 </body>
 </html>
+
