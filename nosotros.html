@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nosotros — Spa Infinity | Centro Podológico & Spa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ── ABOUT HERO ──────────────────────────────── */
+.about-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 80vh;
+  align-items: center;
+  gap: 60px;
+  padding: 120px 8% 80px;
+  background: var(--cream);
+}
+.about-hero-text .tag {
+  display: block;
+  margin-bottom: 16px;
+}
+.about-hero-text h1 {
+  font-size: clamp(2.8rem, 5vw, 4.4rem);
+  line-height: 1.05;
+  margin-bottom: 24px;
+}
+.about-hero-text h1 em {
+  font-style: italic;
+  color: var(--gold);
+  font-weight: 400;
+}
+.about-hero-text p {
+  font-size: 0.92rem;
+  color: var(--mid);
+  line-height: 1.85;
+  font-weight: 300;
+  max-width: 520px;
+  margin-bottom: 20px;
+}
+.about-hero-img {
+  position: relative;
+}
+.about-hero-img img {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.10);
+}
+.about-hero-img::after {
+  content: '';
+  position: absolute;
+  bottom: -16px;
+  right: -16px;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--gold);
+  border-radius: 4px;
+  z-index: -1;
+  opacity: 0.3;
+}
+
+/* ── VALUES SECTION ──────────────────────────── */
+.values-sec {
+  background: var(--cream-2);
+  padding: 100px 8%;
+}
+.values-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+.values-header h2 {
+  margin-bottom: 12px;
+}
+.values-header h2 em {
+  font-style: italic;
+  color: var(--gold);
+  font-weight: 400;
+}
+.values-header p {
+  max-width: 500px;
+  margin: 0 auto;
+}
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.value-card {
+  background: var(--white);
+  padding: 48px 36px;
+  border-radius: 4px;
+  text-align: center;
+  border: 1px solid rgba(0,0,0,0.03);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+  transition: transform 0.6s cubic-bezier(0.25,0.8,0.25,1),
+              box-shadow 0.6s cubic-bezier(0.25,0.8,0.25,1);
+}
+.value-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 25px 50px rgba(26,36,54,0.08);
+}
+.value-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--gold-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 1.6rem;
+}
+.value-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 12px;
+  color: var(--dark);
+}
+.value-card p {
+  font-size: 0.85rem;
+  line-height: 1.75;
+  font-weight: 300;
+}
+
+/* ── SERVICES OVERVIEW ───────────────────────── */
+.services-overview {
+  background: var(--cream);
+  padding: 100px 8%;
+}
+.svo-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.svo-header h2 { margin-bottom: 12px; }
+.svo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.svo-item {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 32px 24px;
+  text-align: center;
+  transition: all 0.4s ease;
+  cursor: pointer;
+}
+.svo-item:hover {
+  border-color: var(--gold);
+  background: var(--gold-pale);
+}
+.svo-item h4 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--dark);
+  margin-bottom: 8px;
+}
+.svo-item p {
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+/* ── GALLERY ─────────────────────────────────── */
+.gallery-sec {
+  background: var(--navy);
+  padding: 80px 8%;
+}
+.gallery-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.gallery-header .tag { color: var(--gold-l); }
+.gallery-header h2 { color: var(--white); margin-bottom: 8px; }
+.gallery-header p { color: rgba(255,255,255,0.5); }
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.gallery-grid img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+  border-radius: 4px;
+  transition: transform 0.6s ease, opacity 0.6s ease;
+  opacity: 0.85;
+}
+.gallery-grid img:hover {
+  transform: scale(1.03);
+  opacity: 1;
+}
+
+/* ── CTA SECTION ─────────────────────────────── */
+.about-cta {
+  background: var(--gold);
+  padding: 80px 8%;
+  text-align: center;
+}
+.about-cta h2 {
+  color: var(--white);
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin-bottom: 12px;
+}
+.about-cta p {
+  color: rgba(255,255,255,0.8);
+  max-width: 500px;
+  margin: 0 auto 32px;
+  font-size: 0.9rem;
+}
+.btn-cta-dark {
+  display: inline-block;
+  background: var(--navy);
+  color: var(--white);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 16px 44px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+.btn-cta-dark:hover {
+  background: var(--dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* ── RESPONSIVE ──────────────────────────────── */
+@media (max-width: 1000px) {
+  .about-hero { grid-template-columns: 1fr; padding: 100px 24px 60px; gap: 40px; }
+  .about-hero-img img { height: 360px; }
+  .values-grid { grid-template-columns: 1fr; gap: 24px; }
+  .svo-grid { grid-template-columns: repeat(2, 1fr); }
+  .gallery-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .svo-grid { grid-template-columns: 1fr; }
+  .about-hero-img::after { display: none; }
+}
+</style>
+</head>
+<body class="pt-nav">
+
+<div id="navContainer"></div>
+
+<!-- HERO -->
+<section class="about-hero">
+  <div class="about-hero-text fu">
+    <span class="tag">Conócenos</span>
+    <h1>Bienestar,<br>Salud &<br><em>Belleza</em></h1>
+    <p>En Centro Podológico y Spa Infinity nos especializamos en brindarte una experiencia única de bienestar, salud y belleza. Nuestro equipo de profesionales combina técnicas clínicas y terapéuticas para ofrecerte un cuidado completo en un ambiente relajante y seguro.</p>
+    <p>Cada visita es una oportunidad para renovarte. Desde tratamientos podológicos especializados hasta rituales de belleza y relajación, diseñamos cada servicio pensando en tu comodidad y resultados.</p>
+  </div>
+  <div class="about-hero-img fu">
+    <img src="images/podologia-clinica/atencion-podologica-integral.jpeg" alt="Atención profesional en Spa Infinity" />
+  </div>
+</section>
+
+<!-- VALUES -->
+<section class="values-sec">
+  <div class="values-header fu">
+    <span class="tag">Lo que nos define</span>
+    <h2>Nuestros <em>Valores</em></h2>
+    <p>Cada decisión que tomamos está guiada por estos principios fundamentales.</p>
+  </div>
+  <div class="values-grid">
+    <div class="value-card fu">
+      <div class="value-icon">✦</div>
+      <h3>Excelencia Profesional</h3>
+      <p>Especialistas certificadas con formación continua en las últimas técnicas y tratamientos del mercado.</p>
+    </div>
+    <div class="value-card fu fu-d1">
+      <div class="value-icon">♡</div>
+      <h3>Atención Personalizada</h3>
+      <p>Cada tratamiento se adapta a tus necesidades específicas. No hay dos personas iguales ni dos tratamientos iguales.</p>
+    </div>
+    <div class="value-card fu fu-d2">
+      <div class="value-icon">∞</div>
+      <h3>Bienestar Integral</h3>
+      <p>Combinamos salud clínica con estética y relajación para una experiencia completa que cuida cuerpo y mente.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES OVERVIEW -->
+<section class="services-overview">
+  <div class="svo-header fu">
+    <span class="tag">Lo que hacemos</span>
+    <h2>Servicios que te Renuevan</h2>
+  </div>
+  <div class="svo-grid" id="svoGrid"></div>
+</section>
+
+<!-- GALLERY -->
+<section class="gallery-sec">
+  <div class="gallery-header fu">
+    <span class="tag">Nuestro espacio</span>
+    <h2>Un Lugar Pensado para Ti</h2>
+    <p>Ambiente cálido, profesional y diseñado para tu máximo confort.</p>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+</section>
+
+<!-- CTA -->
+<section class="about-cta">
+  <h2 class="fu">Reserva tu Momento</h2>
+  <p class="fu">Tu bienestar es nuestra prioridad. Agenda tu cita y vive la experiencia Spa Infinity.</p>
+  <a href="https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20una%20cita" target="_blank" class="btn-cta-dark fu">Reserva Ahora</a>
+</section>
+
+<!-- FOOTER -->
+<div id="footerContainer"></div>
+<div id="floatingContainer"></div>
+
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('Nosotros')
+document.getElementById('footerContainer').innerHTML = renderFooter()
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+/* Services overview cards */
+const overviewData = [
+  { name: 'Podología Clínica', desc: 'Atención profesional para la salud de tus pies.', cat: 'podologia-clinica' },
+  { name: 'Manicure & Pedicure', desc: 'Embellece y cuida tus manos y pies.', cat: 'manicure-pedicure' },
+  { name: 'Masajes Terapéuticos', desc: 'Libera el estrés y equilibra cuerpo y mente.', cat: 'masajes-terapeuticos' },
+  { name: 'Desintoxicación Iónica', desc: 'Elimina toxinas y reactiva tu energía.', cat: 'desintoxicantes' },
+  { name: 'Cuidado Facial', desc: 'Tratamientos faciales para una piel radiante.', cat: 'cuidado-facial-spa' },
+  { name: 'Depilación', desc: 'Piel suave con técnicas profesionales.', cat: 'depilacion' },
+  { name: 'Pestañas & Cejas', desc: 'Transforma y resalta tu mirada.', cat: 'pestanas-cejas' },
+  { name: 'Tratamientos Corporales', desc: 'Moldea y renueva tu figura.', cat: 'tratamientos-corporales' },
+]
+
+document.getElementById('svoGrid').innerHTML = overviewData.map((s, i) => `
+  <div class="svo-item fu" style="transition-delay:${(i % 4) * 0.08}s"
+       onclick="window.location='categoria.html?cat=${s.cat}'">
+    <h4>${s.name}</h4>
+    <p>${s.desc}</p>
+  </div>
+`).join('')
+
+/* Gallery — use existing images from different categories */
+const galleryImgs = [
+  { src: 'images/manicure-pedicure/manicure-express.jpeg', alt: 'Zona de manicure' },
+  { src: 'images/pestanas-cejas/pestanas-cejas-hero.jpeg', alt: 'Zona de pestañas' },
+  { src: 'images/cuidado-facial-spa/cuidado-facial-spa-hero.jpeg', alt: 'Zona de tratamientos faciales' },
+]
+
+document.getElementById('galleryGrid').innerHTML = galleryImgs.map(g => `
+  <img src="${g.src}" alt="${g.alt}" loading="lazy" class="fu" />
+`).join('')
+
+initShared()
+</script>
+</body>
+</html>

@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gift Cards — Spa Infinity | Centro Podológico & Spa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ═══ GIFT CARD PAGE — REDESIGN ═══ */
+
+/* ── HERO ─────────────────────────── */
+.gc-hero {
+  background: linear-gradient(160deg, var(--cream) 0%, var(--gold-pale) 50%, var(--cream) 100%);
+  text-align: center;
+  padding: 110px 24px 50px;
+  position: relative;
+  overflow: hidden;
+}
+.gc-hero::before {
+  content: '∞';
+  position: absolute;
+  font-family: 'Playfair Display', serif;
+  font-size: 28rem;
+  color: rgba(197,164,103,0.04);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.gc-hero .tag { display: block; margin-bottom: 14px; position: relative; }
+.gc-hero h1 {
+  font-size: clamp(2.8rem, 5.5vw, 4.5rem);
+  line-height: 1.08;
+  margin-bottom: 18px;
+  position: relative;
+}
+.gc-hero h1 em { font-style: italic; color: var(--gold); font-weight: 400; }
+.gc-hero p {
+  max-width: 500px;
+  margin: 0 auto;
+  font-size: 0.9rem;
+  color: var(--mid);
+  line-height: 1.85;
+  font-weight: 300;
+  position: relative;
+}
+
+/* ── STEPS BAR ────────────────────── */
+.gc-steps-bar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  position: sticky;
+  top: 72px;
+  z-index: 40;
+}
+.gc-steps-inner {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+}
+.gc-step-ind {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 12px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--light);
+  position: relative;
+  transition: color 0.4s;
+  cursor: default;
+}
+.gc-step-ind::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: transparent;
+  transition: background 0.4s;
+}
+.gc-step-ind.active { color: var(--gold-d); }
+.gc-step-ind.active::after { background: var(--gold); }
+.gc-step-ind.done { color: var(--gold); }
+.gc-step-ind.done::after { background: var(--gold-pale); }
+.gc-step-num {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem;
+  transition: all 0.4s;
+  flex-shrink: 0;
+}
+.gc-step-ind.active .gc-step-num {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--white);
+}
+.gc-step-ind.done .gc-step-num {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: var(--white);
+}
+
+/* ── LAYOUT ───────────────────────── */
+.gc-main { background: var(--cream-2); min-height: 70vh; }
+.gc-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 24px 100px;
+}
+.gc-panel {
+  display: none;
+  animation: gcSlideIn 0.5s cubic-bezier(0.25,0.8,0.25,1);
+}
+.gc-panel.active { display: block; }
+@keyframes gcSlideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── STEP 1: SELECT ───────────────── */
+.gc-step1-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.gc-step1-header h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  color: var(--dark);
+  margin-bottom: 8px;
+}
+.gc-step1-header p {
+  font-size: 0.82rem;
+  color: var(--mid);
+}
+
+/* Category selector */
+.gc-cat-select-wrap {
+  max-width: 400px;
+  margin: 0 auto 32px;
+  position: relative;
+}
+.gc-cat-select {
+  width: 100%;
+  padding: 14px 44px 14px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dark);
+  background: var(--white);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  outline: none;
+}
+.gc-cat-select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(197,164,103,0.1);
+}
+.gc-cat-select-wrap::after {
+  content: '';
+  position: absolute;
+  right: 18px; top: 50%;
+  transform: translateY(-50%);
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--gold);
+  pointer-events: none;
+}
+
+/* Service list */
+.gc-svc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 40px;
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.gc-svc-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px 10px 10px;
+  background: var(--white);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.gc-svc-item:hover {
+  border-color: var(--gold);
+  box-shadow: 0 4px 16px rgba(197,164,103,0.08);
+}
+.gc-svc-item.selected {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, var(--gold-pale) 0%, var(--white) 100%);
+}
+.gc-svc-item-img {
+  width: 64px; height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.gc-svc-check {
+  width: 20px; height: 20px;
+  border-radius: 5px;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s;
+}
+.gc-svc-item.selected .gc-svc-check {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+.gc-svc-item.selected .gc-svc-check::after {
+  content: '✓';
+  color: var(--white);
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+.gc-svc-info {
+  flex: 1; min-width: 0;
+}
+.gc-svc-item-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+.gc-svc-item-dur {
+  font-size: 0.68rem;
+  color: var(--light);
+  font-weight: 500;
+}
+.gc-svc-item-price {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--gold-d);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Multi-select total bar */
+.gc-total-bar {
+  max-width: 640px;
+  margin: 0 auto 16px;
+  padding: 14px 20px;
+  background: var(--white);
+  border: 1px solid var(--gold-pale);
+  border-radius: 10px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gc-total-bar.show { display: flex; }
+.gc-total-count {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--dark);
+}
+.gc-total-count span { color: var(--gold-d); }
+.gc-total-amount {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gold-d);
+}
+
+/* ── STEP 2: SPLIT LAYOUT ─────────── */
+.gc-split {
+  display: grid;
+  grid-template-columns: 1fr 480px;
+  gap: 48px;
+  align-items: start;
+}
+.gc-form-panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 36px;
+}
+.gc-form-panel h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  color: var(--dark);
+  margin-bottom: 6px;
+}
+.gc-form-panel > p {
+  font-size: 0.78rem;
+  color: var(--mid);
+  margin-bottom: 28px;
+}
+.gc-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.gc-form-grid .full { grid-column: 1 / -1; }
+.gc-field { display: flex; flex-direction: column; gap: 6px; }
+.gc-field label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dark);
+}
+.gc-field input,
+.gc-field textarea {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.85rem;
+  color: var(--dark);
+  transition: border-color 0.3s, box-shadow 0.3s;
+  background: var(--white);
+  outline: none;
+}
+.gc-field input:focus,
+.gc-field textarea:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(197,164,103,0.1);
+}
+.gc-field textarea { resize: vertical; min-height: 90px; }
+.gc-field .hint {
+  font-size: 0.65rem;
+  color: var(--light);
+  font-style: italic;
+}
+
+/* Live preview sidebar */
+.gc-live-preview {
+  position: sticky;
+  top: 140px;
+}
+.gc-live-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--light);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* ── GIFT CARD VISUAL (credit card shape + ribbon) ── */
+.gc-card {
+  aspect-ratio: 1.5 / 1;
+  background:
+    linear-gradient(135deg, #d4b96a 0%, #c9a84e 20%, #e2cb7d 40%, #c5a050 55%, #b8943f 70%, #d4b868 85%, #c0993a 100%);
+  border-radius: 14px;
+  padding: 30px 32px 22px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 20px 50px rgba(140,115,50,0.25),
+    0 0 0 1px rgba(197,164,103,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  text-align: left;
+  transition: transform 0.6s cubic-bezier(0.25,0.8,0.25,1), box-shadow 0.6s;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.gc-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 30px 60px rgba(140,115,50,0.3), 0 0 0 1px rgba(197,164,103,0.3);
+}
+
+/* Sparkle dots */
+.gc-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle 2px at 15% 20%, rgba(255,255,255,0.45) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 45% 12%, rgba(255,255,255,0.35) 0%, transparent 100%),
+    radial-gradient(circle 2px at 75% 30%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(circle 1px at 25% 55%, rgba(255,255,255,0.25) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 85% 65%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(circle 2px at 55% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+    radial-gradient(circle 1px at 35% 75%, rgba(255,255,255,0.25) 0%, transparent 100%),
+    radial-gradient(circle 1.5px at 65% 45%, rgba(255,255,255,0.3) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Diagonal ribbon */
+.gc-card::after {
+  content: '';
+  position: absolute;
+  width: 160%;
+  height: 28px;
+  background: linear-gradient(90deg,
+    rgba(180,145,55,0.6) 0%,
+    rgba(220,190,100,0.8) 20%,
+    rgba(255,225,140,0.9) 50%,
+    rgba(220,190,100,0.8) 80%,
+    rgba(180,145,55,0.6) 100%
+  );
+  top: 50%;
+  left: -30%;
+  transform: rotate(-25deg);
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.gc-card > * { position: relative; z-index: 3; }
+
+/* Logo on card */
+.gc-card-logo-img {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 4;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: rgba(255,255,255,0.85);
+  padding: 4px;
+  box-shadow: 0 4px 16px rgba(100,80,20,0.25);
+  border: 2px solid rgba(197,164,103,0.4);
+}
+
+/* Top section */
+.gc-card-top {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  margin-bottom: auto;
+}
+.gc-card-right {
+  text-align: right;
+}
+.gc-card-tag {
+  font-size: 0.5rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.gc-card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.15;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.gc-card-virtual {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1rem;
+  color: rgba(255,255,255,0.8);
+}
+
+/* Bottom section */
+.gc-card-bottom {
+  margin-top: auto;
+}
+.gc-card-service {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 2px;
+  line-height: 1.2;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.gc-card-amount {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.gc-card-msg {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.gc-card-names {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 8px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+.gc-card-names .label {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.45);
+  display: block;
+}
+.gc-card-names .name {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+}
+.gc-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.gc-card-footer .url {
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.5);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.gc-card-footer .validity {
+  font-size: 0.5rem;
+  color: rgba(255,255,255,0.35);
+  text-align: right;
+  line-height: 1.4;
+}
+.gc-card-footer .code {
+  font-size: 0.45rem;
+  letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.2);
+  display: block;
+}
+
+/* Hide old centered elements */
+.gc-card-logo { display: none; }
+.gc-card-divider { display: none; }
+
+/* Selected service summary below card */
+.gc-selected-summary {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.gc-selected-summary img {
+  width: 48px; height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.gc-selected-summary .info { flex: 1; min-width: 0; }
+.gc-selected-summary .info h4 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--dark);
+  margin-bottom: 2px;
+}
+.gc-selected-summary .info span {
+  font-size: 0.68rem;
+  color: var(--light);
+}
+.gc-selected-summary .price {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--gold-d);
+  flex-shrink: 0;
+}
+
+/* ── BUTTONS ──────────────────────── */
+.gc-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 36px;
+}
+.gc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 14px 36px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.25,0.8,0.25,1);
+  text-decoration: none;
+}
+.gc-btn-gold {
+  background: var(--gold-d);
+  color: var(--white);
+}
+.gc-btn-gold:hover {
+  background: var(--dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(26,36,54,0.2);
+}
+.gc-btn-gold:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.gc-btn-outline {
+  background: transparent;
+  color: var(--mid);
+  border: 1px solid var(--border);
+}
+.gc-btn-outline:hover { border-color: var(--gold); color: var(--gold-d); }
+.gc-btn-pay {
+  background: var(--gold-d);
+  color: var(--white);
+  padding: 16px 48px;
+  font-size: 0.78rem;
+  border-radius: 8px;
+}
+.gc-btn-pay:hover {
+  background: var(--dark);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(26,36,54,0.25);
+}
+
+/* ── STEP 3 REVIEW ────────────────── */
+.gc-review-layout {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: center;
+}
+.gc-review-layout h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  margin-bottom: 6px;
+}
+.gc-review-layout > p {
+  font-size: 0.82rem;
+  color: var(--mid);
+  margin-bottom: 32px;
+}
+
+/* ── SUCCESS ──────────────────────── */
+.gc-success {
+  text-align: center;
+  padding: 80px 24px;
+  display: none;
+}
+.gc-success.show { display: block; }
+.gc-success-icon {
+  width: 88px; height: 88px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold) 0%, var(--gold-d) 100%);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 28px;
+  font-size: 2.2rem;
+  color: var(--white);
+  box-shadow: 0 12px 32px rgba(197,164,103,0.3);
+}
+.gc-success h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 2rem;
+  margin-bottom: 14px;
+}
+.gc-success p {
+  max-width: 420px;
+  margin: 0 auto 36px;
+  font-size: 0.88rem;
+  color: var(--mid);
+  line-height: 1.8;
+}
+
+/* ── FEATURES ─────────────────────── */
+.gc-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 900px;
+  margin: 60px auto 0;
+  padding-top: 60px;
+  border-top: 1px solid var(--border);
+}
+.gc-feature {
+  text-align: center;
+  padding: 28px 20px;
+}
+.gc-feature-icon {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--gold-pale);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+  font-size: 1.3rem;
+}
+.gc-feature h4 {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  color: var(--dark);
+  margin-bottom: 6px;
+}
+.gc-feature p {
+  font-size: 0.75rem;
+  color: var(--mid);
+  line-height: 1.7;
+}
+
+/* ── RESPONSIVE ───────────────────── */
+@media (max-width: 900px) {
+  .gc-split {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .gc-live-preview { position: static; order: -1; max-width: 480px; margin: 0 auto; }
+  .gc-form-grid { grid-template-columns: 1fr; }
+  .gc-features { grid-template-columns: 1fr; gap: 0; }
+}
+@media (max-width: 600px) {
+  .gc-svc-item { padding: 8px 12px 8px 8px; gap: 10px; }
+  .gc-svc-item-img { width: 52px; height: 52px; }
+  .gc-svc-item-name { font-size: 0.8rem; }
+  .gc-svc-item-price { font-size: 0.9rem; }
+  .gc-step-ind span:not(.gc-step-num) { display: none; }
+  .gc-card { padding: 20px 18px 16px; }
+  .gc-card-amount { font-size: 1.4rem; }
+  .gc-card-title { font-size: 1.1rem; }
+  .gc-card-service { font-size: 0.9rem; }
+  .gc-card-logo-img { width: 60px; height: 60px; top: 8px; left: 10px; }
+  .gc-form-panel { padding: 24px 20px; }
+  .gc-actions { flex-direction: column; align-items: stretch; text-align: center; }
+}
+</style>
+</head>
+<body class="pt-nav">
+
+<div id="navContainer"></div>
+
+<!-- HERO -->
+<section class="gc-hero">
+  <span class="tag fu">El regalo perfecto</span>
+  <h1 class="fu">Regala <em>Bienestar</em></h1>
+  <p class="fu">Elige un servicio, personaliza tu mensaje y regala una experiencia de spa inolvidable.</p>
+</section>
+
+<!-- STEPS BAR -->
+<div class="gc-steps-bar">
+  <div class="gc-steps-inner">
+    <div class="gc-step-ind active" data-step="1">
+      <span class="gc-step-num">1</span>
+      <span>Elige Servicio</span>
+    </div>
+    <div class="gc-step-ind" data-step="2">
+      <span class="gc-step-num">2</span>
+      <span>Personaliza</span>
+    </div>
+    <div class="gc-step-ind" data-step="3">
+      <span class="gc-step-num">3</span>
+      <span>Revisa y Paga</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="gc-main">
+  <div class="gc-container">
+
+    <!-- ═══ STEP 1 — Select Service ═══ -->
+    <div class="gc-panel active" id="gcStep1">
+      <div class="gc-step1-header">
+        <h2>¿Qué servicio quieres regalar?</h2>
+        <p>Elige una categoría y selecciona el servicio perfecto para regalar</p>
+      </div>
+      <div class="gc-cat-select-wrap">
+        <select class="gc-cat-select" id="gcCatSelect"></select>
+      </div>
+      <div class="gc-total-bar" id="gcTotalBar">
+        <span class="gc-total-count"><span id="gcTotalCount">0</span> servicios seleccionados</span>
+        <span class="gc-total-amount" id="gcTotalAmount">$0</span>
+      </div>
+      <div class="gc-svc-list" id="gcSvcList"></div>
+      <div class="gc-actions">
+        <button class="gc-btn gc-btn-gold" id="gcNext1" disabled onclick="goStep(2)">Siguiente →</button>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 2 — Personalize (split) ═══ -->
+    <div class="gc-panel" id="gcStep2">
+      <div class="gc-split">
+        <!-- Form -->
+        <div class="gc-form-panel">
+          <h2>Personaliza tu regalo</h2>
+          <p>Completa los datos para crear la Gift Card personalizada</p>
+          <div class="gc-form-grid">
+            <div class="gc-field">
+              <label for="gcFrom">De (tu nombre)</label>
+              <input type="text" id="gcFrom" placeholder="Tu nombre" oninput="liveUpdate()" />
+            </div>
+            <div class="gc-field">
+              <label for="gcFromEmail">Tu email</label>
+              <input type="email" id="gcFromEmail" placeholder="tu@email.com" />
+              <span class="hint">Recibirás el comprobante aquí</span>
+            </div>
+            <div class="gc-field">
+              <label for="gcTo">Para (destinatario)</label>
+              <input type="text" id="gcTo" placeholder="Nombre de quien recibe" oninput="liveUpdate()" />
+            </div>
+            <div class="gc-field">
+              <label for="gcToEmail">Email destinatario</label>
+              <input type="email" id="gcToEmail" placeholder="destinatario@email.com" />
+              <span class="hint">Enviaremos la Gift Card aquí</span>
+            </div>
+            <div class="gc-field full">
+              <label for="gcMsg">Mensaje personal (opcional)</label>
+              <textarea id="gcMsg" placeholder="Escribe un mensaje especial..." oninput="liveUpdate()"></textarea>
+            </div>
+          </div>
+          <div class="gc-actions" style="justify-content:flex-start">
+            <button class="gc-btn gc-btn-outline" onclick="goStep(1)">← Volver</button>
+            <button class="gc-btn gc-btn-gold" onclick="goStep(3)">Revisar →</button>
+          </div>
+        </div>
+
+        <!-- Live Preview -->
+        <div class="gc-live-preview">
+          <div class="gc-live-label">Vista previa en vivo</div>
+          <div class="gc-card" id="gcCardLive">
+            <!-- Logo -->
+            <img class="gc-card-logo-img" src="images/logo.webp" alt="Spa Infinity" />
+            <!-- Top -->
+            <div class="gc-card-top">
+              <div class="gc-card-right">
+                <div class="gc-card-tag">TARJETA DE REGALO</div>
+                <div class="gc-card-title">Gift Card<br><span class="gc-card-virtual">Virtual</span></div>
+              </div>
+            </div>
+            <!-- Bottom -->
+            <div class="gc-card-bottom">
+              <div class="gc-card-service" id="gcLiveSvc">—</div>
+              <div class="gc-card-amount" id="gcLiveAmt">—</div>
+              <div class="gc-card-msg" id="gcLiveMsg" style="display:none"></div>
+              <div class="gc-card-names">
+                <div><span class="label">De:</span><span class="name" id="gcLiveFrom">—</span></div>
+                <div><span class="label">Para:</span><span class="name" id="gcLiveTo">—</span></div>
+              </div>
+              <div class="gc-card-footer">
+                <span class="url">spainfinity.cl</span>
+                <div class="validity">
+                  <span id="gcLiveExpiry">Válido 45 días</span>
+                  <span class="code" id="gcLiveCode"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Selected service summary -->
+          <div class="gc-selected-summary" id="gcSelectedSummary" style="display:none">
+            <img id="gcSumImg" src="" alt="" />
+            <div class="info">
+              <h4 id="gcSumName">—</h4>
+              <span id="gcSumDur">—</span>
+            </div>
+            <span class="price" id="gcSumPrice">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 3 — Review & Pay ═══ -->
+    <div class="gc-panel" id="gcStep3">
+      <div class="gc-review-layout">
+        <h2>Todo listo para regalar</h2>
+        <p>Revisa los detalles de tu Gift Card antes de proceder al pago</p>
+
+        <!-- Card clone -->
+        <div class="gc-card" id="gcCardFinal">
+          <!-- Logo -->
+          <img class="gc-card-logo-img" src="images/logo.webp" alt="Spa Infinity" />
+          <!-- Top -->
+          <div class="gc-card-top">
+            <div class="gc-card-right">
+              <div class="gc-card-tag">TARJETA DE REGALO</div>
+              <div class="gc-card-title">Gift Card<br><span class="gc-card-virtual">Virtual</span></div>
+            </div>
+          </div>
+          <!-- Bottom -->
+          <div class="gc-card-bottom">
+            <div class="gc-card-service" id="gcFinalSvc">—</div>
+            <div class="gc-card-amount" id="gcFinalAmt">—</div>
+            <div class="gc-card-msg" id="gcFinalMsg" style="display:none"></div>
+            <div class="gc-card-names">
+              <div><span class="label">De:</span><span class="name" id="gcFinalFrom">—</span></div>
+              <div><span class="label">Para:</span><span class="name" id="gcFinalTo">—</span></div>
+            </div>
+            <div class="gc-card-footer">
+              <span class="url">spainfinity.cl</span>
+              <div class="validity">
+                <span id="gcFinalExpiry">—</span>
+                <span class="code" id="gcFinalCode"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gc-actions" style="margin-top:32px">
+          <button class="gc-btn gc-btn-outline" onclick="goStep(2)">← Editar</button>
+          <button class="gc-btn gc-btn-pay" id="gcPayBtn" onclick="processPayment()">Pagar ahora</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SUCCESS ═══ -->
+    <div class="gc-success" id="gcSuccess">
+      <div class="gc-success-icon">✓</div>
+      <h2>¡Gift Card Enviada!</h2>
+      <p>Tu regalo ha sido enviado exitosamente. El destinatario recibirá un email con su Gift Card y todos los detalles para agendar su cita.</p>
+      <div class="gc-actions">
+        <a href="giftcard.html" class="gc-btn gc-btn-gold">Comprar otra Gift Card</a>
+        <a href="index.html" class="gc-btn gc-btn-outline">Volver al inicio</a>
+      </div>
+    </div>
+
+    <!-- Features -->
+    <div class="gc-features" id="gcFeatures">
+      <div class="gc-feature">
+        <div class="gc-feature-icon">🎁</div>
+        <h4>Entrega digital</h4>
+        <p>La Gift Card se envía directo al email del destinatario con un diseño elegante.</p>
+      </div>
+      <div class="gc-feature">
+        <div class="gc-feature-icon">⏱</div>
+        <h4>45 días de validez</h4>
+        <p>Tu regalo puede ser canjeado durante 45 días desde la fecha de compra.</p>
+      </div>
+      <div class="gc-feature">
+        <div class="gc-feature-icon">💳</div>
+        <h4>Pago seguro</h4>
+        <p>Procesamos tu pago de forma segura a través de Flow con múltiples medios de pago.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div id="footerContainer"></div>
+<div id="floatingContainer"></div>
+
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('Gift Cards')
+document.getElementById('footerContainer').innerHTML = renderFooter()
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+initShared()
+
+let selectedServices = []
+let selectedCategory = null
+let gcCode = ''
+
+/* ── Category select ──────────────── */
+const gcCatSelect = document.getElementById('gcCatSelect')
+gcCatSelect.innerHTML = CATEGORIES.map(cat =>
+  `<option value="${cat.id}">${cat.name} (${cat.services.length})</option>`
+).join('')
+
+gcCatSelect.addEventListener('change', () => renderServices(gcCatSelect.value))
+
+/* ── Render services ──────────────── */
+function renderServices(catId) {
+  const cat = getCategoryById(catId)
+  if (!cat) return
+  selectedCategory = cat
+
+  document.getElementById('gcSvcList').innerHTML = cat.services.map(svc => `
+    <div class="gc-svc-item${selectedServices.some(s => s.id === svc.id) ? ' selected' : ''}"
+         data-id="${svc.id}" onclick="toggleService('${svc.id}')">
+      <img class="gc-svc-item-img" src="${svc.img}" alt="${svc.name}" loading="lazy" />
+      <div class="gc-svc-info">
+        <div class="gc-svc-item-name">${svc.name}</div>
+        <div class="gc-svc-item-dur">${svc.duration}</div>
+      </div>
+      <span class="gc-svc-item-price">${svc.price}</span>
+      <div class="gc-svc-check"></div>
+    </div>
+  `).join('')
+}
+
+/* ── Toggle service (multi-select) ── */
+function toggleService(svcId) {
+  const idx = selectedServices.findIndex(s => s.id === svcId)
+  if (idx > -1) {
+    selectedServices.splice(idx, 1)
+  } else {
+    const result = getServiceById(svcId)
+    if (result) selectedServices.push(result.service)
+  }
+
+  // Update visual
+  document.querySelectorAll('.gc-svc-item').forEach(c =>
+    c.classList.toggle('selected', selectedServices.some(s => s.id === c.dataset.id))
+  )
+
+  // Update total bar
+  const totalBar = document.getElementById('gcTotalBar')
+  const count = selectedServices.length
+  if (count > 0) {
+    totalBar.classList.add('show')
+    document.getElementById('gcTotalCount').textContent = count
+    const total = selectedServices.reduce((sum, s) => {
+      const num = parseInt(s.price.replace(/[^0-9]/g, ''))
+      return sum + num
+    }, 0)
+    document.getElementById('gcTotalAmount').textContent = '$' + total.toLocaleString('es-CL')
+  } else {
+    totalBar.classList.remove('show')
+  }
+
+  document.getElementById('gcNext1').disabled = count === 0
+
+  // Update live preview with first selected
+  if (count > 0) {
+    const first = selectedServices[0]
+    document.getElementById('gcLiveSvc').textContent = count > 1
+      ? `${first.name} + ${count - 1} más`
+      : first.name
+    const total = selectedServices.reduce((sum, s) => sum + parseInt(s.price.replace(/[^0-9]/g, '')), 0)
+    document.getElementById('gcLiveAmt').textContent = '$' + total.toLocaleString('es-CL')
+
+    const sum = document.getElementById('gcSelectedSummary')
+    sum.style.display = 'flex'
+    document.getElementById('gcSumImg').src = first.img
+    document.getElementById('gcSumName').textContent = count > 1 ? `${count} servicios` : first.name
+    document.getElementById('gcSumDur').textContent = count > 1
+      ? selectedServices.map(s => s.name).join(', ')
+      : first.duration
+    document.getElementById('gcSumPrice').textContent = '$' + total.toLocaleString('es-CL')
+  } else {
+    document.getElementById('gcLiveSvc').textContent = '—'
+    document.getElementById('gcLiveAmt').textContent = '—'
+    document.getElementById('gcSelectedSummary').style.display = 'none'
+  }
+}
+
+/* ── Live update ──────────────────── */
+function liveUpdate() {
+  const from = document.getElementById('gcFrom').value.trim()
+  const to = document.getElementById('gcTo').value.trim()
+  const msg = document.getElementById('gcMsg').value.trim()
+
+  document.getElementById('gcLiveFrom').textContent = from || '—'
+  document.getElementById('gcLiveTo').textContent = to || '—'
+
+  const msgEl = document.getElementById('gcLiveMsg')
+  if (msg) {
+    msgEl.textContent = `"${msg}"`
+    msgEl.style.display = 'block'
+  } else {
+    msgEl.style.display = 'none'
+  }
+}
+
+/* ── Step navigation ──────────────── */
+function goStep(step) {
+  if (step === 2 && selectedServices.length === 0) return
+  if (step === 3) {
+    if (!validateStep2()) return
+    buildFinalPreview()
+  }
+
+  document.querySelectorAll('.gc-panel').forEach(p => p.classList.remove('active'))
+  document.getElementById(`gcStep${step}`).classList.add('active')
+
+  document.querySelectorAll('.gc-step-ind').forEach(ind => {
+    const s = parseInt(ind.dataset.step)
+    ind.classList.remove('active', 'done')
+    if (s === step) ind.classList.add('active')
+    if (s < step) ind.classList.add('done')
+  })
+
+  // Hide features on step 2+
+  document.getElementById('gcFeatures').style.display = step === 1 ? '' : 'none'
+
+  window.scrollTo({ top: 200, behavior: 'smooth' })
+}
+
+function validateStep2() {
+  const from = document.getElementById('gcFrom').value.trim()
+  const fromEmail = document.getElementById('gcFromEmail').value.trim()
+  const to = document.getElementById('gcTo').value.trim()
+  const toEmail = document.getElementById('gcToEmail').value.trim()
+
+  if (!from || !fromEmail || !to || !toEmail) {
+    alert('Por favor completa todos los campos obligatorios.')
+    return false
+  }
+  if (!fromEmail.includes('@') || !toEmail.includes('@')) {
+    alert('Por favor ingresa emails válidos.')
+    return false
+  }
+  return true
+}
+
+/* ── Build final preview ──────────── */
+function buildFinalPreview() {
+  const from = document.getElementById('gcFrom').value.trim()
+  const to = document.getElementById('gcTo').value.trim()
+  const msg = document.getElementById('gcMsg').value.trim()
+
+  const expiry = new Date()
+  expiry.setDate(expiry.getDate() + 45)
+  const expiryStr = expiry.toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' })
+  const today = new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })
+
+  gcCode = 'GC-' + Date.now().toString(36).toUpperCase().slice(-6) + Math.random().toString(36).toUpperCase().slice(-3)
+
+  const total = selectedServices.reduce((sum, s) => sum + parseInt(s.price.replace(/[^0-9]/g, '')), 0)
+  document.getElementById('gcFinalSvc').textContent = selectedServices.length > 1
+    ? selectedServices.map(s => s.name).join(' · ')
+    : selectedServices[0].name
+  document.getElementById('gcFinalAmt').textContent = '$' + total.toLocaleString('es-CL')
+  document.getElementById('gcFinalFrom').textContent = from
+  document.getElementById('gcFinalTo').textContent = to
+  document.getElementById('gcFinalExpiry').textContent = `${today} — ${expiryStr}`
+  document.getElementById('gcFinalCode').textContent = gcCode
+
+  const msgEl = document.getElementById('gcFinalMsg')
+  if (msg) {
+    msgEl.textContent = `"${msg}"`
+    msgEl.style.display = 'block'
+  } else {
+    msgEl.style.display = 'none'
+  }
+}
+
+/* ── Payment ──────────────────────── */
+function processPayment() {
+  const payBtn = document.getElementById('gcPayBtn')
+  payBtn.disabled = true
+  payBtn.textContent = 'CONECTANDO...'
+
+  const total = selectedServices.reduce((sum, s) => sum + parseInt(s.price.replace(/[^0-9]/g, '')), 0)
+  const orderData = {
+    services: selectedServices.map(s => ({ name: s.name, price: s.price, duration: s.duration })),
+    total: '$' + total.toLocaleString('es-CL'),
+    from: document.getElementById('gcFrom').value.trim(),
+    fromEmail: document.getElementById('gcFromEmail').value.trim(),
+    to: document.getElementById('gcTo').value.trim(),
+    toEmail: document.getElementById('gcToEmail').value.trim(),
+    message: document.getElementById('gcMsg').value.trim(),
+    code: gcCode,
+  }
+
+  fetch('/api/create-payment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(orderData)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success && data.paymentUrl) {
+      window.location.href = data.paymentUrl
+    } else {
+      throw new Error(data.error || 'Error al crear el pago')
+    }
+  })
+  .catch(err => {
+    console.error('Payment error:', err)
+    alert('Error al procesar el pago: ' + err.message)
+    payBtn.disabled = false
+    payBtn.textContent = 'Pagar ahora'
+  })
+}
+
+function showSuccess() {
+  document.querySelectorAll('.gc-panel').forEach(p => p.classList.remove('active'))
+  document.getElementById('gcSuccess').classList.add('show')
+  document.querySelectorAll('.gc-step-ind').forEach(ind => ind.classList.add('done'))
+  document.getElementById('gcFeatures').style.display = 'none'
+  window.scrollTo({ top: 200, behavior: 'smooth' })
+}
+
+/* ── Auto-select from URL ─────────── */
+const preselectedSvc = new URLSearchParams(location.search).get('svc')
+if (preselectedSvc) {
+  const result = getServiceById(preselectedSvc)
+  if (result) {
+    gcCatSelect.value = result.category.id
+    renderServices(result.category.id)
+    toggleService(preselectedSvc)
+    goStep(2)
+  } else {
+    renderServices(CATEGORIES[0].id)
+  }
+} else {
+  renderServices(CATEGORIES[0].id)
+}
+
+/* ── Handle return from Flow ──────── */
+const urlStatus = new URLSearchParams(location.search).get('status')
+if (urlStatus === 'success') {
+  document.querySelector('.gc-hero').style.display = 'none'
+  document.querySelector('.gc-steps-bar').style.display = 'none'
+  showSuccess()
+} else if (urlStatus === 'failed' || urlStatus === 'error') {
+  document.querySelector('.gc-hero').innerHTML = `
+    <span class="tag">Gift Card</span>
+    <h1>Pago <em>no completado</em></h1>
+    <p>El pago no pudo ser procesado. Puedes intentarlo nuevamente o contactarnos.</p>
+    <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="giftcard.html" class="gc-btn gc-btn-gold">Intentar nuevamente</a>
+      <a href="https://wa.me/56986688771" target="_blank" class="gc-btn gc-btn-outline">Contactar por WhatsApp</a>
+    </div>
+  `
+  document.querySelector('.gc-steps-bar').style.display = 'none'
+  document.querySelector('.gc-main').style.display = 'none'
+}
+
+/* ── Scroll animations ────────────── */
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis') })
+}, { threshold: 0.07, rootMargin: '0px 0px -20px 0px' })
+document.querySelectorAll('.fu').forEach(el => obs.observe(el))
+</script>
+</body>
+</html>

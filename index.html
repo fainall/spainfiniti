@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spa Infinity ∞ — Centro Podológico & Spa | Santiago</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ── CATEGORY WHEEL (HERO) ─────────────────── */
+.category-wheel-section {
+  width: 100%;
+  position: relative;
+  background: linear-gradient(180deg, #c4a96c 0%, #B89B5E 40%, #a8894f 100%);
+  overflow: hidden;
+  margin-top: 72px;
+}
+
+/* Badge */
+.center-badge-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.wheel-badge {
+  width: 130px;
+  height: 130px;
+  background: var(--white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+  position: relative;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+.wheel-badge:hover {
+  transform: scale(1.08);
+  box-shadow: 0 14px 60px rgba(0,0,0,0.35);
+}
+
+.badge-arrow {
+  color: var(--gold);
+  font-size: 2rem;
+  font-weight: 300;
+  transition: transform 0.3s ease;
+}
+.wheel-badge:hover .badge-arrow { transform: translateX(4px); }
+
+.badge-text-svg {
+  position: absolute;
+  top: 5px; left: 5px;
+  width: 120px; height: 120px;
+  animation: spin 15s linear infinite;
+}
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* Swiper */
+.swiper {
+  width: 100%;
+  height: 92vh;
+  min-height: 600px;
+  max-height: 860px;
+}
+
+.swiper-slide {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  cursor: pointer;
+  transition: opacity 0.5s ease;
+}
+
+/* Image */
+.slide-img-wrapper {
+  height: 58%;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  background: var(--navy);
+}
+
+.slide-img-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(26,36,54,0.1) 0%, rgba(26,36,54,0.05) 60%, rgba(184,155,94,0.4) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.slide-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.3;
+  transform: scale(1.15);
+  filter: saturate(0.6);
+  transition: all 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Text area */
+.slide-text-wrapper {
+  flex-grow: 1;
+  width: 100%;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10%;
+  text-align: center;
+  position: relative;
+  z-index: 10;
+}
+
+/* Polygon */
+.poly-highlight {
+  position: absolute;
+  top: -50px;
+  bottom: -10px;
+  left: 3%;
+  right: 3%;
+  background: linear-gradient(180deg, #9a7f42 0%, #A3854E 100%);
+  clip-path: polygon(0% 10%, 50% 0%, 100% 10%, 100% 90%, 50% 100%, 0% 90%);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: all 0.7s cubic-bezier(0.25, 0.8, 0.25, 1);
+  z-index: -1;
+  box-shadow: 0 20px 50px rgba(26, 36, 54, 0.5);
+}
+
+.poly-highlight::after {
+  content: '';
+  position: absolute;
+  top: 8px; left: 8px; right: 8px; bottom: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  clip-path: polygon(0% 10%, 50% 0%, 100% 10%, 100% 90%, 50% 100%, 0% 90%);
+}
+
+/* Content */
+.slide-content {
+  opacity: 0.4;
+  transform: translateY(24px);
+  transition: all 0.7s cubic-bezier(0.25, 0.8, 0.25, 1);
+  color: rgba(255,255,255,0.7);
+}
+
+.cat-subtitle {
+  font-family: 'Montserrat', sans-serif;
+  font-size: clamp(0.55rem, 0.9vw, 0.7rem);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-bottom: 14px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.cat-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 700;
+  line-height: 1.2;
+  transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  padding-bottom: 0;
+}
+
+/* Active slide */
+.swiper-slide-active .slide-img-wrapper img {
+  opacity: 1;
+  transform: scale(1);
+  filter: saturate(1);
+}
+.swiper-slide-active .poly-highlight {
+  opacity: 1;
+  transform: scale(1);
+}
+.swiper-slide-active .slide-content {
+  opacity: 1;
+  transform: translateY(0);
+  color: var(--white);
+}
+
+.swiper-slide-active .cat-subtitle {
+  opacity: 1;
+  letter-spacing: 4px;
+}
+
+.swiper-slide-active .cat-title {
+  font-size: clamp(1.5rem, 3.5vw, 2.4rem);
+  padding-bottom: 24px;
+  font-weight: 700;
+}
+
+.swiper-slide-active .cat-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 60px; height: 2px;
+  background: rgba(255,255,255,0.6);
+  border-radius: 1px;
+}
+
+/* Arrows */
+.swiper-button-next, .swiper-button-prev {
+  color: var(--white) !important;
+  background: rgba(26, 36, 54, 0.5);
+  backdrop-filter: blur(8px);
+  width: 50px !important; height: 50px !important;
+  border-radius: 50%;
+  top: 30% !important;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.swiper-button-next:hover, .swiper-button-prev:hover {
+  background: rgba(197, 164, 103, 0.9);
+  border-color: rgba(197, 164, 103, 0.5);
+  transform: scale(1.08);
+}
+.swiper-button-next::after, .swiper-button-prev::after { font-size: 1.1rem !important; font-weight: 600; }
+.swiper-button-prev { left: 16px !important; }
+.swiper-button-next { right: 16px !important; }
+
+/* ── ELEGANT UX ANIMATIONS ─────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes float {
+  0%, 100% { transform: rotate(-4deg) translateY(0); }
+  50%      { transform: rotate(-4deg) translateY(-8px); }
+}
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.reveal.vis { opacity: 1; transform: translateY(0); }
+.reveal-d1 { transition-delay: 0.15s; }
+.reveal-d2 { transition-delay: 0.3s; }
+.reveal-d3 { transition-delay: 0.45s; }
+.reveal-d4 { transition-delay: 0.6s; }
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal-scale.vis { opacity: 1; transform: scale(1); }
+
+/* ── ABOUT ─────────────────────────────────── */
+.about-sec {
+  padding: 96px 48px;
+  background: var(--white);
+  position: relative;
+  overflow: hidden;
+}
+.about-sec::before {
+  content: '∞';
+  position: absolute;
+  top: -60px; right: -40px;
+  font-family: 'Playfair Display', serif;
+  font-size: 28rem;
+  color: var(--gold-pale);
+  opacity: 0.25;
+  pointer-events: none;
+  line-height: 1;
+}
+.about-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+.about-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  display: inline-block;
+  margin-bottom: 16px;
+  position: relative;
+  padding-left: 36px;
+}
+.about-label::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  width: 24px; height: 1px;
+  background: var(--gold);
+}
+.about-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.15;
+  margin-bottom: 20px;
+}
+.about-title em { font-style: italic; color: var(--gold); font-weight: 400; }
+.about-text {
+  font-size: 0.88rem;
+  color: var(--mid);
+  line-height: 1.8;
+  margin-bottom: 32px;
+}
+.about-stats {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 32px;
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.about-stat { text-align: center; flex: 1; }
+.about-stat-num {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--gold-d);
+}
+.about-stat-lbl {
+  font-size: 0.65rem;
+  color: var(--light);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+  display: block;
+}
+.about-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--gold-d);
+  text-decoration: none;
+  padding-bottom: 2px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+.about-cta::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 1px;
+  background: var(--gold-d);
+  transform: scaleX(0.4);
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+.about-cta:hover::after { transform: scaleX(1); }
+.about-cta:hover { color: var(--gold); }
+.about-right { position: relative; }
+.about-img-grid { position: relative; height: 460px; }
+.about-img-1 {
+  position: absolute;
+  top: 0; left: 0;
+  width: 65%;
+  height: 70%;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: var(--sh-lg);
+  z-index: 2;
+  transition: transform 0.6s ease;
+}
+.about-img-1:hover { transform: scale(1.03); }
+.about-img-2 {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 55%;
+  height: 60%;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: var(--sh-md);
+  z-index: 3;
+  transition: transform 0.6s ease;
+}
+.about-img-2:hover { transform: scale(1.03); }
+.about-img-accent {
+  position: absolute;
+  top: 30px; right: 30px;
+  width: 45%;
+  height: 50%;
+  background: linear-gradient(135deg, var(--gold-pale) 0%, rgba(197,164,103,0.15) 100%);
+  border-radius: 4px;
+  z-index: 1;
+  border: 1px solid rgba(197,164,103,0.2);
+}
+
+/* ── WHY US ────────────────────────────────── */
+.why-sec {
+  padding: 96px 48px;
+  background: linear-gradient(170deg, var(--cream-2) 0%, var(--cream) 40%, var(--white) 100%);
+  position: relative;
+  overflow: hidden;
+}
+.why-sec::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--gold-l) 50%, transparent 100%);
+}
+.why-sec::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, var(--gold-l) 50%, transparent 100%);
+}
+.why-inner { max-width: 1100px; margin: 0 auto; text-align: center; }
+.why-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 16px;
+}
+.why-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.15;
+  margin-bottom: 56px;
+}
+.why-title em { font-style: italic; color: var(--gold); font-weight: 400; }
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+.why-card {
+  text-align: center;
+  padding: 40px 24px;
+  background: var(--white);
+  border: 1px solid rgba(197,164,103,0.12);
+  border-radius: 8px;
+  transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  overflow: hidden;
+}
+.why-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold-l), var(--gold), var(--gold-l));
+  transform: scaleX(0);
+  transition: transform 0.5s ease;
+}
+.why-card:hover::before { transform: scaleX(1); }
+.why-card:hover {
+  box-shadow: 0 16px 48px rgba(197,164,103,0.15);
+  transform: translateY(-8px);
+  border-color: rgba(197,164,103,0.3);
+}
+.why-icon {
+  width: 52px; height: 52px;
+  margin: 0 auto 20px;
+  color: var(--gold);
+  background: var(--gold-pale);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s ease;
+}
+.why-card:hover .why-icon {
+  background: var(--gold);
+  color: var(--white);
+  transform: scale(1.1);
+}
+.why-icon svg { width: 24px; height: 24px; }
+.why-card h3 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--dark);
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
+}
+.why-card p {
+  font-size: 0.78rem;
+  color: var(--mid);
+  line-height: 1.7;
+}
+
+/* ── FEATURED SERVICES ─────────────────────── */
+.featured-sec {
+  padding: 96px 48px;
+  background: var(--white);
+  position: relative;
+}
+.featured-inner { max-width: 1100px; margin: 0 auto; text-align: center; }
+.featured-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 16px;
+}
+.featured-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.15;
+  margin-bottom: 48px;
+}
+.featured-title em { font-style: italic; color: var(--gold); font-weight: 400; }
+.featured-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  text-align: left;
+}
+.feat-card {
+  background: var(--white);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+}
+.feat-card:hover {
+  box-shadow: 0 20px 60px rgba(197,164,103,0.18);
+  transform: translateY(-8px);
+}
+.feat-card-img {
+  width: 100%; height: 220px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.6s ease;
+}
+.feat-card:hover .feat-card-img { transform: scale(1.05); }
+.feat-card-body { padding: 24px; position: relative; }
+.feat-card-cat {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+.feat-card-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--dark);
+  margin-bottom: 8px;
+}
+.feat-card-desc {
+  font-size: 0.78rem;
+  color: var(--mid);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.feat-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.feat-card-price {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold-d);
+}
+.feat-card-dur {
+  font-size: 0.68rem;
+  color: var(--light);
+}
+.feat-card-link {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-d);
+  text-decoration: none;
+  transition: all 0.3s;
+  position: relative;
+}
+.feat-card-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 0;
+  width: 0; height: 1px;
+  background: var(--gold-d);
+  transition: width 0.3s ease;
+}
+.feat-card:hover .feat-card-link::after { width: 100%; }
+.featured-footer { margin-top: 40px; }
+.featured-all-btn {
+  display: inline-block;
+  background: var(--gold-d);
+  color: var(--white);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 16px 40px;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+.featured-all-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.6s ease;
+}
+.featured-all-btn:hover::before { left: 100%; }
+.featured-all-btn:hover { background: var(--gold); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(197,164,103,0.35); }
+
+/* ── GIFT CARD BANNER ──────────────────────── */
+.giftbanner-sec {
+  padding: 80px 48px;
+  background: linear-gradient(135deg, var(--gold-pale) 0%, #EDE4D4 50%, var(--cream) 100%);
+  position: relative;
+  overflow: hidden;
+}
+.giftbanner-sec::before {
+  content: '';
+  position: absolute;
+  top: -80px; right: -80px;
+  width: 300px; height: 300px;
+  border: 1px solid rgba(197,164,103,0.2);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.giftbanner-sec::after {
+  content: '';
+  position: absolute;
+  bottom: -60px; left: -60px;
+  width: 200px; height: 200px;
+  border: 1px solid rgba(197,164,103,0.15);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.giftbanner-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 48px;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+.giftbanner-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold-d);
+  display: inline-block;
+  margin-bottom: 12px;
+  position: relative;
+  padding-left: 36px;
+}
+.giftbanner-label::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  width: 24px; height: 1px;
+  background: var(--gold-d);
+}
+.giftbanner-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.15;
+  margin-bottom: 16px;
+}
+.giftbanner-title em { font-style: italic; color: var(--gold-d); font-weight: 400; }
+.giftbanner-text {
+  font-size: 0.85rem;
+  color: var(--mid);
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+.giftbanner-cta {
+  display: inline-block;
+  background: var(--gold-d);
+  color: var(--white);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 14px 36px;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+.giftbanner-cta::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  transition: left 0.6s ease;
+}
+.giftbanner-cta:hover::before { left: 100%; }
+.giftbanner-cta:hover { background: var(--gold); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(197,164,103,0.35); }
+.giftbanner-visual { display: flex; justify-content: center; }
+.giftbanner-card {
+  width: 260px; height: 160px;
+  background: linear-gradient(145deg, var(--gold-d) 0%, var(--gold) 50%, var(--gold-l) 100%);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 20px 50px rgba(197,164,103,0.35);
+  animation: float 4s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+.giftbanner-card::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+  animation: shimmer 4s ease-in-out infinite;
+}
+.giftbanner-card-top {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: var(--white);
+  text-transform: uppercase;
+  position: relative;
+}
+.giftbanner-card-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.8rem;
+  color: var(--white);
+  line-height: 1;
+  margin: 6px 0;
+  position: relative;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.giftbanner-card-bottom {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  color: rgba(255,255,255,0.85);
+  position: relative;
+}
+
+/* ── MAP SECTION ───────────────────────────── */
+.map-sec {
+  width: 100%; height: 320px;
+  position: relative;
+}
+.map-sec::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold-l), var(--gold), var(--gold-l));
+  z-index: 2;
+}
+.map-sec iframe { width: 100%; height: 100%; border: 0; filter: grayscale(0.3) contrast(1.05); }
+
+/* ── REVIEWS ────────────────────────────────── */
+.reviews-sec {
+  padding: 72px 0 56px;
+  background: var(--cream);
+}
+.reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 48px;
+}
+.review-card {
+  background: var(--white);
+  border: 1px solid rgba(0,0,0,0.05);
+  border-radius: 4px;
+  padding: 28px;
+  transition: box-shadow 0.4s ease;
+}
+.review-card:hover { box-shadow: var(--sh-md); }
+.review-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.review-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--gold-pale); color: var(--gold-d);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 0.9rem; flex-shrink: 0;
+}
+.review-info { flex: 1; }
+.review-name { font-family: 'Montserrat', sans-serif; font-size: 0.82rem; font-weight: 600; color: var(--dark); }
+.review-time { font-size: 0.7rem; color: var(--light); }
+.review-google { width: 20px; height: 20px; flex-shrink: 0; }
+.review-stars { color: #FBBC04; font-size: 0.85rem; margin-bottom: 10px; letter-spacing: 2px; }
+.review-text { font-size: 0.82rem; color: var(--mid); line-height: 1.7; }
+.reviews-badge { text-align: right; padding: 16px 48px 0; max-width: 1100px; margin: 0 auto; }
+.reviews-badge a {
+  font-size: 0.68rem; font-weight: 500; letter-spacing: 0.06em; color: var(--light);
+  background: var(--white); border: 1px solid var(--border); padding: 6px 14px; border-radius: 4px; transition: color 0.3s;
+}
+.reviews-badge a:hover { color: var(--gold); }
+
+/* ── CONTACT SECTION ────────────────────────── */
+.contact-sec { display: grid; grid-template-columns: 1fr 1.2fr; min-height: 560px; }
+.contact-left { background: var(--navy); display: flex; align-items: center; justify-content: center; padding: 60px 48px; }
+.horarios-badge {
+  background: var(--gold); padding: 56px 48px; text-align: center;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  width: 320px; height: 400px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+}
+.horarios-badge-line { width: 40px; height: 1px; background: rgba(255,255,255,0.4); margin: 8px auto; }
+.horarios-badge h3 { font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700; color: var(--white); margin-bottom: 12px; }
+.horarios-day { font-family: 'Montserrat', sans-serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--white); margin-top: 12px; }
+.horarios-time { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1.5rem; color: var(--white); }
+.horarios-btn {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 20px;
+  background: var(--navy); color: var(--white); padding: 12px 28px; border-radius: 100px;
+  font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  transition: all 0.3s ease; text-decoration: none;
+}
+.horarios-btn:hover { background: var(--dark); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+.horarios-btn svg { width: 16px; height: 16px; fill: currentColor; }
+.contact-right { padding: 64px 72px; display: flex; flex-direction: column; justify-content: center; }
+.contact-right h2 { font-family: 'Playfair Display', serif; font-size: clamp(2.4rem, 4vw, 3.6rem); font-weight: 700; color: var(--dark); line-height: 1.1; margin-bottom: 8px; }
+.contact-right h2 em { font-style: italic; color: var(--gold); font-weight: 400; }
+.contact-form { margin-top: 32px; display: flex; flex-direction: column; gap: 0; }
+.form-group { border-bottom: 1px solid var(--border); padding: 18px 0; }
+.form-group label { display: block; font-family: 'Montserrat', sans-serif; font-size: 0.62rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--light); margin-bottom: 8px; }
+.form-group input, .form-group textarea { width: 100%; border: none; outline: none; font-family: 'Montserrat', sans-serif; font-size: 0.88rem; color: var(--dark); background: transparent; resize: vertical; }
+.form-group textarea { min-height: 60px; }
+.form-group input::placeholder, .form-group textarea::placeholder { color: var(--border); }
+.form-submit { margin-top: 32px; }
+.btn-submit { display: inline-block; background: var(--navy); color: var(--white); font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; padding: 16px 40px; border: none; cursor: pointer; transition: all 0.3s ease; }
+.btn-submit:hover { background: var(--gold); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(197,164,103,0.35); }
+
+/* ── RESPONSIVE ──────────────────────────────── */
+@media (max-width: 1024px) {
+  .swiper { height: 80vh; min-height: 540px; max-height: 740px; }
+  .swiper-button-next, .swiper-button-prev { width: 45px !important; height: 45px !important; }
+  .poly-highlight { top: -45px; }
+}
+@media (max-width: 1000px) {
+  .about-inner { grid-template-columns: 1fr; gap: 40px; }
+  .about-sec { padding: 72px 24px; }
+  .about-img-grid { height: 340px; }
+  .why-grid { grid-template-columns: repeat(2, 1fr); }
+  .why-sec { padding: 72px 24px; }
+  .featured-grid { grid-template-columns: 1fr; max-width: 480px; margin: 0 auto; }
+  .featured-sec { padding: 72px 24px; }
+  .giftbanner-inner { grid-template-columns: 1fr; text-align: center; }
+  .giftbanner-sec { padding: 64px 24px; }
+  .giftbanner-visual { margin-top: 16px; }
+  .reviews-grid { grid-template-columns: 1fr; padding: 0 24px; }
+  .contact-sec { grid-template-columns: 1fr; }
+  .contact-left { padding: 60px 24px; min-height: 420px; }
+  .contact-right { padding: 48px 24px; }
+  .horarios-badge { width: 280px; height: 360px; }
+}
+@media (max-width: 768px) {
+  .category-wheel-section { margin-top: 60px; }
+  .swiper { height: 75vh; min-height: 480px; max-height: 640px; }
+  .slide-img-wrapper { height: 55%; }
+  .slide-text-wrapper { padding-left: 5%; padding-right: 5%; }
+  .wheel-badge { width: 110px; height: 110px; }
+  .badge-text-svg { width: 100px; height: 100px; top: 5px; left: 5px; }
+  .badge-arrow { font-size: 1.5rem; }
+  .swiper-button-next, .swiper-button-prev { width: 40px !important; height: 40px !important; }
+  .swiper-button-next::after, .swiper-button-prev::after { font-size: 1rem !important; }
+  .poly-highlight { top: -15px; left: 2%; right: 2%; clip-path: polygon(0% 5%, 50% 0%, 100% 5%, 100% 95%, 50% 100%, 0% 95%); }
+  .poly-highlight::after { clip-path: polygon(0% 5%, 50% 0%, 100% 5%, 100% 95%, 50% 100%, 0% 95%); }
+}
+@media (max-width: 600px) {
+  .horarios-badge { width: 280px; height: 390px; padding: 52px 32px; }
+  .contact-left { padding: 80px 16px; min-height: 480px; }
+  .horarios-badge h3 { font-size: 1.6rem; }
+  .why-grid { grid-template-columns: 1fr; }
+  .about-stats { flex-direction: column; gap: 16px; }
+}
+@media (max-width: 480px) {
+  .swiper { height: 70vh; min-height: 440px; max-height: 560px; }
+  .slide-img-wrapper { height: 52%; }
+  .wheel-badge { width: 90px; height: 90px; }
+  .badge-text-svg { width: 80px; height: 80px; top: 5px; left: 5px; }
+  .badge-arrow { font-size: 1.2rem; }
+  .swiper-button-next, .swiper-button-prev { width: 35px !important; height: 35px !important; }
+  .poly-highlight { top: -10px; clip-path: polygon(0% 3%, 50% 0%, 100% 3%, 100% 97%, 50% 100%, 0% 97%); }
+  .poly-highlight::after { clip-path: polygon(0% 3%, 50% 0%, 100% 3%, 100% 97%, 50% 100%, 0% 97%); }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div id="navContainer"></div>
+
+<!-- HERO — CATEGORY WHEEL ─────────────────────── -->
+<section class="category-wheel-section">
+  <a href="servicios.html" class="center-badge-container" style="text-decoration:none">
+    <div class="wheel-badge">
+      <svg class="badge-text-svg" viewBox="0 0 100 100">
+        <path id="badgePath" fill="transparent" d="M 50,50 m -35,0 a 35,35 0 1,1 70,0 a 35,35 0 1,1 -70,0" />
+        <text font-size="10" font-family="Montserrat" font-weight="600" fill="#A3854E" letter-spacing="1">
+          <textPath href="#badgePath">AQUI• • ESCOGE EL TRATAMIENTO • </textPath>
+        </text>
+      </svg>
+      <span class="badge-arrow">→</span>
+    </div>
+  </a>
+
+  <div class="swiper category-swiper">
+    <div class="swiper-wrapper" id="swiperWrapper"></div>
+    <div class="swiper-button-prev"></div>
+    <div class="swiper-button-next"></div>
+  </div>
+</section>
+
+<!-- ABOUT ──────────────────────────────────────── -->
+<section class="about-sec">
+  <div class="about-inner">
+    <div class="about-left">
+      <span class="about-label reveal">Sobre Nosotros</span>
+      <h2 class="about-title reveal reveal-d1">Un espacio donde la <em>salud</em> y la <em>belleza</em> se encuentran</h2>
+      <p class="about-text reveal reveal-d2">En Spa Infinity combinamos podología clínica profesional con tratamientos de spa de alta gama. Cada visita es una experiencia personalizada donde tu bienestar es la prioridad.</p>
+      <div class="about-stats reveal reveal-d3">
+        <div class="about-stat">
+          <span class="about-stat-num" data-count="2000" data-prefix="+">0</span>
+          <span class="about-stat-lbl">Clientes atendidos</span>
+        </div>
+        <div class="about-stat">
+          <span class="about-stat-num" data-count="49">0</span>
+          <span class="about-stat-lbl">Tratamientos disponibles</span>
+        </div>
+        <div class="about-stat">
+          <span class="about-stat-num" data-count="5.0" data-suffix=" ★" data-decimal="true">0</span>
+          <span class="about-stat-lbl">Google Reviews</span>
+        </div>
+      </div>
+      <a href="servicios.html" class="about-cta reveal reveal-d4">Conoce nuestros servicios →</a>
+    </div>
+    <div class="about-right">
+      <div class="about-img-grid">
+        <img src="images/cuidado-facial-spa/cuidado-facial-spa-hero.jpeg" alt="Cuidado facial" class="about-img-1 reveal-scale">
+        <img src="images/masajes-terapeuticos/masajes-terapeuticos-hero.png" alt="Masajes" class="about-img-2 reveal-scale reveal-d2">
+        <div class="about-img-accent"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY US ─────────────────────────────────────── -->
+<section class="why-sec">
+  <div class="why-inner">
+    <span class="why-label reveal">¿Por Qué Elegirnos?</span>
+    <h2 class="why-title reveal reveal-d1">La diferencia está en cada <em>detalle</em></h2>
+    <div class="why-grid">
+      <div class="why-card reveal">
+        <div class="why-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        </div>
+        <h3>Atención Personalizada</h3>
+        <p>Cada tratamiento se adapta a tus necesidades específicas con evaluación previa incluida.</p>
+      </div>
+      <div class="why-card reveal reveal-d1">
+        <div class="why-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <h3>Profesionales Certificados</h3>
+        <p>Especialistas con formación clínica y estética que garantizan resultados seguros.</p>
+      </div>
+      <div class="why-card reveal reveal-d2">
+        <div class="why-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+        </div>
+        <h3>Productos Premium</h3>
+        <p>Utilizamos solo productos de grado profesional para cuidar tu piel y bienestar.</p>
+      </div>
+      <div class="why-card reveal reveal-d3">
+        <div class="why-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <h3>Ubicación Céntrica</h3>
+        <p>A pasos del metro Plaza de Armas, en pleno centro de Santiago. Fácil acceso.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURED SERVICES ──────────────────────────── -->
+<section class="featured-sec">
+  <div class="featured-inner">
+    <span class="featured-label fu">Más Solicitados</span>
+    <h2 class="featured-title fu">Tratamientos <em>favoritos</em> de nuestras clientas</h2>
+    <div class="featured-grid" id="featuredGrid"></div>
+    <div class="featured-footer fu">
+      <a href="servicios.html" class="featured-all-btn">Ver todos los servicios →</a>
+    </div>
+  </div>
+</section>
+
+<!-- GIFT CARD BANNER ───────────────────────────── -->
+<section class="giftbanner-sec fu">
+  <div class="giftbanner-inner">
+    <div class="giftbanner-content">
+      <span class="giftbanner-label">Regala Bienestar</span>
+      <h2 class="giftbanner-title">Gift Cards <em>Virtuales</em></h2>
+      <p class="giftbanner-text">Sorprende a alguien especial con una experiencia de spa personalizada. Elige el tratamiento, agrega un mensaje y envíala al instante.</p>
+      <a href="giftcard.html" class="giftbanner-cta">Crear Gift Card →</a>
+    </div>
+    <div class="giftbanner-visual">
+      <div class="giftbanner-card">
+        <div class="giftbanner-card-top">GIFT CARD</div>
+        <div class="giftbanner-card-logo">∞</div>
+        <div class="giftbanner-card-bottom">Spa Infinity</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REVIEWS ────────────────────────────────────── -->
+<section class="reviews-sec">
+  <div class="sec-header" style="padding-bottom:36px">
+    <span class="label">TESTIMONIOS</span>
+    <h2>Lo Que Dicen<br>Nuestros Clientes</h2>
+    <p style="max-width:540px;margin:12px auto 0">Con una calificación de <strong style="color:var(--gold-d)">4.9 / 5.0</strong> en Google Reviews, nuestros clientes respaldan la calidad de nuestros servicios.</p>
+  </div>
+  <div class="reviews-grid">
+    <div class="review-card fu">
+      <div class="review-header">
+        <div class="review-avatar">A</div>
+        <div class="review-info">
+          <div class="review-name">Anais Lucena de Pichardo</div>
+          <div class="review-time">hace 2 meses</div>
+        </div>
+        <svg class="review-google" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      </div>
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">Un trato amable y el servicio fue completo, mis pies quedaron suaves, limpios y sin dolor por la uña encarnada que tenía. Volveré sin duda, siempre explicando todo el procedimiento.</p>
+    </div>
+    <div class="review-card fu fu-d1">
+      <div class="review-header">
+        <div class="review-avatar">F</div>
+        <div class="review-info">
+          <div class="review-name">Fernanda Valentina Saldía</div>
+          <div class="review-time">hace 2 meses</div>
+        </div>
+        <svg class="review-google" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      </div>
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">Excelente atención, volvería a ir y 100% recomendable el servicio. Mis pies quedaron hermosos y sanitos.</p>
+    </div>
+    <div class="review-card fu fu-d2">
+      <div class="review-header">
+        <div class="review-avatar">R</div>
+        <div class="review-info">
+          <div class="review-name">Roxana Moncada</div>
+          <div class="review-time">hace 3 meses</div>
+        </div>
+        <svg class="review-google" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      </div>
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">Excelente atención. El ambiente es muy agradable y se nota el profesionalismo. Sin duda, un lugar al que volvería siempre.</p>
+    </div>
+    <div class="review-card fu">
+      <div class="review-header">
+        <div class="review-avatar">N</div>
+        <div class="review-info">
+          <div class="review-name">Nancy Vasquez</div>
+          <div class="review-time">hace 4 meses</div>
+        </div>
+        <svg class="review-google" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      </div>
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">Buena atención, el lugar es limpio y hacen muy bien su trabajo. Lo recomiendo mucho. Será mi lugar favorito de hoy en adelante para mis pies.</p>
+    </div>
+    <div class="review-card fu fu-d1">
+      <div class="review-header">
+        <div class="review-avatar">R</div>
+        <div class="review-info">
+          <div class="review-name">Raul Cabello</div>
+          <div class="review-time">hace 5 meses</div>
+        </div>
+        <svg class="review-google" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      </div>
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">Excelente atención, muy buen lugar, todo de primera, limpio y ambiente agradable.</p>
+    </div>
+    <div class="review-card fu fu-d2">
+      <div class="review-header">
+        <div class="review-avatar">V</div>
+        <div class="review-info">
+          <div class="review-name">Valeria Vargas</div>
+          <div class="review-time">hace 5 meses</div>
+        </div>
+        <svg class="review-google" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      </div>
+      <div class="review-stars">★★★★★</div>
+      <p class="review-text">Me atendí en este bello lugar, la atención espectacular y para que decir del servicio entregado 10/10. Recomendado 100% el servicio de podología.</p>
+    </div>
+  </div>
+  <div class="reviews-badge">
+    <a href="https://www.google.com/maps/place/Spa+Infinity%7CPodolog%C3%ADa+Cl%C3%ADnica+en+Santiago+Centro/@-33.4362104,-70.6525466,17z/data=!4m6!3m5!1s0x9662c58bdf4db79f:0x4cb49d7c4248482f!8m2!3d-33.4362104!4d-70.6525466!16s%2Fg%2F11yl8_r6kq" target="_blank" rel="noopener">Ver todas las 56 reseñas en Google</a>
+  </div>
+</section>
+
+<!-- CONTACT ─────────────────────────────────────── -->
+<section class="contact-sec" id="contacto">
+  <div class="contact-left">
+    <div class="horarios-badge">
+      <div class="horarios-badge-line"></div>
+      <h3>Horarios</h3>
+      <span class="horarios-day">Lunes a Viernes</span>
+      <span class="horarios-time">10:00 – 20:00</span>
+      <span class="horarios-day">Sábados</span>
+      <span class="horarios-time">11:00 – 18:00</span>
+      <a href="https://wa.me/56986688771?text=Hola,%20quiero%20reservar" target="_blank" class="horarios-btn">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+        Agendar
+      </a>
+      <div class="horarios-badge-line"></div>
+    </div>
+  </div>
+  <div class="contact-right">
+    <h2>Contacto<br><em>Exclusivo</em></h2>
+    <form class="contact-form" onsubmit="event.preventDefault()">
+      <div class="form-group">
+        <label>Tu nombre</label>
+        <input type="text" placeholder="" />
+      </div>
+      <div class="form-group">
+        <label>Tu correo electrónico</label>
+        <input type="email" placeholder="" />
+      </div>
+      <div class="form-group">
+        <label>Asunto</label>
+        <input type="text" placeholder="" />
+      </div>
+      <div class="form-group">
+        <label>Tu mensaje (opcional)</label>
+        <textarea rows="3"></textarea>
+      </div>
+      <div class="form-submit">
+        <button type="submit" class="btn-submit">Enviar mensaje</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- MAP ────────────────────────────────────────── -->
+<section class="map-sec">
+  <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3329.0!2d-70.6506!3d-33.4378!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9662c5a5b0b0b0b1%3A0x1234567890!2sSanto+Domingo+1083%2C+Santiago!5e0!3m2!1ses!2scl!4v1" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+</section>
+
+<!-- FOOTER -->
+<div id="footerContainer"></div>
+<div id="floatingContainer"></div>
+
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('Inicio')
+document.getElementById('footerContainer').innerHTML = renderFooter()
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+/* ── CATEGORY WHEEL ──────────────────────────── */
+const catMeta = [
+  { id: 'podologia-clinica',     subtitle: 'Atención integral especializada' },
+  { id: 'manicure-pedicure',     subtitle: 'Uñas perfectas, manos renovadas' },
+  { id: 'adicionales-mani-pedi', subtitle: 'Detalles que marcan la diferencia' },
+  { id: 'tratamientos-corporales', subtitle: 'Redefine tu silueta y revitaliza tu cuerpo' },
+  { id: 'desintoxicantes',       subtitle: 'Purifica tu organismo y renueva tu energía' },
+  { id: 'depilacion',            subtitle: 'Piel suave y libre de vello por semanas' },
+  { id: 'cuidado-facial-spa',    subtitle: 'Rostro limpio, luminoso y saludable' },
+  { id: 'masajes-terapeuticos',  subtitle: 'Relajación profunda y alivio muscular' },
+  { id: 'pestanas-cejas',        subtitle: 'Transforma y resalta tu mirada' },
+]
+
+const swiperWrapper = document.getElementById('swiperWrapper')
+catMeta.forEach(cm => {
+  const cat = getCategoryById(cm.id)
+  if (!cat) return
+  const slide = document.createElement('div')
+  slide.className = 'swiper-slide'
+  slide.innerHTML = `
+    <div class="slide-img-wrapper" onclick="location.href='categoria.html?cat=${cat.id}'">
+      <img src="${cat.heroImg}" alt="${cat.name}" loading="lazy">
+    </div>
+    <div class="slide-text-wrapper" onclick="location.href='categoria.html?cat=${cat.id}'">
+      <div class="poly-highlight"></div>
+      <div class="slide-content">
+        <h4 class="cat-subtitle">${cm.subtitle}</h4>
+        <h2 class="cat-title">${cat.name}</h2>
+      </div>
+    </div>
+  `
+  swiperWrapper.appendChild(slide)
+})
+
+const swiper = new Swiper('.category-swiper', {
+  loop: true,
+  centeredSlides: true,
+  slidesPerView: 1,
+  speed: 800,
+  grabCursor: true,
+  breakpoints: {
+    640: { slidesPerView: 1 },
+    950: { slidesPerView: 3 },
+    1200: { slidesPerView: 3 }
+  },
+  navigation: {
+    nextEl: '.swiper-button-next',
+    prevEl: '.swiper-button-prev',
+  },
+  keyboard: { enabled: true }
+})
+
+/* ── FEATURED SERVICES ──────────────────────── */
+const featuredIds = [
+  { catId: 'podologia-clinica', svcId: 'atencion-podologica-integral' },
+  { catId: 'masajes-terapeuticos', svcId: 'masaje-piedras-calientes' },
+  { catId: 'cuidado-facial-spa', svcId: 'limpieza-facial-profunda' },
+]
+const featGrid = document.getElementById('featuredGrid')
+featuredIds.forEach(f => {
+  const result = getServiceById(f.svcId)
+  if (!result) return
+  const { service: svc, category: cat } = result
+  const card = document.createElement('a')
+  card.href = `categoria.html?cat=${cat.id}#${svc.id}`
+  card.className = 'feat-card fu'
+  card.style.textDecoration = 'none'
+  card.innerHTML = `
+    <img class="feat-card-img" src="${svc.img}" alt="${svc.name}" loading="lazy">
+    <div class="feat-card-body">
+      <div class="feat-card-cat">${cat.name}</div>
+      <div class="feat-card-name">${svc.name}</div>
+      <p class="feat-card-desc">${svc.shortDesc}</p>
+      <div class="feat-card-footer">
+        <div>
+          <span class="feat-card-price">${svc.price}</span>
+          <span class="feat-card-dur"> · ${svc.duration}</span>
+        </div>
+        <span class="feat-card-link">Ver más →</span>
+      </div>
+    </div>
+  `
+  featGrid.appendChild(card)
+})
+
+/* ── Reveal animations ─────────────────────── */
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('vis')
+      revealObs.unobserve(e.target)
+    }
+  })
+}, { threshold: 0.15 })
+document.querySelectorAll('.reveal, .reveal-scale').forEach(el => revealObs.observe(el))
+
+/* ── Animated counters ─────────────────────── */
+const counterObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return
+    const el = e.target
+    counterObs.unobserve(el)
+    const target = parseFloat(el.dataset.count)
+    const prefix = el.dataset.prefix || ''
+    const suffix = el.dataset.suffix || ''
+    const isDecimal = el.dataset.decimal === 'true'
+    const duration = 1800
+    const start = performance.now()
+    function tick(now) {
+      const progress = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const current = eased * target
+      if (isDecimal) {
+        el.textContent = prefix + current.toFixed(1) + suffix
+      } else {
+        el.textContent = prefix + Math.floor(current).toLocaleString('es-CL') + suffix
+      }
+      if (progress < 1) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+}, { threshold: 0.5 })
+document.querySelectorAll('[data-count]').forEach(el => counterObs.observe(el))
+
+initShared()
+</script>
+</body>
+</html>

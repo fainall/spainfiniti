@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nuestros Servicios — Spa Infinity | Centro Podológico & Spa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* Search bar on page */
+.page-search-wrap {
+  max-width: 480px;
+  margin: 32px auto 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(0,0,0,0.14);
+  border-radius: 100px;
+  padding: 13px 22px;
+  background: var(--white);
+  transition: border-color var(--tr), box-shadow var(--tr);
+}
+.page-search-wrap:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(196,149,106,0.12);
+}
+.page-search-wrap input {
+  border: none; outline: none;
+  font-family: 'Jost', sans-serif;
+  font-size: 0.88rem; color: var(--dark);
+  background: transparent; width: 100%;
+}
+.page-search-wrap input::placeholder { color: var(--light); }
+.page-search-wrap svg { flex-shrink: 0; color: var(--light); }
+/* No results */
+.no-results {
+  text-align: center;
+  padding: 80px 0;
+  grid-column: 1/-1;
+  color: var(--light);
+  font-size: 0.9rem;
+}
+
+/* ── Category accordion ────────────────────── */
+.cat-accordion { max-width: 900px; margin: 0 auto; }
+.cat-acc-item {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: box-shadow 0.4s ease;
+}
+.cat-acc-item:hover { box-shadow: var(--sh-md); }
+.cat-acc-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 28px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  user-select: none;
+}
+.cat-acc-header:hover { background: var(--cream); }
+.cat-acc-img {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--gold-pale);
+  flex-shrink: 0;
+}
+.cat-acc-info { flex: 1; min-width: 0; }
+.cat-acc-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--dark);
+  margin-bottom: 4px;
+}
+.cat-acc-desc {
+  font-size: 0.75rem;
+  color: var(--mid);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cat-acc-count {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--gold-d);
+  background: var(--gold-pale);
+  padding: 4px 12px;
+  border-radius: 100px;
+  flex-shrink: 0;
+}
+.cat-acc-arrow {
+  width: 24px; height: 24px;
+  color: var(--gold);
+  flex-shrink: 0;
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.cat-acc-item.open .cat-acc-arrow { transform: rotate(180deg); }
+.cat-acc-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.cat-acc-item.open .cat-acc-body { max-height: 2000px; }
+.cat-acc-services {
+  padding: 0 28px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* Service row */
+.svc-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  transition: background 0.2s ease, padding-left 0.3s ease;
+}
+.svc-row:last-child { border-bottom: none; }
+.svc-row:hover { background: var(--cream); padding-left: 8px; }
+.svc-row-img {
+  width: 48px; height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.svc-row-info { flex: 1; min-width: 0; }
+.svc-row-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--dark);
+  margin-bottom: 2px;
+}
+.svc-row-desc {
+  font-size: 0.7rem;
+  color: var(--mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.svc-row-meta { text-align: right; flex-shrink: 0; }
+.svc-row-price {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--gold-d);
+  display: block;
+}
+.svc-row-dur {
+  font-size: 0.6rem;
+  color: var(--light);
+  display: block;
+}
+
+/* View mode tabs */
+.view-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 24px auto 0;
+}
+.view-tab {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 20px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: transparent;
+  color: var(--mid);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.view-tab.active {
+  background: var(--gold-d);
+  color: var(--white);
+  border-color: var(--gold-d);
+}
+.view-tab:hover:not(.active) { border-color: var(--gold); color: var(--gold-d); }
+
+@media (max-width: 768px) {
+  .cat-acc-header { padding: 16px 20px; gap: 14px; }
+  .cat-acc-img { width: 48px; height: 48px; }
+  .cat-acc-name { font-size: 1rem; }
+  .cat-acc-desc { display: none; }
+  .cat-acc-services { padding: 0 20px 16px; }
+  .svc-row-img { width: 40px; height: 40px; }
+  .svc-row-desc { display: none; }
+}
+</style>
+</head>
+<body class="pt-nav">
+
+<div id="navContainer"></div>
+
+<!-- PAGE HERO -->
+<div class="page-hero">
+  <div class="breadcrumb">
+    <a href="index.html">Inicio</a>
+    <span>/</span>
+    <span class="current">Servicios</span>
+  </div>
+  <span class="tag">Descubre tu mejor versión</span>
+  <h1>Nuestros<br>Servicios</h1>
+  <p>Selecciona la categoría que deseas explorar y descubre todos los tratamientos especializados que hemos diseñado para realzar tu belleza y bienestar.</p>
+  <div class="page-search-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="catSearch" placeholder="Buscar categoría o servicio..." autocomplete="off" />
+  </div>
+  <div class="view-tabs">
+    <button class="view-tab active" data-view="grid" onclick="setView('grid')">Categorías</button>
+    <button class="view-tab" data-view="list" onclick="setView('list')">Todos los Servicios</button>
+  </div>
+  <div class="page-hero-divider"></div>
+</div>
+
+<!-- VIEW TABS + CONTENT -->
+<section style="background:var(--cream-2); padding-bottom:100px">
+  <div class="container">
+    <div class="cat-grid" id="catGrid"></div>
+    <div class="cat-accordion" id="catAccordion" style="display:none"></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<div id="footerContainer"></div>
+<div id="floatingContainer"></div>
+
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
+document.getElementById('footerContainer').innerHTML = renderFooter()
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+const catGrid = document.getElementById('catGrid')
+const catAccordion = document.getElementById('catAccordion')
+const catSearch = document.getElementById('catSearch')
+let currentView = 'grid'
+
+function renderCats(list) {
+  if (!list.length) {
+    catGrid.innerHTML = '<div class="no-results">No se encontraron categorías para esa búsqueda.</div>'
+    catAccordion.innerHTML = '<div class="no-results">No se encontraron servicios para esa búsqueda.</div>'
+    return
+  }
+  // Grid view
+  catGrid.innerHTML = list.map((cat, i) => `
+    <article class="cat-card reveal" style="transition-delay:${(i % 3) * 0.1}s"
+             onclick="window.location='categoria.html?cat=${cat.id}'">
+      <div class="cat-card-img-box">
+        <img class="cat-card-img" src="${cat.cardImg}" alt="${cat.name}" loading="lazy" />
+      </div>
+      <div class="cat-card-body">
+        <h3>${cat.name}</h3>
+        <p>${cat.shortDesc}</p>
+        <a href="categoria.html?cat=${cat.id}" class="btn-card">VER SERVICIOS</a>
+      </div>
+    </article>
+  `).join('')
+
+  // Accordion view
+  const q = catSearch.value.trim().toLowerCase()
+  catAccordion.innerHTML = list.map((cat, i) => {
+    const matchingSvcs = q
+      ? cat.services.filter(s => s.name.toLowerCase().includes(q) || s.shortDesc.toLowerCase().includes(q) || cat.name.toLowerCase().includes(q))
+      : cat.services
+    const shouldOpen = q && matchingSvcs.length > 0
+    return `
+    <div class="cat-acc-item${shouldOpen ? ' open' : ''}" data-cat="${cat.id}">
+      <div class="cat-acc-header" onclick="this.parentElement.classList.toggle('open')">
+        <img class="cat-acc-img" src="${cat.cardImg}" alt="${cat.name}" loading="lazy" />
+        <div class="cat-acc-info">
+          <div class="cat-acc-name">${cat.name}</div>
+          <div class="cat-acc-desc">${cat.shortDesc}</div>
+        </div>
+        <span class="cat-acc-count">${matchingSvcs.length} servicios</span>
+        <svg class="cat-acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="cat-acc-body">
+        <div class="cat-acc-services">
+          ${matchingSvcs.map(svc => `
+            <a href="servicio.html?id=${svc.id}" class="svc-row">
+              <img class="svc-row-img" src="${svc.img}" alt="${svc.name}" loading="lazy" />
+              <div class="svc-row-info">
+                <div class="svc-row-name">${svc.name}</div>
+                <div class="svc-row-desc">${svc.shortDesc}</div>
+              </div>
+              <div class="svc-row-meta">
+                ${svc.hasDiscount && svc.originalPrice ? `<span class="svc-row-dur" style="text-decoration:line-through">${svc.originalPrice}</span>` : ''}
+                <span class="svc-row-price">${svc.price}</span>
+                <span class="svc-row-dur">${svc.duration}</span>
+                ${svc.hasDiscount && svc.discountLabel ? `<span style="background:#E74C3C;color:#fff;font-size:0.55rem;padding:2px 7px;border-radius:3px;font-weight:700;display:inline-block;margin-top:4px">${svc.discountLabel}</span>` : ''}
+              </div>
+            </a>
+          `).join('')}
+        </div>
+      </div>
+    </div>`
+  }).join('')
+
+  setTimeout(() => {
+    const obs2 = new IntersectionObserver((entries, o) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('active'); o.unobserve(e.target) } })
+    }, { rootMargin: '0px 0px -50px 0px', threshold: 0.1 })
+    document.querySelectorAll('.reveal').forEach(el => obs2.observe(el))
+  }, 50)
+}
+
+function setView(view) {
+  currentView = view
+  catGrid.style.display = view === 'grid' ? '' : 'none'
+  catAccordion.style.display = view === 'list' ? '' : 'none'
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view))
+}
+
+renderCats(CATEGORIES)
+
+catSearch.addEventListener('input', () => {
+  const q = catSearch.value.trim().toLowerCase()
+  if (!q) { renderCats(CATEGORIES); return }
+  const filtered = CATEGORIES.filter(cat =>
+    cat.name.toLowerCase().includes(q) ||
+    cat.shortDesc.toLowerCase().includes(q) ||
+    cat.services.some(s => s.name.toLowerCase().includes(q))
+  )
+  renderCats(filtered)
+  if (q && currentView === 'grid') setView('list')
+})
+
+const urlQ = new URLSearchParams(location.search).get('q')
+if (urlQ) {
+  catSearch.value = urlQ
+  catSearch.dispatchEvent(new Event('input'))
+}
+
+initShared()
+</script>
+</body>
+</html>

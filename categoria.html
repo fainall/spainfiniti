@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Categoría — Spa Infinity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+/* ── HERO ─────────────────────────────────────── */
+.cat-hero {
+  background: var(--cream);
+  text-align: center;
+  padding: 90px 24px 72px;
+}
+.cat-hero-content {
+  max-width: 660px;
+  margin: 0 auto;
+}
+.cat-hero-content .tag-light {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--gold);
+  margin-bottom: 18px;
+}
+.cat-hero-content h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(3rem, 6vw, 4.8rem);
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.1;
+  margin-bottom: 24px;
+}
+.cat-hero-content .hero-desc {
+  color: var(--mid);
+  font-size: 0.92rem;
+  line-height: 1.85;
+  font-weight: 300;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.cat-hero-divider {
+  width: 48px;
+  height: 1px;
+  background: var(--gold);
+  margin: 32px auto 0;
+  opacity: 0.5;
+}
+
+/* ── SERVICES GRID ───────────────────────────── */
+.services-wrap {
+  background: var(--cream-2);
+  padding-bottom: 120px;
+}
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 50px;
+  padding: 20px 8% 0;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* ── SERVICE CARD ────────────────────────────── */
+.svc-card-new {
+  background: var(--white);
+  border-radius: 4px;
+  padding: 40px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+  cursor: pointer;
+  transition: transform 0.5s cubic-bezier(0.25,0.8,0.25,1),
+              box-shadow 0.5s cubic-bezier(0.25,0.8,0.25,1);
+  position: relative;
+}
+.svc-card-new:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 25px 50px rgba(26,36,54,0.10);
+}
+
+/* Badge */
+.svc-card-new .card-badge {
+  position: absolute;
+  top: 16px; right: 16px;
+  background: var(--gold);
+  color: var(--white);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  z-index: 3;
+}
+
+/* Image box */
+.card-img-box {
+  width: 100%;
+  height: 300px;
+  border-radius: 8px;
+  border: 4px solid var(--white);
+  box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 28px;
+}
+.card-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.8s cubic-bezier(0.25,0.8,0.25,1);
+}
+.svc-card-new:hover .card-img-box img {
+  transform: scale(1.06);
+}
+
+/* Card text */
+.card-subtitle {
+  font-size: 0.75rem;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.card-desc {
+  font-size: 0.88rem;
+  color: var(--mid);
+  line-height: 1.75;
+  font-weight: 300;
+  margin-bottom: 20px;
+}
+.card-meta {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.card-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.card-meta-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--light);
+  font-weight: 500;
+}
+.card-meta-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--dark);
+}
+.card-meta-value.gold { color: var(--gold); }
+
+/* Parallelogram button */
+.btn-para {
+  display: inline-block;
+  position: relative;
+  background: var(--gold);
+  color: var(--navy);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 13px 36px 13px 28px;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0% 100%);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+  text-decoration: none;
+}
+.btn-para:hover {
+  background: var(--navy);
+  color: var(--white);
+  box-shadow: 0 6px 20px rgba(26,36,54,0.2);
+}
+
+/* ── COUNT BAR ───────────────────────────────── */
+.svc-count-bar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+}
+.svc-count-bar .inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 8%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.svc-count-text {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--light);
+}
+.svc-count-text strong { color: var(--gold); font-weight: 600; }
+
+/* ── OTHER CATEGORIES ────────────────────────── */
+.other-cats {
+  background: var(--cream);
+  padding: 80px 0;
+  border-top: 1px solid var(--border);
+}
+.other-cats .sec-header { padding-top: 0; padding-bottom: 40px; }
+.other-cats-grid {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  scrollbar-width: none;
+}
+.other-cats-grid::-webkit-scrollbar { display: none; }
+.other-cat-chip {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 24px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  transition: all 0.4s ease;
+  cursor: pointer;
+  text-align: center;
+  min-width: 160px;
+}
+.other-cat-chip:hover {
+  border-color: var(--gold);
+  background: var(--gold-pale);
+}
+.other-cat-chip img {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.other-cat-chip span {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dark);
+  line-height: 1.3;
+}
+
+/* ── RESPONSIVE ──────────────────────────────── */
+@media (max-width: 1000px) {
+  .services-grid { grid-template-columns: 1fr; gap: 36px; }
+  .cat-hero-content { padding: 80px 24px 48px; }
+  .svc-count-bar .inner { padding: 0 24px; flex-direction: column; align-items: flex-start; gap: 10px; }
+  .services-grid { padding-left: 24px; padding-right: 24px; }
+}
+@media (max-width: 600px) {
+  .card-title { font-size: 1.7rem; }
+  .svc-card-new { padding: 24px; }
+  .card-img-box { height: 220px; }
+}
+</style>
+</head>
+<body class="pt-nav">
+
+<div id="navContainer"></div>
+
+<!-- HERO -->
+<div id="catHero"></div>
+
+<!-- COUNT BAR -->
+<div class="svc-count-bar" id="countBar" style="display:none">
+  <div class="inner">
+    <span class="svc-count-text">Mostrando <strong id="svcCount">0</strong> servicios en esta categoría</span>
+    <a id="bookBtn" href="#" target="_blank" class="btn-para">Reservar por WhatsApp →</a>
+  </div>
+</div>
+
+<!-- SERVICES GRID -->
+<div class="services-wrap">
+  <div class="services-grid" id="svcGrid"></div>
+</div>
+
+<!-- OTHER CATEGORIES -->
+<section class="other-cats">
+  <div class="container">
+    <div class="sec-header fu">
+      <span class="tag">Explorar más</span>
+      <h2>Otras Categorías</h2>
+    </div>
+    <div class="other-cats-grid" id="otherCats"></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<div id="footerContainer"></div>
+<div id="floatingContainer"></div>
+
+<script src="data.js"></script>
+<script src="common.js"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
+document.getElementById('footerContainer').innerHTML = renderFooter()
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+const catId = new URLSearchParams(location.search).get('cat')
+const cat = catId ? getCategoryById(catId) : null
+
+if (!cat) {
+  location.href = 'servicios.html'
+} else {
+  document.title = `${cat.name} — Spa Infinity`
+
+  /* Hero */
+  document.getElementById('catHero').innerHTML = `
+    <div class="cat-hero">
+      <div class="cat-hero-content">
+        <span class="tag-light">${cat.tagline}</span>
+        <h1>${cat.name}</h1>
+        <p class="hero-desc">${cat.longDesc}</p>
+        <div class="cat-hero-divider"></div>
+      </div>
+    </div>
+  `
+
+  /* Count bar */
+  document.getElementById('countBar').style.display = 'block'
+  document.getElementById('svcCount').textContent = cat.services.length
+  document.getElementById('bookBtn').href =
+    `https://wa.me/56986688771?text=Hola,%20me%20interesa%20${encodeURIComponent(cat.name)}`
+
+  /* Service cards */
+  document.getElementById('svcGrid').innerHTML = cat.services.map((svc, i) => `
+    <article id="${svc.id}" class="svc-card-new reveal" style="transition-delay:${(i % 2) * 0.12}s"
+             onclick="window.location='servicio.html?id=${svc.id}'">
+      ${svc.hasDiscount && svc.discountLabel
+        ? `<span class="card-badge" style="background:var(--red)">${svc.discountLabel}</span>`
+        : getActivePromoForService(svc.id)
+          ? `<span class="card-badge" style="background:linear-gradient(135deg,#1A2436,#2C3E50)">${getActivePromoForService(svc.id).discount}</span>`
+          : svc.highlighted ? `<span class="card-badge">Destacado</span>` : ''}
+      <div class="card-img-box">
+        <img src="${svc.img}" alt="${svc.name}" loading="lazy" />
+      </div>
+      <span class="card-subtitle">${svc.tag}</span>
+      <h3 class="card-title">${svc.name}</h3>
+      <p class="card-desc">${svc.shortDesc}</p>
+      <div class="card-meta">
+        <div class="card-meta-item">
+          <span class="card-meta-label">Duración</span>
+          <span class="card-meta-value">${svc.duration}</span>
+        </div>
+        <div class="card-meta-item">
+          <span class="card-meta-label">Precio</span>
+          ${svc.hasDiscount && svc.originalPrice
+            ? `<span class="card-meta-value" style="text-decoration:line-through;color:var(--light);font-size:0.78rem">${svc.originalPrice}</span>
+               <span class="card-meta-value gold">${svc.price}</span>`
+            : `<span class="card-meta-value gold">${svc.price}</span>`}
+        </div>
+      </div>
+      <a href="servicio.html?id=${svc.id}" class="btn-para" onclick="event.stopPropagation()">Ver detalles</a>
+    </article>
+  `).join('')
+
+  /* Reveal animations */
+  setTimeout(() => {
+    const obs = new IntersectionObserver((entries, o) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('active'); o.unobserve(e.target) } })
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.08 })
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el))
+  }, 50)
+
+  /* Hash scroll — navigate to specific service */
+  if (location.hash) {
+    const target = document.getElementById(location.hash.slice(1))
+    if (target) {
+      setTimeout(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        target.style.boxShadow = '0 0 0 3px var(--gold), 0 25px 50px rgba(26,36,54,0.12)'
+        setTimeout(() => { target.style.boxShadow = '' }, 2500)
+      }, 400)
+    }
+  }
+
+  /* Other categories */
+  const others = CATEGORIES.filter(c => c.id !== catId).slice(0, 8)
+  document.getElementById('otherCats').innerHTML = others.map(c => `
+    <div class="other-cat-chip" onclick="window.location='categoria.html?cat=${c.id}'">
+      <img src="${c.cardImg}" alt="${c.name}" loading="lazy" />
+      <span>${c.name}</span>
+    </div>
+  `).join('')
+}
+
+initShared()
+</script>
+</body>
+</html>
