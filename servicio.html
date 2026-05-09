@@ -534,18 +534,27 @@ if (!result) {
   document.getElementById('catCta2').href = `categoria.html?cat=${cat.id}`
   document.getElementById('giftCta').href = `giftcard.html?svc=${svc.id}`
 
-  /* Process cards — use includes[] or default 3-step flow */
-  const steps = (svc.includes && svc.includes.length >= 3)
-    ? svc.includes.slice(0, 3).map((item, i) => ({
-        num: `0${i+1}`,
-        title: item,
-        text: ''
-      }))
-    : [
-        { num: '01', title: 'Evaluación Inicial', text: 'Realizamos una evaluación personalizada para entender tus necesidades y diseñar el tratamiento ideal para ti.' },
-        { num: '02', title: 'Tratamiento Experto', text: 'Nuestras especialistas aplican las mejores técnicas y productos premium para garantizar resultados óptimos.' },
-        { num: '03', title: 'Cuidado y Seguimiento', text: 'Te entregamos recomendaciones personalizadas para mantener los resultados y prolongar el bienestar.' }
-      ]
+  /* Process cards — use processSteps[] if available, fallback to includes[], then defaults */
+  let steps
+  if (svc.processSteps && svc.processSteps.length >= 3) {
+    steps = svc.processSteps.slice(0, 3).map((s, i) => ({
+      num: `0${i+1}`,
+      title: s.title,
+      text: s.text || ''
+    }))
+  } else if (svc.includes && svc.includes.length >= 3) {
+    steps = svc.includes.slice(0, 3).map((item, i) => ({
+      num: `0${i+1}`,
+      title: item,
+      text: ''
+    }))
+  } else {
+    steps = [
+      { num: '01', title: 'Evaluación Inicial', text: 'Realizamos una evaluación personalizada para entender tus necesidades y diseñar el tratamiento ideal para ti.' },
+      { num: '02', title: 'Tratamiento Experto', text: 'Nuestras especialistas aplican las mejores técnicas y productos premium para garantizar resultados óptimos.' },
+      { num: '03', title: 'Cuidado y Seguimiento', text: 'Te entregamos recomendaciones personalizadas para mantener los resultados y prolongar el bienestar.' }
+    ]
+  }
 
   document.getElementById('processSection').innerHTML = steps.map((s, i) => `
     <div class="process-card${i === 1 ? ' featured' : ''} reveal" style="transition-delay:${0.1 + i * 0.1}s">

@@ -1276,6 +1276,25 @@ function editService(catId, svcId) {
         </div>
       </div>
 
+      <!-- Process Steps -->
+      <div class="process-steps-editor" style="margin-top:24px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;padding:20px;background:#fafaf8">
+        <h4 style="margin:0 0 4px;font-size:0.95rem">Pasos del Proceso <span style="font-weight:400;color:#999;font-size:0.8rem">(se muestran en la página del servicio)</span></h4>
+        <p style="margin:0 0 16px;font-size:0.78rem;color:#999">3 pasos con título y descripción. Aparecen como tarjetas numeradas 01, 02, 03.</p>
+        <div id="processStepsContainer">
+          ${[0,1,2].map(i => {
+            const step = (svc.processSteps && svc.processSteps[i]) || {}
+            return `
+            <div class="process-step-row" style="display:flex;gap:12px;margin-bottom:12px;align-items:flex-start">
+              <span style="font-family:'Playfair Display',serif;color:var(--gold);font-style:italic;font-size:1.2rem;padding-top:6px;min-width:30px">0${i+1}</span>
+              <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+                <input type="text" class="process-step-title" placeholder="Título del paso ${i+1}" value="${esc(step.title || '')}" style="font-weight:600" />
+                <textarea class="process-step-text" placeholder="Descripción del paso ${i+1}..." rows="2" style="font-size:0.85rem">${esc(step.text || '')}</textarea>
+              </div>
+            </div>`
+          }).join('')}
+        </div>
+      </div>
+
       <div style="display:flex;gap:12px;margin-top:24px">
         <button class="btn btn-primary" onclick="saveService('${catId}','${svcId}')">Guardar servicio</button>
         <button class="btn" onclick="backToSvcList('${catId}')">Cancelar</button>
@@ -1370,6 +1389,18 @@ function saveService(catId, svcId) {
   const hl = document.getElementById('svc-highlighted').value === 'true'
   ov.highlighted = hl
   svc.highlighted = hl
+
+  // Process Steps
+  const stepTitles = document.querySelectorAll('.process-step-title')
+  const stepTexts = document.querySelectorAll('.process-step-text')
+  const processSteps = []
+  stepTitles.forEach((el, i) => {
+    const title = el.value.trim()
+    const text = stepTexts[i] ? stepTexts[i].value.trim() : ''
+    if (title) processSteps.push({ title, text })
+  })
+  ov.processSteps = processSteps
+  svc.processSteps = processSteps
 
   saveAdminData()
   renderDashboard()
@@ -2029,6 +2060,22 @@ function addNewService(catId) {
           </select>
         </div>
       </div>
+      <!-- Process Steps -->
+      <div class="process-steps-editor" style="margin-top:24px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;padding:20px;background:#fafaf8">
+        <h4 style="margin:0 0 4px;font-size:0.95rem">Pasos del Proceso <span style="font-weight:400;color:#999;font-size:0.8rem">(opcional)</span></h4>
+        <p style="margin:0 0 16px;font-size:0.78rem;color:#999">3 pasos con título y descripción para la página del servicio.</p>
+        <div id="newProcessStepsContainer">
+          ${[0,1,2].map(i => `
+            <div class="process-step-row" style="display:flex;gap:12px;margin-bottom:12px;align-items:flex-start">
+              <span style="font-family:'Playfair Display',serif;color:var(--gold);font-style:italic;font-size:1.2rem;padding-top:6px;min-width:30px">0${i+1}</span>
+              <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+                <input type="text" class="new-process-step-title" placeholder="Título del paso ${i+1}" style="font-weight:600" />
+                <textarea class="new-process-step-text" placeholder="Descripción del paso ${i+1}..." rows="2" style="font-size:0.85rem"></textarea>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+
       <div style="display:flex;gap:12px;margin-top:24px">
         <button class="btn btn-primary" onclick="saveNewService()">Crear servicio</button>
         <button class="btn" onclick="backToSvcList('${catId}')">Cancelar</button>
@@ -2074,7 +2121,18 @@ function saveNewService() {
     img: _newSvcImg || cat.cardImg || 'images/placeholder.jpg',
     link: document.getElementById('newsvc-link').value.trim() || SITE.booking,
     highlighted: document.getElementById('newsvc-highlighted').value === 'true',
-    hasDiscount: false
+    hasDiscount: false,
+    processSteps: (() => {
+      const titles = document.querySelectorAll('.new-process-step-title')
+      const texts = document.querySelectorAll('.new-process-step-text')
+      const steps = []
+      titles.forEach((el, i) => {
+        const title = el.value.trim()
+        const text = texts[i] ? texts[i].value.trim() : ''
+        if (title) steps.push({ title, text })
+      })
+      return steps
+    })()
   }
 
   // Add to live data

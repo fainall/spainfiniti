@@ -57,11 +57,24 @@ function renderNavbar(activePage) {
       </label>
       <div class="search-dropdown" id="searchDropdown"></div>
     </div>
-    <button class="nav-mob-btn" onclick="toggleMobMenu()" aria-label="Menú">
-      <span></span><span></span><span></span>
-    </button>
+    <div class="nav-mob-actions">
+      <button class="nav-mob-search-btn" onclick="toggleMobSearch()" aria-label="Buscar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+      <button class="nav-mob-btn" onclick="toggleMobMenu()" aria-label="Menú">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
   </div>
 </nav>
+<div class="mob-search-overlay" id="mobSearchOverlay">
+  <div class="mob-search-bar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="mobSearchInput" placeholder="Buscar servicio..." autocomplete="off" />
+    <button class="mob-search-close" onclick="toggleMobSearch()">✕</button>
+  </div>
+  <div class="mob-search-results" id="mobSearchResults"></div>
+</div>
 <div class="mob-menu" id="mobMenu">
   <button class="mob-close" onclick="toggleMobMenu()">✕</button>
 
@@ -231,6 +244,61 @@ function initShared() {
     document.addEventListener('click', e => {
       if (!e.target.closest('.nav-search-container')) searchDrop.classList.remove('open')
     })
+  }
+
+  // Mobile search
+  const mobInput = document.getElementById('mobSearchInput')
+  const mobResults = document.getElementById('mobSearchResults')
+  if (mobInput && mobResults) {
+    function doMobSearch(q) {
+      if (!q) { mobResults.innerHTML = ''; return }
+      const results = []
+      const ql = q.toLowerCase()
+      for (const cat of CATEGORIES) {
+        for (const svc of cat.services) {
+          if (svc.name.toLowerCase().includes(ql) || cat.name.toLowerCase().includes(ql) || svc.shortDesc.toLowerCase().includes(ql)) {
+            results.push({ svc, cat })
+          }
+        }
+        if (results.length >= 8) break
+      }
+      if (!results.length) {
+        mobResults.innerHTML = '<div class="mob-search-empty">No se encontraron servicios</div>'
+      } else {
+        mobResults.innerHTML = results.slice(0, 8).map(r => `
+          <a href="servicio.html?id=${r.svc.id}" class="mob-search-item">
+            <div class="mob-search-info">
+              <span class="mob-search-cat">${r.cat.name}</span>
+              <span class="mob-search-name">${r.svc.name}</span>
+            </div>
+            <div class="mob-search-meta">
+              ${r.svc.hasDiscount && r.svc.originalPrice ? `<span style="text-decoration:line-through;opacity:0.5;font-size:0.75rem">${r.svc.originalPrice}</span>` : ''}
+              <span class="mob-search-price">${r.svc.price}</span>
+            </div>
+          </a>
+        `).join('')
+      }
+    }
+    mobInput.addEventListener('input', () => doMobSearch(mobInput.value.trim()))
+    mobInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && mobInput.value.trim()) {
+        toggleMobSearch()
+        window.location.href = `servicios.html?q=${encodeURIComponent(mobInput.value.trim())}`
+      }
+    })
+  }
+}
+
+function toggleMobSearch() {
+  const overlay = document.getElementById('mobSearchOverlay')
+  const input = document.getElementById('mobSearchInput')
+  overlay.classList.toggle('open')
+  document.body.style.overflow = overlay.classList.contains('open') ? 'hidden' : ''
+  if (overlay.classList.contains('open')) {
+    setTimeout(() => input.focus(), 100)
+  } else {
+    input.value = ''
+    document.getElementById('mobSearchResults').innerHTML = ''
   }
 }
 
