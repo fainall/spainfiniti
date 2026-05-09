@@ -501,13 +501,17 @@
 <div id="footerContainer"></div>
 <div id="floatingContainer"></div>
 
-<script src="supabase-client.js?v=2"></script>
-<script src="data.js?v=2"></script>
-<script src="common.js?v=2"></script>
+<script src="supabase-client.js?v=3"></script>
+<script src="data.js?v=3"></script>
+<script src="common.js?v=3"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
 document.getElementById('footerContainer').innerHTML = renderFooter()
 document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+;(async () => {
+// Load Supabase data before resolving service
+await initSupabaseData()
 
 const svcId = new URLSearchParams(location.search).get('id')
 const result = svcId ? getServiceById(svcId) : null
@@ -638,6 +642,14 @@ if (!result) {
   `).join('')
 }
 
+// Init reveal observer after async content loaded
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('active') })
+}, { threshold: 0.07, rootMargin: '0px 0px -20px 0px' })
+document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el))
+
+})() // end async IIFE
+
 /* Modal logic */
 const bookingModal = document.getElementById('bookingModal')
 const bookingIframe = document.getElementById('bookingIframe')
@@ -663,11 +675,6 @@ document.getElementById('closeModal').addEventListener('click', hideModal)
 bookingModal.addEventListener('click', e => { if (e.target === bookingModal) hideModal() })
 
 initShared()
-
-const revealObs = new IntersectionObserver(entries => {
-  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('active') })
-}, { threshold: 0.07, rootMargin: '0px 0px -20px 0px' })
-document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el))
 </script>
 </body>
 </html>
