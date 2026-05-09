@@ -541,7 +541,7 @@ body {
   line-height: 1.7;
 }
 
-/* RESPONSIVE */
+/* RESPONSIVE — Tablet */
 @media (max-width: 900px) {
   .sidebar { width: 60px; }
   .sidebar-logo h2, .sidebar-logo span, .sidebar-nav a span, .sidebar-footer { display: none; }
@@ -550,6 +550,115 @@ body {
   .form-row { grid-template-columns: 1fr; }
   .admin-grid { grid-template-columns: 1fr; }
   .content { padding: 16px; }
+}
+
+/* RESPONSIVE — Mobile */
+@media (max-width: 600px) {
+  :root { --sidebar-w: 0px; }
+
+  /* Sidebar → bottom nav */
+  .sidebar {
+    width: 100%;
+    height: 56px;
+    position: fixed;
+    top: auto; bottom: 0; left: 0; right: 0;
+    flex-direction: row;
+    overflow: hidden;
+    z-index: 200;
+  }
+  .sidebar-logo { display: none; }
+  .sidebar-footer { display: none; }
+  .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sidebar-nav a {
+    flex: 1;
+    min-width: 48px;
+    justify-content: center;
+    padding: 10px 4px;
+    border-left: none;
+    border-top: 3px solid transparent;
+    font-size: 0;
+  }
+  .sidebar-nav a span { display: none; }
+  .sidebar-nav a svg { width: 20px; height: 20px; }
+  .sidebar-nav a.active {
+    border-left-color: transparent;
+    border-top-color: var(--gold);
+  }
+
+  /* Main area */
+  .main { margin-left: 0; padding-bottom: 64px; }
+
+  /* Topbar */
+  .topbar {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .topbar h1 { font-size: 1.1rem; width: 100%; }
+  .topbar-actions { width: 100%; justify-content: stretch; }
+  .topbar-actions .btn { flex: 1; justify-content: center; padding: 8px 12px; font-size: 0.72rem; }
+
+  /* Content */
+  .content { padding: 12px; }
+
+  /* Stats grid */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-card { padding: 16px 10px; }
+  .stat-card .num { font-size: 1.8rem; }
+  .stat-card .label { font-size: 0.62rem; }
+
+  /* Cards */
+  .admin-grid { grid-template-columns: 1fr; gap: 12px; }
+  .admin-card-img { height: 140px; }
+  .admin-card-body { padding: 14px; }
+  .admin-card-body h3 { font-size: 0.88rem; }
+
+  /* Edit panel */
+  .edit-panel { padding: 16px; }
+  .edit-panel h2 { font-size: 1.1rem; margin-bottom: 16px; padding-bottom: 12px; }
+  .form-row { grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+
+  /* Image uploader */
+  .img-uploader { flex-direction: column; align-items: stretch; }
+  .img-preview { width: 100%; height: 160px; }
+  .img-upload-area { padding: 16px; }
+
+  /* Service list items */
+  .svc-list-item { padding: 12px; gap: 10px; }
+  .svc-list-item img { width: 44px; height: 44px; }
+  .svc-list-info h4 { font-size: 0.8rem; }
+  .svc-list-meta .price { font-size: 0.82rem; }
+
+  /* Discount fields */
+  .discount-fields.show { grid-template-columns: 1fr; }
+  .discount-row { padding: 14px; }
+
+  /* Export area */
+  .export-area { padding: 16px; }
+
+  /* Toast */
+  .toast { left: 12px; right: 12px; bottom: 70px; text-align: center; }
+
+  /* Login */
+  .login-box { margin: 16px; width: auto; }
+
+  /* Back button */
+  .back-btn { font-size: 0.72rem; }
+
+  /* Buttons */
+  .btn { padding: 8px 14px; font-size: 0.72rem; }
 }
 </style>
 </head>
