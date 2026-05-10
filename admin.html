@@ -1541,6 +1541,11 @@ function saveService(catId, svcId) {
     svc[key] = val
   }
 
+  // Image — sync from adminData overlay (set by handleSvcImg)
+  if (ov.img) {
+    svc.img = ov.img
+  }
+
   // Discount
   const hasDiscount = document.getElementById('svc-hasDiscount').checked
   ov.hasDiscount = hasDiscount
