@@ -1262,6 +1262,14 @@ const obs = new IntersectionObserver(entries => {
   entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis') })
 }, { threshold: 0.07, rootMargin: '0px 0px -20px 0px' })
 document.querySelectorAll('.fu').forEach(el => obs.observe(el))
+
+// Re-render when Supabase data arrives
+window.addEventListener('categories-updated', () => {
+  gcCatSelect.innerHTML = CATEGORIES.map(cat =>
+    `<option value="${cat.id}">${cat.name} (${cat.services.length})</option>`
+  ).join('')
+  renderServices(gcCatSelect.value || CATEGORIES[0].id)
+})
 </script>
 </body>
 </html>

@@ -1346,6 +1346,59 @@ const counterObs = new IntersectionObserver((entries) => {
 }, { threshold: 0.5 })
 document.querySelectorAll('[data-count]').forEach(el => counterObs.observe(el))
 
+// Re-render when Supabase data arrives
+window.addEventListener('categories-updated', () => {
+  // Featured services
+  featGrid.innerHTML = ''
+  featuredIds.forEach(f => {
+    const result = getServiceById(f.svcId)
+    if (!result) return
+    const { service: svc, category: cat } = result
+    const card = document.createElement('a')
+    card.href = `categoria.html?cat=${cat.id}#${svc.id}`
+    card.className = 'feat-card fu vis'
+    card.style.textDecoration = 'none'
+    card.innerHTML = `
+      <img class="feat-card-img" src="${svc.img}" alt="${svc.name}" loading="lazy">
+      <div class="feat-card-body">
+        <div class="feat-card-cat">${cat.name}</div>
+        <div class="feat-card-name">${svc.name}</div>
+        <p class="feat-card-desc">${svc.shortDesc}</p>
+        <div class="feat-card-footer">
+          <div>
+            <span class="feat-card-price">${svc.price}</span>
+            <span class="feat-card-dur"> · ${svc.duration}</span>
+          </div>
+          <span class="feat-card-link">Ver más →</span>
+        </div>
+      </div>
+    `
+    featGrid.appendChild(card)
+  })
+  // Category wheel
+  swiperWrapper.innerHTML = ''
+  catMeta.forEach(cm => {
+    const cat = getCategoryById(cm.id)
+    if (!cat) return
+    const slide = document.createElement('div')
+    slide.className = 'swiper-slide'
+    slide.innerHTML = `
+      <div class="slide-img-wrapper" onclick="location.href='categoria.html?cat=${cat.id}'">
+        <img src="${cat.heroImg}" alt="${cat.name}" loading="lazy">
+      </div>
+      <div class="slide-text-wrapper" onclick="location.href='categoria.html?cat=${cat.id}'">
+        <div class="poly-highlight"></div>
+        <div class="slide-content">
+          <h4 class="cat-subtitle">${cm.subtitle}</h4>
+          <h2 class="cat-title">${cat.name}</h2>
+        </div>
+      </div>
+    `
+    swiperWrapper.appendChild(slide)
+  })
+  swiper.update()
+})
+
 initShared()
 </script>
 </body>

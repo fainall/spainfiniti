@@ -830,6 +830,8 @@ async function initSupabaseData() {
     cats.forEach(c => CATEGORIES.push(c))
     _supabaseReady = true
     console.log('✓ Data loaded from Supabase:', CATEGORIES.length, 'categories')
+    // Notify pages so they can re-render with fresh data
+    window.dispatchEvent(new CustomEvent('categories-updated'))
     return true
   } catch (e) {
     console.warn('Supabase init failed, using static data:', e)

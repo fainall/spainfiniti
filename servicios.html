@@ -333,6 +333,21 @@ function setView(view) {
 
 renderCats(CATEGORIES)
 
+// Re-render when Supabase data arrives
+window.addEventListener('categories-updated', () => {
+  const q = catSearch.value.trim().toLowerCase()
+  if (q) {
+    const filtered = CATEGORIES.filter(cat =>
+      cat.name.toLowerCase().includes(q) ||
+      cat.shortDesc.toLowerCase().includes(q) ||
+      cat.services.some(s => s.name.toLowerCase().includes(q))
+    )
+    renderCats(filtered)
+  } else {
+    renderCats(CATEGORIES)
+  }
+})
+
 catSearch.addEventListener('input', () => {
   const q = catSearch.value.trim().toLowerCase()
   if (!q) { renderCats(CATEGORIES); return }

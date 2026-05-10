@@ -469,3 +469,13 @@ function mobBackToCats(e) {
   document.getElementById('mobPanelSvcs').classList.remove('mob-panel--active')
   document.getElementById('mobPanelCats').classList.remove('mob-panel--exit')
 }
+
+/* ── Re-render navbar when Supabase data arrives ──── */
+window.addEventListener('categories-updated', () => {
+  const navEl = document.getElementById('navContainer')
+  if (!navEl) return
+  const activeLink = navEl.querySelector('.nav-link.active, a.active')
+  const activePage = activeLink ? activeLink.textContent.trim() : ''
+  navEl.innerHTML = renderNavbar(activePage)
+  initShared()
+})

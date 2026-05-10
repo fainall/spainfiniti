@@ -404,6 +404,50 @@ if (!cat) {
   `).join('')
 }
 
+// Re-render when Supabase data arrives
+window.addEventListener('categories-updated', () => {
+  const freshCat = catId ? getCategoryById(catId) : null
+  if (!freshCat) return
+  document.getElementById('svcGrid').innerHTML = freshCat.services.map((svc, i) => `
+    <article id="${svc.id}" class="svc-card-new reveal active" style="transition-delay:${(i % 2) * 0.12}s"
+             onclick="window.location='servicio.html?id=${svc.id}'">
+      ${svc.hasDiscount && svc.discountLabel
+        ? `<span class="card-badge" style="background:var(--red)">${svc.discountLabel}</span>`
+        : getActivePromoForService(svc.id)
+          ? `<span class="card-badge" style="background:linear-gradient(135deg,#1A2436,#2C3E50)">${getActivePromoForService(svc.id).discount}</span>`
+          : svc.highlighted ? `<span class="card-badge">Destacado</span>` : ''}
+      <div class="card-img-box">
+        <img src="${svc.img}" alt="${svc.name}" loading="lazy" />
+      </div>
+      <span class="card-subtitle">${svc.tag}</span>
+      <h3 class="card-title">${svc.name}</h3>
+      <p class="card-desc">${svc.shortDesc}</p>
+      <div class="card-meta">
+        <div class="card-meta-item">
+          <span class="card-meta-label">Duración</span>
+          <span class="card-meta-value">${svc.duration}</span>
+        </div>
+        <div class="card-meta-item">
+          <span class="card-meta-label">Precio</span>
+          ${svc.hasDiscount && svc.originalPrice
+            ? `<span class="card-meta-value" style="text-decoration:line-through;color:var(--light);font-size:0.78rem">${svc.originalPrice}</span>
+               <span class="card-meta-value gold">${svc.price}</span>`
+            : `<span class="card-meta-value gold">${svc.price}</span>`}
+        </div>
+      </div>
+      <a href="servicio.html?id=${svc.id}" class="btn-para" onclick="event.stopPropagation()">Ver detalles</a>
+    </article>
+  `).join('')
+  document.getElementById('svcCount').textContent = freshCat.services.length
+  const others = CATEGORIES.filter(c => c.id !== catId).slice(0, 8)
+  document.getElementById('otherCats').innerHTML = others.map(c => `
+    <div class="other-cat-chip" onclick="window.location='categoria.html?cat=${c.id}'">
+      <img src="${c.cardImg}" alt="${c.name}" loading="lazy" />
+      <span>${c.name}</span>
+    </div>
+  `).join('')
+})
+
 initShared()
 </script>
 </body>
