@@ -501,7 +501,7 @@
 <div id="footerContainer"></div>
 <div id="floatingContainer"></div>
 
-<script src="supabase-client.js?v=4"></script>
+<script src="supabase-client.js?v=5"></script>
 <script src="data.js?v=3"></script>
 <script src="common.js?v=8"></script>
 <script>
@@ -586,7 +586,7 @@ if (!result) {
     </tr>
   `
 
-  /* Promo banner — from PROMOS system or from discount fields */
+  /* Promo banner — shows when discount has custom text */
   const promo = getActivePromoForService(svc.id)
   if (promo) {
     document.getElementById('promoBanner').innerHTML = `
@@ -602,8 +602,8 @@ if (!result) {
         <div class="promo-discount">${promo.discount}</div>
       </div>
     `
-  } else if (svc.hasDiscount && svc.discountLabel) {
-    const dlabel = svc.discountLabel.includes('%') ? svc.discountLabel : svc.discountLabel + '% DCTO'
+  } else if (svc.hasDiscount && svc.discountText) {
+    const dlabel = svc.discountLabel || ''
     document.getElementById('promoBanner').innerHTML = `
       <div class="promo-banner reveal active">
         <span class="promo-sparkle"></span>
@@ -612,7 +612,7 @@ if (!result) {
         <span class="promo-sparkle"></span>
         <span class="promo-icon">✨</span>
         <span class="promo-label">Promoción Especial</span>
-        <div class="promo-title">Oferta Disponible</div>
+        <div class="promo-title">${svc.discountText}</div>
         <div class="promo-subtitle">¡Aprovecha este precio especial por tiempo limitado!</div>
         <div class="promo-discount">${dlabel}</div>
       </div>

@@ -872,7 +872,7 @@ body {
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="supabase-client.js?v=4"></script>
+<script src="supabase-client.js?v=5"></script>
 <script src="data.js?v=2"></script>
 <script>
 /* ═══════════════════════════════════════════
@@ -1238,6 +1238,11 @@ function editService(catId, svcId) {
             <input type="text" id="svc-discountedPrice" value="" readonly style="background:#f0f8f0;font-weight:600;color:#2a7a2a" />
           </div>
           <input type="hidden" id="svc-discountLabel" value="${esc(svc.discountLabel || '')}" />
+          <div class="form-group">
+            <label>Texto promocional (aparece como banner en la página del servicio)</label>
+            <input type="text" id="svc-discountText" placeholder="Ej: Descuento por Día de la Madre" value="${esc(svc.discountText || '')}" />
+            <span class="form-hint">Si se deja vacío, no se mostrará el banner de promoción en la página del servicio</span>
+          </div>
         </div>
       </div>
 
@@ -1443,6 +1448,8 @@ function saveService(catId, svcId) {
     }
     svc.originalPrice = ov.originalPrice
     svc.discountLabel = ov.discountLabel
+    ov.discountText = document.getElementById('svc-discountText').value.trim()
+    svc.discountText = ov.discountText
   } else {
     // Restore original price when discount removed
     if (ov.originalPrice) {
@@ -1451,8 +1458,10 @@ function saveService(catId, svcId) {
     }
     delete ov.originalPrice
     delete ov.discountLabel
+    delete ov.discountText
     delete svc.originalPrice
     delete svc.discountLabel
+    delete svc.discountText
   }
 
   // Gift Card Discount
@@ -1528,6 +1537,7 @@ function renderDiscounts() {
               ${svc.hasDiscount && svc.originalPrice ? `<span class="original-price">${svc.originalPrice}</span>` : ''}
               <span class="price">${svc.price}</span>
               ${svc.hasDiscount && svc.discountLabel ? `<span class="discount-badge">${svc.discountLabel}</span>` : ''}
+              ${svc.hasDiscount && svc.discountText ? `<span style="font-size:0.7rem;color:var(--gold-d);display:block;margin-top:2px">📌 ${svc.discountText}</span>` : ''}
             </div>
             <label class="toggle">
               <input type="checkbox" ${svc.hasDiscount ? 'checked' : ''}
@@ -1581,6 +1591,12 @@ function quickToggleDiscount(catId, svcId, on) {
           <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px">Precio final</label>
           <input type="text" id="qd-final-${svcId}" readonly style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:#f0f8f0;font-weight:600;color:#2a7a2a" />
         </div>
+      </div>
+      <div style="margin-top:10px">
+        <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px">Texto promocional (aparece como banner en la página del servicio)</label>
+        <input type="text" id="qd-text-${svcId}" placeholder="Ej: Descuento por Día de la Madre" value="${svc.discountText || ''}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px" />
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
         <button class="btn btn-primary" style="padding:8px 20px" onclick="applyQuickDiscount('${catId}','${svcId}')">Aplicar</button>
         <button class="btn" style="padding:8px 16px" onclick="cancelQuickDiscount('${svcId}')">Cancelar</button>
       </div>
@@ -1606,9 +1622,11 @@ function quickToggleDiscount(catId, svcId, on) {
     svc.hasDiscount = false
     delete svc.originalPrice
     delete svc.discountLabel
+    delete svc.discountText
     adminData.services[svcId].hasDiscount = false
     delete adminData.services[svcId].originalPrice
     delete adminData.services[svcId].discountLabel
+    delete adminData.services[svcId].discountText
 
     saveAdminData()
     renderDiscounts()
@@ -1628,6 +1646,7 @@ function applyQuickDiscount(catId, svcId) {
   const pct = parseInt(document.getElementById('qd-pct-' + svcId).value) || 0
   const finalPrice = document.getElementById('qd-final-' + svcId).value.trim()
   const origPrice = document.getElementById('qd-orig-' + svcId).value.trim()
+  const discText = document.getElementById('qd-text-' + svcId).value.trim()
 
   if (!pct || !finalPrice) { toast('Ingresa un porcentaje válido', 'error'); return }
 
@@ -1638,10 +1657,12 @@ function applyQuickDiscount(catId, svcId) {
   svc.hasDiscount = true
   svc.originalPrice = origPrice
   svc.discountLabel = pct + '% DCTO'
+  svc.discountText = discText
   svc.price = finalPrice
   adminData.services[svcId].hasDiscount = true
   adminData.services[svcId].originalPrice = origPrice
   adminData.services[svcId].discountLabel = pct + '% DCTO'
+  adminData.services[svcId].discountText = discText
   adminData.services[svcId].price = finalPrice
 
   saveAdminData()
