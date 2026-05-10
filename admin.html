@@ -1295,9 +1295,10 @@ function editService(catId, svcId) {
         </div>
       </div>
 
-      <div style="display:flex;gap:12px;margin-top:24px">
+      <div style="display:flex;gap:12px;margin-top:24px;align-items:center">
         <button class="btn btn-primary" onclick="saveService('${catId}','${svcId}')">Guardar servicio</button>
         <button class="btn" onclick="backToSvcList('${catId}')">Cancelar</button>
+        <button class="btn btn-danger" style="margin-left:auto" onclick="deleteService('${catId}','${svcId}','${esc(svc.name)}')">🗑 Eliminar servicio</button>
       </div>
     </div>
   `
@@ -1338,6 +1339,25 @@ function handleSvcImg(e, svcId) {
     if (!adminData.services[svcId]) adminData.services[svcId] = {}
     adminData.services[svcId].img = dataUrl
   })
+}
+
+async function deleteService(catId, svcId, svcName) {
+  if (!confirm(`¿Estás seguro de que quieres eliminar "${svcName}"?\n\nEsta acción NO se puede deshacer.`)) return
+  if (!confirm(`CONFIRMAR: Se eliminará "${svcName}" permanentemente de la base de datos.`)) return
+
+  try {
+    await supabase.delete('services', svcId)
+    // Remove from local CATEGORIES array
+    const cat = getCategoryById(catId)
+    if (cat) {
+      cat.services = cat.services.filter(s => s.id !== svcId)
+    }
+    toast('Servicio eliminado correctamente', 'success')
+    backToSvcList(catId)
+  } catch (err) {
+    console.error('Delete failed:', err)
+    toast('Error al eliminar: ' + err.message, 'error')
+  }
 }
 
 function saveService(catId, svcId) {
