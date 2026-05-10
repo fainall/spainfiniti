@@ -786,6 +786,26 @@ body {
           </div>
           <button class="btn btn-primary" onclick="saveSiteSettings()">Guardar configuración</button>
         </div>
+
+        <!-- Promo Banner Toggle -->
+        <div class="edit-panel" style="margin-top:24px">
+          <h2>Banner Promocional Flotante</h2>
+          <p style="font-size:0.85rem;color:var(--mid);margin-bottom:16px">Muestra un botón flotante en todas las páginas que enlaza a la página de promoción. Los visitantes pueden cerrarlo individualmente.</p>
+          <div style="display:flex;align-items:center;gap:16px">
+            <label class="toggle">
+              <input type="checkbox" id="promo-enabled" onchange="togglePromoFloat()" />
+              <span class="toggle-slider"></span>
+            </label>
+            <span style="font-weight:600;font-size:0.9rem" id="promo-status-label">Activado</span>
+          </div>
+          <div style="margin-top:16px;padding:16px;background:var(--cream);border-radius:8px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:1.5rem">🌸</span>
+            <div>
+              <p style="font-size:0.82rem;font-weight:600;margin-bottom:2px">Promo Dia de la Madre</p>
+              <p style="font-size:0.75rem;color:var(--mid)">Enlaza a: <a href="promocion-dia-de-la-madre" target="_blank" style="color:var(--gold)">promocion-dia-de-la-madre</a></p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ CATEGORIES ═══ -->
@@ -883,6 +903,7 @@ function initAdmin() {
   loadAdminData()
   renderDashboard()
   loadSiteSettings()
+  initPromoToggle()
   renderCatList()
   renderSvcCatList()
   renderDiscounts()
@@ -1000,6 +1021,24 @@ function saveSiteSettings() {
   })
   saveAdminData()
   toast('Configuración guardada', 'success')
+}
+
+/* ── PROMO FLOAT TOGGLE ────────── */
+function initPromoToggle() {
+  const el = document.getElementById('promo-enabled')
+  const label = document.getElementById('promo-status-label')
+  if (!el) return
+  const enabled = localStorage.getItem('spaPromoEnabled') !== 'false'
+  el.checked = enabled
+  label.textContent = enabled ? 'Activado' : 'Desactivado'
+}
+function togglePromoFloat() {
+  const el = document.getElementById('promo-enabled')
+  const label = document.getElementById('promo-status-label')
+  const enabled = el.checked
+  localStorage.setItem('spaPromoEnabled', enabled ? 'true' : 'false')
+  label.textContent = enabled ? 'Activado' : 'Desactivado'
+  toast(enabled ? 'Banner promocional activado' : 'Banner promocional desactivado', 'success')
 }
 
 /* ── CATEGORIES ───────────────── */

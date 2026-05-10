@@ -7,7 +7,7 @@
 <meta name="description" content="Packs especiales para el Dia de la Madre. Regala tiempo, cuidado y bienestar en Spa Infinity.">
 <link rel="icon" href="img/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=3">
 <style>
 /* ═══════════════════════════════════════════
    PROMO PAGE — Dia de la Madre
@@ -25,9 +25,11 @@
   min-height: 92vh;
   display: flex;
   align-items: center;
-  padding: 120px 7% 80px;
+  justify-content: space-between;
+  padding: 120px 4% 80px;
   overflow: hidden;
   background: linear-gradient(160deg, rgba(253,244,238,0.82) 0%, rgba(250,232,223,0.72) 40%, rgba(253,240,243,0.55) 100%);
+  gap: 40px;
 }
 .promo-hero::before {
   content: '∞';
@@ -40,7 +42,7 @@
   pointer-events: none;
 }
 .promo-hero-content {
-  flex: 1; max-width: 600px; position: relative; z-index: 2;
+  flex: 1; max-width: 680px; position: relative; z-index: 2;
 }
 .promo-badge {
   display: inline-block;
@@ -63,7 +65,7 @@
 }
 .promo-hero-title {
   font-family: 'Playfair Display', serif;
-  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-size: clamp(3rem, 6.5vw, 5rem);
   color: #8B6070;
   line-height: 1.1;
   margin-bottom: 20px;
@@ -87,10 +89,9 @@
   flex: 0 0 auto;
   position: relative;
   z-index: 2;
-  margin-left: 60px;
 }
 .promo-hero-img {
-  width: 380px; height: 380px;
+  width: 480px; height: 480px;
   border-radius: 50% 50% 50% 10%;
   object-fit: cover;
   box-shadow: 0 30px 80px rgba(194,123,138,0.18);
@@ -455,8 +456,8 @@
 /* ── Responsive ── */
 @media (max-width: 960px) {
   .promo-hero { flex-direction: column; text-align: center; min-height: auto; padding: 100px 5% 50px; }
-  .promo-hero-right { margin-left: 0; margin-top: 40px; }
-  .promo-hero-img { width: 280px; height: 280px; }
+  .promo-hero-right { margin-top: 40px; }
+  .promo-hero-img { width: 300px; height: 300px; }
   .promo-hero-desc { margin: 0 auto 32px; }
   .promo-ctas { justify-content: center; }
   .promo-packs-grid { grid-template-columns: 1fr; max-width: 420px; }
@@ -727,7 +728,7 @@
 
 <script src="supabase-client.js?v=2"></script>
 <script src="data.js?v=2"></script>
-<script src="common.js?v=2"></script>
+<script src="common.js?v=3"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('Promocion')
 document.getElementById('floatingContainer').innerHTML = renderFloating()

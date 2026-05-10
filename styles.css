@@ -943,6 +943,100 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .back-top.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
 .back-top:hover { background: var(--gold); color: white; border-color: var(--gold); }
 
+/* ── PROMO FLOATING BUTTON ─────────────────────────── */
+.promo-float {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  text-decoration: none;
+  animation: promoSlideIn 0.8s ease 1.5s both;
+}
+@keyframes promoSlideIn {
+  from { transform: translateY(-50%) translateX(-100%); }
+  to { transform: translateY(-50%) translateX(0); }
+}
+.promo-float-icon {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #C27B8A, #A85A6A);
+  border-radius: 0 50% 50% 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: 4px 4px 20px rgba(194,123,138,0.35);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+.promo-float-text {
+  background: linear-gradient(135deg, #C27B8A, #A85A6A);
+  color: #fff;
+  padding: 10px 36px 10px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  border-radius: 0 26px 26px 0;
+  margin-left: -1px;
+  box-shadow: 4px 4px 20px rgba(194,123,138,0.35);
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width 0.4s ease, opacity 0.3s ease, padding 0.4s ease;
+}
+.promo-float:hover .promo-float-text {
+  max-width: 220px;
+  opacity: 1;
+  padding: 10px 36px 10px 8px;
+}
+.promo-float:hover .promo-float-icon {
+  border-radius: 0;
+  box-shadow: 6px 6px 30px rgba(194,123,138,0.45);
+}
+.promo-float-close {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--dark);
+  color: #fff;
+  border: none;
+  font-size: 0.55rem;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.promo-float:hover .promo-float-close { display: flex; }
+.promo-float-close:hover { opacity: 1; }
+@media (max-width: 860px) {
+  .promo-float {
+    top: auto;
+    bottom: 90px;
+    transform: none;
+    animation: promoSlideInMob 0.8s ease 1.5s both;
+  }
+  @keyframes promoSlideInMob {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+  .promo-float-text {
+    max-width: 180px;
+    opacity: 1;
+    padding: 10px 30px 10px 8px;
+  }
+}
+
 /* ── ANIMATIONS ─────────────────────────────────────── */
 .fu { opacity: 0; transform: translateY(28px); transition: opacity 0.6s ease, transform 0.6s ease; }
 .fu.vis { opacity: 1; transform: translateY(0); }
