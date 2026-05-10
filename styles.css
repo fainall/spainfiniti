@@ -1122,18 +1122,21 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   .nav-mob-btn { position: static; }
 }
 
-/* Search overlay */
+/* Search overlay — mobile only */
 .mob-search-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: var(--white);
   z-index: 10000;
-  display: flex;
+  display: none;
   flex-direction: column;
   transform: translateY(-100%);
   opacity: 0;
   transition: transform 0.3s ease, opacity 0.25s ease;
   pointer-events: none;
+}
+@media (max-width: 860px) {
+  .mob-search-overlay { display: flex; }
 }
 .mob-search-overlay.open {
   transform: translateY(0);
