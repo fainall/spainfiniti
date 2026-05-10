@@ -620,10 +620,7 @@ if (!result) {
     `
   }
 
-  /* Gift Card discount — update gift CTA button text */
-  if (svc.gcDiscountEnabled && svc.gcPrice) {
-    document.getElementById('giftCta').innerHTML = `🎁 REGALA ESTE SERVICIO · ${svc.gcPrice}`
-  }
+  /* Gift Card CTA — always same text, price matches service price */
 
   /* Related services */
   const related = cat.services.filter(s => s.id !== svc.id).slice(0, 3)
