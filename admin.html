@@ -1879,7 +1879,18 @@ async function editPromoEvent(id) {
       </div>
       <div class="form-row">
         <div class="form-group"><label>Precio</label><input type="text" class="pk-price" value="${esc(p.price||'')}" placeholder="$50.000 — $62.000" /></div>
-        <div class="form-group"><label>Imagen banner (URL)</label><input type="text" class="pk-img" value="${esc(p.bannerImage||'')}" /></div>
+        <div class="form-group">
+          <label>Imagen banner</label>
+          <input type="hidden" class="pk-img" value="${esc(p.bannerImage||'')}" />
+          <div class="img-uploader">
+            <img class="img-preview pk-img-preview" src="${p.bannerImage || ''}" style="${p.bannerImage ? '' : 'background:var(--cream)'}" />
+            <div class="img-upload-area">
+              <span class="icon">📷</span>
+              <p>Cambiar imagen banner</p>
+              <input type="file" accept="image/*" onchange="handlePackImg(event, this)" />
+            </div>
+          </div>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Título en banner</label><input type="text" class="pk-btitle" value="${esc(p.bannerTitle||'')}" /></div>
@@ -1932,7 +1943,18 @@ async function editPromoEvent(id) {
       </div>
       <div class="form-row">
         <div class="form-group"><label>Tagline</label><input type="text" id="pe-tagline" value="${esc(c.heroTagline||'')}" /></div>
-        <div class="form-group"><label>Imagen hero (URL)</label><input type="text" id="pe-himg" value="${esc(c.heroImage||'')}" /></div>
+        <div class="form-group">
+          <label>Imagen hero</label>
+          <input type="hidden" id="pe-himg" value="${esc(c.heroImage||'')}" />
+          <div class="img-uploader">
+            <img class="img-preview" id="pe-himg-preview" src="${c.heroImage || ''}" style="${c.heroImage ? '' : 'background:var(--cream)'}" />
+            <div class="img-upload-area">
+              <span class="icon">📷</span>
+              <p>Cambiar imagen hero</p>
+              <input type="file" accept="image/*" onchange="handlePromoImg(event, 'pe-himg', 'pe-himg-preview')" />
+            </div>
+          </div>
+        </div>
       </div>
       <div class="form-row full">
         <div class="form-group"><label>Descripción</label><textarea id="pe-hdesc" rows="3" style="font-family:inherit;font-size:0.85rem;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical">${esc(c.heroDescription||'')}</textarea></div>
@@ -1956,7 +1978,18 @@ async function editPromoEvent(id) {
         <span style="font-size:0.82rem;color:var(--mid)">Activar pop-up (aparece una vez al entrar al sitio)</span>
       </div>
       <div class="form-row full">
-        <div class="form-group"><label>Imagen del pop-up (URL)</label><input type="text" id="pe-popup-img" value="${esc(c.popupImage||'')}" placeholder="https://..." /></div>
+        <div class="form-group">
+          <label>Imagen del pop-up</label>
+          <input type="hidden" id="pe-popup-img" value="${esc(c.popupImage||'')}" />
+          <div class="img-uploader">
+            <img class="img-preview" id="pe-popup-img-preview" src="${c.popupImage || ''}" style="${c.popupImage ? '' : 'background:var(--cream)'}" />
+            <div class="img-upload-area">
+              <span class="icon">📷</span>
+              <p>Cambiar imagen pop-up</p>
+              <input type="file" accept="image/*" onchange="handlePromoImg(event, 'pe-popup-img', 'pe-popup-img-preview')" />
+            </div>
+          </div>
+        </div>
       </div>
       <div class="form-row full">
         <div class="form-group"><label>Texto del pop-up</label><textarea id="pe-popup-text" rows="3" style="font-family:inherit;font-size:0.85rem;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical">${esc(c.popupText||'')}</textarea></div>
@@ -2363,6 +2396,29 @@ function toast(msg, type) {
   t.className = 'toast ' + (type || '')
   t.classList.add('show')
   setTimeout(() => t.classList.remove('show'), 3000)
+}
+
+/* Promo event image handler (hero & popup) */
+function handlePromoImg(e, hiddenId, previewId) {
+  const file = e.target.files[0]
+  if (!file) return
+  resizeAndStore(file, 1200, (dataUrl) => {
+    document.getElementById(previewId).src = dataUrl
+    document.getElementById(previewId).style.background = ''
+    document.getElementById(hiddenId).value = dataUrl
+  })
+}
+
+/* Pack banner image handler */
+function handlePackImg(e, inputEl) {
+  const file = e.target.files[0]
+  if (!file) return
+  const packDiv = inputEl.closest('.edit-panel')
+  resizeAndStore(file, 1200, (dataUrl) => {
+    packDiv.querySelector('.pk-img-preview').src = dataUrl
+    packDiv.querySelector('.pk-img-preview').style.background = ''
+    packDiv.querySelector('.pk-img').value = dataUrl
+  })
 }
 
 function resizeAndStore(file, maxW, cb) {
