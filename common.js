@@ -205,11 +205,47 @@ async function initPromoFloat() {
   }
 }
 
+/* ── PROMO POPUP (once per session) ───────────────── */
+async function initPromoPopup() {
+  if (typeof loadActivePromoEvent !== 'function') return
+  if (sessionStorage.getItem('spaPromoPopupSeen')) return
+  try {
+    const evt = await loadActivePromoEvent()
+    if (!evt || !evt.active) return
+    const cfg = evt.config
+    if (!cfg.popupEnabled) return
+    const img = cfg.popupImage || ''
+    const text = cfg.popupText || ''
+    const btnText = cfg.popupButtonText || 'Ver Promoción'
+    const btnLink = cfg.popupButtonLink || 'promocion-dia-de-la-madre'
+    if (!img && !text) return
+
+    sessionStorage.setItem('spaPromoPopupSeen', '1')
+
+    const overlay = document.createElement('div')
+    overlay.className = 'promo-popup-overlay'
+    overlay.innerHTML = `
+      <div class="promo-popup">
+        <button class="promo-popup-close" onclick="this.closest('.promo-popup-overlay').remove()" aria-label="Cerrar">✕</button>
+        ${img ? `<img class="promo-popup-img" src="${img}" alt="Promoción" />` : ''}
+        ${text || btnText ? `<div class="promo-popup-body">
+          ${text ? `<p class="promo-popup-text">${text}</p>` : ''}
+          ${btnLink ? `<a href="${btnLink}" class="promo-popup-btn">${btnText}</a>` : ''}
+        </div>` : ''}
+      </div>`
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove() })
+    document.body.appendChild(overlay)
+  } catch (e) {
+    console.warn('Promo popup init failed:', e)
+  }
+}
+
 /* ── SHARED JS ──────────────────────────────────────── */
 function initShared() {
   const nav = document.getElementById('siteNav')
   const bt  = document.getElementById('backTop')
   initPromoFloat()
+  initPromoPopup()
   window.addEventListener('scroll', () => {
     nav.classList.toggle('scrolled', scrollY > 60)
     if (bt) bt.classList.toggle('show', scrollY > 400)

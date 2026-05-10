@@ -1772,6 +1772,7 @@ async function renderPromos() {
           <span><strong>Packs:</strong> ${packCount}</span>
           <span><strong>Precio desde:</strong> ${esc(c.minPrice || '—')}</span>
           <span><strong>Botón flotante:</strong> ${esc(c.floatText || '—')}</span>
+          <span><strong>Pop-up:</strong> ${c.popupEnabled ? '✅ Activo' : '❌ Inactivo'}</span>
           <a href="promocion-dia-de-la-madre" target="_blank" style="color:var(--gold);font-weight:600">Ver página →</a>
         </div>
       </div>`
@@ -1799,7 +1800,7 @@ function addNewPromo() { editPromoEvent(-1) }
 
 async function editPromoEvent(id) {
   const isNew = id === -1
-  let evt = isNew ? { active: true, config: { eventName:'', year:'', heroBadge:'', heroSubtitle:'', heroTitle:'', heroTagline:'', heroDescription:'', heroImage:'', minPrice:'', floatText:'', floatIcon:'♡', bottomUrgency:'Cupos limitados!', bottomTitle:'Agenda hoy, sorprende manana.', packs:[] } } : _promoEvents.find(e => e.id === id)
+  let evt = isNew ? { active: true, config: { eventName:'', year:'', heroBadge:'', heroSubtitle:'', heroTitle:'', heroTagline:'', heroDescription:'', heroImage:'', minPrice:'', floatText:'', floatIcon:'♡', bottomUrgency:'Cupos limitados!', bottomTitle:'Agenda hoy, sorprende manana.', popupEnabled:false, popupImage:'', popupText:'', popupButtonText:'Ver Promoción', popupButtonLink:'promocion-dia-de-la-madre', packs:[] } } : _promoEvents.find(e => e.id === id)
   if (!evt) { toast('Evento no encontrado','error'); return }
   const c = evt.config
 
@@ -1889,6 +1890,25 @@ async function editPromoEvent(id) {
         <div class="form-group"><label>Icono flotante</label><input type="text" id="pe-ficon" value="${esc(c.floatIcon||'♡')}" style="font-size:1.3rem;text-align:center" /></div>
       </div>
 
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Pop-up de Entrada</h3>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <label class="toggle">
+          <input type="checkbox" id="pe-popup-on" ${c.popupEnabled ? 'checked' : ''} />
+          <span class="toggle-slider"></span>
+        </label>
+        <span style="font-size:0.82rem;color:var(--mid)">Activar pop-up (aparece una vez al entrar al sitio)</span>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label>Imagen del pop-up (URL)</label><input type="text" id="pe-popup-img" value="${esc(c.popupImage||'')}" placeholder="https://..." /></div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label>Texto del pop-up</label><textarea id="pe-popup-text" rows="3" style="font-family:inherit;font-size:0.85rem;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical">${esc(c.popupText||'')}</textarea></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Texto del botón</label><input type="text" id="pe-popup-btn" value="${esc(c.popupButtonText||'Ver Promoción')}" /></div>
+        <div class="form-group"><label>Enlace del botón</label><input type="text" id="pe-popup-link" value="${esc(c.popupButtonLink||'promocion-dia-de-la-madre')}" /></div>
+      </div>
+
       <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">CTA Final</h3>
       <div class="form-row">
         <div class="form-group"><label>Texto urgencia</label><input type="text" id="pe-burg" value="${esc(c.bottomUrgency||'')}" placeholder="Cupos limitados!" /></div>
@@ -1960,6 +1980,11 @@ async function savePromoEvt(id) {
     minPrice: document.getElementById('pe-minprice').value.trim(),
     floatText: document.getElementById('pe-ftxt').value.trim(),
     floatIcon: document.getElementById('pe-ficon').value.trim() || '♡',
+    popupEnabled: document.getElementById('pe-popup-on').checked,
+    popupImage: document.getElementById('pe-popup-img').value.trim(),
+    popupText: document.getElementById('pe-popup-text').value.trim(),
+    popupButtonText: document.getElementById('pe-popup-btn').value.trim() || 'Ver Promoción',
+    popupButtonLink: document.getElementById('pe-popup-link').value.trim() || 'promocion-dia-de-la-madre',
     bottomUrgency: document.getElementById('pe-burg').value.trim(),
     bottomTitle: document.getElementById('pe-btitle').value.trim(),
     packs: collectPacks()
