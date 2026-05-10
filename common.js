@@ -181,9 +181,9 @@ function renderFloating() {
 </a>
 <button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Volver arriba">↑</button>
 ${localStorage.getItem('spaPromoEnabled') !== 'false' ? `
-<a href="promocion-dia-de-la-madre" class="promo-float" id="promoFloat" title="Promocion Dia de la Madre">
-  <span class="promo-float-icon">🌸</span>
-  <span class="promo-float-text">Promo Dia de la Madre</span>
+<a href="promocion-dia-de-la-madre" class="promo-float" id="promoFloat" title="Promoción Día de la Madre">
+  <span class="promo-float-icon">♡</span>
+  <span class="promo-float-text">Promo Día de la Madre</span>
   <button class="promo-float-close" onclick="event.preventDefault();event.stopPropagation();document.getElementById('promoFloat').style.display='none'" aria-label="Cerrar">✕</button>
 </a>` : ''}`
 }
