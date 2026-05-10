@@ -108,7 +108,10 @@ async function loadFromSupabase() {
           highlighted: s.highlighted || false,
           hasDiscount: s.has_discount || false,
           discountLabel: s.discount_label || '',
-          originalPrice: s.original_price || ''
+          originalPrice: s.original_price || '',
+          gcDiscountEnabled: s.gc_discount_enabled || false,
+          gcDiscountPercent: s.gc_discount_percent || 0,
+          gcPrice: s.gc_price || ''
         }))
     }))
 
@@ -137,7 +140,10 @@ function serviceToRow(svc) {
     highlighted: svc.highlighted || false,
     has_discount: svc.hasDiscount || false,
     discount_label: svc.discountLabel || '',
-    original_price: svc.originalPrice || ''
+    original_price: svc.originalPrice || '',
+    gc_discount_enabled: svc.gcDiscountEnabled || false,
+    gc_discount_percent: svc.gcDiscountPercent || 0,
+    gc_price: svc.gcPrice || ''
   }
 }
 

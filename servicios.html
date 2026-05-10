@@ -240,7 +240,7 @@
 <div id="footerContainer"></div>
 <div id="floatingContainer"></div>
 
-<script src="supabase-client.js?v=3"></script>
+<script src="supabase-client.js?v=4"></script>
 <script src="data.js?v=2"></script>
 <script src="common.js?v=7"></script>
 <script>
@@ -306,6 +306,7 @@ function renderCats(list) {
                 <span class="svc-row-price">${svc.price}</span>
                 <span class="svc-row-dur">${svc.duration}</span>
                 ${svc.hasDiscount && svc.discountLabel ? `<span style="background:#E74C3C;color:#fff;font-size:0.55rem;padding:2px 7px;border-radius:3px;font-weight:700;display:inline-block;margin-top:4px">${svc.discountLabel}</span>` : ''}
+                ${svc.gcDiscountEnabled && svc.gcPrice ? `<span style="background:#1A2436;color:var(--gold);font-size:0.55rem;padding:2px 7px;border-radius:3px;font-weight:700;display:inline-block;margin-top:4px">🎁 GC: ${svc.gcPrice}</span>` : ''}
               </div>
             </a>
           `).join('')}
