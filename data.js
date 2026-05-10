@@ -820,23 +820,29 @@ function getActivePromoForService(svcId) {
 
 /* ── Supabase live data loader ─────────────────────── */
 let _supabaseReady = false
+let _supabasePromise = null
 async function initSupabaseData() {
+  if (_supabaseReady) return true
+  if (_supabasePromise) return _supabasePromise
   if (typeof loadFromSupabase !== 'function') return false
-  try {
-    const cats = await loadFromSupabase()
-    if (!cats || !cats.length) return false
-    // Replace CATEGORIES contents with Supabase data
-    CATEGORIES.length = 0
-    cats.forEach(c => CATEGORIES.push(c))
-    _supabaseReady = true
-    console.log('✓ Data loaded from Supabase:', CATEGORIES.length, 'categories')
-    // Notify pages so they can re-render with fresh data
-    window.dispatchEvent(new CustomEvent('categories-updated'))
-    return true
-  } catch (e) {
-    console.warn('Supabase init failed, using static data:', e)
-    return false
-  }
+  _supabasePromise = (async () => {
+    try {
+      const cats = await loadFromSupabase()
+      if (!cats || !cats.length) return false
+      // Replace CATEGORIES contents with Supabase data
+      CATEGORIES.length = 0
+      cats.forEach(c => CATEGORIES.push(c))
+      _supabaseReady = true
+      console.log('✓ Data loaded from Supabase:', CATEGORIES.length, 'categories')
+      // Notify pages so they can re-render with fresh data
+      window.dispatchEvent(new CustomEvent('categories-updated'))
+      return true
+    } catch (e) {
+      console.warn('Supabase init failed, using static data:', e)
+      return false
+    }
+  })()
+  return _supabasePromise
 }
 
 /* Auto-init if supabase-client.js loaded before data.js */

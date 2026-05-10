@@ -1281,31 +1281,41 @@ const featuredIds = [
   { catId: 'cuidado-facial-spa', svcId: 'limpieza-facial-profunda' },
 ]
 const featGrid = document.getElementById('featuredGrid')
-featuredIds.forEach(f => {
-  const result = getServiceById(f.svcId)
-  if (!result) return
-  const { service: svc, category: cat } = result
-  const card = document.createElement('a')
-  card.href = `categoria.html?cat=${cat.id}#${svc.id}`
-  card.className = 'feat-card fu'
-  card.style.textDecoration = 'none'
-  card.innerHTML = `
-    <img class="feat-card-img" src="${svc.img}" alt="${svc.name}" loading="lazy">
-    <div class="feat-card-body">
-      <div class="feat-card-cat">${cat.name}</div>
-      <div class="feat-card-name">${svc.name}</div>
-      <p class="feat-card-desc">${svc.shortDesc}</p>
-      <div class="feat-card-footer">
-        <div>
-          <span class="feat-card-price">${svc.price}</span>
-          <span class="feat-card-dur"> · ${svc.duration}</span>
+
+function renderFeatured() {
+  featGrid.innerHTML = ''
+  featuredIds.forEach(f => {
+    const result = getServiceById(f.svcId)
+    if (!result) return
+    const { service: svc, category: cat } = result
+    const card = document.createElement('a')
+    card.href = `categoria.html?cat=${cat.id}#${svc.id}`
+    card.className = 'feat-card fu vis'
+    card.style.textDecoration = 'none'
+    card.innerHTML = `
+      <img class="feat-card-img" src="${svc.img}" alt="${svc.name}" loading="lazy">
+      <div class="feat-card-body">
+        <div class="feat-card-cat">${cat.name}</div>
+        <div class="feat-card-name">${svc.name}</div>
+        <p class="feat-card-desc">${svc.shortDesc}</p>
+        <div class="feat-card-footer">
+          <div>
+            <span class="feat-card-price">${svc.price}</span>
+            <span class="feat-card-dur"> · ${svc.duration}</span>
+          </div>
+          <span class="feat-card-link">Ver más →</span>
         </div>
-        <span class="feat-card-link">Ver más →</span>
       </div>
-    </div>
-  `
-  featGrid.appendChild(card)
-})
+    `
+    featGrid.appendChild(card)
+  })
+}
+
+// Wait for Supabase then render featured with correct prices
+;(async () => {
+  await initSupabaseData().catch(() => {})
+  renderFeatured()
+})()
 
 /* ── Reveal animations ─────────────────────── */
 const revealObs = new IntersectionObserver((entries) => {
@@ -1346,35 +1356,9 @@ const counterObs = new IntersectionObserver((entries) => {
 }, { threshold: 0.5 })
 document.querySelectorAll('[data-count]').forEach(el => counterObs.observe(el))
 
-// Re-render when Supabase data arrives
+// Re-render when Supabase data arrives (backup)
 window.addEventListener('categories-updated', () => {
-  // Featured services
-  featGrid.innerHTML = ''
-  featuredIds.forEach(f => {
-    const result = getServiceById(f.svcId)
-    if (!result) return
-    const { service: svc, category: cat } = result
-    const card = document.createElement('a')
-    card.href = `categoria.html?cat=${cat.id}#${svc.id}`
-    card.className = 'feat-card fu vis'
-    card.style.textDecoration = 'none'
-    card.innerHTML = `
-      <img class="feat-card-img" src="${svc.img}" alt="${svc.name}" loading="lazy">
-      <div class="feat-card-body">
-        <div class="feat-card-cat">${cat.name}</div>
-        <div class="feat-card-name">${svc.name}</div>
-        <p class="feat-card-desc">${svc.shortDesc}</p>
-        <div class="feat-card-footer">
-          <div>
-            <span class="feat-card-price">${svc.price}</span>
-            <span class="feat-card-dur"> · ${svc.duration}</span>
-          </div>
-          <span class="feat-card-link">Ver más →</span>
-        </div>
-      </div>
-    `
-    featGrid.appendChild(card)
-  })
+  renderFeatured()
   // Category wheel
   swiperWrapper.innerHTML = ''
   catMeta.forEach(cm => {

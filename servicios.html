@@ -330,9 +330,20 @@ function setView(view) {
   document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view))
 }
 
-renderCats(CATEGORIES)
+// Wait for Supabase before rendering (avoid stale static prices)
+;(async () => {
+  catGrid.innerHTML = '<div style="text-align:center;padding:60px;color:var(--light);font-size:0.85rem">Cargando servicios...</div>'
+  await initSupabaseData().catch(() => {})
+  renderCats(CATEGORIES)
 
-// Re-render when Supabase data arrives
+  const urlQ = new URLSearchParams(location.search).get('q')
+  if (urlQ) {
+    catSearch.value = urlQ
+    catSearch.dispatchEvent(new Event('input'))
+  }
+})()
+
+// Re-render when Supabase data arrives (backup)
 window.addEventListener('categories-updated', () => {
   const q = catSearch.value.trim().toLowerCase()
   if (q) {
@@ -358,12 +369,6 @@ catSearch.addEventListener('input', () => {
   renderCats(filtered)
   if (q && currentView === 'grid') setView('list')
 })
-
-const urlQ = new URLSearchParams(location.search).get('q')
-if (urlQ) {
-  catSearch.value = urlQ
-  catSearch.dispatchEvent(new Event('input'))
-}
 
 initShared()
 </script>

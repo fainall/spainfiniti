@@ -317,11 +317,15 @@ document.getElementById('footerContainer').innerHTML = renderFooter()
 document.getElementById('floatingContainer').innerHTML = renderFloating()
 
 const catId = new URLSearchParams(location.search).get('cat')
-const cat = catId ? getCategoryById(catId) : null
 
-if (!cat) {
-  location.href = 'servicios.html'
-} else {
+;(async () => {
+  await initSupabaseData().catch(() => {})
+  const cat = catId ? getCategoryById(catId) : null
+
+  if (!cat) {
+    location.href = 'servicios.html'
+    return
+  }
   document.title = `${cat.name} — Spa Infinity`
 
   /* Hero */
@@ -402,7 +406,7 @@ if (!cat) {
       <span>${c.name}</span>
     </div>
   `).join('')
-}
+})()
 
 // Re-render when Supabase data arrives
 window.addEventListener('categories-updated', () => {

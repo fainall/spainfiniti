@@ -1004,9 +1004,6 @@ function gcPriceNum(svc) {
 
 /* ── Category select ──────────────── */
 const gcCatSelect = document.getElementById('gcCatSelect')
-gcCatSelect.innerHTML = CATEGORIES.map(cat =>
-  `<option value="${cat.id}">${cat.name} (${cat.services.length})</option>`
-).join('')
 
 gcCatSelect.addEventListener('change', () => renderServices(gcCatSelect.value))
 
@@ -1221,41 +1218,55 @@ function showSuccess() {
   window.scrollTo({ top: 200, behavior: 'smooth' })
 }
 
-/* ── Auto-select from URL ─────────── */
-const preselectedSvc = new URLSearchParams(location.search).get('svc')
-if (preselectedSvc) {
-  const result = getServiceById(preselectedSvc)
-  if (result) {
-    gcCatSelect.value = result.category.id
-    renderServices(result.category.id)
-    toggleService(preselectedSvc)
-    goStep(2)
+/* ── Init: wait for Supabase before rendering ── */
+;(async () => {
+  // Show loading placeholder
+  document.getElementById('gcSvcList').innerHTML = '<div style="text-align:center;padding:40px;color:var(--light);font-size:0.85rem">Cargando servicios...</div>'
+
+  // Wait for fresh Supabase data (falls back to static if fails)
+  await initSupabaseData().catch(() => {})
+
+  // Populate category dropdown with fresh data
+  gcCatSelect.innerHTML = CATEGORIES.map(cat =>
+    `<option value="${cat.id}">${cat.name} (${cat.services.length})</option>`
+  ).join('')
+
+  // Auto-select from URL
+  const preselectedSvc = new URLSearchParams(location.search).get('svc')
+  if (preselectedSvc) {
+    const result = getServiceById(preselectedSvc)
+    if (result) {
+      gcCatSelect.value = result.category.id
+      renderServices(result.category.id)
+      toggleService(preselectedSvc)
+      goStep(2)
+    } else {
+      renderServices(CATEGORIES[0].id)
+    }
   } else {
     renderServices(CATEGORIES[0].id)
   }
-} else {
-  renderServices(CATEGORIES[0].id)
-}
 
-/* ── Handle return from Flow ──────── */
-const urlStatus = new URLSearchParams(location.search).get('status')
-if (urlStatus === 'success') {
-  document.querySelector('.gc-hero').style.display = 'none'
-  document.querySelector('.gc-steps-bar').style.display = 'none'
-  showSuccess()
-} else if (urlStatus === 'failed' || urlStatus === 'error') {
-  document.querySelector('.gc-hero').innerHTML = `
-    <span class="tag">Gift Card</span>
-    <h1>Pago <em>no completado</em></h1>
-    <p>El pago no pudo ser procesado. Puedes intentarlo nuevamente o contactarnos.</p>
-    <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-      <a href="giftcard.html" class="gc-btn gc-btn-gold">Intentar nuevamente</a>
-      <a href="https://wa.me/56986688771" target="_blank" class="gc-btn gc-btn-outline">Contactar por WhatsApp</a>
-    </div>
-  `
-  document.querySelector('.gc-steps-bar').style.display = 'none'
-  document.querySelector('.gc-main').style.display = 'none'
-}
+  // Handle return from Flow
+  const urlStatus = new URLSearchParams(location.search).get('status')
+  if (urlStatus === 'success') {
+    document.querySelector('.gc-hero').style.display = 'none'
+    document.querySelector('.gc-steps-bar').style.display = 'none'
+    showSuccess()
+  } else if (urlStatus === 'failed' || urlStatus === 'error') {
+    document.querySelector('.gc-hero').innerHTML = `
+      <span class="tag">Gift Card</span>
+      <h1>Pago <em>no completado</em></h1>
+      <p>El pago no pudo ser procesado. Puedes intentarlo nuevamente o contactarnos.</p>
+      <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="giftcard.html" class="gc-btn gc-btn-gold">Intentar nuevamente</a>
+        <a href="https://wa.me/56986688771" target="_blank" class="gc-btn gc-btn-outline">Contactar por WhatsApp</a>
+      </div>
+    `
+    document.querySelector('.gc-steps-bar').style.display = 'none'
+    document.querySelector('.gc-main').style.display = 'none'
+  }
+})()
 
 /* ── Scroll animations ────────────── */
 const obs = new IntersectionObserver(entries => {
@@ -1263,7 +1274,7 @@ const obs = new IntersectionObserver(entries => {
 }, { threshold: 0.07, rootMargin: '0px 0px -20px 0px' })
 document.querySelectorAll('.fu').forEach(el => obs.observe(el))
 
-// Re-render when Supabase data arrives
+// Re-render when Supabase data arrives (backup)
 window.addEventListener('categories-updated', () => {
   gcCatSelect.innerHTML = CATEGORIES.map(cat =>
     `<option value="${cat.id}">${cat.name} (${cat.services.length})</option>`
