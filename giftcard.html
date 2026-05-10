@@ -993,6 +993,14 @@ let selectedServices = []
 let selectedCategory = null
 let gcCode = ''
 
+/* ── Gift Card price helper ── */
+function gcPriceOf(svc) {
+  return (svc.gcDiscountEnabled && svc.gcPrice) ? svc.gcPrice : svc.price
+}
+function gcPriceNum(svc) {
+  return parseInt(gcPriceOf(svc).replace(/[^0-9]/g, '')) || 0
+}
+
 /* ── Category select ──────────────── */
 const gcCatSelect = document.getElementById('gcCatSelect')
 gcCatSelect.innerHTML = CATEGORIES.map(cat =>
@@ -1015,7 +1023,7 @@ function renderServices(catId) {
         <div class="gc-svc-item-name">${svc.name}</div>
         <div class="gc-svc-item-dur">${svc.duration}</div>
       </div>
-      <span class="gc-svc-item-price">${svc.price}</span>
+      <span class="gc-svc-item-price">${svc.gcDiscountEnabled && svc.gcPrice ? `<small style="text-decoration:line-through;color:var(--light);font-size:0.7em;margin-right:4px">${svc.price}</small>${svc.gcPrice}` : svc.price}</span>
       <div class="gc-svc-check"></div>
     </div>
   `).join('')
@@ -1042,10 +1050,7 @@ function toggleService(svcId) {
   if (count > 0) {
     totalBar.classList.add('show')
     document.getElementById('gcTotalCount').textContent = count
-    const total = selectedServices.reduce((sum, s) => {
-      const num = parseInt(s.price.replace(/[^0-9]/g, ''))
-      return sum + num
-    }, 0)
+    const total = selectedServices.reduce((sum, s) => sum + gcPriceNum(s), 0)
     document.getElementById('gcTotalAmount').textContent = '$' + total.toLocaleString('es-CL')
   } else {
     totalBar.classList.remove('show')
@@ -1059,7 +1064,7 @@ function toggleService(svcId) {
     document.getElementById('gcLiveSvc').textContent = count > 1
       ? `${first.name} + ${count - 1} más`
       : first.name
-    const total = selectedServices.reduce((sum, s) => sum + parseInt(s.price.replace(/[^0-9]/g, '')), 0)
+    const total = selectedServices.reduce((sum, s) => sum + gcPriceNum(s), 0)
     document.getElementById('gcLiveAmt').textContent = '$' + total.toLocaleString('es-CL')
 
     const sum = document.getElementById('gcSelectedSummary')
@@ -1149,7 +1154,7 @@ function buildFinalPreview() {
 
   gcCode = 'GC-' + Date.now().toString(36).toUpperCase().slice(-6) + Math.random().toString(36).toUpperCase().slice(-3)
 
-  const total = selectedServices.reduce((sum, s) => sum + parseInt(s.price.replace(/[^0-9]/g, '')), 0)
+  const total = selectedServices.reduce((sum, s) => sum + gcPriceNum(s), 0)
   document.getElementById('gcFinalSvc').textContent = selectedServices.length > 1
     ? selectedServices.map(s => s.name).join(' · ')
     : selectedServices[0].name
@@ -1174,9 +1179,9 @@ function processPayment() {
   payBtn.disabled = true
   payBtn.textContent = 'CONECTANDO...'
 
-  const total = selectedServices.reduce((sum, s) => sum + parseInt(s.price.replace(/[^0-9]/g, '')), 0)
+  const total = selectedServices.reduce((sum, s) => sum + gcPriceNum(s), 0)
   const orderData = {
-    services: selectedServices.map(s => ({ name: s.name, price: s.price, duration: s.duration })),
+    services: selectedServices.map(s => ({ name: s.name, price: gcPriceOf(s), duration: s.duration })),
     total: '$' + total.toLocaleString('es-CL'),
     from: document.getElementById('gcFrom').value.trim(),
     fromEmail: document.getElementById('gcFromEmail').value.trim(),
