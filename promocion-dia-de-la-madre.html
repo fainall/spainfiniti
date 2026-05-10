@@ -298,39 +298,6 @@
   flex: 1;
   display: flex; flex-direction: column;
 }
-.pack-content-row {
-  display: flex;
-  gap: 24px;
-  flex: 1;
-}
-.pack-details { flex: 1; min-width: 0; }
-.pack-price-side {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: linear-gradient(180deg, rgba(194,123,138,0.06) 0%, rgba(197,164,103,0.06) 100%);
-  border-radius: 12px;
-  min-width: 130px;
-  text-align: center;
-  gap: 10px;
-}
-.pack-price-side .pack-price-label {
-  font-size: 0.55rem;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #8B7D6B;
-  font-weight: 600;
-}
-.pack-price-side .pack-price {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.4rem;
-  color: #8B6070;
-  font-weight: 700;
-  line-height: 1.2;
-}
 .pack-name {
   font-family: 'Playfair Display', serif;
   font-size: 1.35rem;
@@ -379,7 +346,7 @@
 .pack-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding-top: 16px;
   border-top: 1px solid rgba(0,0,0,0.06);
 }
@@ -508,8 +475,6 @@
   .promo-price-badge .amount { font-size: 1.2rem; }
   .promo-info-grid { grid-template-columns: 1fr 1fr; }
   .promo-footer-bar { flex-direction: column; gap: 12px; }
-  .pack-content-row { flex-direction: column; }
-  .pack-price-side { flex-direction: row; justify-content: center; min-width: auto; }
   .pack-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
 }
 </style>
@@ -592,27 +557,19 @@
       </div>
       <img class="pack-photo" src="images/masajes-terapeuticos/masajes-terapeuticos-hero.png" alt="Infinity Duo - Spa Infinity" loading="lazy" />
       <div class="pack-body">
-        <div class="pack-content-row">
-          <div class="pack-details">
-            <h3 class="pack-name">Infinity Duo</h3>
-            <p class="pack-subtitle">Edicion Dia de la Madre</p>
-            <span class="pack-for">PARA COMPARTIR CON QUIEN MAS QUIERES:</span>
-            <p class="pack-variants">Madre e hija &middot; Madre e hijo &middot; Hermanas &middot; Amigas</p>
-            <ul class="pack-includes">
-              <li>Pedicure Spa (para 2)</li>
-              <li>Masaje Relajante (para 2) — 60 min</li>
-              <li>Hidratacion Premium</li>
-              <li>Experiencia en simultaneo</li>
-              <li>Esmaltado a eleccion</li>
-            </ul>
-          </div>
-          <div class="pack-price-side">
-            <span class="pack-price-label">DESDE</span>
-            <span class="pack-price">$78.000</span>
-            <span class="pack-price-label">HASTA $87.000</span>
-          </div>
-        </div>
+        <h3 class="pack-name">Infinity Duo</h3>
+        <p class="pack-subtitle">Edicion Dia de la Madre</p>
+        <span class="pack-for">PARA COMPARTIR CON QUIEN MAS QUIERES:</span>
+        <p class="pack-variants">Madre e hija &middot; Madre e hijo &middot; Hermanas &middot; Amigas</p>
+        <ul class="pack-includes">
+          <li>Pedicure Spa (para 2)</li>
+          <li>Masaje Relajante (para 2) — 60 min</li>
+          <li>Hidratacion Premium</li>
+          <li>Experiencia en simultaneo</li>
+          <li>Esmaltado a eleccion</li>
+        </ul>
         <div class="pack-footer">
+          <span class="pack-price">$78.000 — $87.000</span>
           <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20el%20Pack%20Infinity%20D%C3%BAo%20para%20el%20D%C3%ADa%20de%20la%20Madre%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
             <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
             RESERVAR
@@ -631,25 +588,17 @@
         <span class="pack-banner-sub">INFINITY EDITION</span>
       </div>
       <div class="pack-body">
-        <div class="pack-content-row">
-          <div class="pack-details">
-            <h3 class="pack-name">Mama Glow Infinity</h3>
-            <p class="pack-subtitle">Para que se sienta cuidada, linda y relajada en un solo dia.</p>
-            <ul class="pack-includes">
-              <li>Manicure Spa</li>
-              <li>Pedicure Spa</li>
-              <li>Ritual Brillo Facial</li>
-              <li>Hidratacion Premium</li>
-              <li>Esmaltado a eleccion</li>
-            </ul>
-          </div>
-          <div class="pack-price-side">
-            <span class="pack-price-label">DESDE</span>
-            <span class="pack-price">$50.000</span>
-            <span class="pack-price-label">HASTA $62.000</span>
-          </div>
-        </div>
+        <h3 class="pack-name">Mama Glow Infinity</h3>
+        <p class="pack-subtitle">Para que se sienta cuidada, linda y relajada en un solo dia.</p>
+        <ul class="pack-includes">
+          <li>Manicure Spa</li>
+          <li>Pedicure Spa</li>
+          <li>Ritual Brillo Facial</li>
+          <li>Hidratacion Premium</li>
+          <li>Esmaltado a eleccion</li>
+        </ul>
         <div class="pack-footer">
+          <span class="pack-price">$50.000 — $62.000</span>
           <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20el%20Pack%20Mam%C3%A1%20Glow%20Infinity%20para%20el%20D%C3%ADa%20de%20la%20Madre%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
             <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
             RESERVAR
@@ -668,25 +617,17 @@
         <span class="pack-banner-sub">SPA INFINITY</span>
       </div>
       <div class="pack-body">
-        <div class="pack-content-row">
-          <div class="pack-details">
-            <h3 class="pack-name">Experiencia Mama Infinity</h3>
-            <p class="pack-subtitle">El mejor regalo que puedes darle este ano.</p>
-            <ul class="pack-includes">
-              <li>Podologia Clinica + Esmaltado</li>
-              <li>Manicure Spa</li>
-              <li>Masaje Relajante — 60 min</li>
-              <li>Ritual Brillo Facial</li>
-              <li>Esmaltado a eleccion</li>
-            </ul>
-          </div>
-          <div class="pack-price-side">
-            <span class="pack-price-label">DESDE</span>
-            <span class="pack-price">$88.000</span>
-            <span class="pack-price-label">HASTA $94.000</span>
-          </div>
-        </div>
+        <h3 class="pack-name">Experiencia Mama Infinity</h3>
+        <p class="pack-subtitle">El mejor regalo que puedes darle este ano.</p>
+        <ul class="pack-includes">
+          <li>Podologia Clinica + Esmaltado</li>
+          <li>Manicure Spa</li>
+          <li>Masaje Relajante — 60 min</li>
+          <li>Ritual Brillo Facial</li>
+          <li>Esmaltado a eleccion</li>
+        </ul>
         <div class="pack-footer">
+          <span class="pack-price">$88.000 — $94.000</span>
           <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20la%20Experiencia%20Mam%C3%A1%20Infinity%20para%20el%20D%C3%ADa%20de%20la%20Madre%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
             <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
             RESERVAR
@@ -711,23 +652,16 @@
       </div>
       <img class="pack-photo" src="images/Masaje Descontracturante 60 min.jpeg" alt="Pack Para El - Renovacion Total" loading="lazy" />
       <div class="pack-body">
-        <div class="pack-content-row">
-          <div class="pack-details">
-            <h3 class="pack-name">Renovacion Total Infinity</h3>
-            <p class="pack-subtitle">Alivio real para pies y cuerpo en una sola sesion.</p>
-            <ul class="pack-includes">
-              <li>Podologia Clinica</li>
-              <li>Manicure Masculina</li>
-              <li>Masaje Relajante — 60 min</li>
-              <li>Desintoxicacion Ionica</li>
-            </ul>
-          </div>
-          <div class="pack-price-side">
-            <span class="pack-price-label">PRECIO</span>
-            <span class="pack-price">$66.900</span>
-          </div>
-        </div>
+        <h3 class="pack-name">Renovacion Total Infinity</h3>
+        <p class="pack-subtitle">Alivio real para pies y cuerpo en una sola sesion.</p>
+        <ul class="pack-includes">
+          <li>Podologia Clinica</li>
+          <li>Manicure Masculina</li>
+          <li>Masaje Relajante — 60 min</li>
+          <li>Desintoxicacion Ionica</li>
+        </ul>
         <div class="pack-footer">
+          <span class="pack-price">$66.900</span>
           <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20el%20Pack%20Renovaci%C3%B3n%20Total%20Infinity%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
             <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
             RESERVAR
@@ -746,23 +680,15 @@
         <span class="pack-banner-sub">INFINITY CLINICA</span>
       </div>
       <div class="pack-body">
-        <div class="pack-content-row">
-          <div class="pack-details">
-            <h3 class="pack-name">Cuidado Real Infinity</h3>
-            <p class="pack-subtitle">No es estetica... es salud.</p>
-            <ul class="pack-includes">
-              <li>Podologia Clinica</li>
-              <li>Evaluacion</li>
-              <li>Recomendacion Personalizada</li>
-            </ul>
-          </div>
-          <div class="pack-price-side">
-            <span class="pack-price-label">DESDE</span>
-            <span class="pack-price">$24.900</span>
-            <span class="pack-price-label">HASTA $29.900</span>
-          </div>
-        </div>
+        <h3 class="pack-name">Cuidado Real Infinity</h3>
+        <p class="pack-subtitle">No es estetica... es salud.</p>
+        <ul class="pack-includes">
+          <li>Podologia Clinica</li>
+          <li>Evaluacion</li>
+          <li>Recomendacion Personalizada</li>
+        </ul>
         <div class="pack-footer">
+          <span class="pack-price">$24.900 — $29.900</span>
           <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20el%20Pack%20Cuidado%20Real%20Infinity%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
             <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
             RESERVAR
