@@ -1021,44 +1021,84 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 }
 .promo-float:hover .promo-float-close { display: flex; opacity: 0.8; }
 .promo-float-close:hover { opacity: 1; }
+
+/* Arrow indicator */
+.promo-float-arrow {
+  display: none;
+}
+
 @media (max-width: 860px) {
   .promo-float {
-    top: auto;
-    left: 50%;
-    bottom: 20px;
-    transform: none;
-    animation: promoSlideInMob 0.6s cubic-bezier(0.25,0.8,0.25,1) 1.5s both;
-    border-radius: 100px;
+    left: 0;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    animation: promoSlideIn 0.8s cubic-bezier(0.25,0.8,0.25,1) 1.5s both;
+    border-radius: 0;
     overflow: visible;
-    filter: drop-shadow(0 4px 16px rgba(0,0,0,0.25));
-  }
-  @keyframes promoSlideInMob {
-    from { transform: translateX(-50%) translateY(100px); opacity:0 }
-    to { transform: translateX(-50%) translateY(0); opacity:1 }
+    filter: drop-shadow(3px 4px 12px rgba(0,0,0,0.2));
   }
   .promo-float-icon {
     width: 40px;
     font-size: 1rem;
-    border-radius: 100px 0 0 100px;
+    border-radius: 0 6px 6px 0;
+    transition: border-radius 0.35s ease;
+  }
+  .promo-float-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #C5A467 0%, #A8883F 100%);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+    width: 16px;
+    margin-left: -1px;
+    border-radius: 0 6px 6px 0;
+    transition: opacity 0.3s, width 0.3s;
+    animation: arrowPulse 2s ease-in-out infinite;
+  }
+  @keyframes arrowPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
   }
   .promo-float-text {
+    max-width: 0;
+    opacity: 0;
+    padding: 10px 0;
+    font-size: 0.58rem;
+    letter-spacing: 1px;
+    border-radius: 0 6px 6px 0;
+    transition: max-width 0.4s cubic-bezier(0.25,0.8,0.25,1),
+                opacity 0.3s ease,
+                padding 0.4s cubic-bezier(0.25,0.8,0.25,1);
+  }
+  .promo-float.expanded .promo-float-text {
     max-width: 200px;
     opacity: 1;
     padding: 10px 16px 10px 0;
-    font-size: 0.58rem;
-    letter-spacing: 1px;
-    border-radius: 0 100px 100px 0;
+  }
+  .promo-float.expanded .promo-float-arrow {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .promo-float.expanded .promo-float-icon {
+    border-radius: 0;
   }
   .promo-float-close {
-    display: flex;
-    opacity: 1;
+    display: none;
+    opacity: 0;
     top: -8px;
     right: -4px;
     width: 22px;
     height: 22px;
     font-size: 0.55rem;
   }
-  .promo-float:hover .promo-float-icon { border-radius: 100px 0 0 100px; }
+  .promo-float.expanded .promo-float-close {
+    display: flex;
+    opacity: 1;
+  }
 }
 
 /* ── ANIMATIONS ─────────────────────────────────────── */

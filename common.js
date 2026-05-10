@@ -197,9 +197,20 @@ async function initPromoFloat() {
     slot.innerHTML = `
       <a href="promocion-dia-de-la-madre" class="promo-float" id="promoFloat" title="${text}">
         <span class="promo-float-icon">${icon}</span>
+        <span class="promo-float-arrow">›</span>
         <span class="promo-float-text">${text}</span>
         <button class="promo-float-close" onclick="event.preventDefault();event.stopPropagation();document.getElementById('promoFloat').style.display='none'" aria-label="Cerrar">✕</button>
       </a>`
+    // Mobile: toggle expand on tap
+    const pf = document.getElementById('promoFloat')
+    if (pf && window.innerWidth <= 860) {
+      pf.addEventListener('click', function(e) {
+        if (!pf.classList.contains('expanded')) {
+          e.preventDefault()
+          pf.classList.add('expanded')
+        }
+      })
+    }
   } catch (e) {
     console.warn('Promo float init failed:', e)
   }
