@@ -996,7 +996,7 @@ let gcCode = ''
 
 /* ── Gift Card price helper ── */
 function gcPriceOf(svc) {
-  return (svc.gcDiscountEnabled && svc.gcPrice) ? svc.gcPrice : svc.price
+  return svc.price
 }
 function gcPriceNum(svc) {
   return parseInt(gcPriceOf(svc).replace(/[^0-9]/g, '')) || 0
@@ -1024,7 +1024,7 @@ function renderServices(catId) {
         <div class="gc-svc-item-name">${svc.name}</div>
         <div class="gc-svc-item-dur">${svc.duration}</div>
       </div>
-      <span class="gc-svc-item-price">${svc.gcDiscountEnabled && svc.gcPrice ? `<small style="text-decoration:line-through;color:var(--light);font-size:0.7em;margin-right:4px">${svc.price}</small>${svc.gcPrice}` : svc.price}</span>
+      <span class="gc-svc-item-price">${svc.price}</span>
       <div class="gc-svc-check"></div>
     </div>
   `).join('')
