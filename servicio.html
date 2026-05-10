@@ -343,117 +343,6 @@
   .promo-discount { font-size: 1.5rem; padding: 8px 24px; }
 }
 
-/* ── GIFT CARD DISCOUNT BANNER ──────────────── */
-.gc-discount-banner {
-  max-width: 680px;
-  margin: 0 auto 40px;
-}
-.gc-discount-inner {
-  background: linear-gradient(135deg, #1A2436 0%, #243044 50%, #1A2436 100%);
-  border-radius: 16px;
-  padding: 36px 40px;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 12px 40px rgba(26,36,54,0.25);
-}
-.gc-discount-inner::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-}
-.gc-discount-icon {
-  font-size: 2.8rem;
-  flex-shrink: 0;
-}
-.gc-discount-content { flex: 1; min-width: 0; }
-.gc-discount-tag {
-  font-size: 0.58rem;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: var(--gold);
-  font-weight: 600;
-  display: block;
-  margin-bottom: 6px;
-}
-.gc-discount-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 10px;
-  line-height: 1.3;
-}
-.gc-discount-prices {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.gc-original {
-  font-size: 1rem;
-  color: rgba(255,255,255,0.45);
-  text-decoration: line-through;
-}
-.gc-arrow { color: var(--gold); font-size: 1.1rem; }
-.gc-final {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--gold);
-}
-.gc-pct {
-  background: #E74C3C;
-  color: #fff;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 4px;
-  letter-spacing: 0.05em;
-}
-.gc-discount-note {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.5);
-  margin: 0;
-  line-height: 1.5;
-}
-.gc-discount-btn {
-  flex-shrink: 0;
-  display: inline-block;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 14px 28px;
-  border-radius: 6px;
-  background: var(--gold);
-  color: var(--navy) !important;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-.gc-discount-btn:hover {
-  background: #fff;
-  box-shadow: 0 6px 20px rgba(197,164,103,0.3);
-}
-
-@media (max-width: 768px) {
-  .gc-discount-inner {
-    flex-direction: column;
-    text-align: center;
-    padding: 28px 24px;
-    gap: 16px;
-  }
-  .gc-discount-prices { justify-content: center; }
-  .gc-discount-banner { margin: 0 16px 32px; }
-}
-
 /* ── RELATED SERVICES ────────────────────────── */
 .related-sec {
   background: var(--white);
@@ -586,7 +475,7 @@
   <div id="promoBanner"></div>
   <div class="price-ctas reveal" style="transition-delay:0.2s">
     <a id="bookCta2" href="#" class="btn-para open-modal-btn">RESERVAR MI CITA AHORA</a>
-    <a id="giftCta" href="#" class="btn-para" style="background:var(--navy)">🎁 REGALA ESTE SERVICIO</a>
+    <a id="giftCta" href="#" class="btn-para gold">🎁 REGALA ESTE SERVICIO</a>
     <a id="catCta2" href="#" class="btn-para gold">VER MÁS SERVICIOS</a>
   </div>
 </section>
@@ -730,28 +619,9 @@ if (!result) {
     `
   }
 
-  /* Gift Card exclusive discount banner */
+  /* Gift Card discount — update gift CTA button text */
   if (svc.gcDiscountEnabled && svc.gcPrice) {
-    const gcBanner = document.createElement('div')
-    gcBanner.className = 'gc-discount-banner reveal'
-    gcBanner.innerHTML = `
-      <div class="gc-discount-inner">
-        <div class="gc-discount-icon">🎁</div>
-        <div class="gc-discount-content">
-          <span class="gc-discount-tag">EXCLUSIVO GIFT CARD</span>
-          <div class="gc-discount-title">¡Precio especial pagando con Gift Card!</div>
-          <div class="gc-discount-prices">
-            <span class="gc-original">${svc.price}</span>
-            <span class="gc-arrow">→</span>
-            <span class="gc-final">${svc.gcPrice}</span>
-            ${svc.gcDiscountPercent ? `<span class="gc-pct">-${svc.gcDiscountPercent}%</span>` : ''}
-          </div>
-          <p class="gc-discount-note">Compra una Gift Card y úsala para pagar este servicio con descuento exclusivo</p>
-        </div>
-        <a href="giftcard.html?svc=${svc.id}" class="gc-discount-btn">COMPRAR GIFT CARD</a>
-      </div>
-    `
-    document.getElementById('promoBanner').after(gcBanner)
+    document.getElementById('giftCta').innerHTML = `🎁 REGALA ESTE SERVICIO · ${svc.gcPrice}`
   }
 
   /* Related services */
