@@ -180,18 +180,36 @@ function renderFloating() {
   <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.528 5.862L.057 23.26c-.073.277.015.573.228.768.163.149.373.228.587.228l5.745-1.469C8.094 23.501 10.03 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.891 0-3.736-.506-5.338-1.462l-.382-.225-3.305.851.875-3.214-.244-.394C2.582 15.85 2 13.977 2 12 2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
 </a>
 <button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Volver arriba">↑</button>
-${localStorage.getItem('spaPromoEnabled') !== 'false' ? `
-<a href="promocion-dia-de-la-madre" class="promo-float" id="promoFloat" title="Promoción Día de la Madre">
-  <span class="promo-float-icon">♡</span>
-  <span class="promo-float-text">Promo Día de la Madre</span>
-  <button class="promo-float-close" onclick="event.preventDefault();event.stopPropagation();document.getElementById('promoFloat').style.display='none'" aria-label="Cerrar">✕</button>
-</a>` : ''}`
+<div id="promoFloatSlot"></div>`
+}
+
+/* ── PROMO FLOAT (async from Supabase) ─────────────── */
+async function initPromoFloat() {
+  if (typeof loadActivePromoEvent !== 'function') return
+  try {
+    const evt = await loadActivePromoEvent()
+    if (!evt || !evt.active) return
+    const cfg = evt.config
+    const slot = document.getElementById('promoFloatSlot')
+    if (!slot) return
+    const icon = cfg.floatIcon || '♡'
+    const text = cfg.floatText || 'Promoción Especial'
+    slot.innerHTML = `
+      <a href="promocion-dia-de-la-madre" class="promo-float" id="promoFloat" title="${text}">
+        <span class="promo-float-icon">${icon}</span>
+        <span class="promo-float-text">${text}</span>
+        <button class="promo-float-close" onclick="event.preventDefault();event.stopPropagation();document.getElementById('promoFloat').style.display='none'" aria-label="Cerrar">✕</button>
+      </a>`
+  } catch (e) {
+    console.warn('Promo float init failed:', e)
+  }
 }
 
 /* ── SHARED JS ──────────────────────────────────────── */
 function initShared() {
   const nav = document.getElementById('siteNav')
   const bt  = document.getElementById('backTop')
+  initPromoFloat()
   window.addEventListener('scroll', () => {
     nav.classList.toggle('scrolled', scrollY > 60)
     if (bt) bt.classList.toggle('show', scrollY > 400)

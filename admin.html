@@ -787,24 +787,11 @@ body {
           <button class="btn btn-primary" onclick="saveSiteSettings()">Guardar configuración</button>
         </div>
 
-        <!-- Promo Banner Toggle -->
+        <!-- Promo Banner Toggle (now managed in Promociones section) -->
         <div class="edit-panel" style="margin-top:24px">
-          <h2>Banner Promocional Flotante</h2>
-          <p style="font-size:0.85rem;color:var(--mid);margin-bottom:16px">Muestra un botón flotante en todas las páginas que enlaza a la página de promoción. Los visitantes pueden cerrarlo individualmente.</p>
-          <div style="display:flex;align-items:center;gap:16px">
-            <label class="toggle">
-              <input type="checkbox" id="promo-enabled" onchange="togglePromoFloat()" />
-              <span class="toggle-slider"></span>
-            </label>
-            <span style="font-weight:600;font-size:0.9rem" id="promo-status-label">Activado</span>
-          </div>
-          <div style="margin-top:16px;padding:16px;background:var(--cream);border-radius:8px;display:flex;align-items:center;gap:12px">
-            <span style="font-size:1.5rem">🌸</span>
-            <div>
-              <p style="font-size:0.82rem;font-weight:600;margin-bottom:2px">Promo Dia de la Madre</p>
-              <p style="font-size:0.75rem;color:var(--mid)">Enlaza a: <a href="promocion-dia-de-la-madre" target="_blank" style="color:var(--gold)">promocion-dia-de-la-madre</a></p>
-            </div>
-          </div>
+          <h2>Evento Promocional</h2>
+          <p style="font-size:0.85rem;color:var(--mid);margin-bottom:16px">El evento promocional se gestiona en la sección <strong>Promociones y Eventos</strong> del menú lateral. Desde allí puedes activar/desactivar el evento, cambiar fotos, packs, precios y el botón flotante.</p>
+          <a onclick="showSection('promos', document.querySelector('[data-section=promos]'))" class="btn btn-primary" style="cursor:pointer">Ir a Promociones</a>
         </div>
       </div>
 
@@ -835,13 +822,10 @@ body {
         </div>
       </div>
 
-      <!-- ═══ PROMOTIONS ═══ -->
+      <!-- ═══ PROMOTIONS & EVENTS ═══ -->
       <div id="sec-promos" class="section">
-        <div style="margin-bottom:20px;text-align:right">
-          <button class="btn btn-primary" onclick="addNewPromo()">+ Nueva promoción</button>
-        </div>
-        <div id="promosList"></div>
-        <div id="promoEditPanel" style="display:none"></div>
+        <div id="promoEventMain"></div>
+        <div id="promoEventEdit" style="display:none"></div>
       </div>
 
       <!-- ═══ HERO ═══ -->
@@ -888,7 +872,7 @@ body {
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="supabase-client.js?v=2"></script>
+<script src="supabase-client.js?v=3"></script>
 <script src="data.js?v=2"></script>
 <script>
 /* ═══════════════════════════════════════════
@@ -1023,23 +1007,9 @@ function saveSiteSettings() {
   toast('Configuración guardada', 'success')
 }
 
-/* ── PROMO FLOAT TOGGLE ────────── */
-function initPromoToggle() {
-  const el = document.getElementById('promo-enabled')
-  const label = document.getElementById('promo-status-label')
-  if (!el) return
-  const enabled = localStorage.getItem('spaPromoEnabled') !== 'false'
-  el.checked = enabled
-  label.textContent = enabled ? 'Activado' : 'Desactivado'
-}
-function togglePromoFloat() {
-  const el = document.getElementById('promo-enabled')
-  const label = document.getElementById('promo-status-label')
-  const enabled = el.checked
-  localStorage.setItem('spaPromoEnabled', enabled ? 'true' : 'false')
-  label.textContent = enabled ? 'Activado' : 'Desactivado'
-  toast(enabled ? 'Banner promocional activado' : 'Banner promocional desactivado', 'success')
-}
+/* ── PROMO FLOAT TOGGLE (legacy — now managed via Supabase) ── */
+function initPromoToggle() {}
+function togglePromoFloat() {}
 
 /* ── CATEGORIES ───────────────── */
 function renderCatList() {
@@ -1750,188 +1720,269 @@ function resetAll() {
   setTimeout(() => location.reload(), 1500)
 }
 
-/* ── PROMOTIONS ───────────────── */
-function renderPromos() {
-  if (!adminData.promos) adminData.promos = []
-  const list = adminData.promos
+/* ── PROMO EVENTS (Supabase-backed) ── */
+let _promoEvents = []
 
-  if (!list.length) {
-    document.getElementById('promosList').innerHTML = `
+async function renderPromos() {
+  const main = document.getElementById('promoEventMain')
+  main.innerHTML = '<p style="color:var(--mid);padding:20px">Cargando eventos...</p>'
+  try {
+    _promoEvents = await loadAllPromoEvents()
+  } catch(e) {
+    _promoEvents = []
+  }
+
+  if (!_promoEvents.length) {
+    main.innerHTML = `
       <div class="edit-panel">
-        <h2>Promociones y Eventos</h2>
-        <p style="font-size:0.85rem;color:var(--mid);line-height:1.8">
-          No hay promociones creadas. Crea tu primera promoción para mostrar banners especiales en los servicios seleccionados.
+        <h2>Eventos Promocionales</h2>
+        <p style="font-size:0.85rem;color:var(--mid);line-height:1.8;margin-bottom:20px">
+          No hay eventos creados. Crea tu primer evento promocional — podrás configurar packs, precios, fotos y el botón flotante.
         </p>
-      </div>
-    `
+        <button class="btn btn-primary" onclick="editPromoEvent(-1)">+ Nuevo Evento</button>
+      </div>`
     return
   }
 
-  document.getElementById('promosList').innerHTML = list.map((p, i) => `
-    <div class="edit-panel" style="margin-bottom:16px;border-left:4px solid ${p.active ? 'var(--green)' : 'var(--light)'}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div>
-          <span style="font-size:1.4rem;margin-right:8px">${p.icon || '✨'}</span>
-          <strong style="font-size:1rem">${esc(p.title)}</strong>
-          <span style="font-size:0.7rem;padding:3px 10px;border-radius:100px;margin-left:10px;font-weight:600;${p.active ? 'background:#E8F5E9;color:#27AE60' : 'background:#F5F5F5;color:var(--light)'}">${p.active ? 'ACTIVA' : 'INACTIVA'}</span>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <label class="toggle">
-            <input type="checkbox" ${p.active ? 'checked' : ''} onchange="togglePromo(${i}, this.checked)" />
-            <span class="toggle-slider"></span>
-          </label>
-          <button class="btn btn-sm" onclick="editPromo(${i})">Editar</button>
-          <button class="btn btn-danger btn-sm" onclick="deletePromo(${i})">Eliminar</button>
-        </div>
-      </div>
-      <div style="display:flex;gap:24px;font-size:0.78rem;color:var(--mid)">
-        <span><strong>Descuento:</strong> ${esc(p.discount)}</span>
-        <span><strong>Servicios:</strong> ${p.serviceIds ? p.serviceIds.length : 0} seleccionados</span>
-      </div>
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">Eventos Promocionales</h2>
+      <button class="btn btn-primary" onclick="editPromoEvent(-1)">+ Nuevo Evento</button>
     </div>
-  `).join('')
+    ${_promoEvents.map((evt, i) => {
+      const c = evt.config || {}
+      const packCount = c.packs ? c.packs.length : 0
+      return `
+      <div class="edit-panel" style="margin-bottom:16px;border-left:4px solid ${evt.active ? 'var(--green)' : 'var(--light)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <strong style="font-size:1.05rem">${esc(c.eventName || 'Sin nombre')}</strong>
+            <span style="font-size:0.7rem;padding:3px 10px;border-radius:100px;margin-left:10px;font-weight:600;${evt.active ? 'background:#E8F5E9;color:#27AE60' : 'background:#F5F5F5;color:var(--light)'}">${evt.active ? 'ACTIVO' : 'INACTIVO'}</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label class="toggle">
+              <input type="checkbox" ${evt.active ? 'checked' : ''} onchange="togglePromoEvent(${evt.id}, this.checked)" />
+              <span class="toggle-slider"></span>
+            </label>
+            <button class="btn btn-sm" onclick="editPromoEvent(${evt.id})">Editar</button>
+            <button class="btn btn-danger btn-sm" onclick="deletePromoEvt(${evt.id})">Eliminar</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:24px;font-size:0.78rem;color:var(--mid);flex-wrap:wrap">
+          <span><strong>Packs:</strong> ${packCount}</span>
+          <span><strong>Precio desde:</strong> ${esc(c.minPrice || '—')}</span>
+          <span><strong>Botón flotante:</strong> ${esc(c.floatText || '—')}</span>
+          <a href="promocion-dia-de-la-madre" target="_blank" style="color:var(--gold);font-weight:600">Ver página →</a>
+        </div>
+      </div>`
+    }).join('')}`
 }
 
-function togglePromo(idx, active) {
-  adminData.promos[idx].active = active
-  PROMOS.length = 0
-  adminData.promos.forEach(p => PROMOS.push(p))
-  saveAdminData()
-  renderPromos()
-  toast(active ? 'Promoción activada' : 'Promoción desactivada', 'success')
+async function togglePromoEvent(id, active) {
+  try {
+    await savePromoEvent(id, { active })
+    toast(active ? 'Evento activado' : 'Evento desactivado', 'success')
+    renderPromos()
+  } catch(e) { toast('Error: ' + e.message, 'error') }
 }
 
-function deletePromo(idx) {
-  if (!confirm('¿Eliminar esta promoción?')) return
-  adminData.promos.splice(idx, 1)
-  PROMOS.length = 0
-  adminData.promos.forEach(p => PROMOS.push(p))
-  saveAdminData()
-  renderPromos()
-  toast('Promoción eliminada', 'success')
+async function deletePromoEvt(id) {
+  if (!confirm('¿Eliminar este evento permanentemente?')) return
+  try {
+    await deletePromoEvent(id)
+    toast('Evento eliminado', 'success')
+    renderPromos()
+  } catch(e) { toast('Error: ' + e.message, 'error') }
 }
 
-function addNewPromo() {
-  editPromo(-1)
-}
+function addNewPromo() { editPromoEvent(-1) }
 
-function editPromo(idx) {
-  const isNew = idx === -1
-  const promo = isNew ? { title: '', subtitle: '', discount: '', icon: '💝', label: 'Promoción Especial', active: true, serviceIds: [] } : adminData.promos[idx]
+async function editPromoEvent(id) {
+  const isNew = id === -1
+  let evt = isNew ? { active: true, config: { eventName:'', year:'', heroBadge:'', heroSubtitle:'', heroTitle:'', heroTagline:'', heroDescription:'', heroImage:'', minPrice:'', floatText:'', floatIcon:'♡', bottomUrgency:'Cupos limitados!', bottomTitle:'Agenda hoy, sorprende manana.', packs:[] } } : _promoEvents.find(e => e.id === id)
+  if (!evt) { toast('Evento no encontrado','error'); return }
+  const c = evt.config
 
-  document.getElementById('promosList').style.display = 'none'
-  const panel = document.getElementById('promoEditPanel')
+  document.getElementById('promoEventMain').style.display = 'none'
+  const panel = document.getElementById('promoEventEdit')
   panel.style.display = 'block'
 
-  // Build service checkboxes
-  let svcChecks = ''
-  CATEGORIES.forEach(cat => {
-    svcChecks += `<div style="margin-bottom:12px"><strong style="font-size:0.78rem;color:var(--gold-d)">${esc(cat.name)}</strong></div>`
-    cat.services.forEach(svc => {
-      const checked = promo.serviceIds && promo.serviceIds.includes(svc.id) ? 'checked' : ''
-      svcChecks += `
-        <label style="display:flex;align-items:center;gap:10px;padding:6px 0;font-size:0.82rem;cursor:pointer">
-          <input type="checkbox" class="promo-svc-check" value="${svc.id}" ${checked} style="width:16px;height:16px;accent-color:var(--gold-d)" />
-          ${esc(svc.name)} <span style="color:var(--light);font-size:0.72rem">${svc.price}</span>
-        </label>
-      `
-    })
-  })
-
-  panel.innerHTML = `
-    <span class="back-btn" onclick="closePromoEdit()">← Volver a promociones</span>
-    <div class="edit-panel">
-      <h2>${isNew ? 'Nueva Promoción' : 'Editar: ' + esc(promo.title)}</h2>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Título del evento</label>
-          <input type="text" id="promo-title" value="${esc(promo.title)}" placeholder="Ej: Día de la Madre" />
-        </div>
-        <div class="form-group">
-          <label>Icono / Emoji</label>
-          <input type="text" id="promo-icon" value="${promo.icon || '💝'}" placeholder="💝" style="font-size:1.5rem;text-align:center" />
-          <span class="form-hint">Usa un emoji: 💝 🎄 🎁 ☀️ 💅 ✨ 🌸 💕</span>
-        </div>
+  // Build packs HTML
+  function packHTML(p, i) {
+    return `
+    <div class="edit-panel" style="margin-bottom:16px;border-left:3px solid var(--gold)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <strong style="font-size:0.9rem">Pack ${i+1}: ${esc(p.name || 'Nuevo Pack')}</strong>
+        <button class="btn btn-danger btn-sm" onclick="removePromoPack(${i})">Eliminar pack</button>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label>Etiqueta superior</label>
-          <input type="text" id="promo-label" value="${esc(promo.label || 'Promoción Especial')}" placeholder="Promoción Especial" />
-          <span class="form-hint">Texto pequeño arriba del título</span>
-        </div>
-        <div class="form-group">
-          <label>Texto del descuento</label>
-          <input type="text" id="promo-discount" value="${esc(promo.discount)}" placeholder="10% DCTO" />
-          <span class="form-hint">Ej: 10% DCTO, 2x1, $5.000 OFF</span>
-        </div>
+        <div class="form-group"><label>Nombre</label><input type="text" class="pk-name" value="${esc(p.name||'')}" /></div>
+        <div class="form-group"><label>Subtítulo</label><input type="text" class="pk-subtitle" value="${esc(p.subtitle||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Precio</label><input type="text" class="pk-price" value="${esc(p.price||'')}" placeholder="$50.000 — $62.000" /></div>
+        <div class="form-group"><label>Imagen banner (URL)</label><input type="text" class="pk-img" value="${esc(p.bannerImage||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Título en banner</label><input type="text" class="pk-btitle" value="${esc(p.bannerTitle||'')}" /></div>
+        <div class="form-group"><label>Subtítulo banner</label><input type="text" class="pk-bsub" value="${esc(p.bannerSub||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Ornamento banner</label><input type="text" class="pk-born" value="${esc(p.bannerOrnament||'')}" placeholder="★ EDICION ESPECIAL ★" /></div>
+        <div class="form-group"><label>Overlay (2 colores rgba)</label><input type="text" class="pk-overlay" value="${esc(p.bannerOverlay||'')}" placeholder="rgba(45,19,25,0.75),rgba(26,11,15,0.7)" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Etiqueta "Para" (opcional)</label><input type="text" class="pk-for" value="${esc(p.forLabel||'')}" /></div>
+        <div class="form-group"><label>Variantes (opcional)</label><input type="text" class="pk-variants" value="${esc(p.variants||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Decoración (emoji/símbolo)</label><input type="text" class="pk-deco" value="${esc(p.deco||'∞')}" style="font-size:1.3rem;text-align:center" /></div>
+        <div class="form-group"><label>Mensaje WhatsApp</label><input type="text" class="pk-wamsg" value="${esc(p.whatsappMsg||'')}" /></div>
       </div>
       <div class="form-row full">
         <div class="form-group">
-          <label>Subtítulo / Mensaje</label>
-          <input type="text" id="promo-subtitle" value="${esc(promo.subtitle)}" placeholder="¡Regala bienestar y armonía!" />
+          <label>Servicios incluidos (uno por línea)</label>
+          <textarea class="pk-services" rows="4" style="font-family:inherit;font-size:0.85rem;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical">${(p.services||[]).join('\n')}</textarea>
         </div>
       </div>
-
-      <div style="margin-top:24px;margin-bottom:24px">
-        <h3 style="font-size:0.85rem;font-weight:600;margin-bottom:4px">Servicios incluidos</h3>
-        <p style="font-size:0.72rem;color:var(--mid);margin-bottom:16px">Selecciona los servicios donde se mostrará el banner de esta promoción.</p>
-        <div style="display:flex;gap:10px;margin-bottom:16px">
-          <button class="btn btn-sm" onclick="document.querySelectorAll('.promo-svc-check').forEach(c=>c.checked=true)">Seleccionar todos</button>
-          <button class="btn btn-sm" onclick="document.querySelectorAll('.promo-svc-check').forEach(c=>c.checked=false)">Deseleccionar todos</button>
-        </div>
-        <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:16px 20px">
-          ${svcChecks}
-        </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+        <label style="font-size:0.82rem;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <input type="checkbox" class="pk-featured" ${p.featured ? 'checked' : ''} style="accent-color:var(--gold-d)" /> Destacado (borde dorado)
+        </label>
       </div>
-
-      <div style="display:flex;gap:12px">
-        <button class="btn btn-primary" onclick="savePromo(${idx})">${isNew ? 'Crear promoción' : 'Guardar cambios'}</button>
-        <button class="btn" onclick="closePromoEdit()">Cancelar</button>
-      </div>
-    </div>
-  `
-}
-
-function savePromo(idx) {
-  const title = document.getElementById('promo-title').value.trim()
-  if (!title) { toast('El título es obligatorio', 'error'); return }
-  const discount = document.getElementById('promo-discount').value.trim()
-  if (!discount) { toast('El descuento es obligatorio', 'error'); return }
-
-  const serviceIds = []
-  document.querySelectorAll('.promo-svc-check:checked').forEach(c => serviceIds.push(c.value))
-
-  const promoObj = {
-    title,
-    icon: document.getElementById('promo-icon').value.trim() || '✨',
-    label: document.getElementById('promo-label').value.trim() || 'Promoción Especial',
-    discount,
-    subtitle: document.getElementById('promo-subtitle').value.trim(),
-    active: true,
-    serviceIds
+    </div>`
   }
 
-  if (!adminData.promos) adminData.promos = []
+  panel.innerHTML = `
+    <span class="back-btn" onclick="closePromoEventEdit()">← Volver a eventos</span>
+    <div class="edit-panel">
+      <h2>${isNew ? 'Nuevo Evento Promocional' : 'Editar: ' + esc(c.eventName)}</h2>
 
-  if (idx === -1) {
-    adminData.promos.push(promoObj)
-  } else {
-    promoObj.active = adminData.promos[idx].active
-    adminData.promos[idx] = promoObj
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Información General</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre del evento</label><input type="text" id="pe-name" value="${esc(c.eventName||'')}" placeholder="Día de la Madre" /></div>
+        <div class="form-group"><label>Año</label><input type="text" id="pe-year" value="${esc(c.year||'')}" placeholder="2025" /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Hero (Cabecera)</h3>
+      <div class="form-row full">
+        <div class="form-group"><label>Badge superior</label><input type="text" id="pe-badge" value="${esc(c.heroBadge||'')}" placeholder="ESPECIAL · DIA DE LA MADRE · 2025" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Subtítulo hero</label><input type="text" id="pe-hsub" value="${esc(c.heroSubtitle||'')}" /></div>
+        <div class="form-group"><label>Título hero</label><input type="text" id="pe-htitle" value="${esc(c.heroTitle||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tagline</label><input type="text" id="pe-tagline" value="${esc(c.heroTagline||'')}" /></div>
+        <div class="form-group"><label>Imagen hero (URL)</label><input type="text" id="pe-himg" value="${esc(c.heroImage||'')}" /></div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label>Descripción</label><textarea id="pe-hdesc" rows="3" style="font-family:inherit;font-size:0.85rem;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical">${esc(c.heroDescription||'')}</textarea></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Precio mínimo (badge)</label><input type="text" id="pe-minprice" value="${esc(c.minPrice||'')}" placeholder="$24.900" /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Botón Flotante</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Texto flotante</label><input type="text" id="pe-ftxt" value="${esc(c.floatText||'')}" placeholder="Promo Dia de la Madre" /></div>
+        <div class="form-group"><label>Icono flotante</label><input type="text" id="pe-ficon" value="${esc(c.floatIcon||'♡')}" style="font-size:1.3rem;text-align:center" /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">CTA Final</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Texto urgencia</label><input type="text" id="pe-burg" value="${esc(c.bottomUrgency||'')}" placeholder="Cupos limitados!" /></div>
+        <div class="form-group"><label>Título CTA</label><input type="text" id="pe-btitle" value="${esc(c.bottomTitle||'')}" placeholder="Agenda hoy, sorprende manana." /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:24px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Packs</h3>
+      <div id="packsContainer">${(c.packs||[]).map((p,i) => packHTML(p,i)).join('')}</div>
+      <button class="btn" onclick="addPromoPack()" style="margin-top:12px">+ Agregar Pack</button>
+
+      <div style="display:flex;gap:12px;margin-top:32px;padding-top:20px;border-top:1px solid var(--border)">
+        <button class="btn btn-primary" onclick="savePromoEvt(${isNew ? -1 : evt.id})">${isNew ? 'Crear Evento' : 'Guardar Cambios'}</button>
+        <button class="btn" onclick="closePromoEventEdit()">Cancelar</button>
+      </div>
+    </div>`
+
+  window._currentPackHTML = packHTML
+}
+
+function addPromoPack() {
+  const container = document.getElementById('packsContainer')
+  const idx = container.children.length
+  const p = { name:'', subtitle:'', price:'', bannerImage:'', bannerTitle:'', bannerSub:'', bannerOrnament:'', bannerOverlay:'', forLabel:'', variants:'', services:[], whatsappMsg:'', featured:false, deco:'∞' }
+  container.insertAdjacentHTML('beforeend', window._currentPackHTML(p, idx))
+}
+
+function removePromoPack(idx) {
+  const container = document.getElementById('packsContainer')
+  if (container.children[idx]) container.children[idx].remove()
+}
+
+function collectPacks() {
+  const container = document.getElementById('packsContainer')
+  const packs = []
+  container.querySelectorAll('.edit-panel').forEach(el => {
+    packs.push({
+      name: el.querySelector('.pk-name').value.trim(),
+      subtitle: el.querySelector('.pk-subtitle').value.trim(),
+      price: el.querySelector('.pk-price').value.trim(),
+      bannerImage: el.querySelector('.pk-img').value.trim(),
+      bannerTitle: el.querySelector('.pk-btitle').value.trim(),
+      bannerSub: el.querySelector('.pk-bsub').value.trim(),
+      bannerOrnament: el.querySelector('.pk-born').value.trim(),
+      bannerOverlay: el.querySelector('.pk-overlay').value.trim(),
+      forLabel: el.querySelector('.pk-for').value.trim(),
+      variants: el.querySelector('.pk-variants').value.trim(),
+      deco: el.querySelector('.pk-deco').value.trim() || '∞',
+      whatsappMsg: el.querySelector('.pk-wamsg').value.trim(),
+      services: el.querySelector('.pk-services').value.split('\n').map(s=>s.trim()).filter(Boolean),
+      featured: el.querySelector('.pk-featured').checked
+    })
+  })
+  return packs
+}
+
+async function savePromoEvt(id) {
+  const name = document.getElementById('pe-name').value.trim()
+  if (!name) { toast('El nombre del evento es obligatorio','error'); return }
+
+  const config = {
+    eventName: name,
+    year: document.getElementById('pe-year').value.trim(),
+    heroBadge: document.getElementById('pe-badge').value.trim(),
+    heroSubtitle: document.getElementById('pe-hsub').value.trim(),
+    heroTitle: document.getElementById('pe-htitle').value.trim(),
+    heroTagline: document.getElementById('pe-tagline').value.trim(),
+    heroDescription: document.getElementById('pe-hdesc').value.trim(),
+    heroImage: document.getElementById('pe-himg').value.trim(),
+    minPrice: document.getElementById('pe-minprice').value.trim(),
+    floatText: document.getElementById('pe-ftxt').value.trim(),
+    floatIcon: document.getElementById('pe-ficon').value.trim() || '♡',
+    bottomUrgency: document.getElementById('pe-burg').value.trim(),
+    bottomTitle: document.getElementById('pe-btitle').value.trim(),
+    packs: collectPacks()
   }
 
-  PROMOS.length = 0
-  adminData.promos.forEach(p => PROMOS.push(p))
-  saveAdminData()
-  renderPromos()
-  closePromoEdit()
-  toast(idx === -1 ? 'Promoción creada' : 'Promoción actualizada', 'success')
+  try {
+    if (id === -1) {
+      await savePromoEvent(null, { active: true, config })
+    } else {
+      await savePromoEvent(id, { config })
+    }
+    toast(id === -1 ? 'Evento creado' : 'Evento actualizado', 'success')
+    closePromoEventEdit()
+    renderPromos()
+  } catch(e) { toast('Error: ' + e.message, 'error') }
 }
 
-function closePromoEdit() {
-  document.getElementById('promosList').style.display = 'block'
-  document.getElementById('promoEditPanel').style.display = 'none'
+function closePromoEventEdit() {
+  document.getElementById('promoEventEdit').style.display = 'none'
+  document.getElementById('promoEventEdit').innerHTML = ''
+  document.getElementById('promoEventMain').style.display = ''
 }
+
 
 /* ── ADD NEW CATEGORY ─────────── */
 function addNewCategory() {

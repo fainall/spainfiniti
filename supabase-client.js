@@ -153,3 +153,39 @@ function categoryToRow(cat) {
     link: cat.link || ''
   }
 }
+
+/* ── Promo Events ─────────────────────────── */
+async function loadActivePromoEvent() {
+  try {
+    const rows = await supabase.fetch('promo_events', {
+      filters: 'active=eq.true',
+      order: 'id.desc'
+    })
+    return rows && rows.length ? rows[0] : null
+  } catch (e) {
+    console.warn('Promo event load failed:', e)
+    return null
+  }
+}
+
+async function loadAllPromoEvents() {
+  try {
+    return await supabase.fetch('promo_events', { order: 'id.desc' })
+  } catch (e) {
+    console.warn('Promo events load failed:', e)
+    return []
+  }
+}
+
+async function savePromoEvent(id, data) {
+  if (id) {
+    data.updated_at = new Date().toISOString()
+    return supabase.update('promo_events', id, data)
+  } else {
+    return supabase.insert('promo_events', data)
+  }
+}
+
+async function deletePromoEvent(id) {
+  return supabase.delete('promo_events', id)
+}
