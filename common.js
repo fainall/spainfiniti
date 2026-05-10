@@ -127,50 +127,100 @@ function renderNavbar(activePage) {
 /* ── FOOTER ─────────────────────────────────────────── */
 function renderFooter() {
   return `
-<footer class="site-footer">
-  <div class="container">
-    <div class="footer-grid">
-      <div class="footer-brand">
-        <img src="images/logo.webp" alt="Spa Infinity" class="f-logo-img" />
-        <div class="f-logo-word">Spa Infinity</div>
-        <p>Centro Podológico & Spa en Santiago de Chile. Cuidamos la salud y la belleza de tus pies y cuerpo con los más altos estándares profesionales.</p>
-        <p style="margin-top:14px; color:rgba(255,255,255,0.35)">${SITE.hours}</p>
-      </div>
-      <div class="footer-col">
-        <h4>Servicios</h4>
-        <ul>
-          ${CATEGORIES.map(c =>
-            `<li><a href="categoria.html?cat=${c.id}">${c.name}</a></li>`
-          ).join('')}
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h4>Políticas</h4>
-        <ul>
-          <li><a href="#">Políticas de Reservación</a></li>
-          <li><a href="#">Uso de Gift Cards</a></li>
-          <li><a href="#">Condiciones Generales</a></li>
-        </ul>
-        <h4 style="margin-top:28px">Métodos de pago</h4>
-        <ul style="margin-top:12px">
-          <li style="font-size:0.8rem;color:rgba(255,255,255,0.4)">Webpay · Flow · Mastercard · Efectivo</li>
-        </ul>
-      </div>
-      <div class="footer-col">
-        <h4>Contacto</h4>
-        <ul>
-          <li style="font-size:0.8rem;color:rgba(255,255,255,0.4);line-height:1.85">
-            ${SITE.address}<br>${SITE.phone}<br>${SITE.email}
-          </li>
-        </ul>
+<footer class="infinity-footer">
+  <div class="footer-main-grid">
+    <div class="footer-col footer-brand">
+      <img src="images/logo.webp" alt="Spa Infinity" />
+      <p>Centro Podológico y Spa Infinity: Un refugio de bienestar diseñado para tu cuidado integral.</p>
+      <div class="footer-socials">
+        <a href="https://web.facebook.com/podologia.spainfinity" class="social-fb" aria-label="Facebook" target="_blank"><i class="fab fa-facebook-f"></i></a>
+        <a href="https://www.instagram.com/spa_infinity/" class="social-ig" aria-label="Instagram" target="_blank"><i class="fab fa-instagram"></i></a>
+        <a href="https://wa.me/56986688771" class="social-wa" aria-label="WhatsApp" target="_blank"><i class="fab fa-whatsapp"></i></a>
       </div>
     </div>
-    <div class="footer-bottom">
-      <p>© 2026 Spa Infinity. Todos los derechos reservados.</p>
-      <p><a href="https://spainfinity.cl" style="color:rgba(255,255,255,0.3);transition:color 0.3s" onmouseover="this.style.color='var(--gold)'" onmouseout="this.style.color='rgba(255,255,255,0.3)'">spainfinity.cl</a></p>
+    <div class="footer-col footer-info">
+      <h4 class="footer-title">Contacto</h4>
+      <ul class="footer-list">
+        <li><span><i class="fas fa-map-marker-alt"></i> ${SITE.address}</span></li>
+        <li><a href="tel:${SITE.phone.replace(/\s/g,'')}"><i class="fas fa-phone-alt"></i> ${SITE.phone}</a></li>
+        <li><a href="mailto:${SITE.email}"><i class="fas fa-envelope"></i> ${SITE.email}</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4 class="footer-title">Menú</h4>
+      <ul class="footer-list menu-list">
+        <li><a href="index.html">Inicio</a></li>
+        <li><a href="nosotros.html">Nosotros</a></li>
+        <li><a href="servicios.html">Servicios</a></li>
+        <li><a href="contacto.html">Contacto</a></li>
+      </ul>
+    </div>
+    <div class="footer-col footer-info">
+      <h4 class="footer-title">Atención</h4>
+      <ul class="footer-list">
+        <li><span><i class="far fa-clock"></i> <strong>Lun - Vie:</strong> 10:00 – 20:00 Hrs</span></li>
+        <li><span><i class="far fa-calendar-check"></i> <strong>Sábado:</strong> 11:00 – 18:00 Hrs</span></li>
+      </ul>
     </div>
   </div>
-</footer>`
+  <div class="footer-bottom-bar">
+    <div class="copyright-area">
+      <span class="copyright">© 2026 Spa Infinity. Todos los derechos reservados.</span>
+      <a href="https://opusdigital.cl" class="designed-by" target="_blank">Diseñado por <strong>OpusDigital</strong></a>
+    </div>
+    <div class="policy-links">
+      <button class="policy-btn" onclick="openPolicyModal('reservasModal')">Políticas de Reservación</button>
+      <span class="policy-separator">|</span>
+      <button class="policy-btn" onclick="openPolicyModal('giftModal')">Uso de Gift Cards</button>
+    </div>
+    <div class="payments-wrapper">
+      <img src="https://tiendanube.s3.amazonaws.com/apps/10425-45-es_CL-flow-logo-square.jpg" alt="Flow" />
+      <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" />
+      <img src="https://www.webpay.cl/logos/institucion/98908?idx=1706675693654" alt="Webpay" />
+    </div>
+  </div>
+</footer>
+
+<!-- Policy Modals -->
+<div class="policy-modal-overlay" id="reservasModal" onclick="if(event.target===this)closePolicyModal('reservasModal')">
+  <div class="policy-modal-box">
+    <button class="policy-close-btn" onclick="closePolicyModal('reservasModal')">&times;</button>
+    <h3 class="policy-modal-title">Políticas de Reserva</h3>
+    <div class="policy-modal-content">
+      <p>En Spa Infinity valoramos su tiempo y el de nuestros profesionales. Por favor, lea atentamente nuestras políticas para agendamiento de citas.</p>
+      <h4>1. Agendamiento</h4>
+      <p>Las reservas se pueden realizar a través de nuestro sitio web, WhatsApp oficial o llamadas telefónicas. Su cita quedará confirmada una vez reciba nuestro mensaje de validación.</p>
+      <h4>2. Puntualidad</h4>
+      <p>Le solicitamos llegar con 10 minutos de anticipación a su cita. Si se presenta con un retraso superior a 15 minutos, nos reservamos el derecho de acortar el tiempo del servicio o reprogramar la cita para no afectar a los siguientes clientes.</p>
+      <h4>3. Cancelaciones y Reprogramaciones</h4>
+      <p>Si necesita cancelar o cambiar la fecha de su cita, le pedimos hacerlo con al menos 24 horas de anticipación. Las cancelaciones de última hora afectan directamente la agenda de nuestros especialistas. <strong>Tenga en cuenta que el abono realizado no es reembolsable en caso de no asistir a la cita.</strong></p>
+    </div>
+  </div>
+</div>
+<div class="policy-modal-overlay" id="giftModal" onclick="if(event.target===this)closePolicyModal('giftModal')">
+  <div class="policy-modal-box">
+    <button class="policy-close-btn" onclick="closePolicyModal('giftModal')">&times;</button>
+    <h3 class="policy-modal-title">Uso de Gift Cards</h3>
+    <div class="policy-modal-content">
+      <p>Nuestras Gift Cards son el regalo perfecto para compartir bienestar. A continuación, detallamos las condiciones de uso.</p>
+      <h4>1. Validez y Vencimiento</h4>
+      <p>Toda Gift Card emitida por Spa Infinity tiene una validez estricta de <strong>45 días corridos</strong> contados a partir de la fecha de compra. Una vez superado este plazo, el código quedará inactivo y no se admitirán extensiones ni reembolsos.</p>
+      <h4>2. Canje y Agendamiento</h4>
+      <p>Para hacer efectiva su Gift Card, el portador debe contactarnos por nuestros canales oficiales mencionando el código único de su tarjeta. El servicio está sujeto a la disponibilidad de agenda de nuestro Spa.</p>
+      <h4>3. Condiciones Generales</h4>
+      <p>La Gift Card no es canjeable por dinero en efectivo. Si el portador decide tomar un servicio de menor valor al monto de la Gift Card, no se entregará vuelto, pero el saldo restante puede quedar a favor para una próxima visita dentro de los 45 días de validez original.</p>
+    </div>
+  </div>
+</div>`
+}
+
+function openPolicyModal(id) {
+  document.getElementById(id).classList.add('active')
+  document.body.style.overflow = 'hidden'
+}
+function closePolicyModal(id) {
+  document.getElementById(id).classList.remove('active')
+  document.body.style.overflow = 'auto'
 }
 
 /* ── FLOATING BUTTONS ───────────────────────────────── */
