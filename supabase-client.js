@@ -197,3 +197,26 @@ async function savePromoEvent(id, data) {
 async function deletePromoEvent(id) {
   return supabase.delete('promo_events', id)
 }
+
+/* ── Page Content (CMS) ──────────────────── */
+async function loadPageContent(pageId) {
+  try {
+    const rows = await supabase.fetch('page_content', {
+      filters: `id=eq.${pageId}`
+    })
+    return rows && rows.length ? rows[0].content : null
+  } catch (e) {
+    console.warn('Page content load failed:', e)
+    return null
+  }
+}
+
+async function savePageContent(pageId, content) {
+  const data = { content, updated_at: new Date().toISOString() }
+  try {
+    return await supabase.update('page_content', pageId, data)
+  } catch (e) {
+    // If row doesn't exist, insert
+    return await supabase.insert('page_content', { id: pageId, ...data })
+  }
+}

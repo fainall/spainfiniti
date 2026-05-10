@@ -258,26 +258,26 @@
 <div id="navContainer"></div>
 
 <!-- HERO -->
-<section class="about-hero">
+<section class="about-hero" id="aboutHero">
   <div class="about-hero-text fu">
-    <span class="tag">Conócenos</span>
-    <h1>Bienestar,<br>Salud &<br><em>Belleza</em></h1>
-    <p>En Centro Podológico y Spa Infinity nos especializamos en brindarte una experiencia única de bienestar, salud y belleza. Nuestro equipo de profesionales combina técnicas clínicas y terapéuticas para ofrecerte un cuidado completo en un ambiente relajante y seguro.</p>
-    <p>Cada visita es una oportunidad para renovarte. Desde tratamientos podológicos especializados hasta rituales de belleza y relajación, diseñamos cada servicio pensando en tu comodidad y resultados.</p>
+    <span class="tag" id="heroTag">Conócenos</span>
+    <h1 id="heroTitle">Bienestar,<br>Salud &<br><em>Belleza</em></h1>
+    <p id="heroP1">En Centro Podológico y Spa Infinity nos especializamos en brindarte una experiencia única de bienestar, salud y belleza. Nuestro equipo de profesionales combina técnicas clínicas y terapéuticas para ofrecerte un cuidado completo en un ambiente relajante y seguro.</p>
+    <p id="heroP2">Cada visita es una oportunidad para renovarte. Desde tratamientos podológicos especializados hasta rituales de belleza y relajación, diseñamos cada servicio pensando en tu comodidad y resultados.</p>
   </div>
   <div class="about-hero-img fu">
-    <img src="images/podologia-clinica/atencion-podologica-integral.jpeg" alt="Atención profesional en Spa Infinity" />
+    <img id="heroImg" src="images/podologia-clinica/atencion-podologica-integral.jpeg" alt="Atención profesional en Spa Infinity" />
   </div>
 </section>
 
 <!-- VALUES -->
 <section class="values-sec">
   <div class="values-header fu">
-    <span class="tag">Lo que nos define</span>
-    <h2>Nuestros <em>Valores</em></h2>
-    <p>Cada decisión que tomamos está guiada por estos principios fundamentales.</p>
+    <span class="tag" id="valTag">Lo que nos define</span>
+    <h2 id="valTitle">Nuestros <em>Valores</em></h2>
+    <p id="valSubtitle">Cada decisión que tomamos está guiada por estos principios fundamentales.</p>
   </div>
-  <div class="values-grid">
+  <div class="values-grid" id="valuesGrid">
     <div class="value-card fu">
       <div class="value-icon">✦</div>
       <h3>Excelencia Profesional</h3>
@@ -308,25 +308,25 @@
 <!-- GALLERY -->
 <section class="gallery-sec">
   <div class="gallery-header fu">
-    <span class="tag">Nuestro espacio</span>
-    <h2>Un Lugar Pensado para Ti</h2>
-    <p>Ambiente cálido, profesional y diseñado para tu máximo confort.</p>
+    <span class="tag" id="galTag">Nuestro espacio</span>
+    <h2 id="galTitle">Un Lugar Pensado para Ti</h2>
+    <p id="galSubtitle">Ambiente cálido, profesional y diseñado para tu máximo confort.</p>
   </div>
   <div class="gallery-grid" id="galleryGrid"></div>
 </section>
 
 <!-- CTA -->
 <section class="about-cta">
-  <h2 class="fu">Reserva tu Momento</h2>
-  <p class="fu">Tu bienestar es nuestra prioridad. Agenda tu cita y vive la experiencia Spa Infinity.</p>
-  <a href="https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20una%20cita" target="_blank" class="btn-cta-dark fu">Reserva Ahora</a>
+  <h2 class="fu" id="ctaTitle">Reserva tu Momento</h2>
+  <p class="fu" id="ctaSubtitle">Tu bienestar es nuestra prioridad. Agenda tu cita y vive la experiencia Spa Infinity.</p>
+  <a id="ctaBtn" href="https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20una%20cita" target="_blank" class="btn-cta-dark fu">Reserva Ahora</a>
 </section>
 
 <!-- FOOTER -->
 <div id="footerContainer"></div>
 <div id="floatingContainer"></div>
 
-<script src="supabase-client.js?v=4"></script>
+<script src="supabase-client.js?v=6"></script>
 <script src="data.js?v=2"></script>
 <script src="common.js?v=9"></script>
 <script>
@@ -334,7 +334,7 @@ document.getElementById('navContainer').innerHTML = renderNavbar('Nosotros')
 document.getElementById('footerContainer').innerHTML = renderFooter()
 document.getElementById('floatingContainer').innerHTML = renderFloating()
 
-/* Services overview cards */
+/* Services overview cards (static — from categories) */
 const overviewData = [
   { name: 'Podología Clínica', desc: 'Atención profesional para la salud de tus pies.', cat: 'podologia-clinica' },
   { name: 'Manicure & Pedicure', desc: 'Embellece y cuida tus manos y pies.', cat: 'manicure-pedicure' },
@@ -354,17 +354,68 @@ document.getElementById('svoGrid').innerHTML = overviewData.map((s, i) => `
   </div>
 `).join('')
 
-/* Gallery — use existing images from different categories */
-const galleryImgs = [
+/* Load dynamic content from Supabase */
+async function loadNosotrosContent() {
+  const d = await loadPageContent('nosotros')
+  if (!d) return // fallback to static HTML
+
+  // Hero
+  if (d.hero) {
+    if (d.hero.tag) document.getElementById('heroTag').textContent = d.hero.tag
+    if (d.hero.title) document.getElementById('heroTitle').innerHTML = d.hero.title
+    if (d.hero.paragraphs?.[0]) document.getElementById('heroP1').textContent = d.hero.paragraphs[0]
+    if (d.hero.paragraphs?.[1]) document.getElementById('heroP2').textContent = d.hero.paragraphs[1]
+    if (d.hero.image) document.getElementById('heroImg').src = d.hero.image
+  }
+
+  // Values
+  if (d.values) {
+    if (d.values.tag) document.getElementById('valTag').textContent = d.values.tag
+    if (d.values.title) document.getElementById('valTitle').innerHTML = d.values.title
+    if (d.values.subtitle) document.getElementById('valSubtitle').textContent = d.values.subtitle
+    if (d.values.cards?.length) {
+      document.getElementById('valuesGrid').innerHTML = d.values.cards.map((c, i) => `
+        <div class="value-card fu${i > 0 ? ' fu-d' + i : ''}">
+          <div class="value-icon">${c.icon}</div>
+          <h3>${c.title}</h3>
+          <p>${c.desc}</p>
+        </div>
+      `).join('')
+    }
+  }
+
+  // Gallery
+  if (d.gallery) {
+    if (d.gallery.tag) document.getElementById('galTag').textContent = d.gallery.tag
+    if (d.gallery.title) document.getElementById('galTitle').textContent = d.gallery.title
+    if (d.gallery.subtitle) document.getElementById('galSubtitle').textContent = d.gallery.subtitle
+    if (d.gallery.images?.length) {
+      document.getElementById('galleryGrid').innerHTML = d.gallery.images.map(g => `
+        <img src="${g.src}" alt="${g.alt}" loading="lazy" class="fu" />
+      `).join('')
+    }
+  }
+
+  // CTA
+  if (d.cta) {
+    if (d.cta.title) document.getElementById('ctaTitle').textContent = d.cta.title
+    if (d.cta.subtitle) document.getElementById('ctaSubtitle').textContent = d.cta.subtitle
+    if (d.cta.buttonText) document.getElementById('ctaBtn').textContent = d.cta.buttonText
+    if (d.cta.buttonLink) document.getElementById('ctaBtn').href = d.cta.buttonLink
+  }
+}
+
+/* Default gallery fallback (shown before Supabase loads) */
+const defaultGallery = [
   { src: 'images/manicure-pedicure/manicure-express.jpeg', alt: 'Zona de manicure' },
   { src: 'images/pestanas-cejas/pestanas-cejas-hero.jpeg', alt: 'Zona de pestañas' },
   { src: 'images/cuidado-facial-spa/cuidado-facial-spa-hero.jpeg', alt: 'Zona de tratamientos faciales' },
 ]
-
-document.getElementById('galleryGrid').innerHTML = galleryImgs.map(g => `
+document.getElementById('galleryGrid').innerHTML = defaultGallery.map(g => `
   <img src="${g.src}" alt="${g.alt}" loading="lazy" class="fu" />
 `).join('')
 
+loadNosotrosContent()
 initShared()
 </script>
 </body>
