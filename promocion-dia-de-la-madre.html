@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Especial Dia de la Madre — Spa Infinity</title>
+<meta name="description" content="Packs especiales para el Dia de la Madre. Regala tiempo, cuidado y bienestar en Spa Infinity.">
+<link rel="icon" href="img/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=2">
+<style>
+/* ═══════════════════════════════════════════
+   PROMO PAGE — Dia de la Madre
+   ═══════════════════════════════════════════ */
+
+/* ── Side accent bar ── */
+.promo-side {
+  position: fixed; left: 0; top: 0; bottom: 0; width: 6px; z-index: 9999;
+  background: linear-gradient(rgb(197,164,103) 0%, rgb(232,200,130) 40%, rgb(194,123,138) 70%, rgb(197,164,103) 100%);
+}
+
+/* ── Hero ── */
+.promo-hero {
+  position: relative;
+  min-height: 92vh;
+  display: flex;
+  align-items: center;
+  padding: 120px 7% 80px;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(253,244,238,0.82) 0%, rgba(250,232,223,0.72) 40%, rgba(253,240,243,0.55) 100%);
+}
+.promo-hero::before {
+  content: '∞';
+  position: absolute;
+  right: -60px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 28rem;
+  font-family: 'Playfair Display', serif;
+  color: rgba(194,123,138,0.06);
+  pointer-events: none;
+}
+.promo-hero-content {
+  flex: 1; max-width: 600px; position: relative; z-index: 2;
+}
+.promo-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 16px;
+  background: rgba(197,164,103,0.08);
+  padding: 8px 20px;
+  border-radius: 30px;
+}
+.promo-hero-sub {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 1.2rem;
+  color: #6B5B4F;
+  margin-bottom: 12px;
+}
+.promo-hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  color: #8B6070;
+  line-height: 1.1;
+  margin-bottom: 20px;
+}
+.promo-hero-title .heart { color: #C27B8A; }
+.promo-hero-tagline {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  color: #7A6A5E;
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+.promo-hero-desc {
+  color: #6B5B4F;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  margin-bottom: 32px;
+  max-width: 480px;
+}
+.promo-hero-right {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  margin-left: 60px;
+}
+.promo-hero-img {
+  width: 380px; height: 380px;
+  border-radius: 50% 50% 50% 10%;
+  object-fit: cover;
+  box-shadow: 0 30px 80px rgba(194,123,138,0.18);
+}
+.promo-price-badge {
+  position: absolute;
+  bottom: -10px; right: -10px;
+  width: 130px; height: 130px;
+  background: linear-gradient(135deg, #1A2436 0%, #2A3446 100%);
+  border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: #fff;
+  box-shadow: 0 12px 40px rgba(26,36,54,0.35);
+}
+.promo-price-badge .from { font-size: 0.55rem; letter-spacing: 2px; opacity: 0.7; text-transform: uppercase; }
+.promo-price-badge .amount { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; margin: 2px 0; }
+.promo-price-badge .label { font-size: 0.5rem; letter-spacing: 1.5px; opacity: 0.7; text-transform: uppercase; }
+.promo-price-badge .heart-sm { font-size: 0.8rem; margin-top: 2px; }
+
+/* ── CTA Buttons ── */
+.promo-ctas { display: flex; gap: 14px; flex-wrap: wrap; }
+.btn-promo {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 32px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  border: none; cursor: pointer;
+}
+.btn-promo-gold {
+  background: linear-gradient(135deg, #C5A467, #A8883F);
+  color: #fff;
+}
+.btn-promo-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(197,164,103,0.4); }
+.btn-promo-wa {
+  background: #25D366;
+  color: #fff;
+}
+.btn-promo-wa:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(37,211,102,0.35); }
+.btn-promo-wa svg { width: 18px; height: 18px; fill: currentColor; }
+
+/* ── Info Section ── */
+.promo-info {
+  padding: 60px 7%;
+  background: var(--white);
+  border-top: 1px solid rgba(197,164,103,0.15);
+  border-bottom: 1px solid rgba(197,164,103,0.15);
+}
+.promo-info-title {
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+  margin-bottom: 36px;
+}
+.promo-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 28px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.promo-info-card {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 20px;
+  border-radius: 10px;
+  background: var(--cream);
+}
+.promo-info-icon {
+  width: 40px; height: 40px;
+  background: rgba(197,164,103,0.1);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+.promo-info-text { font-size: 0.82rem; color: #6B5B4F; line-height: 1.5; }
+
+/* ── Packs Section ── */
+.promo-packs {
+  padding: 80px 7%;
+  background: linear-gradient(180deg, var(--cream) 0%, #FAF5EF 100%);
+}
+.promo-section-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+.promo-section-eyebrow {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  color: #C27B8A;
+  font-size: 1.05rem;
+  margin-bottom: 8px;
+}
+.promo-section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  color: var(--dark);
+}
+.promo-section-title em {
+  font-style: italic;
+  color: var(--gold);
+}
+.promo-heart-divider {
+  display: block;
+  text-align: center;
+  font-size: 1.2rem;
+  color: #C27B8A;
+  margin-top: 12px;
+}
+.promo-packs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.promo-packs-row2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28px;
+  max-width: 800px;
+  margin: 28px auto 0;
+}
+
+/* ── Pack Card ── */
+.pack-card {
+  background: var(--white);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+  display: flex; flex-direction: column;
+}
+.pack-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+}
+.pack-card.featured {
+  border: 2px solid var(--gold);
+}
+.pack-banner {
+  position: relative;
+  padding: 40px 28px 30px;
+  background-size: cover;
+  background-position: center;
+  min-height: 200px;
+  display: flex; flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+.pack-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.pack-banner > * { position: relative; z-index: 2; }
+.pack-banner-ornament {
+  font-size: 0.55rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 8px;
+}
+.pack-banner-title {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 2rem;
+  color: #fff;
+  line-height: 1.1;
+}
+.pack-banner-sub {
+  font-size: 0.6rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.65);
+  margin-top: 6px;
+}
+.pack-banner-deco {
+  position: absolute;
+  right: -20px; top: -20px;
+  font-size: 10rem;
+  font-family: 'Playfair Display', serif;
+  color: rgba(255,255,255,0.06);
+  pointer-events: none;
+  z-index: 1;
+}
+.pack-body {
+  padding: 28px;
+  flex: 1;
+  display: flex; flex-direction: column;
+}
+.pack-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.35rem;
+  color: var(--dark);
+  margin-bottom: 4px;
+}
+.pack-subtitle {
+  font-size: 0.8rem;
+  color: #8B7D6B;
+  margin-bottom: 16px;
+  font-style: italic;
+}
+.pack-for {
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #C27B8A;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.pack-variants {
+  font-size: 0.82rem;
+  color: #6B5B4F;
+  margin-bottom: 16px;
+}
+.pack-includes {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  flex: 1;
+}
+.pack-includes li {
+  padding: 7px 0;
+  font-size: 0.84rem;
+  color: #4A4A4A;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.pack-includes li::before {
+  content: '✓';
+  color: #C27B8A;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.pack-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+.pack-price {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  color: #8B6070;
+  font-weight: 700;
+}
+.pack-cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 24px;
+  border-radius: 50px;
+  background: linear-gradient(135deg, #C5A467, #A8883F);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+.pack-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(197,164,103,0.4);
+}
+.pack-cta svg { width: 14px; height: 14px; fill: currentColor; }
+
+/* ── Bottom CTA ── */
+.promo-bottom-cta {
+  padding: 70px 7%;
+  background: linear-gradient(135deg, #1A2436 0%, #2A3850 100%);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.promo-bottom-cta::after {
+  content: '∞';
+  position: absolute;
+  right: 5%; top: 50%;
+  transform: translateY(-50%);
+  font-size: 14rem;
+  font-family: 'Playfair Display', serif;
+  color: rgba(255,255,255,0.03);
+  pointer-events: none;
+}
+.promo-bottom-urgency {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  color: var(--gold);
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+.promo-bottom-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+  color: #fff;
+  margin-bottom: 28px;
+}
+.promo-bottom-title em {
+  font-style: italic;
+  color: var(--gold);
+}
+.promo-bottom-ctas {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
+}
+.btn-promo-outline {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 32px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 2px solid rgba(255,255,255,0.3);
+  color: #fff;
+  transition: all 0.3s ease;
+}
+.btn-promo-outline:hover {
+  border-color: #fff;
+  background: rgba(255,255,255,0.08);
+}
+
+/* ── Footer bar ── */
+.promo-footer-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 32px;
+  padding: 18px 7%;
+  background: var(--white);
+  border-top: 1px solid rgba(197,164,103,0.15);
+  flex-wrap: wrap;
+}
+.promo-footer-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.78rem;
+  color: #6B5B4F;
+}
+.promo-footer-item svg { width: 16px; height: 16px; stroke: var(--gold); fill: none; stroke-width: 2; }
+.promo-footer-item.accent {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  color: #C27B8A;
+}
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .promo-hero { flex-direction: column; text-align: center; min-height: auto; padding: 100px 5% 50px; }
+  .promo-hero-right { margin-left: 0; margin-top: 40px; }
+  .promo-hero-img { width: 280px; height: 280px; }
+  .promo-hero-desc { margin: 0 auto 32px; }
+  .promo-ctas { justify-content: center; }
+  .promo-packs-grid { grid-template-columns: 1fr; max-width: 420px; }
+  .promo-packs-row2 { grid-template-columns: 1fr; max-width: 420px; }
+}
+@media (max-width: 600px) {
+  .promo-hero-img { width: 220px; height: 220px; }
+  .promo-price-badge { width: 105px; height: 105px; }
+  .promo-price-badge .amount { font-size: 1.2rem; }
+  .promo-info-grid { grid-template-columns: 1fr 1fr; }
+  .promo-footer-bar { flex-direction: column; gap: 12px; }
+  .pack-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="promo-side"></div>
+
+<div id="navContainer"></div>
+
+<!-- ═══════ HERO ═══════ -->
+<section class="promo-hero">
+  <div class="promo-hero-content">
+    <span class="promo-badge">ESPECIAL &middot; DIA DE LA MADRE &middot; 2025</span>
+    <p class="promo-hero-sub">Regala tiempo, cuidado y bienestar.</p>
+    <h1 class="promo-hero-title">Dia de la Madre <span class="heart">&#10084;</span></h1>
+    <p class="promo-hero-tagline">Un momento que se siente, se vive y se recuerda.</p>
+    <p class="promo-hero-desc">Porque ella lo da todo, merece una experiencia que la haga sentir unica. Packs especiales, servicios exclusivos y la calidez de Spa Infinity.</p>
+    <div class="promo-ctas">
+      <a href="#packs" class="btn-promo btn-promo-gold">VER PACKS</a>
+      <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20para%20el%20Especial%20D%C3%ADa%20de%20la%20Madre%20%F0%9F%8C%B8" target="_blank" class="btn-promo btn-promo-wa">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
+        RESERVAR POR WHATSAPP
+      </a>
+    </div>
+  </div>
+  <div class="promo-hero-right">
+    <img src="https://spainfinity.cl/wp-content/uploads/2026/03/Depilacion-BrasileroRebaje.jpeg" alt="Dia de la Madre - Spa Infinity" class="promo-hero-img" loading="eager" />
+    <div class="promo-price-badge">
+      <span class="from">PACKS DESDE</span>
+      <span class="amount">$24.900</span>
+      <span class="label">PRECIO ESPECIAL</span>
+      <span class="heart-sm">&#10084;</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ INFO ═══════ -->
+<section class="promo-info">
+  <h2 class="promo-info-title">&#9733; INFORMACION IMPORTANTE &#9733;</h2>
+  <div class="promo-info-grid">
+    <div class="promo-info-card">
+      <div class="promo-info-icon">&#128340;</div>
+      <p class="promo-info-text">Atencion personalizada con hora agendada. Reserva tu cita con anticipacion.</p>
+    </div>
+    <div class="promo-info-card">
+      <div class="promo-info-icon">&#11088;</div>
+      <p class="promo-info-text">Productos de alta calidad y tecnologia avanzada para los mejores resultados.</p>
+    </div>
+    <div class="promo-info-card">
+      <div class="promo-info-icon">&#127968;</div>
+      <p class="promo-info-text">Ambiente comodo, seguro y relajante disenado para tu bienestar total.</p>
+    </div>
+    <div class="promo-info-card">
+      <div class="promo-info-icon">&#128100;</div>
+      <p class="promo-info-text">Profesionales certificados a tu servicio. Tu bienestar es nuestra prioridad.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ PACKS ═══════ -->
+<section class="promo-packs" id="packs">
+  <div class="promo-section-header">
+    <p class="promo-section-eyebrow">Creados con amor</p>
+    <h2 class="promo-section-title">Packs <em>Especiales</em></h2>
+    <span class="promo-heart-divider">&#10084;</span>
+  </div>
+
+  <!-- Row 1: 3 packs -->
+  <div class="promo-packs-grid">
+
+    <!-- PACK 1: INFINITY DUO -->
+    <div class="pack-card featured">
+      <div class="pack-banner" style="background-image:url('https://spainfinity.cl/wp-content/uploads/2026/03/Sesion-Inicial-Exfoliacion-y-Drenaje-Linfatico-Cuerpo-Completo.jpeg')">
+        <div class="pack-banner-deco">&#8734;</div>
+        <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(45,19,25,0.75) 0%,rgba(26,11,15,0.7) 100%);z-index:1"></div>
+        <span class="pack-banner-ornament">&#9733; EDICION ESPECIAL &#9733;</span>
+        <h3 class="pack-banner-title">Infinity Duo</h3>
+        <span class="pack-banner-sub">UN MOMENTO JUNTAS QUE NO SE REPITE TODOS LOS DIAS</span>
+      </div>
+      <div class="pack-body">
+        <h3 class="pack-name">Infinity Duo</h3>
+        <p class="pack-subtitle">Edicion Dia de la Madre</p>
+        <span class="pack-for">PARA COMPARTIR CON QUIEN MAS QUIERES:</span>
+        <p class="pack-variants">Madre e hija &middot; Madre e hijo &middot; Hermanas &middot; Amigas</p>
+        <ul class="pack-includes">
+          <li>Pedicure Spa (para 2)</li>
+          <li>Masaje Relajante (para 2) — 60 min</li>
+          <li>Hidratacion Premium</li>
+          <li>Experiencia en simultaneo</li>
+          <li>Esmaltado a eleccion</li>
+        </ul>
+        <div class="pack-footer">
+          <span class="pack-price">$78.000 — $87.000</span>
+          <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20el%20Pack%20Infinity%20D%C3%BAo%20para%20el%20D%C3%ADa%20de%20la%20Madre%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
+            <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
+            RESERVAR
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- PACK 2: MAMA GLOW INFINITY -->
+    <div class="pack-card">
+      <div class="pack-banner" style="background-image:url('https://spainfinity.cl/wp-content/uploads/2026/03/Gemini_Generated_Image_yaavevyaavevyaav.png')">
+        <div class="pack-banner-deco">&#9733;</div>
+        <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(42,31,16,0.78) 0%,rgba(28,20,9,0.74) 100%);z-index:1"></div>
+        <span class="pack-banner-ornament">&#9733; BEAUTY &amp; GLOW &#9733;</span>
+        <h3 class="pack-banner-title">Mama Glow</h3>
+        <span class="pack-banner-sub">INFINITY EDITION</span>
+      </div>
+      <div class="pack-body">
+        <h3 class="pack-name">Mama Glow Infinity</h3>
+        <p class="pack-subtitle">Para que se sienta cuidada, linda y relajada en un solo dia.</p>
+        <ul class="pack-includes">
+          <li>Manicure Spa</li>
+          <li>Pedicure Spa</li>
+          <li>Ritual Brillo Facial</li>
+          <li>Hidratacion Premium</li>
+          <li>Esmaltado a eleccion</li>
+        </ul>
+        <div class="pack-footer">
+          <span class="pack-price">$50.000 — $62.000</span>
+          <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20el%20Pack%20Mam%C3%A1%20Glow%20Infinity%20para%20el%20D%C3%ADa%20de%20la%20Madre%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
+            <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
+            RESERVAR
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- PACK 3: EXPERIENCIA MAMA INFINITY -->
+    <div class="pack-card">
+      <div class="pack-banner" style="background-image:url('https://spainfinity.cl/wp-content/uploads/2026/03/Masaje-con-Piedras-Calientes-60-min.jpeg')">
+        <div class="pack-banner-deco">&#8734;</div>
+        <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(26,36,54,0.78) 0%,rgba(15,23,32,0.74) 100%);z-index:1"></div>
+        <span class="pack-banner-ornament">&#9733; EXPERIENCIA TOTAL &#9733;</span>
+        <h3 class="pack-banner-title">Experiencia Mama</h3>
+        <span class="pack-banner-sub">SPA INFINITY</span>
+      </div>
+      <div class="pack-body">
+        <h3 class="pack-name">Experiencia Mama Infinity</h3>
+        <p class="pack-subtitle">El mejor regalo que puedes darle este ano.</p>
+        <ul class="pack-includes">
+          <li>Podologia Clinica + Esmaltado</li>
+          <li>Manicure Spa</li>
+          <li>Masaje Relajante — 60 min</li>
+          <li>Ritual Brillo Facial</li>
+          <li>Esmaltado a eleccion</li>
+        </ul>
+        <div class="pack-footer">
+          <span class="pack-price">$88.000 — $94.000</span>
+          <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20la%20Experiencia%20Mam%C3%A1%20Infinity%20para%20el%20D%C3%ADa%20de%20la%20Madre%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
+            <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
+            RESERVAR
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Row 2: 2 packs centered -->
+  <div class="promo-packs-row2">
+
+    <!-- PACK 4: RENOVACION TOTAL INFINITY -->
+    <div class="pack-card">
+      <div class="pack-banner" style="background-image:url('https://spainfinity.cl/wp-content/uploads/2026/03/Reflexologia-Podal-sesion-45-min.jpeg')">
+        <div class="pack-banner-deco">&#9733;</div>
+        <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(28,35,51,0.78) 0%,rgba(16,20,30,0.74) 100%);z-index:1"></div>
+        <span class="pack-banner-ornament">&#9733; PARA EL &#9733;</span>
+        <h3 class="pack-banner-title">Renovacion Total</h3>
+        <span class="pack-banner-sub">ALIVIO &amp; BIENESTAR</span>
+      </div>
+      <div class="pack-body">
+        <h3 class="pack-name">Renovacion Total Infinity</h3>
+        <p class="pack-subtitle">Alivio real para pies y cuerpo en una sola sesion.</p>
+        <ul class="pack-includes">
+          <li>Podologia Clinica</li>
+          <li>Manicure Masculina</li>
+          <li>Masaje Relajante — 60 min</li>
+          <li>Desintoxicacion Ionica</li>
+        </ul>
+        <div class="pack-footer">
+          <span class="pack-price">$66.900</span>
+          <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20el%20Pack%20Renovaci%C3%B3n%20Total%20Infinity%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
+            <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
+            RESERVAR
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- PACK 5: CUIDADO REAL INFINITY -->
+    <div class="pack-card">
+      <div class="pack-banner" style="background-image:url('https://spainfinity.cl/wp-content/uploads/2026/03/Desintoxicacion-Pediluvio-Ionico.jpeg')">
+        <div class="pack-banner-deco">&#10084;</div>
+        <div style="position:absolute;inset:0;background:linear-gradient(160deg,rgba(42,31,16,0.78) 0%,rgba(28,20,9,0.74) 100%);z-index:1"></div>
+        <span class="pack-banner-ornament">&#9733; SALUD &amp; CUIDADO &#9733;</span>
+        <h3 class="pack-banner-title">Cuidado Real</h3>
+        <span class="pack-banner-sub">INFINITY CLINICA</span>
+      </div>
+      <div class="pack-body">
+        <h3 class="pack-name">Cuidado Real Infinity</h3>
+        <p class="pack-subtitle">No es estetica... es salud.</p>
+        <ul class="pack-includes">
+          <li>Podologia Clinica</li>
+          <li>Evaluacion</li>
+          <li>Recomendacion Personalizada</li>
+        </ul>
+        <div class="pack-footer">
+          <span class="pack-price">$24.900 — $29.900</span>
+          <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20el%20Pack%20Cuidado%20Real%20Infinity%20%F0%9F%8C%B8" target="_blank" class="pack-cta">
+            <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
+            RESERVAR
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════ BOTTOM CTA ═══════ -->
+<section class="promo-bottom-cta">
+  <p class="promo-bottom-urgency">Cupos limitados!</p>
+  <h2 class="promo-bottom-title">Agenda hoy, <em>sorprende manana.</em></h2>
+  <div class="promo-bottom-ctas">
+    <a href="https://wa.me/56986688771?text=Hola!%20Quiero%20reservar%20para%20el%20Especial%20D%C3%ADa%20de%20la%20Madre%20%F0%9F%8C%B8" target="_blank" class="btn-promo btn-promo-wa">
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
+      RESERVAR POR WHATSAPP
+    </a>
+    <a href="servicios.html" class="btn-promo-outline">VER TODOS LOS SERVICIOS</a>
+  </div>
+</section>
+
+<!-- ═══════ FOOTER BAR ═══════ -->
+<div class="promo-footer-bar">
+  <span class="promo-footer-item">
+    <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+    +56 9 8668 8771
+  </span>
+  <span class="promo-footer-item">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+    spainfinity.cl
+  </span>
+  <span class="promo-footer-item">
+    <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+    Santo Domingo 1083, of 502, Santiago
+  </span>
+  <span class="promo-footer-item accent">
+    &#10084; Un detalle que ella merece
+  </span>
+</div>
+
+<div id="floatingContainer"></div>
+
+<script src="supabase-client.js?v=2"></script>
+<script src="data.js?v=2"></script>
+<script src="common.js?v=2"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('Promocion')
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+initShared()
+
+// Smooth scroll for #packs anchor
+document.querySelectorAll('a[href="#packs"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault()
+    document.getElementById('packs').scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+})
+</script>
+</body>
+</html>
