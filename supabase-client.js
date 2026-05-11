@@ -90,6 +90,7 @@ async function loadFromSupabase() {
       cardImg: c.card_img,
       heroImg: c.hero_img,
       link: c.link,
+      sortOrder: c.sort_order,
       services: svcs
         .filter(s => s.cat_id === c.id)
         .map(s => ({
@@ -112,7 +113,8 @@ async function loadFromSupabase() {
           originalPrice: s.original_price || '',
           gcDiscountEnabled: s.gc_discount_enabled || false,
           gcDiscountPercent: s.gc_discount_percent || 0,
-          gcPrice: s.gc_price || ''
+          gcPrice: s.gc_price || '',
+          sortOrder: s.sort_order
         }))
     }))
 
@@ -123,14 +125,16 @@ async function loadFromSupabase() {
   }
 }
 
-/* ── Convert JS service object → DB row ── */
+/* ── Convert JS service object → DB row ──
+   Note: sort_order is preserved if present on the object. New services
+   should get sort_order assigned BEFORE calling insert (see admin). */
 function serviceToRow(svc) {
-  return {
+  const row = {
     id: svc.id,
     cat_id: svc.catId,
     name: svc.name,
     tag: svc.tag || '',
-    price: svc.price,
+    price: svc.price || '',
     duration: svc.duration || '',
     short_desc: svc.shortDesc || '',
     long_desc: svc.longDesc || '',
@@ -147,10 +151,12 @@ function serviceToRow(svc) {
     gc_discount_percent: svc.gcDiscountPercent || 0,
     gc_price: svc.gcPrice || ''
   }
+  if (svc.sortOrder != null) row.sort_order = svc.sortOrder
+  return row
 }
 
 function categoryToRow(cat) {
-  return {
+  const row = {
     id: cat.id,
     name: cat.name,
     tagline: cat.tagline || '',
@@ -160,6 +166,8 @@ function categoryToRow(cat) {
     hero_img: cat.heroImg || '',
     link: cat.link || ''
   }
+  if (cat.sortOrder != null) row.sort_order = cat.sortOrder
+  return row
 }
 
 /* ── Promo Events ─────────────────────────── */

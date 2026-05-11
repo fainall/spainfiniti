@@ -811,16 +811,6 @@ body {
         <div id="svcEditPanel" style="display:none"></div>
       </div>
 
-      <!-- ═══ DISCOUNTS ═══ -->
-      <div id="sec-discounts" class="section">
-        <div class="edit-panel">
-          <h2>Gestión de Descuentos y Ofertas</h2>
-          <p style="font-size:0.82rem;color:var(--mid);margin-bottom:24px;line-height:1.7">
-            Activa descuentos en servicios específicos. El precio original se mostrará tachado y el precio con descuento se destacará en la página.
-          </p>
-          <div id="discountsList"></div>
-        </div>
-      </div>
 
       <!-- ═══ PROMOTIONS & EVENTS ═══ -->
       <div id="sec-promos" class="section">
@@ -994,12 +984,14 @@ async function initAdmin() {
     try { await initSupabaseData() } catch (e) { console.warn('Supabase load failed in admin:', e) }
   }
 
+  // Reaplicar overlays locales (imágenes subidas pero no sincronizadas, etc)
+  applyAdminOverlays()
+
   renderDashboard()
   loadSiteSettings()
   initPromoToggle()
   renderCatList()
   renderSvcCatList()
-  renderDiscounts()
   renderPromos()
   renderHeroSlides()
   renderNosotros()
@@ -1021,6 +1013,32 @@ function loadAdminData() {
 
 function saveAdminData() {
   localStorage.setItem('spa_admin_data', JSON.stringify(adminData))
+}
+
+/* Re-merge any local overlay (e.g. uploaded image not yet synced) onto
+   the live CATEGORIES array after Supabase load. Protects against losing
+   pending changes if Supabase sync failed. */
+function applyAdminOverlays() {
+  if (!adminData) return
+  // Category overlays
+  if (adminData.categories) {
+    Object.entries(adminData.categories).forEach(([catId, ov]) => {
+      const cat = CATEGORIES.find(c => c.id === catId)
+      if (!cat) return
+      if (ov.cardImg) cat.cardImg = ov.cardImg
+      if (ov.heroImg) cat.heroImg = ov.heroImg
+    })
+  }
+  // Service overlays — only re-apply image (other fields trust DB)
+  if (adminData.services) {
+    Object.entries(adminData.services).forEach(([svcId, ov]) => {
+      if (!ov.img) return
+      for (const cat of CATEGORIES) {
+        const svc = cat.services.find(s => s.id === svcId)
+        if (svc) { svc.img = ov.img; break }
+      }
+    })
+  }
 }
 
 function saveAll() {
@@ -1700,170 +1718,6 @@ function closeSvcList() {
 function backToSvcList(catId) {
   document.getElementById('svcEditPanel').style.display = 'none'
   showSvcList(catId)
-}
-
-/* ── DISCOUNTS ────────────────── */
-function renderDiscounts() {
-  let html = ''
-  CATEGORIES.forEach(cat => {
-    cat.services.forEach(svc => {
-      html += `
-        <div class="svc-list-item" style="cursor:default">
-          <img src="${svc.img}" alt="${svc.name}" />
-          <div class="svc-list-info">
-            <h4>${svc.name}</h4>
-            <p style="color:var(--gold-d);font-weight:500">${cat.name}</p>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
-            <div class="svc-list-meta">
-              ${svc.hasDiscount && svc.originalPrice ? `<span class="original-price">${svc.originalPrice}</span>` : ''}
-              <span class="price">${svc.price}</span>
-              ${svc.hasDiscount && svc.discountLabel ? `<span class="discount-badge">${svc.discountLabel}</span>` : ''}
-              ${svc.hasDiscount && svc.discountText ? `<span style="font-size:0.7rem;color:var(--gold-d);display:block;margin-top:2px">📌 ${svc.discountText}</span>` : ''}
-            </div>
-            <label class="toggle">
-              <input type="checkbox" ${svc.hasDiscount ? 'checked' : ''}
-                     onchange="quickToggleDiscount('${cat.id}','${svc.id}', this.checked)" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
-      `
-    })
-  })
-  document.getElementById('discountsList').innerHTML = html
-}
-
-function quickToggleDiscount(catId, svcId, on) {
-  const cat = getCategoryById(catId)
-  const svc = cat?.services.find(s => s.id === svcId)
-  if (!svc) return
-
-  if (!adminData.services[svcId]) adminData.services[svcId] = {}
-
-  if (on) {
-    // Show inline discount form instead of prompt()
-    const container = document.getElementById('discountsList')
-    const items = container.querySelectorAll('.svc-list-item')
-    let targetItem = null
-    items.forEach(item => {
-      if (item.querySelector(`input[onchange*="${svcId}"]`)) targetItem = item
-    })
-    if (!targetItem) return
-
-    // Insert inline form after the item
-    const formId = 'qd-form-' + svcId
-    const existing = document.getElementById(formId)
-    if (existing) existing.remove()
-
-    const formDiv = document.createElement('div')
-    formDiv.id = formId
-    formDiv.style.cssText = 'background:var(--cream);padding:20px;border-radius:8px;margin:-4px 0 12px;border:1px solid var(--border)'
-    formDiv.innerHTML = `
-      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-        <div style="flex:1;min-width:120px">
-          <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px">% Descuento</label>
-          <input type="number" id="qd-pct-${svcId}" min="1" max="99" placeholder="30" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px" />
-        </div>
-        <div style="flex:1;min-width:120px">
-          <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px">Precio original</label>
-          <input type="text" id="qd-orig-${svcId}" value="${svc.price}" readonly style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:#f5f5f5" />
-        </div>
-        <div style="flex:1;min-width:120px">
-          <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px">Precio final</label>
-          <input type="text" id="qd-final-${svcId}" readonly style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px;background:#f0f8f0;font-weight:600;color:#2a7a2a" />
-        </div>
-      </div>
-      <div style="margin-top:10px">
-        <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px">Texto promocional (aparece como banner en la página del servicio)</label>
-        <input type="text" id="qd-text-${svcId}" placeholder="Ej: Descuento por Día de la Madre" value="${svc.discountText || ''}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:4px" />
-      </div>
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button class="btn btn-primary" style="padding:8px 20px" onclick="applyQuickDiscount('${catId}','${svcId}')">Aplicar</button>
-        <button class="btn" style="padding:8px 16px" onclick="cancelQuickDiscount('${svcId}')">Cancelar</button>
-      </div>
-    `
-    targetItem.after(formDiv)
-
-    // Auto-calc on input
-    document.getElementById('qd-pct-' + svcId).addEventListener('input', function() {
-      const pct = parseInt(this.value) || 0
-      const num = parseInt(svc.price.replace(/[^0-9]/g, '')) || 0
-      if (pct > 0 && pct < 100 && num > 0) {
-        const disc = Math.round(num * (1 - pct / 100))
-        document.getElementById('qd-final-' + svcId).value = '$' + disc.toLocaleString('es-CL')
-      }
-    })
-    document.getElementById('qd-pct-' + svcId).focus()
-  } else {
-    // Restore original price
-    if (adminData.services[svcId].originalPrice) {
-      svc.price = adminData.services[svcId].originalPrice
-      adminData.services[svcId].price = adminData.services[svcId].originalPrice
-    }
-    svc.hasDiscount = false
-    delete svc.originalPrice
-    delete svc.discountLabel
-    delete svc.discountText
-    adminData.services[svcId].hasDiscount = false
-    delete adminData.services[svcId].originalPrice
-    delete adminData.services[svcId].discountLabel
-    delete adminData.services[svcId].discountText
-
-    saveAdminData()
-    renderDiscounts()
-    renderDashboard()
-    toast('Descuento desactivado', 'success')
-
-    // Sync to Supabase
-    if (typeof supabase !== 'undefined') {
-      supabase.update('services', svcId, serviceToRow(svc))
-        .then(() => console.log('✓ Discount removed synced:', svcId))
-        .catch(e => { console.error('Supabase discount sync fail:', e); toast('Error sincronizando con servidor', 'error') })
-    }
-  }
-}
-
-function applyQuickDiscount(catId, svcId) {
-  const pct = parseInt(document.getElementById('qd-pct-' + svcId).value) || 0
-  const finalPrice = document.getElementById('qd-final-' + svcId).value.trim()
-  const origPrice = document.getElementById('qd-orig-' + svcId).value.trim()
-  const discText = document.getElementById('qd-text-' + svcId).value.trim()
-
-  if (!pct || !finalPrice) { toast('Ingresa un porcentaje válido', 'error'); return }
-
-  const cat = getCategoryById(catId)
-  const svc = cat?.services.find(s => s.id === svcId)
-  if (!svc) return
-
-  svc.hasDiscount = true
-  svc.originalPrice = origPrice
-  svc.discountLabel = pct + '% DCTO'
-  svc.discountText = discText
-  svc.price = finalPrice
-  adminData.services[svcId].hasDiscount = true
-  adminData.services[svcId].originalPrice = origPrice
-  adminData.services[svcId].discountLabel = pct + '% DCTO'
-  adminData.services[svcId].discountText = discText
-  adminData.services[svcId].price = finalPrice
-
-  saveAdminData()
-  renderDiscounts()
-  renderDashboard()
-  toast('Descuento del ' + pct + '% aplicado', 'success')
-
-  // Sync to Supabase
-  if (typeof supabase !== 'undefined') {
-    supabase.update('services', svcId, serviceToRow(svc))
-      .then(() => console.log('✓ Discount synced:', svcId))
-      .catch(e => { console.error('Supabase discount sync fail:', e); toast('Error sincronizando con servidor', 'error') })
-  }
-}
-
-function cancelQuickDiscount(svcId) {
-  const form = document.getElementById('qd-form-' + svcId)
-  if (form) form.remove()
-  renderDiscounts()
 }
 
 /* ── HERO SLIDES ──────────────── */
@@ -2720,7 +2574,6 @@ function saveNewService() {
 
   _newSvcImg = ''
   renderDashboard()
-  renderDiscounts()
   toast('Servicio creado exitosamente', 'success')
   showSvcList(catId)
 

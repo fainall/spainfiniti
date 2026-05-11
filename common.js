@@ -348,7 +348,10 @@ function initShared() {
       const ql = q.toLowerCase()
       for (const cat of CATEGORIES) {
         for (const svc of cat.services) {
-          if (svc.name.toLowerCase().includes(ql) || cat.name.toLowerCase().includes(ql) || svc.shortDesc.toLowerCase().includes(ql)) {
+          const sName = (svc.name || '').toLowerCase()
+          const cName = (cat.name || '').toLowerCase()
+          const sDesc = (svc.shortDesc || '').toLowerCase()
+          if (sName.includes(ql) || cName.includes(ql) || sDesc.includes(ql)) {
             results.push({ svc, cat })
           }
         }
@@ -397,7 +400,10 @@ function initShared() {
       const ql = q.toLowerCase()
       for (const cat of CATEGORIES) {
         for (const svc of cat.services) {
-          if (svc.name.toLowerCase().includes(ql) || cat.name.toLowerCase().includes(ql) || svc.shortDesc.toLowerCase().includes(ql)) {
+          const sName = (svc.name || '').toLowerCase()
+          const cName = (cat.name || '').toLowerCase()
+          const sDesc = (svc.shortDesc || '').toLowerCase()
+          if (sName.includes(ql) || cName.includes(ql) || sDesc.includes(ql)) {
             results.push({ svc, cat })
           }
         }

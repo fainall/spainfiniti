@@ -1002,7 +1002,7 @@ function gcPriceOf(svc) {
   return svc.price
 }
 function gcPriceNum(svc) {
-  return parseInt(gcPriceOf(svc).replace(/[^0-9]/g, '')) || 0
+  return parseInt(String(gcPriceOf(svc) || '').replace(/[^0-9]/g, '')) || 0
 }
 
 /* ── Category select ──────────────── */
