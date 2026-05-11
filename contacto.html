@@ -434,10 +434,7 @@
       </div>
       <!-- Honeypot anti-spam -->
       <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
-      <!-- Configuración Formsubmit -->
-      <input type="hidden" name="_subject" value="Nuevo mensaje desde spainfinity.cl" />
-      <input type="hidden" name="_template" value="table" />
-      <input type="hidden" name="_captcha" value="false" />
+      <input type="hidden" name="_source" value="contacto.html" />
       <div class="ct-form-submit">
         <button type="submit" id="ctSubmitBtn" class="btn-submit">Enviar mensaje</button>
       </div>
@@ -463,27 +460,25 @@ async function submitContactForm(e) {
 
   try {
     const formData = new FormData(form)
-    const res = await fetch('https://formsubmit.co/ajax/reservainfinity@spainfinity.cl', {
+    const res = await fetch('/send-mail.php', {
       method: 'POST',
-      headers: { 'Accept': 'application/json' },
       body: formData
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
 
-    if (data.success === 'true' || data.success === true) {
+    if (res.ok && data.success) {
       status.style.color = '#2a7a2a'
       status.innerHTML = '✓ ¡Mensaje enviado! Te responderemos a la brevedad.'
       form.reset()
       btn.textContent = 'Enviar mensaje'
-      // Auto-hide después de 8s
       setTimeout(() => { status.style.display = 'none' }, 8000)
     } else {
-      throw new Error(data.message || 'Error al enviar')
+      throw new Error(data.error || 'Error al enviar')
     }
   } catch (err) {
     console.error('Form error:', err)
     status.style.color = '#c0392b'
-    status.innerHTML = '✕ No se pudo enviar. Por favor escríbenos por <a href="https://wa.me/56986688771" target="_blank" style="color:var(--gold-d);text-decoration:underline">WhatsApp</a> o intenta de nuevo.'
+    status.innerHTML = '✕ ' + (err.message || 'No se pudo enviar') + '. Escríbenos por <a href="https://wa.me/56986688771" target="_blank" style="color:var(--gold-d);text-decoration:underline">WhatsApp</a> o intenta de nuevo.'
     btn.textContent = 'Enviar mensaje'
   } finally {
     btn.disabled = false

@@ -1180,27 +1180,70 @@
   </div>
   <div class="contact-right">
     <h2>Contacto<br><em>Exclusivo</em></h2>
-    <form class="contact-form" onsubmit="event.preventDefault()">
+    <form class="contact-form" id="homeContactForm" onsubmit="return submitHomeContactForm(event)">
       <div class="form-group">
-        <label>Tu nombre</label>
-        <input type="text" placeholder="" />
+        <label for="hc-name">Tu nombre</label>
+        <input type="text" id="hc-name" name="nombre" required placeholder="Nombre y apellido" />
       </div>
       <div class="form-group">
-        <label>Tu correo electrónico</label>
-        <input type="email" placeholder="" />
+        <label for="hc-email">Tu correo electrónico</label>
+        <input type="email" id="hc-email" name="email" required placeholder="tu@email.com" />
       </div>
       <div class="form-group">
-        <label>Asunto</label>
-        <input type="text" placeholder="" />
+        <label for="hc-phone">Teléfono (opcional)</label>
+        <input type="tel" id="hc-phone" name="telefono" placeholder="+56 9 1234 5678" />
       </div>
       <div class="form-group">
-        <label>Tu mensaje (opcional)</label>
-        <textarea rows="3"></textarea>
+        <label for="hc-subject">Asunto</label>
+        <input type="text" id="hc-subject" name="asunto" required placeholder="¿Sobre qué te gustaría consultar?" />
       </div>
+      <div class="form-group">
+        <label for="hc-message">Tu mensaje</label>
+        <textarea id="hc-message" name="mensaje" rows="3" required placeholder="Cuéntanos cómo podemos ayudarte..."></textarea>
+      </div>
+      <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
+      <input type="hidden" name="_source" value="index.html (home)" />
       <div class="form-submit">
-        <button type="submit" class="btn-submit">Enviar mensaje</button>
+        <button type="submit" id="hcSubmitBtn" class="btn-submit">Enviar mensaje</button>
       </div>
+      <div id="hcFormStatus" style="margin-top:14px;font-size:0.85rem;display:none"></div>
     </form>
+
+<script>
+async function submitHomeContactForm(e) {
+  e.preventDefault()
+  const form = document.getElementById('homeContactForm')
+  const btn = document.getElementById('hcSubmitBtn')
+  const status = document.getElementById('hcFormStatus')
+  if (form._honey.value) { return false }
+
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  status.style.display = 'block'
+  status.style.color = 'var(--mid)'
+  status.textContent = 'Procesando tu mensaje...'
+
+  try {
+    const res = await fetch('/send-mail.php', { method: 'POST', body: new FormData(form) })
+    const data = await res.json().catch(() => ({}))
+    if (res.ok && data.success) {
+      status.style.color = '#2a7a2a'
+      status.innerHTML = '✓ ¡Mensaje enviado! Te responderemos a la brevedad.'
+      form.reset()
+      setTimeout(() => { status.style.display = 'none' }, 8000)
+    } else {
+      throw new Error(data.error || 'Error al enviar')
+    }
+  } catch (err) {
+    status.style.color = '#c0392b'
+    status.innerHTML = '✕ ' + (err.message || 'No se pudo enviar') + '. Escríbenos por <a href="https://wa.me/56986688771" target="_blank" style="color:var(--gold-d);text-decoration:underline">WhatsApp</a>.'
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Enviar mensaje'
+  }
+  return false
+}
+</script>
   </div>
 </section>
 
