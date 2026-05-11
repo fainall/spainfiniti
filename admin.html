@@ -1182,9 +1182,45 @@ function editCategory(catId) {
           </div>
         </div>
       </div>
-      <button class="btn btn-primary" onclick="saveCategory('${catId}')">Guardar categoría</button>
+      <div style="display:flex;gap:12px;margin-top:24px;align-items:center">
+        <button class="btn btn-primary" onclick="saveCategory('${catId}')">Guardar categoría</button>
+        <button class="btn" onclick="closeCatEdit()">Cancelar</button>
+        <button class="btn btn-danger" style="margin-left:auto" onclick="deleteCategory('${catId}','${esc(cat.name)}',${cat.services.length})">🗑 Eliminar categoría</button>
+      </div>
     </div>
   `
+}
+
+async function deleteCategory(catId, catName, svcCount) {
+  if (svcCount > 0) {
+    alert(`No se puede eliminar "${catName}" porque tiene ${svcCount} servicio(s).\n\nElimina primero los servicios de esta categoría.`)
+    return
+  }
+  if (!confirm(`¿Estás seguro de que querés eliminar la categoría "${catName}"?\n\nEsta acción NO se puede deshacer.`)) return
+  if (!confirm(`CONFIRMAR: Se eliminará "${catName}" permanentemente.`)) return
+
+  try {
+    // Delete from Supabase
+    if (typeof supabase !== 'undefined') {
+      await supabase.delete('categories', catId)
+    }
+    // Remove from local CATEGORIES
+    const idx = CATEGORIES.findIndex(c => c.id === catId)
+    if (idx > -1) CATEGORIES.splice(idx, 1)
+    // Clean adminData
+    if (adminData.categories && adminData.categories[catId]) delete adminData.categories[catId]
+    if (adminData.newCategories) adminData.newCategories = adminData.newCategories.filter(c => c.id !== catId)
+    saveAdminData()
+
+    toast('Categoría eliminada correctamente', 'success')
+    closeCatEdit()
+    renderCatList()
+    renderSvcCatList()
+    renderDashboard()
+  } catch (err) {
+    console.error('Delete category failed:', err)
+    toast('Error al eliminar: ' + err.message, 'error')
+  }
 }
 
 function handleCatImg(e, catId) {
