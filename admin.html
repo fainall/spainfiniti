@@ -2465,6 +2465,15 @@ function saveNewCategory() {
   renderDashboard()
   closeCatEdit()
   toast('Categoría creada exitosamente', 'success')
+
+  // Sync to Supabase
+  if (typeof supabase !== 'undefined') {
+    const row = categoryToRow(newCat)
+    row.sort_order = CATEGORIES.length
+    supabase.insert('categories', row)
+      .then(() => console.log('✓ New category created in Supabase:', newCat.id))
+      .catch(e => { console.error('Supabase new cat fail:', e); toast('Error creando categoría en servidor', 'error') })
+  }
 }
 
 /* ── ADD NEW SERVICE ─────────── */

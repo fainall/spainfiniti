@@ -620,7 +620,8 @@ if (!result) {
     `
   }
 
-  /* Gift Card CTA — always same text, price matches service price */
+  /* Gift Card CTA — show service price */
+  document.getElementById('giftCta').innerHTML = `🎁 REGALA ESTE SERVICIO · ${svc.price}`
 
   /* Related services */
   const related = cat.services.filter(s => s.id !== svc.id).slice(0, 3)
