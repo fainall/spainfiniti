@@ -411,28 +411,86 @@
   <div class="contact-form-wrap fu">
     <h3>Contacto <em>Exclusivo</em></h3>
     <p>Completa el formulario y nos pondremos en contacto contigo a la brevedad.</p>
-    <form class="ct-form" onsubmit="event.preventDefault()">
+    <form class="ct-form" id="contactForm" onsubmit="return submitContactForm(event)">
       <div class="ct-form-group">
-        <label>Tu nombre</label>
-        <input type="text" placeholder="" />
+        <label for="ct-name">Tu nombre</label>
+        <input type="text" id="ct-name" name="nombre" required placeholder="Nombre y apellido" />
       </div>
       <div class="ct-form-group">
-        <label>Tu correo electrónico</label>
-        <input type="email" placeholder="" />
+        <label for="ct-email">Tu correo electrónico</label>
+        <input type="email" id="ct-email" name="email" required placeholder="tu@email.com" />
       </div>
       <div class="ct-form-group">
-        <label>Asunto</label>
-        <input type="text" placeholder="" />
+        <label for="ct-phone">Teléfono (opcional)</label>
+        <input type="tel" id="ct-phone" name="telefono" placeholder="+56 9 1234 5678" />
       </div>
       <div class="ct-form-group">
-        <label>Tu mensaje (opcional)</label>
-        <textarea rows="3"></textarea>
+        <label for="ct-subject">Asunto</label>
+        <input type="text" id="ct-subject" name="asunto" required placeholder="¿Sobre qué te gustaría consultar?" />
       </div>
+      <div class="ct-form-group">
+        <label for="ct-message">Tu mensaje</label>
+        <textarea id="ct-message" name="mensaje" rows="4" required placeholder="Cuéntanos cómo podemos ayudarte..."></textarea>
+      </div>
+      <!-- Honeypot anti-spam -->
+      <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" />
+      <!-- Configuración Formsubmit -->
+      <input type="hidden" name="_subject" value="Nuevo mensaje desde spainfinity.cl" />
+      <input type="hidden" name="_template" value="table" />
+      <input type="hidden" name="_captcha" value="false" />
       <div class="ct-form-submit">
-        <button type="submit" class="btn-submit">Enviar mensaje</button>
+        <button type="submit" id="ctSubmitBtn" class="btn-submit">Enviar mensaje</button>
       </div>
+      <div id="ctFormStatus" style="margin-top:14px;font-size:0.85rem;display:none"></div>
     </form>
   </div>
+
+<script>
+async function submitContactForm(e) {
+  e.preventDefault()
+  const form = document.getElementById('contactForm')
+  const btn = document.getElementById('ctSubmitBtn')
+  const status = document.getElementById('ctFormStatus')
+
+  // Anti-spam: si el honeypot tiene contenido, es bot
+  if (form._honey.value) { return false }
+
+  btn.disabled = true
+  btn.textContent = 'Enviando...'
+  status.style.display = 'block'
+  status.style.color = 'var(--mid)'
+  status.textContent = 'Procesando tu mensaje...'
+
+  try {
+    const formData = new FormData(form)
+    const res = await fetch('https://formsubmit.co/ajax/reservainfinity@spainfinity.cl', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json' },
+      body: formData
+    })
+    const data = await res.json()
+
+    if (data.success === 'true' || data.success === true) {
+      status.style.color = '#2a7a2a'
+      status.innerHTML = '✓ ¡Mensaje enviado! Te responderemos a la brevedad.'
+      form.reset()
+      btn.textContent = 'Enviar mensaje'
+      // Auto-hide después de 8s
+      setTimeout(() => { status.style.display = 'none' }, 8000)
+    } else {
+      throw new Error(data.message || 'Error al enviar')
+    }
+  } catch (err) {
+    console.error('Form error:', err)
+    status.style.color = '#c0392b'
+    status.innerHTML = '✕ No se pudo enviar. Por favor escríbenos por <a href="https://wa.me/56986688771" target="_blank" style="color:var(--gold-d);text-decoration:underline">WhatsApp</a> o intenta de nuevo.'
+    btn.textContent = 'Enviar mensaje'
+  } finally {
+    btn.disabled = false
+  }
+  return false
+}
+</script>
 </section>
 
 <!-- HORARIOS + CTA -->
