@@ -533,8 +533,17 @@ if (!result) {
 
   const waLink = `https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20${encodeURIComponent(svc.name)}`
   const bookUrl = svc.link || waLink
-  document.getElementById('bookCta').href = bookUrl
-  document.getElementById('bookCta2').href = bookUrl
+  // Links que no admiten iframe → abrir en nueva pestaña
+  const noIframe = ['wa.me','api.whatsapp.com','whatsapp.com','instagram.com','facebook.com','m.me']
+  const opensExternal = noIframe.some(d => bookUrl.includes(d))
+  ;['bookCta', 'bookCta2'].forEach(id => {
+    const el = document.getElementById(id)
+    el.href = bookUrl
+    if (opensExternal) {
+      el.target = '_blank'
+      el.rel = 'noopener'
+    }
+  })
   document.getElementById('catCta').href = `categoria.html?cat=${cat.id}`
   document.getElementById('catCta2').href = `categoria.html?cat=${cat.id}`
   document.getElementById('giftCta').href = `giftcard.html?svc=${svc.id}`
@@ -659,10 +668,20 @@ document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el))
 const bookingModal = document.getElementById('bookingModal')
 const bookingIframe = document.getElementById('bookingIframe')
 
+// URLs que no se pueden mostrar en iframe (X-Frame-Options: deny)
+const NO_IFRAME_DOMAINS = ['wa.me', 'api.whatsapp.com', 'whatsapp.com', 'instagram.com', 'facebook.com', 'm.me']
+
 document.querySelectorAll('.open-modal-btn').forEach(btn => {
   btn.addEventListener('click', e => {
     const href = btn.getAttribute('href')
     if (href && href.startsWith('http')) {
+      // Si el link no admite iframe, abrir en nueva pestaña
+      const blocksIframe = NO_IFRAME_DOMAINS.some(d => href.includes(d))
+      if (blocksIframe) {
+        // No prevenir default; dejar que el navegador abra en nueva pestaña (target="_blank")
+        if (!btn.target) btn.target = '_blank'
+        return
+      }
       e.preventDefault()
       bookingIframe.src = href
       bookingModal.classList.add('show')
