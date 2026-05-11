@@ -1245,6 +1245,10 @@ function saveCategory(catId) {
     if (val) { ov[key] = val; cat[key] = val }
   }
 
+  // Image — sync from adminData overlay (set by handleCatImg)
+  if (ov.cardImg) cat.cardImg = ov.cardImg
+  if (ov.heroImg) cat.heroImg = ov.heroImg
+
   saveAdminData()
   renderCatList()
   toast('Categoría actualizada', 'success')
