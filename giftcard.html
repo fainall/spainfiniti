@@ -1016,7 +1016,12 @@ function renderServices(catId) {
   if (!cat) return
   selectedCategory = cat
 
-  document.getElementById('gcSvcList').innerHTML = cat.services.map(svc => `
+  document.getElementById('gcSvcList').innerHTML = cat.services.map(svc => {
+    const gcP = gcPriceOf(svc)
+    // Base price (the "precio final" in admin) — what shows tachado
+    const basePrice = svc.hasDiscount && svc.originalPrice ? svc.originalPrice : svc.price
+    const showStrike = gcP !== basePrice
+    return `
     <div class="gc-svc-item${selectedServices.some(s => s.id === svc.id) ? ' selected' : ''}"
          data-id="${svc.id}" onclick="toggleService('${svc.id}')">
       <img class="gc-svc-item-img" src="${svc.img}" alt="${svc.name}" loading="lazy" />
@@ -1024,10 +1029,13 @@ function renderServices(catId) {
         <div class="gc-svc-item-name">${svc.name}</div>
         <div class="gc-svc-item-dur">${svc.duration}</div>
       </div>
-      <span class="gc-svc-item-price">${svc.price}</span>
+      <div style="text-align:right">
+        ${showStrike ? `<span style="text-decoration:line-through;color:var(--light);font-size:0.75rem;display:block">${basePrice}</span>` : ''}
+        <span class="gc-svc-item-price">${gcP}</span>
+      </div>
       <div class="gc-svc-check"></div>
     </div>
-  `).join('')
+  `}).join('')
 }
 
 /* ── Toggle service (multi-select) ── */
