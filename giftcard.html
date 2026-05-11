@@ -994,8 +994,11 @@ let selectedServices = []
 let selectedCategory = null
 let gcCode = ''
 
-/* ── Gift Card price helper ── */
+/* ── Gift Card price helper ──
+   Si el servicio tiene descuento Gift Card activo, usa gcPrice (precio base × (1 - gcPct/100))
+   Si no, usa svc.price (que ya tiene el descuento especial aplicado, o el precio base) */
 function gcPriceOf(svc) {
+  if (svc.gcDiscountEnabled && svc.gcPrice) return svc.gcPrice
   return svc.price
 }
 function gcPriceNum(svc) {
