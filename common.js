@@ -307,6 +307,26 @@ function initShared() {
   const bt  = document.getElementById('backTop')
   initPromoFloat()
   initPromoPopup()
+
+  /* ── GLOBAL: links externos (WhatsApp, Instagram, etc) → nueva pestaña ──
+     wa.me y similares envían X-Frame-Options: deny, no se pueden cargar en iframe.
+     Este interceptor asegura que cualquier link, en cualquier página, se abra
+     correctamente en una nueva pestaña. */
+  const EXTERNAL_DOMAINS = ['wa.me', 'api.whatsapp.com', 'whatsapp.com', 'instagram.com', 'facebook.com', 'm.me', 't.me']
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href]')
+    if (!a) return
+    const href = a.getAttribute('href') || ''
+    if (!href.startsWith('http')) return
+    const isExternal = EXTERNAL_DOMAINS.some(d => href.includes(d))
+    if (!isExternal) return
+    // Forzar nueva pestaña y romper cualquier iframe que intente cargar
+    if (a.target !== '_blank') {
+      e.preventDefault()
+      window.open(href, '_blank', 'noopener,noreferrer')
+    }
+  }, true)
+
   window.addEventListener('scroll', () => {
     nav.classList.toggle('scrolled', scrollY > 60)
     if (bt) bt.classList.toggle('show', scrollY > 400)
