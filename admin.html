@@ -984,8 +984,16 @@ const ADMIN_PASS = 'infinity2026'
 let adminData = {}
 
 /* ── INIT ─────────────────────── */
-function initAdmin() {
+async function initAdmin() {
   loadAdminData()
+
+  // ⚡ CRÍTICO: cargar datos frescos de Supabase antes de renderizar.
+  // Sin esto, el admin trabaja sobre data.js estático (datos viejos) y
+  // puede sobrescribir cambios reales en la DB al guardar.
+  if (typeof initSupabaseData === 'function') {
+    try { await initSupabaseData() } catch (e) { console.warn('Supabase load failed in admin:', e) }
+  }
+
   renderDashboard()
   loadSiteSettings()
   initPromoToggle()
