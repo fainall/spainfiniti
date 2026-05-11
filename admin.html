@@ -2274,6 +2274,17 @@ async function savePromoEvt(id) {
     packs: collectPacks()
   }
 
+  // Verificar tamaño del payload antes de enviar
+  const payloadSize = JSON.stringify(config).length
+  console.log('Promo config size:', Math.round(payloadSize / 1024), 'KB')
+  if (payloadSize > 4 * 1024 * 1024) {
+    toast('El evento es demasiado grande. Reduce el tamaño de las imágenes.', 'error')
+    return
+  }
+
+  const btn = document.querySelector('#promoEventEdit button.btn-primary')
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...' }
+
   try {
     if (id === -1) {
       await savePromoEvent(null, { active: true, config })
@@ -2283,7 +2294,11 @@ async function savePromoEvt(id) {
     toast(id === -1 ? 'Evento creado' : 'Evento actualizado', 'success')
     closePromoEventEdit()
     renderPromos()
-  } catch(e) { toast('Error: ' + e.message, 'error') }
+  } catch(e) {
+    console.error('savePromoEvt failed:', e)
+    toast('Error al guardar: ' + (e.message || 'verifica la consola'), 'error')
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar evento' }
+  }
 }
 
 function closePromoEventEdit() {
@@ -2600,15 +2615,27 @@ function toast(msg, type) {
   setTimeout(() => t.classList.remove('show'), 3000)
 }
 
-/* Promo event image handler (hero & popup) */
+/* Promo event image handler (hero & popup)
+   Note: max 800px @ 0.7 quality keeps total promo config < 1MB
+   so Supabase JSONB column accepts it. */
 function handlePromoImg(e, hiddenId, previewId) {
   const file = e.target.files[0]
   if (!file) return
-  resizeAndStore(file, 1200, (dataUrl) => {
+  // Validar tipo y tamaño antes de procesar
+  if (!file.type.startsWith('image/')) {
+    toast('El archivo no es una imagen', 'error')
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    toast('La imagen es demasiado grande (máx 10MB)', 'error')
+    return
+  }
+  resizeAndStore(file, 800, (dataUrl) => {
     document.getElementById(previewId).src = dataUrl
     document.getElementById(previewId).style.background = ''
     document.getElementById(hiddenId).value = dataUrl
-  })
+    console.log('Promo image processed:', hiddenId, 'size:', Math.round(dataUrl.length / 1024), 'KB')
+  }, 0.75)
 }
 
 /* Pack banner image handler */
@@ -2623,7 +2650,8 @@ function handlePackImg(e, inputEl) {
   })
 }
 
-function resizeAndStore(file, maxW, cb) {
+function resizeAndStore(file, maxW, cb, quality) {
+  const q = (typeof quality === 'number') ? quality : 0.8
   const reader = new FileReader()
   reader.onload = () => {
     const img = new Image()
@@ -2633,10 +2661,12 @@ function resizeAndStore(file, maxW, cb) {
       if (w > maxW) { h = h * maxW / w; w = maxW }
       canvas.width = w; canvas.height = h
       canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-      cb(canvas.toDataURL('image/jpeg', 0.8))
+      cb(canvas.toDataURL('image/jpeg', q))
     }
+    img.onerror = () => toast('Error procesando la imagen. Probá con otra.', 'error')
     img.src = reader.result
   }
+  reader.onerror = () => toast('Error leyendo el archivo', 'error')
   reader.readAsDataURL(file)
 }
 </script>
