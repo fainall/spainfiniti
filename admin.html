@@ -1310,9 +1310,9 @@ function editService(catId, svcId) {
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Precio</label>
+          <label>Precio final (mostrado al cliente)</label>
           <input type="text" id="svc-price" value="${esc(svc.price)}" />
-          <span class="form-hint">Formato: $24.900</span>
+          <span class="form-hint">Este es el precio que ve el cliente. Formato: $24.900</span>
         </div>
         <div class="form-group">
           <label>Duración</label>
@@ -1332,19 +1332,21 @@ function editService(catId, svcId) {
         </h4>
         <div class="discount-fields ${svc.hasDiscount ? 'show' : ''}" id="discountFields">
           <div class="form-group">
-            <label>Porcentaje de descuento (%)</label>
-            <input type="number" id="svc-discountPercent" min="1" max="99" value="${esc(svc.discountLabel ? svc.discountLabel.replace(/[^0-9]/g,'') : '')}" oninput="calcDiscountPrice()" />
-            <span class="form-hint">Ingresa el porcentaje (ej: 30) y el precio se calcula automáticamente</span>
+            <label>Precio original (se mostrará tachado al lado del precio final)</label>
+            <input type="text" id="svc-originalPrice" value="${esc(svc.originalPrice || '')}" placeholder="$32.000" />
+            <span class="form-hint">Precio antes del descuento. Aparece tachado junto al precio final.</span>
           </div>
           <div class="form-group">
-            <label>Precio original (se tachará)</label>
-            <input type="text" id="svc-originalPrice" value="${esc(svc.originalPrice || svc.price || '')}" readonly style="background:#f5f5f5" />
+            <label>Etiqueta de descuento</label>
+            <input type="text" id="svc-discountLabel" value="${esc(svc.discountLabel || '')}" placeholder="20% DCTO" />
+            <span class="form-hint">Aparece como insignia en la tarjeta (ej: "20% DCTO", "OFERTA")</span>
           </div>
           <div class="form-group">
-            <label>Precio con descuento (calculado)</label>
-            <input type="text" id="svc-discountedPrice" value="" readonly style="background:#f0f8f0;font-weight:600;color:#2a7a2a" />
+            <label>Calculadora opcional (%)</label>
+            <input type="number" id="svc-discountPercent" min="1" max="99" placeholder="20" />
+            <button type="button" class="btn" style="margin-top:6px;padding:6px 14px;font-size:0.78rem" onclick="applyDiscountPercent()">Calcular precio final desde %</button>
+            <span class="form-hint">Opcional: si querés calcular el precio final desde un porcentaje del precio original.</span>
           </div>
-          <input type="hidden" id="svc-discountLabel" value="${esc(svc.discountLabel || '')}" />
           <div class="form-group">
             <label>Texto promocional (aparece como banner en la página del servicio)</label>
             <input type="text" id="svc-discountText" placeholder="Ej: Descuento por Día de la Madre" value="${esc(svc.discountText || '')}" />
@@ -1364,13 +1366,15 @@ function editService(catId, svcId) {
         </h4>
         <div class="discount-fields ${svc.gcDiscountEnabled ? 'show' : ''}" id="gcDiscountFields">
           <div class="form-group">
-            <label>Porcentaje de descuento Gift Card (%)</label>
-            <input type="number" id="svc-gcPercent" min="1" max="99" value="${svc.gcDiscountPercent || ''}" oninput="calcGcPrice()" />
-            <span class="form-hint">Descuento exclusivo al pagar con Gift Card</span>
+            <label>Precio Gift Card</label>
+            <input type="text" id="svc-gcPrice" value="${esc(svc.gcPrice || '')}" placeholder="$20.000" />
+            <span class="form-hint">Precio cuando el cliente paga con Gift Card.</span>
           </div>
           <div class="form-group">
-            <label>Precio Gift Card (calculado)</label>
-            <input type="text" id="svc-gcPrice" value="${esc(svc.gcPrice || '')}" readonly style="background:#f0f8f0;font-weight:600;color:#2a7a2a" />
+            <label>Calculadora opcional (%)</label>
+            <input type="number" id="svc-gcPercent" min="1" max="99" value="${svc.gcDiscountPercent || ''}" placeholder="20" />
+            <button type="button" class="btn" style="margin-top:6px;padding:6px 14px;font-size:0.78rem" onclick="applyGcPercent()">Calcular precio GC desde %</button>
+            <span class="form-hint">Opcional: calcula el precio GC desde un % del precio final.</span>
           </div>
         </div>
       </div>
@@ -1445,52 +1449,43 @@ function editService(catId, svcId) {
       </div>
     </div>
   `
-  // Init discount calc if already has discount
-  if (svc.hasDiscount) setTimeout(() => calcDiscountPrice(), 50)
-  if (svc.gcDiscountEnabled) setTimeout(() => calcGcPrice(), 50)
 }
 
 function toggleDiscount() {
   const on = document.getElementById('svc-hasDiscount').checked
   document.getElementById('discountFields').classList.toggle('show', on)
-  if (on) {
-    const curPrice = document.getElementById('svc-price').value.trim()
-    document.getElementById('svc-originalPrice').value = curPrice
-    calcDiscountPrice()
-  }
 }
 
-function calcDiscountPrice() {
+/* Helper: applies a % discount to "Precio original" and fills "Precio final" */
+function applyDiscountPercent() {
   const pct = parseInt(document.getElementById('svc-discountPercent').value) || 0
   const origStr = document.getElementById('svc-originalPrice').value.trim()
   const num = parseInt(origStr.replace(/[^0-9]/g, '')) || 0
-  if (pct > 0 && pct < 100 && num > 0) {
-    const discounted = Math.round(num * (1 - pct / 100))
-    const formatted = '$' + discounted.toLocaleString('es-CL')
-    document.getElementById('svc-discountedPrice').value = formatted
+  if (pct <= 0 || pct >= 100) { toast('Ingresa un porcentaje entre 1 y 99', 'error'); return }
+  if (num <= 0) { toast('Primero ingresá el "Precio original"', 'error'); return }
+  const discounted = Math.round(num * (1 - pct / 100))
+  document.getElementById('svc-price').value = '$' + discounted.toLocaleString('es-CL')
+  if (!document.getElementById('svc-discountLabel').value.trim()) {
     document.getElementById('svc-discountLabel').value = pct + '% DCTO'
-  } else {
-    document.getElementById('svc-discountedPrice').value = ''
-    document.getElementById('svc-discountLabel').value = ''
   }
+  toast('Precio final calculado: $' + discounted.toLocaleString('es-CL'), 'success')
 }
 
 function toggleGcDiscount() {
   const on = document.getElementById('svc-gcEnabled').checked
   document.getElementById('gcDiscountFields').classList.toggle('show', on)
-  if (on) calcGcPrice()
 }
 
-function calcGcPrice() {
+/* Helper: applies a % discount to "Precio final" and fills "Precio Gift Card" */
+function applyGcPercent() {
   const pct = parseInt(document.getElementById('svc-gcPercent').value) || 0
   const priceStr = document.getElementById('svc-price').value.trim()
   const num = parseInt(priceStr.replace(/[^0-9]/g, '')) || 0
-  if (pct > 0 && pct < 100 && num > 0) {
-    const discounted = Math.round(num * (1 - pct / 100))
-    document.getElementById('svc-gcPrice').value = '$' + discounted.toLocaleString('es-CL')
-  } else {
-    document.getElementById('svc-gcPrice').value = ''
-  }
+  if (pct <= 0 || pct >= 100) { toast('Ingresa un porcentaje entre 1 y 99', 'error'); return }
+  if (num <= 0) { toast('Primero ingresá el "Precio final"', 'error'); return }
+  const discounted = Math.round(num * (1 - pct / 100))
+  document.getElementById('svc-gcPrice').value = '$' + discounted.toLocaleString('es-CL')
+  toast('Precio Gift Card calculado: $' + discounted.toLocaleString('es-CL'), 'success')
 }
 
 function handleSvcImg(e, svcId) {
@@ -1546,28 +1541,19 @@ function saveService(catId, svcId) {
     svc.img = ov.img
   }
 
-  // Discount
+  // Discount — svc.price already set from svc-price input above (final price)
+  // We just store originalPrice/label/text as separate display fields
   const hasDiscount = document.getElementById('svc-hasDiscount').checked
   ov.hasDiscount = hasDiscount
   svc.hasDiscount = hasDiscount
   if (hasDiscount) {
     ov.originalPrice = document.getElementById('svc-originalPrice').value.trim()
     ov.discountLabel = document.getElementById('svc-discountLabel').value.trim()
-    const discountedPrice = document.getElementById('svc-discountedPrice').value.trim()
-    if (discountedPrice) {
-      ov.price = discountedPrice
-      svc.price = discountedPrice
-    }
+    ov.discountText = document.getElementById('svc-discountText').value.trim()
     svc.originalPrice = ov.originalPrice
     svc.discountLabel = ov.discountLabel
-    ov.discountText = document.getElementById('svc-discountText').value.trim()
     svc.discountText = ov.discountText
   } else {
-    // Restore original price when discount removed
-    if (ov.originalPrice) {
-      ov.price = ov.originalPrice
-      svc.price = ov.originalPrice
-    }
     delete ov.originalPrice
     delete ov.discountLabel
     delete ov.discountText
@@ -1576,15 +1562,15 @@ function saveService(catId, svcId) {
     delete svc.discountText
   }
 
-  // Gift Card Discount
+  // Gift Card Discount — gcPrice is now manually set in input
   const gcEnabled = document.getElementById('svc-gcEnabled').checked
   ov.gcDiscountEnabled = gcEnabled
   svc.gcDiscountEnabled = gcEnabled
   if (gcEnabled) {
-    ov.gcDiscountPercent = parseInt(document.getElementById('svc-gcPercent').value) || 0
     ov.gcPrice = document.getElementById('svc-gcPrice').value.trim()
-    svc.gcDiscountPercent = ov.gcDiscountPercent
+    ov.gcDiscountPercent = parseInt(document.getElementById('svc-gcPercent').value) || 0
     svc.gcPrice = ov.gcPrice
+    svc.gcDiscountPercent = ov.gcDiscountPercent
   } else {
     ov.gcDiscountPercent = 0
     ov.gcPrice = ''
