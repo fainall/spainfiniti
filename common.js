@@ -267,9 +267,17 @@ async function initPromoFloat() {
 }
 
 /* ── PROMO POPUP (once per session) ───────────────── */
+let _promoPopupShownThisLoad = false
 async function initPromoPopup() {
   if (typeof loadActivePromoEvent !== 'function') return
+  // Guard SÍNCRONO: evita race condition cuando initShared() se llama 2 veces
+  // (ej. una vez al cargar la página, otra al recibir categories-updated)
+  if (_promoPopupShownThisLoad) return
   if (sessionStorage.getItem('spaPromoPopupSeen')) return
+  _promoPopupShownThisLoad = true
+  // También chequear que no exista ya en el DOM (defensa extra)
+  if (document.querySelector('.promo-popup-overlay')) return
+
   try {
     const evt = await loadActivePromoEvent()
     if (!evt || !evt.active) return
