@@ -28,6 +28,7 @@
 <link rel="apple-touch-icon" href="logo.webp">
 <link rel="canonical" href="https://spainfinity.cl/servicio.html">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://bxwamppamqxtncvfdycy.supabase.co" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -449,19 +450,29 @@
 
 /* ── RESPONSIVE ──────────────────────────────── */
 @media (max-width: 900px) {
-  .svc-hero { flex-direction: column; text-align: center; padding-top: 32px; padding-bottom: 20px; gap: 30px; }
-  .svc-hero-desc { margin: 0 auto 30px; }
+  .svc-hero { flex-direction: column; text-align: center; padding: 32px 20px 20px; gap: 30px; }
+  .svc-hero-text { width: 100%; }
+  .svc-hero-desc { margin: 0 auto 30px; max-width: 100%; }
   .hero-ctas { justify-content: center; }
   .svc-main-img { max-width: 340px; }
   .process-section { padding: 30px 5%; }
   .process-card.featured { transform: none; }
   .price-section { padding: 30px 5% 80px; }
-  .price-row td { display: block; text-align: left !important; padding: 25px 30px; }
+  .price-row td { display: block; text-align: center !important; padding: 22px 24px; }
   .price-row td:first-child { border-radius: 8px 8px 0 0; border-left: none; border-top: 4px solid var(--gold); padding-bottom: 10px; }
   .price-row td:last-child { border-radius: 0 0 8px 8px; padding-top: 0; }
+  .service-name, .service-desc { text-align: center; }
   .service-price { font-size: 1.8rem; }
   .related-grid { grid-template-columns: 1fr; }
   .modal-content { width: 95%; height: 90vh; }
+}
+@media (max-width: 600px) {
+  .svc-hero { padding: 24px 16px 16px; }
+  .svc-hero-title { font-size: clamp(2.2rem, 9vw, 3rem); }
+  .svc-hero-desc { font-size: 0.95rem; padding: 0 8px; }
+  .hero-ctas .btn-para { padding: 14px 24px; font-size: 0.72rem; }
+  .process-section { padding: 24px 16px; }
+  .price-section { padding: 24px 16px 60px; }
 }
 </style>
 </head>

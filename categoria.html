@@ -28,6 +28,7 @@
 <link rel="apple-touch-icon" href="logo.webp">
 <link rel="canonical" href="https://spainfinity.cl/categoria.html">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://bxwamppamqxtncvfdycy.supabase.co" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -284,12 +285,16 @@
 
 /* ── RESPONSIVE ──────────────────────────────── */
 @media (max-width: 1000px) {
-  .services-grid { grid-template-columns: 1fr; gap: 36px; }
-  .cat-hero-content { padding: 80px 24px 48px; }
-  .svc-count-bar .inner { padding: 0 24px; flex-direction: column; align-items: flex-start; gap: 10px; }
-  .services-grid { padding-left: 24px; padding-right: 24px; }
+  .services-grid { grid-template-columns: 1fr; gap: 36px; padding-left: 24px; padding-right: 24px; }
+  .cat-hero { padding: 90px 20px 56px; }
+  .cat-hero-content { padding: 0; max-width: 100%; }
+  .cat-hero-content .hero-desc { max-width: 100%; padding: 0 8px; }
+  .svc-count-bar .inner { padding: 0 24px; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
 }
 @media (max-width: 600px) {
+  .cat-hero { padding: 80px 16px 48px; }
+  .cat-hero-content h1 { font-size: clamp(2.4rem, 9vw, 3.2rem); }
+  .cat-hero-content .hero-desc { font-size: 0.88rem; line-height: 1.75; padding: 0; }
   .card-title { font-size: 1.7rem; }
   .svc-card-new { padding: 24px; }
   .card-img-box { height: 220px; }
