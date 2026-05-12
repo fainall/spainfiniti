@@ -626,6 +626,102 @@
   flex-shrink: 0;
 }
 
+/* ── Gift Card image + details ─────── */
+.gc-card-image-wrap {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(140,115,50,0.18);
+  margin-bottom: 16px;
+  transition: transform 0.6s cubic-bezier(0.25,0.8,0.25,1), box-shadow 0.6s;
+}
+.gc-card-image-wrap:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 44px rgba(140,115,50,0.25);
+}
+.gc-card-image { display: block; width: 100%; height: auto; }
+.gc-card-details {
+  background: linear-gradient(135deg, var(--cream) 0%, var(--white) 100%);
+  border: 1px solid var(--gold-pale);
+  border-radius: 12px;
+  padding: 22px 24px;
+}
+.gc-card-details-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.gc-card-details-col + .gc-card-details-col {
+  padding-left: 16px;
+  border-left: 1px solid var(--gold-pale);
+}
+.gc-card-details-label {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--light);
+  margin-bottom: 4px;
+}
+.gc-card-details-value {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--dark);
+}
+.gc-card-details-divider {
+  height: 1px;
+  background: var(--gold-pale);
+  margin: 14px 0;
+}
+.gc-card-details-section { margin-bottom: 4px; }
+.gc-card-details-service {
+  display: block;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gold-d);
+  line-height: 1.25;
+}
+.gc-card-details-amount {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.7rem;
+  font-weight: 700;
+  color: var(--gold-d);
+  margin-top: 6px;
+  letter-spacing: 0.5px;
+}
+.gc-card-details-msg {
+  background: var(--white);
+  border-left: 3px solid var(--gold);
+  padding: 12px 16px;
+  margin-top: 14px;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 0.85rem;
+  color: var(--mid);
+  line-height: 1.55;
+}
+.gc-card-details-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--gold-pale);
+  font-size: 0.7rem;
+  color: var(--light);
+}
+.gc-card-details-footer .code {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--gold-d);
+}
+
 /* ── PAYMENT METHODS SELECTOR ───────── */
 .gc-pay-methods {
   max-width: 560px;
@@ -983,32 +1079,30 @@
         <!-- Live Preview -->
         <div class="gc-live-preview">
           <div class="gc-live-label">Vista previa en vivo</div>
-          <div class="gc-card" id="gcCardLive">
-            <!-- Logo -->
-            <img class="gc-card-logo-img" src="images/logo.webp" alt="Spa Infinity" />
-            <!-- Top -->
-            <div class="gc-card-top">
-              <div class="gc-card-right">
-                <div class="gc-card-tag">TARJETA DE REGALO</div>
-                <div class="gc-card-title">Gift Card<br><span class="gc-card-virtual">Virtual</span></div>
+          <div class="gc-card-image-wrap">
+            <img class="gc-card-image" src="images/gift-card.jpg?v=1" alt="Gift Card Spa Infinity" />
+          </div>
+          <div class="gc-card-details" id="gcCardLive">
+            <div class="gc-card-details-row">
+              <div class="gc-card-details-col">
+                <span class="gc-card-details-label">De</span>
+                <span class="gc-card-details-value" id="gcLiveFrom">—</span>
+              </div>
+              <div class="gc-card-details-col">
+                <span class="gc-card-details-label">Para</span>
+                <span class="gc-card-details-value" id="gcLiveTo">—</span>
               </div>
             </div>
-            <!-- Bottom -->
-            <div class="gc-card-bottom">
-              <div class="gc-card-service" id="gcLiveSvc">—</div>
-              <div class="gc-card-amount" id="gcLiveAmt">—</div>
-              <div class="gc-card-msg" id="gcLiveMsg" style="display:none"></div>
-              <div class="gc-card-names">
-                <div><span class="label">De:</span><span class="name" id="gcLiveFrom">—</span></div>
-                <div><span class="label">Para:</span><span class="name" id="gcLiveTo">—</span></div>
-              </div>
-              <div class="gc-card-footer">
-                <span class="url">spainfinity.cl</span>
-                <div class="validity">
-                  <span id="gcLiveExpiry">Válido 45 días</span>
-                  <span class="code" id="gcLiveCode"></span>
-                </div>
-              </div>
+            <div class="gc-card-details-divider"></div>
+            <div class="gc-card-details-section">
+              <span class="gc-card-details-label">Tu experiencia</span>
+              <span class="gc-card-details-service" id="gcLiveSvc">—</span>
+            </div>
+            <div class="gc-card-details-amount" id="gcLiveAmt">—</div>
+            <div class="gc-card-details-msg" id="gcLiveMsg" style="display:none"></div>
+            <div class="gc-card-details-footer">
+              <span id="gcLiveExpiry">Válido 45 días</span>
+              <span class="code" id="gcLiveCode"></span>
             </div>
           </div>
 
@@ -1031,33 +1125,31 @@
         <h2>Todo listo para regalar</h2>
         <p>Revisa los detalles de tu Gift Card antes de proceder al pago</p>
 
-        <!-- Card clone -->
-        <div class="gc-card" id="gcCardFinal">
-          <!-- Logo -->
-          <img class="gc-card-logo-img" src="images/logo.webp" alt="Spa Infinity" />
-          <!-- Top -->
-          <div class="gc-card-top">
-            <div class="gc-card-right">
-              <div class="gc-card-tag">TARJETA DE REGALO</div>
-              <div class="gc-card-title">Gift Card<br><span class="gc-card-virtual">Virtual</span></div>
+        <!-- Card clone (final review) -->
+        <div class="gc-card-image-wrap" style="max-width:480px;margin:0 auto">
+          <img class="gc-card-image" src="images/gift-card.jpg?v=1" alt="Gift Card Spa Infinity" />
+        </div>
+        <div class="gc-card-details" id="gcCardFinal" style="max-width:480px;margin:0 auto">
+          <div class="gc-card-details-row">
+            <div class="gc-card-details-col">
+              <span class="gc-card-details-label">De</span>
+              <span class="gc-card-details-value" id="gcFinalFrom">—</span>
+            </div>
+            <div class="gc-card-details-col">
+              <span class="gc-card-details-label">Para</span>
+              <span class="gc-card-details-value" id="gcFinalTo">—</span>
             </div>
           </div>
-          <!-- Bottom -->
-          <div class="gc-card-bottom">
-            <div class="gc-card-service" id="gcFinalSvc">—</div>
-            <div class="gc-card-amount" id="gcFinalAmt">—</div>
-            <div class="gc-card-msg" id="gcFinalMsg" style="display:none"></div>
-            <div class="gc-card-names">
-              <div><span class="label">De:</span><span class="name" id="gcFinalFrom">—</span></div>
-              <div><span class="label">Para:</span><span class="name" id="gcFinalTo">—</span></div>
-            </div>
-            <div class="gc-card-footer">
-              <span class="url">spainfinity.cl</span>
-              <div class="validity">
-                <span id="gcFinalExpiry">—</span>
-                <span class="code" id="gcFinalCode"></span>
-              </div>
-            </div>
+          <div class="gc-card-details-divider"></div>
+          <div class="gc-card-details-section">
+            <span class="gc-card-details-label">Tu experiencia</span>
+            <span class="gc-card-details-service" id="gcFinalSvc">—</span>
+          </div>
+          <div class="gc-card-details-amount" id="gcFinalAmt">—</div>
+          <div class="gc-card-details-msg" id="gcFinalMsg" style="display:none"></div>
+          <div class="gc-card-details-footer">
+            <span id="gcFinalExpiry">—</span>
+            <span class="code" id="gcFinalCode"></span>
           </div>
         </div>
 
