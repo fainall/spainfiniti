@@ -18,12 +18,15 @@ function buildGiftCardEmail(array $d): string
         ? htmlspecialchars($services[0]['name'])
         : htmlspecialchars($services[0]['name']) . ' + ' . (count($services) - 1) . ' más';
 
-    // Lista de servicios para la tabla de abajo
+    // Lista de servicios para la sección "Incluye" — sin precios (es un regalo)
     $svcRows = '';
     foreach ($services as $s) {
+        $duration = !empty($s['duration']) ? ' · <span style="color:#999;font-weight:400">' . htmlspecialchars($s['duration']) . '</span>' : '';
         $svcRows .= '<tr>'
-            . '<td style="padding:10px 0;border-bottom:1px solid #eee;font-size:14px;color:#555">' . htmlspecialchars($s['name']) . '</td>'
-            . '<td style="padding:10px 0;border-bottom:1px solid #eee;text-align:right;font-size:14px;color:#1a2436;font-weight:600">' . htmlspecialchars($s['price']) . '</td>'
+            . '<td style="padding:10px 0;border-bottom:1px solid #eee;font-size:14px;color:#1a2436;font-weight:600">'
+            . '<span style="color:#c5a467;margin-right:8px">✦</span>'
+            . htmlspecialchars($s['name']) . $duration
+            . '</td>'
             . '</tr>';
     }
 
@@ -99,9 +102,9 @@ MSG;
                     </tr>
                   </table>
 
-                  <!-- Bottom: service + amount -->
-                  <div style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#ffffff;line-height:1.2;margin-bottom:4px">{$svcDisplay}</div>
-                  <div style="font-family:Georgia,serif;font-size:32px;font-weight:700;color:#ffffff;margin-bottom:14px;letter-spacing:0.5px">{$total}</div>
+                  <!-- Bottom: service (sin monto — es un regalo) -->
+                  <div style="font-family:Georgia,serif;font-style:italic;font-size:10px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">Tu Experiencia</div>
+                  <div style="font-family:Georgia,serif;font-size:20px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:18px">{$svcDisplay}</div>
 
                   <!-- Names row -->
                   <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-top:1px solid rgba(255,255,255,0.25);padding-top:10px">
@@ -152,16 +155,12 @@ MSG;
           </td>
         </tr>
 
-        <!-- INCLUYE -->
+        <!-- INCLUYE (sin precios — es un regalo) -->
         <tr>
           <td style="padding:8px 28px 24px">
-            <div style="font-family:Georgia,serif;font-size:14px;font-weight:700;color:#1a2436;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px">Incluye</div>
+            <div style="font-family:Georgia,serif;font-size:13px;font-weight:700;color:#1a2436;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">Tu regalo incluye</div>
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%">
               {$svcRows}
-              <tr>
-                <td style="padding:14px 0 0;font-weight:700;font-size:15px;color:#1a2436">Total</td>
-                <td style="padding:14px 0 0;font-weight:700;font-size:18px;text-align:right;color:#c5a467">{$total}</td>
-              </tr>
             </table>
           </td>
         </tr>
