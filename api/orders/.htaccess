@@ -1,0 +1,3 @@
+# Bloquear acceso público a los archivos de órdenes
+Order deny,allow
+Deny from all

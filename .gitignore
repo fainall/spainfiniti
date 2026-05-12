@@ -2,3 +2,5 @@ node_modules/
 .DS_Store
 .env
 .claude/
+api/flow-config.php
+_upload.zip
