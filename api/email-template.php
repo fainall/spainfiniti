@@ -81,35 +81,53 @@ MSG;
           </td>
         </tr>
 
-        <!-- ✨ GIFT CARD VISUAL (PNG) ✨ -->
+        <!-- ✨ GIFT CARD VISUAL ✨ -->
         <tr>
-          <td style="padding:24px 28px 8px;text-align:center">
-            <img src="https://spainfinity.cl/images/gift-card.png?v=3" alt="Gift Card Spa Infinity" width="540" style="display:block;width:100%;max-width:540px;height:auto;margin:0 auto;border-radius:8px;box-shadow:0 8px 24px rgba(140,115,50,0.18)" />
-          </td>
-        </tr>
-
-        <!-- DATOS DEL REGALO -->
-        <tr>
-          <td style="padding:16px 28px 8px">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#f9f6ef;border-radius:10px">
+          <td style="padding:24px 28px 16px">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:#c5a050;background:linear-gradient(135deg,#d4b96a 0%,#c9a84e 20%,#e2cb7d 40%,#c5a050 55%,#b8943f 70%,#d4b868 85%,#c0993a 100%);border-radius:14px">
               <tr>
-                <td style="padding:18px 22px">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%">
+                <td style="padding:28px 28px 22px;color:#ffffff">
+
+                  <!-- Top row: logo + label -->
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin-bottom:36px">
                     <tr>
-                      <td valign="top" style="width:50%;padding-right:8px">
-                        <div style="font-family:Georgia,serif;font-style:italic;font-size:10px;color:#999;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">De</div>
-                        <div style="font-family:Georgia,serif;font-size:14px;font-weight:700;color:#1a2436">{$from}</div>
+                      <td valign="top" style="width:64px">
+                        <img src="https://spainfinity.cl/logo.webp" alt="Spa Infinity" width="56" height="56" style="display:block;border-radius:50%;background:rgba(255,255,255,0.9);padding:4px;border:2px solid rgba(255,255,255,0.4)" />
                       </td>
-                      <td valign="top" style="width:50%;padding-left:8px;border-left:1px solid #e8e4d8">
-                        <div style="font-family:Georgia,serif;font-style:italic;font-size:10px;color:#999;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;padding-left:12px">Para</div>
-                        <div style="font-family:Georgia,serif;font-size:14px;font-weight:700;color:#1a2436;padding-left:12px">{$toName}</div>
+                      <td valign="top" align="right">
+                        <div style="font-size:9px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.7);font-weight:600;margin-bottom:4px">TARJETA DE REGALO</div>
+                        <div style="font-family:Georgia,serif;font-size:22px;font-weight:700;line-height:1;color:#ffffff">Gift Card</div>
+                        <div style="font-family:Georgia,serif;font-style:italic;font-size:14px;color:rgba(255,255,255,0.85);margin-top:2px">Virtual</div>
                       </td>
                     </tr>
                   </table>
-                  <div style="border-top:1px solid #e8e4d8;margin:14px 0 12px"></div>
-                  <div style="font-family:Georgia,serif;font-style:italic;font-size:10px;color:#999;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">Tu Experiencia</div>
-                  <div style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#c5a467">{$svcDisplay}</div>
-                  <div style="font-size:11px;color:#aaa;margin-top:8px;letter-spacing:0.5px">Válido hasta {$expiryDate}</div>
+
+                  <!-- Bottom: service (sin monto — es un regalo) -->
+                  <div style="font-family:Georgia,serif;font-style:italic;font-size:10px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">Tu Experiencia</div>
+                  <div style="font-family:Georgia,serif;font-size:20px;font-weight:700;color:#ffffff;line-height:1.25;margin-bottom:18px">{$svcDisplay}</div>
+
+                  <!-- Names row -->
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;border-top:1px solid rgba(255,255,255,0.25);padding-top:10px">
+                    <tr>
+                      <td valign="top" style="padding-top:10px">
+                        <div style="font-family:Georgia,serif;font-style:italic;font-size:9px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:1px">De</div>
+                        <div style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#ffffff;margin-top:2px">{$from}</div>
+                      </td>
+                      <td valign="top" style="padding-top:10px" align="right">
+                        <div style="font-family:Georgia,serif;font-style:italic;font-size:9px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:1px">Para</div>
+                        <div style="font-family:Georgia,serif;font-size:12px;font-weight:700;color:#ffffff;margin-top:2px">{$toName}</div>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Footer of card -->
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width:100%;margin-top:14px;border-top:1px solid rgba(255,255,255,0.15);padding-top:8px">
+                    <tr>
+                      <td style="font-size:9px;color:rgba(255,255,255,0.55);letter-spacing:0.5px;font-weight:600">spainfinity.cl</td>
+                      <td align="right" style="font-size:8px;color:rgba(255,255,255,0.45);text-align:right">Válido hasta {$expiryDate}</td>
+                    </tr>
+                  </table>
+
                 </td>
               </tr>
             </table>
