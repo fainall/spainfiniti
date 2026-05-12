@@ -84,7 +84,7 @@ MSG;
         <!-- ✨ GIFT CARD VISUAL (image) ✨ -->
         <tr>
           <td style="padding:24px 28px 8px;text-align:center">
-            <img src="https://spainfinity.cl/images/gift-card.png?v=3" alt="Gift Card Spa Infinity" width="540" style="display:block;width:100%;max-width:540px;height:auto;margin:0 auto;border-radius:10px;box-shadow:0 8px 24px rgba(140,115,50,0.18)" />
+            <img src="https://spainfinity.cl/images/gift-card-v3.png" alt="Gift Card Spa Infinity" width="540" style="display:block;width:100%;max-width:540px;height:auto;margin:0 auto;border-radius:10px;box-shadow:0 8px 24px rgba(140,115,50,0.18)" />
           </td>
         </tr>
 
