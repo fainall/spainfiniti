@@ -1200,18 +1200,23 @@ function processPayment() {
     code: gcCode,
   }
 
-  fetch('/api/create-payment', {
+  fetch('/api/create-payment.php', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(orderData)
   })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success && data.paymentUrl) {
-      window.location.href = data.paymentUrl
-    } else {
+  .then(async r => {
+    const text = await r.text()
+    let data
+    try { data = JSON.parse(text) }
+    catch { throw new Error('Respuesta inválida del servidor (HTTP ' + r.status + ')') }
+    if (!r.ok || !data.success) {
       throw new Error(data.error || 'Error al crear el pago')
     }
+    return data
+  })
+  .then(data => {
+    window.location.href = data.paymentUrl
   })
   .catch(err => {
     console.error('Payment error:', err)
