@@ -603,6 +603,107 @@
   flex-shrink: 0;
 }
 
+/* ── PAYMENT METHODS SELECTOR ───────── */
+.gc-pay-methods {
+  max-width: 560px;
+  margin: 40px auto 0;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+.gc-pay-methods-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  text-align: center;
+  margin-bottom: 18px;
+  color: var(--dark);
+}
+.gc-pay-methods-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.gc-pay-method {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--white);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.gc-pay-method:hover {
+  border-color: var(--gold);
+  box-shadow: 0 4px 14px rgba(197,164,103,0.10);
+}
+.gc-pay-method--selected,
+.gc-pay-method:has(input:checked) {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, var(--gold-pale) 0%, var(--white) 100%);
+}
+.gc-pay-method input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.gc-pay-method-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  width: 40px;
+  text-align: center;
+}
+.gc-pay-method-info { flex: 1; min-width: 0; }
+.gc-pay-method-name {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--dark);
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gc-pay-method-tag {
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--white);
+  background: var(--gold);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+.gc-pay-method-desc {
+  font-size: 0.72rem;
+  color: var(--mid);
+  line-height: 1.4;
+}
+.gc-pay-method-check {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s;
+}
+.gc-pay-method:has(input:checked) .gc-pay-method-check {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+.gc-pay-method:has(input:checked) .gc-pay-method-check::after {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--white);
+}
+@media (max-width: 600px) {
+  .gc-pay-method { padding: 12px 14px; gap: 10px; }
+  .gc-pay-method-icon { font-size: 1.2rem; width: 32px; }
+  .gc-pay-method-name { font-size: 0.82rem; }
+  .gc-pay-method-desc { font-size: 0.68rem; }
+}
+
 /* ── BUTTONS ──────────────────────── */
 .gc-actions {
   display: flex;
@@ -937,6 +1038,49 @@
           </div>
         </div>
 
+        <!-- Selector de medio de pago -->
+        <div class="gc-pay-methods">
+          <h3 class="gc-pay-methods-title">¿Cómo quieres pagar?</h3>
+          <div class="gc-pay-methods-grid">
+            <label class="gc-pay-method gc-pay-method--selected">
+              <input type="radio" name="payMethod" value="9" checked />
+              <div class="gc-pay-method-icon">💳</div>
+              <div class="gc-pay-method-info">
+                <div class="gc-pay-method-name">Todos los medios</div>
+                <div class="gc-pay-method-desc">Tarjetas, cuotas, MACH, BCI, transferencia y más</div>
+              </div>
+              <div class="gc-pay-method-check"></div>
+            </label>
+            <label class="gc-pay-method">
+              <input type="radio" name="payMethod" value="1" />
+              <div class="gc-pay-method-icon">💳</div>
+              <div class="gc-pay-method-info">
+                <div class="gc-pay-method-name">Webpay <span class="gc-pay-method-tag">Recomendado</span></div>
+                <div class="gc-pay-method-desc">Visa, Mastercard, Magna, Amex, Diners, Redcompra</div>
+              </div>
+              <div class="gc-pay-method-check"></div>
+            </label>
+            <label class="gc-pay-method">
+              <input type="radio" name="payMethod" value="3" />
+              <div class="gc-pay-method-icon">🏦</div>
+              <div class="gc-pay-method-info">
+                <div class="gc-pay-method-name">Transferencia bancaria</div>
+                <div class="gc-pay-method-desc">Vía Khipu — todos los bancos</div>
+              </div>
+              <div class="gc-pay-method-check"></div>
+            </label>
+            <label class="gc-pay-method">
+              <input type="radio" name="payMethod" value="15" />
+              <div class="gc-pay-method-icon">📱</div>
+              <div class="gc-pay-method-info">
+                <div class="gc-pay-method-name">MACH / BCI</div>
+                <div class="gc-pay-method-desc">Pago con la app MACH o BCI</div>
+              </div>
+              <div class="gc-pay-method-check"></div>
+            </label>
+          </div>
+        </div>
+
         <div class="gc-actions" style="margin-top:32px">
           <button class="gc-btn gc-btn-outline" onclick="goStep(2)">← Editar</button>
           <button class="gc-btn gc-btn-pay" id="gcPayBtn" onclick="processPayment()">Pagar ahora</button>
@@ -1189,6 +1333,7 @@ function processPayment() {
   payBtn.textContent = 'CONECTANDO...'
 
   const total = selectedServices.reduce((sum, s) => sum + gcPriceNum(s), 0)
+  const selectedMethod = document.querySelector('input[name="payMethod"]:checked')
   const orderData = {
     services: selectedServices.map(s => ({ name: s.name, price: gcPriceOf(s), duration: s.duration })),
     total: '$' + total.toLocaleString('es-CL'),
@@ -1198,6 +1343,7 @@ function processPayment() {
     toEmail: document.getElementById('gcToEmail').value.trim(),
     message: document.getElementById('gcMsg').value.trim(),
     code: gcCode,
+    paymentMethod: selectedMethod ? parseInt(selectedMethod.value) : 9,
   }
 
   fetch('/api/create-payment.php', {

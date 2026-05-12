@@ -80,7 +80,7 @@ try {
         'status'        => 'pending',
     ]));
 
-    $result = $flow->createPayment([
+    $paymentParams = [
         'commerceOrder'   => $commerceOrder,
         'subject'         => $subject,
         'amount'          => $amountInt,
@@ -91,7 +91,12 @@ try {
             'gcCode' => $data['code'],
             'to'     => $data['to'],
         ],
-    ]);
+    ];
+    // Si vino un paymentMethod válido lo agregamos (1=Webpay, 3=Khipu, 9=Todos, 15=MACH/BCI)
+    if (!empty($data['paymentMethod']) && in_array((int)$data['paymentMethod'], [1,3,5,9,15,17])) {
+        $paymentParams['paymentMethod'] = (int)$data['paymentMethod'];
+    }
+    $result = $flow->createPayment($paymentParams);
 
     echo json_encode([
         'success'    => true,

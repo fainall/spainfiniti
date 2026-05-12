@@ -107,6 +107,9 @@ class FlowClient
             'urlConfirmation'  => $order['urlConfirmation'],
             'urlReturn'        => $order['urlReturn'],
         ];
+        if (!empty($order['paymentMethod'])) {
+            $params['paymentMethod'] = (int)$order['paymentMethod'];
+        }
         if (!empty($order['optional'])) {
             $params['optional'] = json_encode($order['optional']);
         }
