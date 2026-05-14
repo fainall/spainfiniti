@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════ */
 
 /* Base URL de imágenes locales del sitio */
-const IMG = 'images/'
+const IMG = '/images/'
 
 const SITE = {
   name: 'Spa Infinity',
