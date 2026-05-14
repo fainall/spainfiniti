@@ -1,4 +1,7 @@
 RewriteEngine On
+# Desactivar MultiViews para que mod_rewrite procese las URLs antes
+# (sin esto, Apache sirve /servicio como /servicio.html bypass rewrites)
+Options -MultiViews
 
 # ── CLEAN URLS PARA SERVICIOS Y CATEGORÍAS ──
 # /servicio/atencion-podologica-integral → /servicio.html?id=atencion-podologica-integral
