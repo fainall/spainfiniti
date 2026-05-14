@@ -1,0 +1,34 @@
+# robots.txt — Spa Infinity
+# https://spainfinity.cl
+
+User-agent: *
+Allow: /
+
+# Bloquear panel de administración
+Disallow: /admin
+Disallow: /admin.html
+
+# Bloquear endpoints de API y pedidos
+Disallow: /api/
+Disallow: /send-mail.php
+
+# Bloquear archivos de configuración / dev
+Disallow: /.git
+Disallow: /.htaccess
+Disallow: /package.json
+Disallow: /package-lock.json
+
+# Permitir explícitamente imágenes y assets
+Allow: /images/
+Allow: /styles.css
+Allow: /*.js$
+
+# Sitemap
+Sitemap: https://spainfinity.cl/sitemap.xml
+
+# Crawl-delay opcional para bots agresivos
+User-agent: AhrefsBot
+Crawl-delay: 10
+
+User-agent: SemrushBot
+Crawl-delay: 10
