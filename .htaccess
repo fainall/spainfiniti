@@ -6,12 +6,12 @@ RewriteEngine On
 # Mantiene los archivos .html accesibles internamente sin cambiar JS
 
 # Redirect: query string viejo → path nuevo (canonical)
-RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/(servicio|categoria)\.html\?id=([a-z0-9-]+)\s [NC]
-RewriteRule ^ /%1/%2? [R=301,L]
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/servicio\.html\?id=([a-z0-9-]+)\s [NC]
+RewriteRule ^ /servicio/%1? [R=301,L]
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/servicio\?id=([a-z0-9-]+)\s [NC]
+RewriteRule ^ /servicio/%1? [R=301,L]
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/categoria\.html\?cat=([a-z0-9-]+)\s [NC]
 RewriteRule ^ /categoria/%1? [R=301,L]
-RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/(servicio|categoria)\?id=([a-z0-9-]+)\s [NC]
-RewriteRule ^ /%1/%2? [R=301,L]
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/categoria\?cat=([a-z0-9-]+)\s [NC]
 RewriteRule ^ /categoria/%1? [R=301,L]
 
