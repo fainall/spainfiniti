@@ -344,7 +344,9 @@ document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
 document.getElementById('footerContainer').innerHTML = renderFooter()
 document.getElementById('floatingContainer').innerHTML = renderFloating()
 
-const catId = new URLSearchParams(location.search).get('cat')
+// Lee de path (/categoria/abc) o query (?cat=abc) como fallback
+const catPathMatch = location.pathname.match(/\/categoria\/([a-z0-9-]+)/i)
+const catId = catPathMatch ? catPathMatch[1] : new URLSearchParams(location.search).get('cat')
 
 ;(async () => {
   await initSupabaseData().catch(() => {})
@@ -377,7 +379,7 @@ const catId = new URLSearchParams(location.search).get('cat')
   /* Service cards */
   document.getElementById('svcGrid').innerHTML = cat.services.map((svc, i) => `
     <article id="${svc.id}" class="svc-card-new reveal" style="transition-delay:${(i % 2) * 0.12}s"
-             onclick="window.location='servicio.html?id=${svc.id}'">
+             onclick="window.location='servicio/${svc.id}'">
       ${svc.hasDiscount && svc.discountLabel
         ? `<span class="card-badge" style="background:var(--red)">${svc.discountLabel}</span>`
         : getActivePromoForService(svc.id)
@@ -402,7 +404,7 @@ const catId = new URLSearchParams(location.search).get('cat')
             : `<span class="card-meta-value gold">${svc.price}</span>`}
         </div>
       </div>
-      <a href="servicio.html?id=${svc.id}" class="btn-para" onclick="event.stopPropagation()">Ver detalles</a>
+      <a href="servicio/${svc.id}" class="btn-para" onclick="event.stopPropagation()">Ver detalles</a>
     </article>
   `).join('')
 
@@ -429,7 +431,7 @@ const catId = new URLSearchParams(location.search).get('cat')
   /* Other categories */
   const others = CATEGORIES.filter(c => c.id !== catId).slice(0, 8)
   document.getElementById('otherCats').innerHTML = others.map(c => `
-    <div class="other-cat-chip" onclick="window.location='categoria.html?cat=${c.id}'">
+    <div class="other-cat-chip" onclick="window.location='categoria/${c.id}'">
       <img src="${c.cardImg}" alt="${c.name}" loading="lazy" />
       <span>${c.name}</span>
     </div>
@@ -442,7 +444,7 @@ window.addEventListener('categories-updated', () => {
   if (!freshCat) return
   document.getElementById('svcGrid').innerHTML = freshCat.services.map((svc, i) => `
     <article id="${svc.id}" class="svc-card-new reveal active" style="transition-delay:${(i % 2) * 0.12}s"
-             onclick="window.location='servicio.html?id=${svc.id}'">
+             onclick="window.location='servicio/${svc.id}'">
       ${svc.hasDiscount && svc.discountLabel
         ? `<span class="card-badge" style="background:var(--red)">${svc.discountLabel}</span>`
         : getActivePromoForService(svc.id)
@@ -467,13 +469,13 @@ window.addEventListener('categories-updated', () => {
             : `<span class="card-meta-value gold">${svc.price}</span>`}
         </div>
       </div>
-      <a href="servicio.html?id=${svc.id}" class="btn-para" onclick="event.stopPropagation()">Ver detalles</a>
+      <a href="servicio/${svc.id}" class="btn-para" onclick="event.stopPropagation()">Ver detalles</a>
     </article>
   `).join('')
   document.getElementById('svcCount').textContent = freshCat.services.length
   const others = CATEGORIES.filter(c => c.id !== catId).slice(0, 8)
   document.getElementById('otherCats').innerHTML = others.map(c => `
-    <div class="other-cat-chip" onclick="window.location='categoria.html?cat=${c.id}'">
+    <div class="other-cat-chip" onclick="window.location='categoria/${c.id}'">
       <img src="${c.cardImg}" alt="${c.name}" loading="lazy" />
       <span>${c.name}</span>
     </div>

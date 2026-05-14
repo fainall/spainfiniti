@@ -287,14 +287,14 @@ function renderCats(list) {
   // Grid view
   catGrid.innerHTML = list.map((cat, i) => `
     <article class="cat-card reveal" style="transition-delay:${(i % 3) * 0.1}s"
-             onclick="window.location='categoria.html?cat=${cat.id}'">
+             onclick="window.location='categoria/${cat.id}'">
       <div class="cat-card-img-box">
         <img class="cat-card-img" src="${cat.cardImg}" alt="${cat.name}" loading="lazy" />
       </div>
       <div class="cat-card-body">
         <h3>${cat.name}</h3>
         <p>${cat.shortDesc}</p>
-        <a href="categoria.html?cat=${cat.id}" class="btn-card">VER SERVICIOS</a>
+        <a href="categoria/${cat.id}" class="btn-card">VER SERVICIOS</a>
       </div>
     </article>
   `).join('')
@@ -320,7 +320,7 @@ function renderCats(list) {
       <div class="cat-acc-body">
         <div class="cat-acc-services">
           ${matchingSvcs.map(svc => `
-            <a href="servicio.html?id=${svc.id}" class="svc-row">
+            <a href="servicio/${svc.id}" class="svc-row">
               <img class="svc-row-img" src="${svc.img}" alt="${svc.name}" loading="lazy" />
               <div class="svc-row-info">
                 <div class="svc-row-name">${svc.name}</div>

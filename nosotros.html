@@ -372,7 +372,7 @@ const overviewData = [
 
 document.getElementById('svoGrid').innerHTML = overviewData.map((s, i) => `
   <div class="svo-item fu" style="transition-delay:${(i % 4) * 0.08}s"
-       onclick="window.location='categoria.html?cat=${s.cat}'">
+       onclick="window.location='categoria/${s.cat}'">
     <h4>${s.name}</h4>
     <p>${s.desc}</p>
   </div>

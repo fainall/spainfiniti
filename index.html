@@ -1310,10 +1310,10 @@ catMeta.forEach(cm => {
   const slide = document.createElement('div')
   slide.className = 'swiper-slide'
   slide.innerHTML = `
-    <div class="slide-img-wrapper" onclick="location.href='categoria.html?cat=${cat.id}'">
+    <div class="slide-img-wrapper" onclick="location.href='categoria/${cat.id}'">
       <img src="${cat.heroImg}" alt="${cat.name}" loading="lazy">
     </div>
-    <div class="slide-text-wrapper" onclick="location.href='categoria.html?cat=${cat.id}'">
+    <div class="slide-text-wrapper" onclick="location.href='categoria/${cat.id}'">
       <div class="poly-highlight"></div>
       <div class="slide-content">
         <h4 class="cat-subtitle">${cm.subtitle}</h4>
@@ -1357,7 +1357,7 @@ function renderFeatured() {
     if (!result) return
     const { service: svc, category: cat } = result
     const card = document.createElement('a')
-    card.href = `categoria.html?cat=${cat.id}#${svc.id}`
+    card.href = `categoria/${cat.id}#${svc.id}`
     card.className = 'feat-card fu vis'
     card.style.textDecoration = 'none'
     card.innerHTML = `
@@ -1435,10 +1435,10 @@ window.addEventListener('categories-updated', () => {
     const slide = document.createElement('div')
     slide.className = 'swiper-slide'
     slide.innerHTML = `
-      <div class="slide-img-wrapper" onclick="location.href='categoria.html?cat=${cat.id}'">
+      <div class="slide-img-wrapper" onclick="location.href='categoria/${cat.id}'">
         <img src="${cat.heroImg}" alt="${cat.name}" loading="lazy">
       </div>
-      <div class="slide-text-wrapper" onclick="location.href='categoria.html?cat=${cat.id}'">
+      <div class="slide-text-wrapper" onclick="location.href='categoria/${cat.id}'">
         <div class="poly-highlight"></div>
         <div class="slide-content">
           <h4 class="cat-subtitle">${cm.subtitle}</h4>

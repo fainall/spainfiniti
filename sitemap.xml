@@ -42,52 +42,52 @@
 
   <!-- Categorías -->
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=podologia-clinica</loc>
+    <loc>https://spainfinity.cl/categoria/podologia-clinica</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=manicure-pedicure</loc>
+    <loc>https://spainfinity.cl/categoria/manicure-pedicure</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=masajes-terapeuticos</loc>
+    <loc>https://spainfinity.cl/categoria/masajes-terapeuticos</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=cuidado-facial-spa</loc>
+    <loc>https://spainfinity.cl/categoria/cuidado-facial-spa</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=depilacion</loc>
+    <loc>https://spainfinity.cl/categoria/depilacion</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=tratamientos-corporales</loc>
+    <loc>https://spainfinity.cl/categoria/tratamientos-corporales</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=desintoxicantes</loc>
+    <loc>https://spainfinity.cl/categoria/desintoxicantes</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=pestanas-cejas</loc>
+    <loc>https://spainfinity.cl/categoria/pestanas-cejas</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=adicionales-mani-pedi</loc>
+    <loc>https://spainfinity.cl/categoria/adicionales-mani-pedi</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://spainfinity.cl/categoria?cat=plantillas</loc>
+    <loc>https://spainfinity.cl/categoria/plantillas</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

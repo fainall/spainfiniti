@@ -1,6 +1,25 @@
 RewriteEngine On
 
-# Remove .html extension
+# ── CLEAN URLS PARA SERVICIOS Y CATEGORÍAS ──
+# /servicio/atencion-podologica-integral → /servicio.html?id=atencion-podologica-integral
+# /categoria/podologia-clinica            → /categoria.html?cat=podologia-clinica
+# Mantiene los archivos .html accesibles internamente sin cambiar JS
+
+# Redirect: query string viejo → path nuevo (canonical)
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/(servicio|categoria)\.html\?id=([a-z0-9-]+)\s [NC]
+RewriteRule ^ /%1/%2? [R=301,L]
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/categoria\.html\?cat=([a-z0-9-]+)\s [NC]
+RewriteRule ^ /categoria/%1? [R=301,L]
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/(servicio|categoria)\?id=([a-z0-9-]+)\s [NC]
+RewriteRule ^ /%1/%2? [R=301,L]
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,}\s/categoria\?cat=([a-z0-9-]+)\s [NC]
+RewriteRule ^ /categoria/%1? [R=301,L]
+
+# Internal rewrite: /servicio/{slug} → /servicio.html?id={slug}
+RewriteRule ^servicio/([a-z0-9-]+)/?$ /servicio.html?id=$1 [L,QSA]
+RewriteRule ^categoria/([a-z0-9-]+)/?$ /categoria.html?cat=$1 [L,QSA]
+
+# Remove .html extension (general)
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.html -f
 RewriteRule ^(.*)$ $1.html [L]

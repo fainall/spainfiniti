@@ -27,12 +27,12 @@ function renderNavbar(activePage) {
               </div>
               <div class="nav-dd-svcs">
                 ${c.services.map(s => `
-                  <a href="servicio.html?id=${s.id}" class="nav-dd-svc">
+                  <a href="servicio/${s.id}" class="nav-dd-svc">
                     <span class="nav-dd-svc-name">${s.name}</span>
                     <span class="nav-dd-svc-price">${s.price}</span>
                   </a>
                 `).join('')}
-                <a href="categoria.html?cat=${c.id}" class="nav-dd-svc-all">Ver categoría completa →</a>
+                <a href="categoria/${c.id}" class="nav-dd-svc-all">Ver categoría completa →</a>
               </div>
             </div>
           `).join('')}
@@ -369,7 +369,7 @@ function initShared() {
         searchDrop.innerHTML = '<div class="sd-empty">No se encontraron servicios</div>'
       } else {
         searchDrop.innerHTML = results.slice(0, 8).map(r => `
-          <a href="servicio.html?id=${r.svc.id}" class="sd-item">
+          <a href="servicio/${r.svc.id}" class="sd-item">
             <div class="sd-info">
               <span class="sd-cat">${r.cat.name}</span>
               <span class="sd-name">${r.svc.name}</span>
@@ -421,7 +421,7 @@ function initShared() {
         mobResults.innerHTML = '<div class="mob-search-empty">No se encontraron servicios</div>'
       } else {
         mobResults.innerHTML = results.slice(0, 8).map(r => `
-          <a href="servicio.html?id=${r.svc.id}" class="mob-search-item">
+          <a href="servicio/${r.svc.id}" class="mob-search-item">
             <div class="mob-search-info">
               <span class="mob-search-cat">${r.cat.name}</span>
               <span class="mob-search-name">${r.svc.name}</span>
@@ -485,7 +485,7 @@ function mobShowSvcs(catIdx) {
   document.getElementById('mobSvcTitle').textContent = cat.name
   document.getElementById('mobSvcList').innerHTML =
     cat.services.map(s => `
-      <a href="servicio.html?id=${s.id}" onclick="toggleMobMenu()" class="mob-svc-item">
+      <a href="servicio/${s.id}" onclick="toggleMobMenu()" class="mob-svc-item">
         <div class="mob-svc-info">
           <span class="mob-svc-name">${s.name}</span>
           <span class="mob-svc-dur">${s.duration}</span>
@@ -493,7 +493,7 @@ function mobShowSvcs(catIdx) {
         <span class="mob-svc-price">${s.price}</span>
       </a>
     `).join('') +
-    `<a href="categoria.html?cat=${cat.id}" onclick="toggleMobMenu()" class="mob-cat-all">Ver categoría completa →</a>`
+    `<a href="categoria/${cat.id}" onclick="toggleMobMenu()" class="mob-cat-all">Ver categoría completa →</a>`
   document.getElementById('mobPanelCats').classList.add('mob-panel--exit')
   document.getElementById('mobPanelSvcs').classList.add('mob-panel--active')
 }

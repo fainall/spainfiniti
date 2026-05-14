@@ -548,7 +548,9 @@ document.getElementById('floatingContainer').innerHTML = renderFloating()
 // Load Supabase data before resolving service
 await initSupabaseData()
 
-const svcId = new URLSearchParams(location.search).get('id')
+// Lee el ID del path (/servicio/abc) o del query string (?id=abc) como fallback
+const pathMatch = location.pathname.match(/\/servicio\/([a-z0-9-]+)/i)
+const svcId = pathMatch ? pathMatch[1] : new URLSearchParams(location.search).get('id')
 const result = svcId ? getServiceById(svcId) : null
 
 if (!result) {
@@ -578,8 +580,8 @@ if (!result) {
       el.rel = 'noopener'
     }
   })
-  document.getElementById('catCta').href = `categoria.html?cat=${cat.id}`
-  document.getElementById('catCta2').href = `categoria.html?cat=${cat.id}`
+  document.getElementById('catCta').href = `categoria/${cat.id}`
+  document.getElementById('catCta2').href = `categoria/${cat.id}`
   document.getElementById('giftCta').href = `giftcard.html?svc=${svc.id}`
 
   /* Process cards — use processSteps[] if available, fallback to includes[], then defaults */
@@ -672,7 +674,7 @@ if (!result) {
   if (!related.length) document.getElementById('relatedSec').style.display = 'none'
   document.getElementById('relatedGrid').innerHTML = related.map((s, i) => `
     <div class="svc-card-new reveal" style="transition-delay:${i * 0.12}s; cursor:pointer"
-         onclick="window.location='servicio.html?id=${s.id}'">
+         onclick="window.location='servicio/${s.id}'">
       <div class="card-img-box" style="height:220px; margin-bottom:20px">
         <img src="${s.img}" alt="${s.name}" loading="lazy" />
       </div>
@@ -685,7 +687,7 @@ if (!result) {
         <div><span style="font-size:0.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--light);display:block">Precio</span>
              <strong style="font-size:0.9rem;color:var(--gold)">${s.price}</strong></div>
       </div>
-      <a href="servicio.html?id=${s.id}" class="btn-para" onclick="event.stopPropagation()" style="font-size:0.7rem;padding:12px 32px">VER DETALLES</a>
+      <a href="servicio/${s.id}" class="btn-para" onclick="event.stopPropagation()" style="font-size:0.7rem;padding:12px 32px">VER DETALLES</a>
     </div>
   `).join('')
 }
