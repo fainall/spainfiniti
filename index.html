@@ -1310,10 +1310,10 @@ catMeta.forEach(cm => {
   const slide = document.createElement('div')
   slide.className = 'swiper-slide'
   slide.innerHTML = `
-    <div class="slide-img-wrapper" onclick="location.href='categoria/${cat.id}'">
+    <div class="slide-img-wrapper" onclick="location.href='/categoria/${cat.id}'">
       <img src="${cat.heroImg}" alt="${cat.name}" loading="lazy">
     </div>
-    <div class="slide-text-wrapper" onclick="location.href='categoria/${cat.id}'">
+    <div class="slide-text-wrapper" onclick="location.href='/categoria/${cat.id}'">
       <div class="poly-highlight"></div>
       <div class="slide-content">
         <h4 class="cat-subtitle">${cm.subtitle}</h4>
@@ -1435,10 +1435,10 @@ window.addEventListener('categories-updated', () => {
     const slide = document.createElement('div')
     slide.className = 'swiper-slide'
     slide.innerHTML = `
-      <div class="slide-img-wrapper" onclick="location.href='categoria/${cat.id}'">
+      <div class="slide-img-wrapper" onclick="location.href='/categoria/${cat.id}'">
         <img src="${cat.heroImg}" alt="${cat.name}" loading="lazy">
       </div>
-      <div class="slide-text-wrapper" onclick="location.href='categoria/${cat.id}'">
+      <div class="slide-text-wrapper" onclick="location.href='/categoria/${cat.id}'">
         <div class="poly-highlight"></div>
         <div class="slide-content">
           <h4 class="cat-subtitle">${cm.subtitle}</h4>

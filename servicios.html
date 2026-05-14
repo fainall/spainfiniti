@@ -287,7 +287,7 @@ function renderCats(list) {
   // Grid view
   catGrid.innerHTML = list.map((cat, i) => `
     <article class="cat-card reveal" style="transition-delay:${(i % 3) * 0.1}s"
-             onclick="window.location='categoria/${cat.id}'">
+             onclick="window.location='/categoria/${cat.id}'">
       <div class="cat-card-img-box">
         <img class="cat-card-img" src="${cat.cardImg}" alt="${cat.name}" loading="lazy" />
       </div>

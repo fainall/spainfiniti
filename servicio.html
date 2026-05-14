@@ -554,7 +554,7 @@ const svcId = pathMatch ? pathMatch[1] : new URLSearchParams(location.search).ge
 const result = svcId ? getServiceById(svcId) : null
 
 if (!result) {
-  location.href = 'servicios.html'
+  location.href = '/servicios.html'
 } else {
   const { service: svc, category: cat } = result
 
@@ -674,7 +674,7 @@ if (!result) {
   if (!related.length) document.getElementById('relatedSec').style.display = 'none'
   document.getElementById('relatedGrid').innerHTML = related.map((s, i) => `
     <div class="svc-card-new reveal" style="transition-delay:${i * 0.12}s; cursor:pointer"
-         onclick="window.location='servicio/${s.id}'">
+         onclick="window.location='/servicio/${s.id}'">
       <div class="card-img-box" style="height:220px; margin-bottom:20px">
         <img src="${s.img}" alt="${s.name}" loading="lazy" />
       </div>

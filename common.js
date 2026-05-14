@@ -389,7 +389,7 @@ function initShared() {
     searchInput.addEventListener('keydown', e => {
       if (e.key === 'Enter' && searchInput.value.trim()) {
         searchDrop.classList.remove('open')
-        window.location.href = `servicios.html?q=${encodeURIComponent(searchInput.value.trim())}`
+        window.location.href = `/servicios.html?q=${encodeURIComponent(searchInput.value.trim())}`
       }
       if (e.key === 'Escape') searchDrop.classList.remove('open')
     })
@@ -438,7 +438,7 @@ function initShared() {
     mobInput.addEventListener('keydown', e => {
       if (e.key === 'Enter' && mobInput.value.trim()) {
         toggleMobSearch()
-        window.location.href = `servicios.html?q=${encodeURIComponent(mobInput.value.trim())}`
+        window.location.href = `/servicios.html?q=${encodeURIComponent(mobInput.value.trim())}`
       }
     })
   }
