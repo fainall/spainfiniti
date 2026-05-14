@@ -24,15 +24,15 @@
 <meta name="twitter:description" content="Explora todos nuestros servicios: podología clínica, masajes, depilación, manicure & pedicure spa, tratamientos faciales y más.">
 <meta name="twitter:image" content="https://spainfinity.cl/images/og-image.jpg?v=2">
 
-<link rel="icon" type="image/png" href="logo.webp">
-<link rel="apple-touch-icon" href="logo.webp">
+<link rel="icon" type="image/png" href="/logo.webp">
+<link rel="apple-touch-icon" href="/logo.webp">
 <link rel="canonical" href="https://spainfinity.cl/servicios.html">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://bxwamppamqxtncvfdycy.supabase.co" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="/styles.css?v=8">
 <style>
 /* Search bar on page */
 .page-search-wrap {
@@ -235,7 +235,7 @@
 <!-- PAGE HERO -->
 <div class="page-hero">
   <div class="breadcrumb">
-    <a href="index.html">Inicio</a>
+    <a href="/index.html">Inicio</a>
     <span>/</span>
     <span class="current">Servicios</span>
   </div>
@@ -265,9 +265,9 @@
 <div id="footerContainer"></div>
 <div id="floatingContainer"></div>
 
-<script src="supabase-client.js?v=7"></script>
-<script src="data.js?v=4"></script>
-<script src="common.js?v=12"></script>
+<script src="/supabase-client.js?v=7"></script>
+<script src="/data.js?v=4"></script>
+<script src="/common.js?v=13"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
 document.getElementById('footerContainer').innerHTML = renderFooter()
@@ -294,7 +294,7 @@ function renderCats(list) {
       <div class="cat-card-body">
         <h3>${cat.name}</h3>
         <p>${cat.shortDesc}</p>
-        <a href="categoria/${cat.id}" class="btn-card">VER SERVICIOS</a>
+        <a href="/categoria/${cat.id}" class="btn-card">VER SERVICIOS</a>
       </div>
     </article>
   `).join('')
@@ -320,7 +320,7 @@ function renderCats(list) {
       <div class="cat-acc-body">
         <div class="cat-acc-services">
           ${matchingSvcs.map(svc => `
-            <a href="servicio/${svc.id}" class="svc-row">
+            <a href="/servicio/${svc.id}" class="svc-row">
               <img class="svc-row-img" src="${svc.img}" alt="${svc.name}" loading="lazy" />
               <div class="svc-row-info">
                 <div class="svc-row-name">${svc.name}</div>

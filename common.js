@@ -5,11 +5,11 @@
 /* ── NAVBAR ─────────────────────────────────────────── */
 function renderNavbar(activePage) {
   const pages = [
-    { href: 'index.html',    label: 'Inicio' },
-    { href: 'nosotros.html',  label: 'Nosotros' },
-    { href: 'servicios.html',label: 'Servicios', hasMega: true },
-    { href: 'giftcard.html', label: 'Gift Cards' },
-    { href: 'contacto.html', label: 'Contacto' },
+    { href: '/index.html',    label: 'Inicio' },
+    { href: '/nosotros.html',  label: 'Nosotros' },
+    { href: '/servicios.html',label: 'Servicios', hasMega: true },
+    { href: '/giftcard.html', label: 'Gift Cards' },
+    { href: '/contacto.html', label: 'Contacto' },
   ]
 
   const links = pages.map(p => {
@@ -27,16 +27,16 @@ function renderNavbar(activePage) {
               </div>
               <div class="nav-dd-svcs">
                 ${c.services.map(s => `
-                  <a href="servicio/${s.id}" class="nav-dd-svc">
+                  <a href="/servicio/${s.id}" class="nav-dd-svc">
                     <span class="nav-dd-svc-name">${s.name}</span>
                     <span class="nav-dd-svc-price">${s.price}</span>
                   </a>
                 `).join('')}
-                <a href="categoria/${c.id}" class="nav-dd-svc-all">Ver categoría completa →</a>
+                <a href="/categoria/${c.id}" class="nav-dd-svc-all">Ver categoría completa →</a>
               </div>
             </div>
           `).join('')}
-          <a href="servicios.html" class="nav-dd-footer">Ver todos los servicios →</a>
+          <a href="/servicios.html" class="nav-dd-footer">Ver todos los servicios →</a>
         </div>
       </li>`
     }
@@ -46,8 +46,8 @@ function renderNavbar(activePage) {
   return `
 <nav class="site-nav" id="siteNav">
   <div class="nav-inner">
-    <a href="index.html" class="nav-logo" aria-label="Spa Infinity Inicio">
-      <img src="images/logo.webp" alt="Spa Infinity" class="nav-logo-img" />
+    <a href="/index.html" class="nav-logo" aria-label="Spa Infinity Inicio">
+      <img src="/images/logo.webp" alt="Spa Infinity" class="nav-logo-img" />
     </a>
     <ul class="nav-links">${links}</ul>
     <div class="nav-search-container">
@@ -107,7 +107,7 @@ function renderNavbar(activePage) {
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 6l6 6-6 6"/></svg>
         </a>
       `).join('')}
-      <a href="servicios.html" onclick="toggleMobMenu()" class="mob-cat-all">Ver todos los servicios →</a>
+      <a href="/servicios.html" onclick="toggleMobMenu()" class="mob-cat-all">Ver todos los servicios →</a>
     </div>
   </div>
 
@@ -130,7 +130,7 @@ function renderFooter() {
 <footer class="infinity-footer">
   <div class="footer-main-grid">
     <div class="footer-col footer-brand">
-      <img src="images/logo.webp" alt="Spa Infinity" />
+      <img src="/images/logo.webp" alt="Spa Infinity" />
       <p>Centro Podológico y Spa Infinity: Un refugio de bienestar diseñado para tu cuidado integral.</p>
       <div class="footer-socials">
         <a href="https://web.facebook.com/podologia.spainfinity" class="social-fb" aria-label="Facebook" target="_blank"><i class="fab fa-facebook-f"></i></a>
@@ -149,10 +149,10 @@ function renderFooter() {
     <div class="footer-col">
       <h4 class="footer-title">Menú</h4>
       <ul class="footer-list menu-list">
-        <li><a href="index.html">Inicio</a></li>
-        <li><a href="nosotros.html">Nosotros</a></li>
-        <li><a href="servicios.html">Servicios</a></li>
-        <li><a href="contacto.html">Contacto</a></li>
+        <li><a href="/index.html">Inicio</a></li>
+        <li><a href="/nosotros.html">Nosotros</a></li>
+        <li><a href="/servicios.html">Servicios</a></li>
+        <li><a href="/contacto.html">Contacto</a></li>
       </ul>
     </div>
     <div class="footer-col footer-info">
@@ -369,7 +369,7 @@ function initShared() {
         searchDrop.innerHTML = '<div class="sd-empty">No se encontraron servicios</div>'
       } else {
         searchDrop.innerHTML = results.slice(0, 8).map(r => `
-          <a href="servicio/${r.svc.id}" class="sd-item">
+          <a href="/servicio/${r.svc.id}" class="sd-item">
             <div class="sd-info">
               <span class="sd-cat">${r.cat.name}</span>
               <span class="sd-name">${r.svc.name}</span>
@@ -381,7 +381,7 @@ function initShared() {
               ${r.svc.hasDiscount && r.svc.discountLabel ? `<span style="background:#E74C3C;color:#fff;font-size:0.55rem;padding:1px 6px;border-radius:3px;font-weight:700">${r.svc.discountLabel}</span>` : ''}
             </div>
           </a>
-        `).join('') + `<a href="servicios.html?q=${encodeURIComponent(q)}" class="sd-all">Ver todos los resultados →</a>`
+        `).join('') + `<a href="/servicios.html?q=${encodeURIComponent(q)}" class="sd-all">Ver todos los resultados →</a>`
       }
       searchDrop.classList.add('open')
     }
@@ -421,7 +421,7 @@ function initShared() {
         mobResults.innerHTML = '<div class="mob-search-empty">No se encontraron servicios</div>'
       } else {
         mobResults.innerHTML = results.slice(0, 8).map(r => `
-          <a href="servicio/${r.svc.id}" class="mob-search-item">
+          <a href="/servicio/${r.svc.id}" class="mob-search-item">
             <div class="mob-search-info">
               <span class="mob-search-cat">${r.cat.name}</span>
               <span class="mob-search-name">${r.svc.name}</span>
@@ -485,7 +485,7 @@ function mobShowSvcs(catIdx) {
   document.getElementById('mobSvcTitle').textContent = cat.name
   document.getElementById('mobSvcList').innerHTML =
     cat.services.map(s => `
-      <a href="servicio/${s.id}" onclick="toggleMobMenu()" class="mob-svc-item">
+      <a href="/servicio/${s.id}" onclick="toggleMobMenu()" class="mob-svc-item">
         <div class="mob-svc-info">
           <span class="mob-svc-name">${s.name}</span>
           <span class="mob-svc-dur">${s.duration}</span>
@@ -493,7 +493,7 @@ function mobShowSvcs(catIdx) {
         <span class="mob-svc-price">${s.price}</span>
       </a>
     `).join('') +
-    `<a href="categoria/${cat.id}" onclick="toggleMobMenu()" class="mob-cat-all">Ver categoría completa →</a>`
+    `<a href="/categoria/${cat.id}" onclick="toggleMobMenu()" class="mob-cat-all">Ver categoría completa →</a>`
   document.getElementById('mobPanelCats').classList.add('mob-panel--exit')
   document.getElementById('mobPanelSvcs').classList.add('mob-panel--active')
 }
