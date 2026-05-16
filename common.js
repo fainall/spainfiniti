@@ -245,7 +245,7 @@ async function initPromoFloat() {
     const icon = cfg.floatIcon || '♡'
     const text = cfg.floatText || 'Promoción Especial'
     slot.innerHTML = `
-      <a href="promocion-dia-de-la-madre" class="promo-float" id="promoFloat" title="${text}">
+      <a href="/promocion-dia-de-la-madre" class="promo-float" id="promoFloat" title="${text}">
         <span class="promo-float-icon">${icon}</span>
         <span class="promo-float-arrow">›</span>
         <span class="promo-float-text">${text}</span>
