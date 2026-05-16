@@ -580,9 +580,9 @@ if (!result) {
       el.rel = 'noopener'
     }
   })
-  document.getElementById('catCta').href = `categoria/${cat.id}`
-  document.getElementById('catCta2').href = `categoria/${cat.id}`
-  document.getElementById('giftCta').href = `giftcard.html?svc=${svc.id}`
+  document.getElementById('catCta').href = `/categoria/${cat.id}`
+  document.getElementById('catCta2').href = `/categoria/${cat.id}`
+  document.getElementById('giftCta').href = `/giftcard.html?svc=${svc.id}`
 
   /* Process cards — use processSteps[] if available, fallback to includes[], then defaults */
   let steps

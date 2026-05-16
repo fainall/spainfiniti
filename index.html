@@ -1357,7 +1357,7 @@ function renderFeatured() {
     if (!result) return
     const { service: svc, category: cat } = result
     const card = document.createElement('a')
-    card.href = `categoria/${cat.id}#${svc.id}`
+    card.href = `/categoria/${cat.id}#${svc.id}`
     card.className = 'feat-card fu vis'
     card.style.textDecoration = 'none'
     card.innerHTML = `
