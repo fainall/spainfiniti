@@ -34,7 +34,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="/styles.css?v=8">
+<link rel="stylesheet" href="/styles.css?v=9">
 <style>
 /* ── CATEGORY WHEEL (HERO) ─────────────────── */
 .category-wheel-section {
@@ -971,6 +971,755 @@
   .poly-highlight::after { clip-path: polygon(0% 3%, 50% 0%, 100% 3%, 100% 97%, 50% 100%, 0% 97%); }
 }
 </style>
+
+<!-- JSON-LD Schema.org for SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "@id": "https://spainfinity.cl/#business",
+  "name": "Spa Infinity",
+  "description": "Centro Podológico y Spa Premium en Santiago Centro. Podología clínica, masajes, depilación, manicure & pedicure spa, tratamientos faciales y más.",
+  "url": "https://spainfinity.cl",
+  "image": "https://spainfinity.cl/images/og-image.jpg",
+  "telephone": "+56986688771",
+  "priceRange": "$$",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Santo Domingo 1083 of. 502",
+    "addressLocality": "Santiago Centro",
+    "addressRegion": "Región Metropolitana",
+    "addressCountry": "CL"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "5.0",
+    "reviewCount": "56"
+  },
+  "openingHoursSpecification": [
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
+      ],
+      "opens": "10:00",
+      "closes": "20:00"
+    },
+    {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": "Saturday",
+      "opens": "11:00",
+      "closes": "18:00"
+    }
+  ],
+  "hasOfferCatalog": {
+    "@type": "OfferCatalog",
+    "name": "Servicios Spa Infinity",
+    "itemListElement": [
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Lifting de Pestañas + Tinte + Bótox",
+          "description": "Eleva y curva las pestañas desde la raíz, tinte que intensifica el color natural y bótox que nutre cada pestaña. Dura hasta 6 semanas.",
+          "category": "Pestañas & Cejas",
+          "url": "https://spainfinity.cl/servicio/lifting-tinte-botox"
+        },
+        "price": "19500",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Limpieza Facial Profunda",
+          "description": "Limpieza facial personalizada con tecnología avanzada y principios activos según tu tipo de piel para una tez limpia y radiante.",
+          "category": "Cuidado Facial Spa",
+          "url": "https://spainfinity.cl/servicio/limpieza-facial-profunda"
+        },
+        "price": "29400",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Atención Podológica Integral",
+          "description": "Evaluación clínica, corte de uñas, limpieza de surcos, tratamiento de durezas e hidratación profunda para mantener tus pies sanos y renovados.",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/atencion-podologica-integral"
+        },
+        "price": "25600",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación Facial (Rostro Completo)",
+          "description": "Eliminación delicada y efectiva del vello facial para un rostro limpio, luminoso y perfectamente cuidado.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-facial"
+        },
+        "price": "15900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Esmaltado Permanente (Manos o Pies)",
+          "description": "Acabado brillante, duradero y resistente con productos de alta calidad en manos o pies.",
+          "category": "Adicionales Mani & Pedi",
+          "url": "https://spainfinity.cl/servicio/esmaltado-permanente"
+        },
+        "price": "7900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Masaje con Piedras Calientes Premium",
+          "description": "Tratamiento terapéutico con calor volcánico que alivia tensiones, reduce el estrés y mejora la circulación.",
+          "category": "Masajes Terapéuticos",
+          "url": "https://spainfinity.cl/servicio/masaje-piedras-calientes"
+        },
+        "price": "27000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Ritual de Purificación Iónica",
+          "description": "Inmersión tibia en pediluvio iónico con sales minerales, diseñada para depurar impurezas, reactivar la energía y renovar la ligereza corporal",
+          "category": "Tratamientos Desintoxicantes",
+          "url": "https://spainfinity.cl/servicio/desintoxicacion-pediluvio-ionico"
+        },
+        "price": "13600",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Plantillas Step Comfort",
+          "description": "Evaluación Biomecánica+Plantillas Confortables. Ideal para el dia dia una, 100% amortiguables.",
+          "category": "Plantillas Personalizadas",
+          "url": "https://spainfinity.cl/servicio/plantillas-asd"
+        },
+        "price": "45600",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Manicure Spa Permanente",
+          "description": "Cuidado de cutículas, limado, hidratación y esmaltado permanente Masglo para unas manos perfectas por semanas.",
+          "category": "Manicure & Pedicure",
+          "url": "https://spainfinity.cl/servicio/manicure-spa-permanente"
+        },
+        "price": "15000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Exfoliación y Drenaje Linfático",
+          "description": "Exfoliación profunda seguida de drenaje linfático manual que estimula la circulación, reduce la retención de líquidos y promueve la eliminación de toxinas.",
+          "category": "Tratamientos Reductivos",
+          "url": "https://spainfinity.cl/servicio/sesion-inicial-exfoliacion-drenaje"
+        },
+        "price": "36800",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Manicure Spa Semipermanente",
+          "description": "Limpieza, limado, cuidado de cutículas y esmaltado semipermanente Masglo con resultados hasta 12 días.",
+          "category": "Manicure & Pedicure",
+          "url": "https://spainfinity.cl/servicio/manicure-spa-semipermanente"
+        },
+        "price": "13600",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Podología Clínica + Esmaltado Permanente",
+          "description": "La combinación perfecta entre un tratamiento podológico clínico riguroso y un acabado estético duradero con esmaltado permanente.",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/podologia-esmaltado-permanente"
+        },
+        "price": "28800",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Esmaltado Semipermanente (Manos o Pies)",
+          "description": "Aplicación de esmalte semipermanente con productos de alta calidad para un acabado radiante y profesional.",
+          "category": "Adicionales Mani & Pedi",
+          "url": "https://spainfinity.cl/servicio/esmaltado-semipermanente"
+        },
+        "price": "4900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Masaje con Piedras Calientes Express",
+          "description": "Equilibrio del calor volcánico en sesión concentrada para liberar tensiones y renovar cuerpo y mente.",
+          "category": "Masajes Terapéuticos",
+          "url": "https://spainfinity.cl/servicio/masaje-piedras-express"
+        },
+        "price": "16500",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación por Zonas Faciales (Patillas, Bozo, Nariz)",
+          "description": "Eliminación precisa de vello facial en zonas específicas para una apariencia limpia, natural y definida.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-zonas-faciales"
+        },
+        "price": "6000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Ritual Iónico + Reflexología",
+          "description": "Combina el pediluvio iónico con reflexología en puntos de presión del pie conectados a órganos internos para relajación profunda.",
+          "category": "Tratamientos Desintoxicantes",
+          "url": "https://spainfinity.cl/servicio/desintoxicacion-ionica-reflexologia"
+        },
+        "price": "23200",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Plantillas Step Executive",
+          "description": "Evaluación Biomecánica+Plantillas de Cuero. Ideal para zapatos de vestir fino.",
+          "category": "Plantillas Personalizadas",
+          "url": "https://spainfinity.cl/servicio/plantillas-prueba-2"
+        },
+        "price": "49200",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Tratamiento Reductivo con Aparatología",
+          "description": "Tratamiento personalizado con aparatología estética avanzada (cavitación, vacuun, radiofrecuencia u ondas rusas) según diagnóstico profesional.",
+          "category": "Tratamientos Reductivos",
+          "url": "https://spainfinity.cl/servicio/tratamiento-corporal-aparatologia"
+        },
+        "price": "36400",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Ondulación de Pestañas + Tinte + Bótox",
+          "description": "Curvatura suave y natural, color intenso con tinte y tratamiento botánico que nutre y fortalece cada pestaña.",
+          "category": "Pestañas & Cejas",
+          "url": "https://spainfinity.cl/servicio/ondulacion-tinte-botox"
+        },
+        "price": "18000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Limpieza de Espalda",
+          "description": "Limpieza profesional de espalda con exfoliación, extracción, masaje relajante e hidratación profunda.",
+          "category": "Cuidado Facial Spa",
+          "url": "https://spainfinity.cl/servicio/limpieza-espalda"
+        },
+        "price": "31200",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Pedicure Spa Permanente",
+          "description": "Pedicure completo con limpieza, limado, exfoliación, hidratación y esmaltado permanente de brillo intenso.",
+          "category": "Manicure & Pedicure",
+          "url": "https://spainfinity.cl/servicio/pedicure-spa-permanente"
+        },
+        "price": "21000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Exfoliación Manos o Pies",
+          "description": "Tratamiento renovador que elimina células muertas, mejora la textura de la piel y promueve hidratación profunda.",
+          "category": "Adicionales Mani & Pedi",
+          "url": "https://spainfinity.cl/servicio/exfoliacion-manos-pies"
+        },
+        "price": "2900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Drenaje linfático Corporal Premium",
+          "description": "El Drenaje Linfático Corporal Premium es un tratamiento especializado que reduce la retención de líquidos, desinflama y mejora la circulación.",
+          "category": "Tratamientos Desintoxicantes",
+          "url": "https://spainfinity.cl/servicio/desintoxicantes-drenaje-linftico-corporal-premium"
+        },
+        "price": "28800",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación Axilas",
+          "description": "Depilación con cera de alta calidad para una extracción eficaz, dejando la piel limpia y tersa.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-axilas"
+        },
+        "price": "7900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Masaje Descontracturante Premium",
+          "description": "Terapia de presión profunda para deshacer nudos, aliviar sobrecargas musculares y mejorar movilidad.",
+          "category": "Masajes Terapéuticos",
+          "url": "https://spainfinity.cl/servicio/masaje-descontracturante"
+        },
+        "price": "32900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Pack Mirada Expresiva",
+          "description": "Tratamiento completo: lifting u ondulación, perfilación de cejas, tinte y bótox para una mirada intensa y radiante.",
+          "category": "Pestañas & Cejas",
+          "url": "https://spainfinity.cl/servicio/pack-mirada-expresiva"
+        },
+        "price": "30150",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Infinity Anti-Cellulite Pro",
+          "description": "Tratamiento Infinity Anti-Cellulite Pro - Programa 10 sesiones efectivas",
+          "category": "Tratamientos Reductivos",
+          "url": "https://spainfinity.cl/servicio/tratamientos-corporales-infinity-anti-cellulite-pro"
+        },
+        "price": "288000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Podología Clínica + Esmaltado Semipermanente",
+          "description": "Atención profesional integral sumada a un esmaltado semipermanente de alta calidad para proteger y embellecer tus uñas sin comprometer su salud.",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/podologia-esmaltado-semipermanente"
+        },
+        "price": "23600",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Masaje Descontracturante Express",
+          "description": "Técnicas específicas en cuello, espalda y hombros para reducir contracturas y restaurar flexibilidad.",
+          "category": "Masajes Terapéuticos",
+          "url": "https://spainfinity.cl/servicio/masaje-descontracturante-express"
+        },
+        "price": "19900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Drenaje Linfático Zona Específica",
+          "description": "Drena, desinflama y revitaliza tu cuerpo con nuestro Drenaje Linfático en Zona Específica.",
+          "category": "Tratamientos Desintoxicantes",
+          "url": "https://spainfinity.cl/servicio/desintoxicantes-drenaje-linftico-zona-especfica"
+        },
+        "price": "19500",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Uña Encarnada Unilateral",
+          "description": "Tratamiento especializado para uña encarnada unilateral con técnicas seguras de alivio y corrección.\nNota: El valor del servicio es por uña, otras patologías se complementa con el servicio de Atención Podológica Integral",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/una-encarnada-unilateral"
+        },
+        "price": "18900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Pedicure Spa Semipermanente",
+          "description": "Pedicure completa con limpieza, limado, cuidado de cutículas, hidratación y esmaltado semipermanente de larga duración.",
+          "category": "Manicure & Pedicure",
+          "url": "https://spainfinity.cl/servicio/pedicure-spa-semipermanente"
+        },
+        "price": "16500",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Infinity Body Sculpt",
+          "description": "Infinity Body Sculpt - Programa 8 sesiones efectivas",
+          "category": "Tratamientos Reductivos",
+          "url": "https://spainfinity.cl/servicio/tratamientos-corporales-infinity-body-sculpt"
+        },
+        "price": "216000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación Medio Brazo",
+          "description": "Remoción de vello precisa y delicada para un acabado limpio, uniforme y de larga duración.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-medio-brazo"
+        },
+        "price": "11000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Hidratación con Parafina Wax (Manos o Pies)",
+          "description": "Nutrición profunda con calor suave que mejora la circulación, abre los poros y deja la piel suave y rejuvenecida.",
+          "category": "Adicionales Mani & Pedi",
+          "url": "https://spainfinity.cl/servicio/parafina-wax"
+        },
+        "price": "9900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Mantenimiento Lifting/Ondulación (40 días)",
+          "description": "Refresca la curvatura y el cuidado de las pestañas para conservar su forma, fuerza y brillo a los 40 días.",
+          "category": "Pestañas & Cejas",
+          "url": "https://spainfinity.cl/servicio/mantenimiento-lifting"
+        },
+        "price": "19900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Masaje Relajación Premium",
+          "description": "Movimientos suaves y envolventes que favorecen la oxigenación, relajando profundamente y liberando el estrés.",
+          "category": "Masajes Terapéuticos",
+          "url": "https://spainfinity.cl/servicio/masaje-relax"
+        },
+        "price": "25600",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Pack Manicure & Pedicure",
+          "description": "Combina manicure semipermanente con pedicure permanente en una sola sesión de cuidado total.",
+          "category": "Manicure & Pedicure",
+          "url": "https://spainfinity.cl/servicio/pack-manicure-pedicure"
+        },
+        "price": "28500",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Retiro de Esmaltado Simple",
+          "description": "Retiro total y seguro de esmalte permanente. Servicio rápido y profesional protegiendo la salud de las uñas.",
+          "category": "Adicionales Mani & Pedi",
+          "url": "https://spainfinity.cl/servicio/retiro-esmaltado"
+        },
+        "price": "4000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación Brazo Completo",
+          "description": "Eliminación del vello desde el hombro hasta la muñeca con cera de alta calidad para piel suave y uniforme.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-brazo-completo"
+        },
+        "price": "15900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Perfilación de Cejas",
+          "description": "Diseño y perfilado según la estructura del rostro para un acabado equilibrado y armónico que enmarca los ojos.",
+          "category": "Pestañas & Cejas",
+          "url": "https://spainfinity.cl/servicio/perfilacion-cejas"
+        },
+        "price": "9900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Uña Encarnada Bilateral",
+          "description": "Tratamiento clínico y extracción segura de uñas encarnadas bilaterales (onicocriptosis) para aliviar el dolor, reducir la inflamación y sanar la zona afectada.\nNota: El valor del servicio es por uña. \nOtras patologías se complementa con Atención Podológica Integral.",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/una-encarnada-bilateral"
+        },
+        "price": "29900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Infinity Slim Contour",
+          "description": "Infinity Slim Contour - Programa 10 sesiones efectivas",
+          "category": "Tratamientos Reductivos",
+          "url": "https://spainfinity.cl/servicio/tratamientos-corporales-infinity-slim-contour"
+        },
+        "price": "240000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Retiro de Rubber, Polygel o Acrílico",
+          "description": "Remoción profesional de Rubber, Polygel o Acrílico sin causar daño, dejando las uñas limpias y preparadas.",
+          "category": "Adicionales Mani & Pedi",
+          "url": "https://spainfinity.cl/servicio/retiro-polygel-acrilico"
+        },
+        "price": "7000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Masaje Relajación Express",
+          "description": "Alivia el estrés diario con técnicas suaves y terapéuticas para un descanso reparador.",
+          "category": "Masajes Terapéuticos",
+          "url": "https://spainfinity.cl/servicio/masaje-relax-express"
+        },
+        "price": "16200",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Curación Simple",
+          "description": "Procedimiento rápido y seguro diseñado para realizar curaciones de lesiones menores en los pies, asegurando higiene y pronta recuperación.",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/curacion-simple"
+        },
+        "price": "8800",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación Media Pierna",
+          "description": "Extracción efectiva y delicada con cera de calidad para piernas tersas y limpias por semanas.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-media-pierna"
+        },
+        "price": "13000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Infinity Reducción Total 5X",
+          "description": "Reducción Total 5X- 8 sesiones efectivas",
+          "category": "Tratamientos Reductivos",
+          "url": "https://spainfinity.cl/servicio/tratamientos-corporales-infinity-reduccin-total-5x"
+        },
+        "price": "240000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Retiro de Esmaltado + Limpieza",
+          "description": "Retiro profesional de esmalte permanente combinado con limpieza de cutículas, dejando las uñas oxigenadas y preparadas.",
+          "category": "Manicure & Pedicure",
+          "url": "https://spainfinity.cl/servicio/retiro-esmaltado-limpieza"
+        },
+        "price": "13500",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Uñas con Hongos Avanzado",
+          "description": "Sesión especializada para desbridar y realizar limpieza profunda en uñas afectadas por hongos, deteniendo el avance de la infección.\nNota: El servicio es solo en uñas.\nOtras patologías se requiere Atención Podológica Integral.",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/hongos-avanzado"
+        },
+        "price": "21900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Masajes Técnicas Mixtas Premium",
+          "description": "Sesión integral que combina aromaterapia, maniobras de relajación, terapia descontracturante, piedras calientes y un masaje facial–craneal para liberar tensiones, equilibrar el cuerpo y ofrecer un bienestar profundo y renovador.",
+          "category": "Masajes Terapéuticos",
+          "url": "https://spainfinity.cl/servicio/sesion-premium-mixtas"
+        },
+        "price": "33600",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación Pierna Completa",
+          "description": "Eliminación eficaz del vello con cera de alta calidad para piernas completamente suaves y duraderas.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-pierna-completa"
+        },
+        "price": "18900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Tratamiento con Ácido Nítrico",
+          "description": "Aplicación clínica focalizada de ácido nítrico para combatir de manera agresiva y efectiva infecciones por hongos severos (onicomicosis).",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/acido-nitrico"
+        },
+        "price": "30000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación Bikini",
+          "description": "Retiro del vello con cera de manera delicada y precisa, cuidando la piel para dejarla suave y limpia.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-bikini"
+        },
+        "price": "11900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Reflexología Podal",
+          "description": "Estimulación natural de zonas reflejas en los pies para aliviar el estrés y promover bienestar integral.",
+          "category": "Masajes Terapéuticos",
+          "url": "https://spainfinity.cl/servicio/reflexologia-podal"
+        },
+        "price": "18000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Reconstrucción Ungueal",
+          "description": "Procedimiento de onicoplastia para la reconstrucción cosmética y funcional de uñas dañadas o perdidas, devolviéndoles su apariencia natural. Nota el valor es por uña.\nOtras patologías requiere Atención Podológica Integral.",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/reconstruccion-ungual"
+        },
+        "price": "12000",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Depilación Brasilero / Rebaje",
+          "description": "Cera premium y técnicas profesionales para una depilación íntima duradera, precisa y con acabado impecable.",
+          "category": "Depilación",
+          "url": "https://spainfinity.cl/servicio/depilacion-brasilero"
+        },
+        "price": "16900",
+        "priceCurrency": "CLP"
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service",
+          "name": "Ortonixia de las uñas",
+          "description": "Corrección premium de uñas encarnadas con técnica clínica precisa y resultados estéticos naturales.\nNota: El valor es por uña.\nOtras patologías requiere Atención Podológica Integral.",
+          "category": "Podología Clínica",
+          "url": "https://spainfinity.cl/servicio/podologia-clinica-ortonixia-de-las-uas-por-ua"
+        },
+        "price": "12000",
+        "priceCurrency": "CLP"
+      }
+    ]
+  }
+}
+</script>
 </head>
 <body>
 
@@ -1278,6 +2027,141 @@ async function submitHomeContactForm(e) {
 </section>
 
 <!-- FOOTER -->
+
+<!-- SEO Services Directory (discreto, indexable) -->
+<section class="seo-services-directory" aria-label="Directorio completo de servicios">
+  <div class="seo-dir-inner">
+    <h2 class="seo-dir-title">Todos nuestros servicios en Santiago Centro</h2>
+    <p class="seo-dir-intro">Spa Infinity ofrece el catálogo completo de servicios de podología clínica, manicure, pedicure, masajes terapéuticos, depilación, cuidado facial y tratamientos corporales en Santiago Centro.</p>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/podologia-clinica">Podología Clínica</a></h3>
+      <p class="seo-dir-cat-desc">Atención integral, tratamientos preventivos y correctivos especializados para recuperar la salud y el confort de tus pies.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/atencion-podologica-integral" title="Evaluación clínica, corte de uñas, limpieza de surcos, tratamiento de durezas e hidratación profunda para mantener tus pies sanos y renovados.">Atención Podológica Integral</a></li>
+        <li><a href="/servicio/podologia-esmaltado-permanente" title="La combinación perfecta entre un tratamiento podológico clínico riguroso y un acabado estético duradero con esmaltado permanente.">Podología Clínica + Esmaltado Permanente</a></li>
+        <li><a href="/servicio/podologia-esmaltado-semipermanente" title="Atención profesional integral sumada a un esmaltado semipermanente de alta calidad para proteger y embellecer tus uñas sin comprometer su salud.">Podología Clínica + Esmaltado Semipermanente</a></li>
+        <li><a href="/servicio/una-encarnada-unilateral" title="Tratamiento especializado para uña encarnada unilateral con técnicas seguras de alivio y corrección.
+Nota: El valor del servicio es por uña, otras patologías se complementa con el servicio de Atención Podológica Integral">Uña Encarnada Unilateral</a></li>
+        <li><a href="/servicio/una-encarnada-bilateral" title="Tratamiento clínico y extracción segura de uñas encarnadas bilaterales (onicocriptosis) para aliviar el dolor, reducir la inflamación y sanar la zona afectada.
+Nota: El valor del servicio es por uña. 
+Otras patologías se complementa con Atención Podológica Integral.">Uña Encarnada Bilateral</a></li>
+        <li><a href="/servicio/curacion-simple" title="Procedimiento rápido y seguro diseñado para realizar curaciones de lesiones menores en los pies, asegurando higiene y pronta recuperación.">Curación Simple</a></li>
+        <li><a href="/servicio/hongos-avanzado" title="Sesión especializada para desbridar y realizar limpieza profunda en uñas afectadas por hongos, deteniendo el avance de la infección.
+Nota: El servicio es solo en uñas.
+Otras patologías se requiere Atención Podológica Integral.">Uñas con Hongos Avanzado</a></li>
+        <li><a href="/servicio/acido-nitrico" title="Aplicación clínica focalizada de ácido nítrico para combatir de manera agresiva y efectiva infecciones por hongos severos (onicomicosis).">Tratamiento con Ácido Nítrico</a></li>
+        <li><a href="/servicio/reconstruccion-ungual" title="Procedimiento de onicoplastia para la reconstrucción cosmética y funcional de uñas dañadas o perdidas, devolviéndoles su apariencia natural. Nota el valor es por uña.
+Otras patologías requiere Atención Podológica Integral.">Reconstrucción Ungueal</a></li>
+        <li><a href="/servicio/podologia-clinica-ortonixia-de-las-uas-por-ua" title="Corrección premium de uñas encarnadas con técnica clínica precisa y resultados estéticos naturales.
+Nota: El valor es por uña.
+Otras patologías requiere Atención Podológica Integral.">Ortonixia de las uñas</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/manicure-pedicure">Manicure & Pedicure</a></h3>
+      <p class="seo-dir-cat-desc">Cuidado profundo de manos y pies con esmaltados de larga duración y acabados elegantes e impecables.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/manicure-spa-permanente" title="Cuidado de cutículas, limado, hidratación y esmaltado permanente Masglo para unas manos perfectas por semanas.">Manicure Spa Permanente</a></li>
+        <li><a href="/servicio/manicure-spa-semipermanente" title="Limpieza, limado, cuidado de cutículas y esmaltado semipermanente Masglo con resultados hasta 12 días.">Manicure Spa Semipermanente</a></li>
+        <li><a href="/servicio/pedicure-spa-permanente" title="Pedicure completo con limpieza, limado, exfoliación, hidratación y esmaltado permanente de brillo intenso.">Pedicure Spa Permanente</a></li>
+        <li><a href="/servicio/pedicure-spa-semipermanente" title="Pedicure completa con limpieza, limado, cuidado de cutículas, hidratación y esmaltado semipermanente de larga duración.">Pedicure Spa Semipermanente</a></li>
+        <li><a href="/servicio/pack-manicure-pedicure" title="Combina manicure semipermanente con pedicure permanente en una sola sesión de cuidado total.">Pack Manicure & Pedicure</a></li>
+        <li><a href="/servicio/retiro-esmaltado-limpieza" title="Retiro profesional de esmalte permanente combinado con limpieza de cutículas, dejando las uñas oxigenadas y preparadas.">Retiro de Esmaltado + Limpieza</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/adicionales-mani-pedi">Adicionales Mani & Pedi</a></h3>
+      <p class="seo-dir-cat-desc">Complementos ideales de esmaltado, exfoliación, hidratación y retiro seguro de productos para embellecer tus uñas.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/esmaltado-permanente" title="Acabado brillante, duradero y resistente con productos de alta calidad en manos o pies.">Esmaltado Permanente (Manos o Pies)</a></li>
+        <li><a href="/servicio/esmaltado-semipermanente" title="Aplicación de esmalte semipermanente con productos de alta calidad para un acabado radiante y profesional.">Esmaltado Semipermanente (Manos o Pies)</a></li>
+        <li><a href="/servicio/exfoliacion-manos-pies" title="Tratamiento renovador que elimina células muertas, mejora la textura de la piel y promueve hidratación profunda.">Exfoliación Manos o Pies</a></li>
+        <li><a href="/servicio/parafina-wax" title="Nutrición profunda con calor suave que mejora la circulación, abre los poros y deja la piel suave y rejuvenecida.">Hidratación con Parafina Wax (Manos o Pies)</a></li>
+        <li><a href="/servicio/retiro-esmaltado" title="Retiro total y seguro de esmalte permanente. Servicio rápido y profesional protegiendo la salud de las uñas.">Retiro de Esmaltado Simple</a></li>
+        <li><a href="/servicio/retiro-polygel-acrilico" title="Remoción profesional de Rubber, Polygel o Acrílico sin causar daño, dejando las uñas limpias y preparadas.">Retiro de Rubber, Polygel o Acrílico</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/tratamientos-corporales">Tratamientos Reductivos</a></h3>
+      <p class="seo-dir-cat-desc">Técnicas avanzadas de exfoliación, drenaje linfático y aparatología estética para moldear y revitalizar tu cuerpo.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/sesion-inicial-exfoliacion-drenaje" title="Exfoliación profunda seguida de drenaje linfático manual que estimula la circulación, reduce la retención de líquidos y promueve la eliminación de toxinas.">Exfoliación y Drenaje Linfático</a></li>
+        <li><a href="/servicio/tratamiento-corporal-aparatologia" title="Tratamiento personalizado con aparatología estética avanzada (cavitación, vacuun, radiofrecuencia u ondas rusas) según diagnóstico profesional.">Tratamiento Reductivo con Aparatología</a></li>
+        <li><a href="/servicio/tratamientos-corporales-infinity-anti-cellulite-pro" title="Tratamiento Infinity Anti-Cellulite Pro - Programa 10 sesiones efectivas">Infinity Anti-Cellulite Pro</a></li>
+        <li><a href="/servicio/tratamientos-corporales-infinity-body-sculpt" title="Infinity Body Sculpt - Programa 8 sesiones efectivas">Infinity Body Sculpt</a></li>
+        <li><a href="/servicio/tratamientos-corporales-infinity-slim-contour" title="Infinity Slim Contour - Programa 10 sesiones efectivas">Infinity Slim Contour</a></li>
+        <li><a href="/servicio/tratamientos-corporales-infinity-reduccin-total-5x" title="Reducción Total 5X- 8 sesiones efectivas">Infinity Reducción Total 5X</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/desintoxicantes">Tratamientos Desintoxicantes</a></h3>
+      <p class="seo-dir-cat-desc">Terapias diseñadas para purificar el organismo, eliminar toxinas, reducir retención de líquidos y equilibrar tu energía.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/desintoxicacion-pediluvio-ionico" title="Inmersión tibia en pediluvio iónico con sales minerales, diseñada para depurar impurezas, reactivar la energía y renovar la ligereza corporal">Ritual de Purificación Iónica</a></li>
+        <li><a href="/servicio/desintoxicacion-ionica-reflexologia" title="Combina el pediluvio iónico con reflexología en puntos de presión del pie conectados a órganos internos para relajación profunda.">Ritual Iónico + Reflexología</a></li>
+        <li><a href="/servicio/desintoxicantes-drenaje-linftico-corporal-premium" title="El Drenaje Linfático Corporal Premium es un tratamiento especializado que reduce la retención de líquidos, desinflama y mejora la circulación.">Drenaje linfático Corporal Premium</a></li>
+        <li><a href="/servicio/desintoxicantes-drenaje-linftico-zona-especfica" title="Drena, desinflama y revitaliza tu cuerpo con nuestro Drenaje Linfático en Zona Específica.">Drenaje Linfático Zona Específica</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/depilacion">Depilación</a></h3>
+      <p class="seo-dir-cat-desc">Extracción eficaz y delicada con cera de alta calidad para todas las zonas, logrando una piel suave por más tiempo.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/depilacion-facial" title="Eliminación delicada y efectiva del vello facial para un rostro limpio, luminoso y perfectamente cuidado.">Depilación Facial (Rostro Completo)</a></li>
+        <li><a href="/servicio/depilacion-zonas-faciales" title="Eliminación precisa de vello facial en zonas específicas para una apariencia limpia, natural y definida.">Depilación por Zonas Faciales (Patillas, Bozo, Nariz)</a></li>
+        <li><a href="/servicio/depilacion-axilas" title="Depilación con cera de alta calidad para una extracción eficaz, dejando la piel limpia y tersa.">Depilación Axilas</a></li>
+        <li><a href="/servicio/depilacion-medio-brazo" title="Remoción de vello precisa y delicada para un acabado limpio, uniforme y de larga duración.">Depilación Medio Brazo</a></li>
+        <li><a href="/servicio/depilacion-brazo-completo" title="Eliminación del vello desde el hombro hasta la muñeca con cera de alta calidad para piel suave y uniforme.">Depilación Brazo Completo</a></li>
+        <li><a href="/servicio/depilacion-media-pierna" title="Extracción efectiva y delicada con cera de calidad para piernas tersas y limpias por semanas.">Depilación Media Pierna</a></li>
+        <li><a href="/servicio/depilacion-pierna-completa" title="Eliminación eficaz del vello con cera de alta calidad para piernas completamente suaves y duraderas.">Depilación Pierna Completa</a></li>
+        <li><a href="/servicio/depilacion-bikini" title="Retiro del vello con cera de manera delicada y precisa, cuidando la piel para dejarla suave y limpia.">Depilación Bikini</a></li>
+        <li><a href="/servicio/depilacion-brasilero" title="Cera premium y técnicas profesionales para una depilación íntima duradera, precisa y con acabado impecable.">Depilación Brasilero / Rebaje</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/cuidado-facial-spa">Cuidado Facial Spa</a></h3>
+      <p class="seo-dir-cat-desc">Limpiezas profundas y tratamientos revitalizantes con tecnología estética para un rostro luminoso y saludable.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/limpieza-facial-profunda" title="Limpieza facial personalizada con tecnología avanzada y principios activos según tu tipo de piel para una tez limpia y radiante.">Limpieza Facial Profunda</a></li>
+        <li><a href="/servicio/limpieza-espalda" title="Limpieza profesional de espalda con exfoliación, extracción, masaje relajante e hidratación profunda.">Limpieza de Espalda</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/masajes-terapeuticos">Masajes Terapéuticos</a></h3>
+      <p class="seo-dir-cat-desc">Relajación profunda, alivio de tensiones y bienestar integral a través de técnicas expertas y piedras calientes.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/masaje-piedras-calientes" title="Tratamiento terapéutico con calor volcánico que alivia tensiones, reduce el estrés y mejora la circulación.">Masaje con Piedras Calientes Premium</a></li>
+        <li><a href="/servicio/masaje-piedras-express" title="Equilibrio del calor volcánico en sesión concentrada para liberar tensiones y renovar cuerpo y mente.">Masaje con Piedras Calientes Express</a></li>
+        <li><a href="/servicio/masaje-descontracturante" title="Terapia de presión profunda para deshacer nudos, aliviar sobrecargas musculares y mejorar movilidad.">Masaje Descontracturante Premium</a></li>
+        <li><a href="/servicio/masaje-descontracturante-express" title="Técnicas específicas en cuello, espalda y hombros para reducir contracturas y restaurar flexibilidad.">Masaje Descontracturante Express</a></li>
+        <li><a href="/servicio/masaje-relax" title="Movimientos suaves y envolventes que favorecen la oxigenación, relajando profundamente y liberando el estrés.">Masaje Relajación Premium</a></li>
+        <li><a href="/servicio/masaje-relax-express" title="Alivia el estrés diario con técnicas suaves y terapéuticas para un descanso reparador.">Masaje Relajación Express</a></li>
+        <li><a href="/servicio/sesion-premium-mixtas" title="Sesión integral que combina aromaterapia, maniobras de relajación, terapia descontracturante, piedras calientes y un masaje facial–craneal para liberar tensiones, equilibrar el cuerpo y ofrecer un bienestar profundo y renovador.">Masajes Técnicas Mixtas Premium</a></li>
+        <li><a href="/servicio/reflexologia-podal" title="Estimulación natural de zonas reflejas en los pies para aliviar el estrés y promover bienestar integral.">Reflexología Podal</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/pestanas-cejas">Pestañas & Cejas</a></h3>
+      <p class="seo-dir-cat-desc">Realza tu mirada con tratamientos de lifting, ondulación, tinte, bótox y perfilación armónica de cejas.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/lifting-tinte-botox" title="Eleva y curva las pestañas desde la raíz, tinte que intensifica el color natural y bótox que nutre cada pestaña. Dura hasta 6 semanas.">Lifting de Pestañas + Tinte + Bótox</a></li>
+        <li><a href="/servicio/ondulacion-tinte-botox" title="Curvatura suave y natural, color intenso con tinte y tratamiento botánico que nutre y fortalece cada pestaña.">Ondulación de Pestañas + Tinte + Bótox</a></li>
+        <li><a href="/servicio/pack-mirada-expresiva" title="Tratamiento completo: lifting u ondulación, perfilación de cejas, tinte y bótox para una mirada intensa y radiante.">Pack Mirada Expresiva</a></li>
+        <li><a href="/servicio/mantenimiento-lifting" title="Refresca la curvatura y el cuidado de las pestañas para conservar su forma, fuerza y brillo a los 40 días.">Mantenimiento Lifting/Ondulación (40 días)</a></li>
+        <li><a href="/servicio/perfilacion-cejas" title="Diseño y perfilado según la estructura del rostro para un acabado equilibrado y armónico que enmarca los ojos.">Perfilación de Cejas</a></li>
+      </ul>
+    </div>
+    <div class="seo-dir-cat">
+      <h3><a href="/categoria/plantillas">Plantillas Personalizadas</a></h3>
+      <p class="seo-dir-cat-desc">Evaluación biomecánica + plantillas personalizadas ofrece un enfoque completo para mejorar tu bienestar desde la base: tus pies.</p>
+      <ul class="seo-dir-list">
+        <li><a href="/servicio/plantillas-asd" title="Evaluación Biomecánica+Plantillas Confortables. Ideal para el dia dia una, 100% amortiguables.">Plantillas Step Comfort</a></li>
+        <li><a href="/servicio/plantillas-prueba-2" title="Evaluación Biomecánica+Plantillas de Cuero. Ideal para zapatos de vestir fino.">Plantillas Step Executive</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <div id="footerContainer"></div>
 <div id="floatingContainer"></div>
 
