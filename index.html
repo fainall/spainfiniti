@@ -34,7 +34,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="/styles.css?v=10">
+<link rel="stylesheet" href="/styles.css?v=11">
 <style>
 /* ── CATEGORY WHEEL (HERO) ─────────────────── */
 .category-wheel-section {
@@ -2039,131 +2039,191 @@ async function submitHomeContactForm(e) {
     </header>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/podologia-clinica">Podología Clínica</a><span class="seo-dir-cat-meta">10 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Atención integral, tratamientos preventivos y correctivos especializados para recuperar la salud y el confort de tus pies.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/atencion-podologica-integral" title="Evaluación clínica, corte de uñas, limpieza de surcos, tratamiento de durezas e hidratación profunda para mantener tus pies sanos y renovados.">Atención Podológica Integral</a></li>
-        <li><a href="/servicio/podologia-esmaltado-permanente" title="La combinación perfecta entre un tratamiento podológico clínico riguroso y un acabado estético duradero con esmaltado permanente.">Podología Clínica + Esmaltado Permanente</a></li>
-        <li><a href="/servicio/podologia-esmaltado-semipermanente" title="Atención profesional integral sumada a un esmaltado semipermanente de alta calidad para proteger y embellecer tus uñas sin comprometer su salud.">Podología Clínica + Esmaltado Semipermanente</a></li>
-        <li><a href="/servicio/una-encarnada-unilateral" title="Tratamiento especializado para uña encarnada unilateral con técnicas seguras de alivio y corrección. Nota: El valor del servicio es por uña, otras patologías se complementa con el servicio de Atención Podológica Integral">Uña Encarnada Unilateral</a></li>
-        <li><a href="/servicio/una-encarnada-bilateral" title="Tratamiento clínico y extracción segura de uñas encarnadas bilaterales (onicocriptosis) para aliviar el dolor, reducir la inflamación y sanar la zona afectada. Nota: El valor del servicio es por uña.  Otras patologías se complementa con Atención Podológica Integral.">Uña Encarnada Bilateral</a></li>
-        <li><a href="/servicio/curacion-simple" title="Procedimiento rápido y seguro diseñado para realizar curaciones de lesiones menores en los pies, asegurando higiene y pronta recuperación.">Curación Simple</a></li>
-        <li><a href="/servicio/hongos-avanzado" title="Sesión especializada para desbridar y realizar limpieza profunda en uñas afectadas por hongos, deteniendo el avance de la infección. Nota: El servicio es solo en uñas. Otras patologías se requiere Atención Podológica Integral.">Uñas con Hongos Avanzado</a></li>
-        <li><a href="/servicio/acido-nitrico" title="Aplicación clínica focalizada de ácido nítrico para combatir de manera agresiva y efectiva infecciones por hongos severos (onicomicosis).">Tratamiento con Ácido Nítrico</a></li>
-        <li><a href="/servicio/reconstruccion-ungual" title="Procedimiento de onicoplastia para la reconstrucción cosmética y funcional de uñas dañadas o perdidas, devolviéndoles su apariencia natural. Nota el valor es por uña. Otras patologías requiere Atención Podológica Integral.">Reconstrucción Ungueal</a></li>
-        <li><a href="/servicio/podologia-clinica-ortonixia-de-las-uas-por-ua" title="Corrección premium de uñas encarnadas con técnica clínica precisa y resultados estéticos naturales. Nota: El valor es por uña. Otras patologías requiere Atención Podológica Integral.">Ortonixia de las uñas</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Podología Clínica</span><span class="seo-dir-cat-meta">10 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Atención integral, tratamientos preventivos y correctivos especializados para recuperar la salud y el confort de tus pies.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/atencion-podologica-integral" title="Evaluación clínica, corte de uñas, limpieza de surcos, tratamiento de durezas e hidratación profunda para mantener tus pies sanos y renovados.">Atención Podológica Integral</a></li>
+          <li><a href="/servicio/podologia-esmaltado-permanente" title="La combinación perfecta entre un tratamiento podológico clínico riguroso y un acabado estético duradero con esmaltado permanente.">Podología Clínica + Esmaltado Permanente</a></li>
+          <li><a href="/servicio/podologia-esmaltado-semipermanente" title="Atención profesional integral sumada a un esmaltado semipermanente de alta calidad para proteger y embellecer tus uñas sin comprometer su salud.">Podología Clínica + Esmaltado Semipermanente</a></li>
+          <li><a href="/servicio/una-encarnada-unilateral" title="Tratamiento especializado para uña encarnada unilateral con técnicas seguras de alivio y corrección. Nota: El valor del servicio es por uña, otras patologías se complementa con el servicio de Atención Podológica Integral">Uña Encarnada Unilateral</a></li>
+          <li><a href="/servicio/una-encarnada-bilateral" title="Tratamiento clínico y extracción segura de uñas encarnadas bilaterales (onicocriptosis) para aliviar el dolor, reducir la inflamación y sanar la zona afectada. Nota: El valor del servicio es por uña.  Otras patologías se complementa con Atención Podológica Integral.">Uña Encarnada Bilateral</a></li>
+          <li><a href="/servicio/curacion-simple" title="Procedimiento rápido y seguro diseñado para realizar curaciones de lesiones menores en los pies, asegurando higiene y pronta recuperación.">Curación Simple</a></li>
+          <li><a href="/servicio/hongos-avanzado" title="Sesión especializada para desbridar y realizar limpieza profunda en uñas afectadas por hongos, deteniendo el avance de la infección. Nota: El servicio es solo en uñas. Otras patologías se requiere Atención Podológica Integral.">Uñas con Hongos Avanzado</a></li>
+          <li><a href="/servicio/acido-nitrico" title="Aplicación clínica focalizada de ácido nítrico para combatir de manera agresiva y efectiva infecciones por hongos severos (onicomicosis).">Tratamiento con Ácido Nítrico</a></li>
+          <li><a href="/servicio/reconstruccion-ungual" title="Procedimiento de onicoplastia para la reconstrucción cosmética y funcional de uñas dañadas o perdidas, devolviéndoles su apariencia natural. Nota el valor es por uña. Otras patologías requiere Atención Podológica Integral.">Reconstrucción Ungueal</a></li>
+          <li><a href="/servicio/podologia-clinica-ortonixia-de-las-uas-por-ua" title="Corrección premium de uñas encarnadas con técnica clínica precisa y resultados estéticos naturales. Nota: El valor es por uña. Otras patologías requiere Atención Podológica Integral.">Ortonixia de las uñas</a></li>
+        </ul>
+        <a href="/categoria/podologia-clinica" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/manicure-pedicure">Manicure & Pedicure</a><span class="seo-dir-cat-meta">6 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Cuidado profundo de manos y pies con esmaltados de larga duración y acabados elegantes e impecables.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/manicure-spa-permanente" title="Cuidado de cutículas, limado, hidratación y esmaltado permanente Masglo para unas manos perfectas por semanas.">Manicure Spa Permanente</a></li>
-        <li><a href="/servicio/manicure-spa-semipermanente" title="Limpieza, limado, cuidado de cutículas y esmaltado semipermanente Masglo con resultados hasta 12 días.">Manicure Spa Semipermanente</a></li>
-        <li><a href="/servicio/pedicure-spa-permanente" title="Pedicure completo con limpieza, limado, exfoliación, hidratación y esmaltado permanente de brillo intenso.">Pedicure Spa Permanente</a></li>
-        <li><a href="/servicio/pedicure-spa-semipermanente" title="Pedicure completa con limpieza, limado, cuidado de cutículas, hidratación y esmaltado semipermanente de larga duración.">Pedicure Spa Semipermanente</a></li>
-        <li><a href="/servicio/pack-manicure-pedicure" title="Combina manicure semipermanente con pedicure permanente en una sola sesión de cuidado total.">Pack Manicure & Pedicure</a></li>
-        <li><a href="/servicio/retiro-esmaltado-limpieza" title="Retiro profesional de esmalte permanente combinado con limpieza de cutículas, dejando las uñas oxigenadas y preparadas.">Retiro de Esmaltado + Limpieza</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Manicure & Pedicure</span><span class="seo-dir-cat-meta">6 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Cuidado profundo de manos y pies con esmaltados de larga duración y acabados elegantes e impecables.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/manicure-spa-permanente" title="Cuidado de cutículas, limado, hidratación y esmaltado permanente Masglo para unas manos perfectas por semanas.">Manicure Spa Permanente</a></li>
+          <li><a href="/servicio/manicure-spa-semipermanente" title="Limpieza, limado, cuidado de cutículas y esmaltado semipermanente Masglo con resultados hasta 12 días.">Manicure Spa Semipermanente</a></li>
+          <li><a href="/servicio/pedicure-spa-permanente" title="Pedicure completo con limpieza, limado, exfoliación, hidratación y esmaltado permanente de brillo intenso.">Pedicure Spa Permanente</a></li>
+          <li><a href="/servicio/pedicure-spa-semipermanente" title="Pedicure completa con limpieza, limado, cuidado de cutículas, hidratación y esmaltado semipermanente de larga duración.">Pedicure Spa Semipermanente</a></li>
+          <li><a href="/servicio/pack-manicure-pedicure" title="Combina manicure semipermanente con pedicure permanente en una sola sesión de cuidado total.">Pack Manicure & Pedicure</a></li>
+          <li><a href="/servicio/retiro-esmaltado-limpieza" title="Retiro profesional de esmalte permanente combinado con limpieza de cutículas, dejando las uñas oxigenadas y preparadas.">Retiro de Esmaltado + Limpieza</a></li>
+        </ul>
+        <a href="/categoria/manicure-pedicure" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/adicionales-mani-pedi">Adicionales Mani & Pedi</a><span class="seo-dir-cat-meta">6 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Complementos ideales de esmaltado, exfoliación, hidratación y retiro seguro de productos para embellecer tus uñas.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/esmaltado-permanente" title="Acabado brillante, duradero y resistente con productos de alta calidad en manos o pies.">Esmaltado Permanente (Manos o Pies)</a></li>
-        <li><a href="/servicio/esmaltado-semipermanente" title="Aplicación de esmalte semipermanente con productos de alta calidad para un acabado radiante y profesional.">Esmaltado Semipermanente (Manos o Pies)</a></li>
-        <li><a href="/servicio/exfoliacion-manos-pies" title="Tratamiento renovador que elimina células muertas, mejora la textura de la piel y promueve hidratación profunda.">Exfoliación Manos o Pies</a></li>
-        <li><a href="/servicio/parafina-wax" title="Nutrición profunda con calor suave que mejora la circulación, abre los poros y deja la piel suave y rejuvenecida.">Hidratación con Parafina Wax (Manos o Pies)</a></li>
-        <li><a href="/servicio/retiro-esmaltado" title="Retiro total y seguro de esmalte permanente. Servicio rápido y profesional protegiendo la salud de las uñas.">Retiro de Esmaltado Simple</a></li>
-        <li><a href="/servicio/retiro-polygel-acrilico" title="Remoción profesional de Rubber, Polygel o Acrílico sin causar daño, dejando las uñas limpias y preparadas.">Retiro de Rubber, Polygel o Acrílico</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Adicionales Mani & Pedi</span><span class="seo-dir-cat-meta">6 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Complementos ideales de esmaltado, exfoliación, hidratación y retiro seguro de productos para embellecer tus uñas.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/esmaltado-permanente" title="Acabado brillante, duradero y resistente con productos de alta calidad en manos o pies.">Esmaltado Permanente (Manos o Pies)</a></li>
+          <li><a href="/servicio/esmaltado-semipermanente" title="Aplicación de esmalte semipermanente con productos de alta calidad para un acabado radiante y profesional.">Esmaltado Semipermanente (Manos o Pies)</a></li>
+          <li><a href="/servicio/exfoliacion-manos-pies" title="Tratamiento renovador que elimina células muertas, mejora la textura de la piel y promueve hidratación profunda.">Exfoliación Manos o Pies</a></li>
+          <li><a href="/servicio/parafina-wax" title="Nutrición profunda con calor suave que mejora la circulación, abre los poros y deja la piel suave y rejuvenecida.">Hidratación con Parafina Wax (Manos o Pies)</a></li>
+          <li><a href="/servicio/retiro-esmaltado" title="Retiro total y seguro de esmalte permanente. Servicio rápido y profesional protegiendo la salud de las uñas.">Retiro de Esmaltado Simple</a></li>
+          <li><a href="/servicio/retiro-polygel-acrilico" title="Remoción profesional de Rubber, Polygel o Acrílico sin causar daño, dejando las uñas limpias y preparadas.">Retiro de Rubber, Polygel o Acrílico</a></li>
+        </ul>
+        <a href="/categoria/adicionales-mani-pedi" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/tratamientos-corporales">Tratamientos Reductivos</a><span class="seo-dir-cat-meta">6 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Técnicas avanzadas de exfoliación, drenaje linfático y aparatología estética para moldear y revitalizar tu cuerpo.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/sesion-inicial-exfoliacion-drenaje" title="Exfoliación profunda seguida de drenaje linfático manual que estimula la circulación, reduce la retención de líquidos y promueve la eliminación de toxinas.">Exfoliación y Drenaje Linfático</a></li>
-        <li><a href="/servicio/tratamiento-corporal-aparatologia" title="Tratamiento personalizado con aparatología estética avanzada (cavitación, vacuun, radiofrecuencia u ondas rusas) según diagnóstico profesional.">Tratamiento Reductivo con Aparatología</a></li>
-        <li><a href="/servicio/tratamientos-corporales-infinity-anti-cellulite-pro" title="Tratamiento Infinity Anti-Cellulite Pro - Programa 10 sesiones efectivas">Infinity Anti-Cellulite Pro</a></li>
-        <li><a href="/servicio/tratamientos-corporales-infinity-body-sculpt" title="Infinity Body Sculpt - Programa 8 sesiones efectivas">Infinity Body Sculpt</a></li>
-        <li><a href="/servicio/tratamientos-corporales-infinity-slim-contour" title="Infinity Slim Contour - Programa 10 sesiones efectivas">Infinity Slim Contour</a></li>
-        <li><a href="/servicio/tratamientos-corporales-infinity-reduccin-total-5x" title="Reducción Total 5X- 8 sesiones efectivas">Infinity Reducción Total 5X</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Tratamientos Reductivos</span><span class="seo-dir-cat-meta">6 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Técnicas avanzadas de exfoliación, drenaje linfático y aparatología estética para moldear y revitalizar tu cuerpo.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/sesion-inicial-exfoliacion-drenaje" title="Exfoliación profunda seguida de drenaje linfático manual que estimula la circulación, reduce la retención de líquidos y promueve la eliminación de toxinas.">Exfoliación y Drenaje Linfático</a></li>
+          <li><a href="/servicio/tratamiento-corporal-aparatologia" title="Tratamiento personalizado con aparatología estética avanzada (cavitación, vacuun, radiofrecuencia u ondas rusas) según diagnóstico profesional.">Tratamiento Reductivo con Aparatología</a></li>
+          <li><a href="/servicio/tratamientos-corporales-infinity-anti-cellulite-pro" title="Tratamiento Infinity Anti-Cellulite Pro - Programa 10 sesiones efectivas">Infinity Anti-Cellulite Pro</a></li>
+          <li><a href="/servicio/tratamientos-corporales-infinity-body-sculpt" title="Infinity Body Sculpt - Programa 8 sesiones efectivas">Infinity Body Sculpt</a></li>
+          <li><a href="/servicio/tratamientos-corporales-infinity-slim-contour" title="Infinity Slim Contour - Programa 10 sesiones efectivas">Infinity Slim Contour</a></li>
+          <li><a href="/servicio/tratamientos-corporales-infinity-reduccin-total-5x" title="Reducción Total 5X- 8 sesiones efectivas">Infinity Reducción Total 5X</a></li>
+        </ul>
+        <a href="/categoria/tratamientos-corporales" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/desintoxicantes">Tratamientos Desintoxicantes</a><span class="seo-dir-cat-meta">4 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Terapias diseñadas para purificar el organismo, eliminar toxinas, reducir retención de líquidos y equilibrar tu energía.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/desintoxicacion-pediluvio-ionico" title="Inmersión tibia en pediluvio iónico con sales minerales, diseñada para depurar impurezas, reactivar la energía y renovar la ligereza corporal">Ritual de Purificación Iónica</a></li>
-        <li><a href="/servicio/desintoxicacion-ionica-reflexologia" title="Combina el pediluvio iónico con reflexología en puntos de presión del pie conectados a órganos internos para relajación profunda.">Ritual Iónico + Reflexología</a></li>
-        <li><a href="/servicio/desintoxicantes-drenaje-linftico-corporal-premium" title="El Drenaje Linfático Corporal Premium es un tratamiento especializado que reduce la retención de líquidos, desinflama y mejora la circulación.">Drenaje linfático Corporal Premium</a></li>
-        <li><a href="/servicio/desintoxicantes-drenaje-linftico-zona-especfica" title="Drena, desinflama y revitaliza tu cuerpo con nuestro Drenaje Linfático en Zona Específica.">Drenaje Linfático Zona Específica</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Tratamientos Desintoxicantes</span><span class="seo-dir-cat-meta">4 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Terapias diseñadas para purificar el organismo, eliminar toxinas, reducir retención de líquidos y equilibrar tu energía.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/desintoxicacion-pediluvio-ionico" title="Inmersión tibia en pediluvio iónico con sales minerales, diseñada para depurar impurezas, reactivar la energía y renovar la ligereza corporal">Ritual de Purificación Iónica</a></li>
+          <li><a href="/servicio/desintoxicacion-ionica-reflexologia" title="Combina el pediluvio iónico con reflexología en puntos de presión del pie conectados a órganos internos para relajación profunda.">Ritual Iónico + Reflexología</a></li>
+          <li><a href="/servicio/desintoxicantes-drenaje-linftico-corporal-premium" title="El Drenaje Linfático Corporal Premium es un tratamiento especializado que reduce la retención de líquidos, desinflama y mejora la circulación.">Drenaje linfático Corporal Premium</a></li>
+          <li><a href="/servicio/desintoxicantes-drenaje-linftico-zona-especfica" title="Drena, desinflama y revitaliza tu cuerpo con nuestro Drenaje Linfático en Zona Específica.">Drenaje Linfático Zona Específica</a></li>
+        </ul>
+        <a href="/categoria/desintoxicantes" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/depilacion">Depilación</a><span class="seo-dir-cat-meta">9 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Extracción eficaz y delicada con cera de alta calidad para todas las zonas, logrando una piel suave por más tiempo.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/depilacion-facial" title="Eliminación delicada y efectiva del vello facial para un rostro limpio, luminoso y perfectamente cuidado.">Depilación Facial (Rostro Completo)</a></li>
-        <li><a href="/servicio/depilacion-zonas-faciales" title="Eliminación precisa de vello facial en zonas específicas para una apariencia limpia, natural y definida.">Depilación por Zonas Faciales (Patillas, Bozo, Nariz)</a></li>
-        <li><a href="/servicio/depilacion-axilas" title="Depilación con cera de alta calidad para una extracción eficaz, dejando la piel limpia y tersa.">Depilación Axilas</a></li>
-        <li><a href="/servicio/depilacion-medio-brazo" title="Remoción de vello precisa y delicada para un acabado limpio, uniforme y de larga duración.">Depilación Medio Brazo</a></li>
-        <li><a href="/servicio/depilacion-brazo-completo" title="Eliminación del vello desde el hombro hasta la muñeca con cera de alta calidad para piel suave y uniforme.">Depilación Brazo Completo</a></li>
-        <li><a href="/servicio/depilacion-media-pierna" title="Extracción efectiva y delicada con cera de calidad para piernas tersas y limpias por semanas.">Depilación Media Pierna</a></li>
-        <li><a href="/servicio/depilacion-pierna-completa" title="Eliminación eficaz del vello con cera de alta calidad para piernas completamente suaves y duraderas.">Depilación Pierna Completa</a></li>
-        <li><a href="/servicio/depilacion-bikini" title="Retiro del vello con cera de manera delicada y precisa, cuidando la piel para dejarla suave y limpia.">Depilación Bikini</a></li>
-        <li><a href="/servicio/depilacion-brasilero" title="Cera premium y técnicas profesionales para una depilación íntima duradera, precisa y con acabado impecable.">Depilación Brasilero / Rebaje</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Depilación</span><span class="seo-dir-cat-meta">9 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Extracción eficaz y delicada con cera de alta calidad para todas las zonas, logrando una piel suave por más tiempo.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/depilacion-facial" title="Eliminación delicada y efectiva del vello facial para un rostro limpio, luminoso y perfectamente cuidado.">Depilación Facial (Rostro Completo)</a></li>
+          <li><a href="/servicio/depilacion-zonas-faciales" title="Eliminación precisa de vello facial en zonas específicas para una apariencia limpia, natural y definida.">Depilación por Zonas Faciales (Patillas, Bozo, Nariz)</a></li>
+          <li><a href="/servicio/depilacion-axilas" title="Depilación con cera de alta calidad para una extracción eficaz, dejando la piel limpia y tersa.">Depilación Axilas</a></li>
+          <li><a href="/servicio/depilacion-medio-brazo" title="Remoción de vello precisa y delicada para un acabado limpio, uniforme y de larga duración.">Depilación Medio Brazo</a></li>
+          <li><a href="/servicio/depilacion-brazo-completo" title="Eliminación del vello desde el hombro hasta la muñeca con cera de alta calidad para piel suave y uniforme.">Depilación Brazo Completo</a></li>
+          <li><a href="/servicio/depilacion-media-pierna" title="Extracción efectiva y delicada con cera de calidad para piernas tersas y limpias por semanas.">Depilación Media Pierna</a></li>
+          <li><a href="/servicio/depilacion-pierna-completa" title="Eliminación eficaz del vello con cera de alta calidad para piernas completamente suaves y duraderas.">Depilación Pierna Completa</a></li>
+          <li><a href="/servicio/depilacion-bikini" title="Retiro del vello con cera de manera delicada y precisa, cuidando la piel para dejarla suave y limpia.">Depilación Bikini</a></li>
+          <li><a href="/servicio/depilacion-brasilero" title="Cera premium y técnicas profesionales para una depilación íntima duradera, precisa y con acabado impecable.">Depilación Brasilero / Rebaje</a></li>
+        </ul>
+        <a href="/categoria/depilacion" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/cuidado-facial-spa">Cuidado Facial Spa</a><span class="seo-dir-cat-meta">2 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Limpiezas profundas y tratamientos revitalizantes con tecnología estética para un rostro luminoso y saludable.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/limpieza-facial-profunda" title="Limpieza facial personalizada con tecnología avanzada y principios activos según tu tipo de piel para una tez limpia y radiante.">Limpieza Facial Profunda</a></li>
-        <li><a href="/servicio/limpieza-espalda" title="Limpieza profesional de espalda con exfoliación, extracción, masaje relajante e hidratación profunda.">Limpieza de Espalda</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Cuidado Facial Spa</span><span class="seo-dir-cat-meta">2 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Limpiezas profundas y tratamientos revitalizantes con tecnología estética para un rostro luminoso y saludable.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/limpieza-facial-profunda" title="Limpieza facial personalizada con tecnología avanzada y principios activos según tu tipo de piel para una tez limpia y radiante.">Limpieza Facial Profunda</a></li>
+          <li><a href="/servicio/limpieza-espalda" title="Limpieza profesional de espalda con exfoliación, extracción, masaje relajante e hidratación profunda.">Limpieza de Espalda</a></li>
+        </ul>
+        <a href="/categoria/cuidado-facial-spa" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/masajes-terapeuticos">Masajes Terapéuticos</a><span class="seo-dir-cat-meta">8 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Relajación profunda, alivio de tensiones y bienestar integral a través de técnicas expertas y piedras calientes.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/masaje-piedras-calientes" title="Tratamiento terapéutico con calor volcánico que alivia tensiones, reduce el estrés y mejora la circulación.">Masaje con Piedras Calientes Premium</a></li>
-        <li><a href="/servicio/masaje-piedras-express" title="Equilibrio del calor volcánico en sesión concentrada para liberar tensiones y renovar cuerpo y mente.">Masaje con Piedras Calientes Express</a></li>
-        <li><a href="/servicio/masaje-descontracturante" title="Terapia de presión profunda para deshacer nudos, aliviar sobrecargas musculares y mejorar movilidad.">Masaje Descontracturante Premium</a></li>
-        <li><a href="/servicio/masaje-descontracturante-express" title="Técnicas específicas en cuello, espalda y hombros para reducir contracturas y restaurar flexibilidad.">Masaje Descontracturante Express</a></li>
-        <li><a href="/servicio/masaje-relax" title="Movimientos suaves y envolventes que favorecen la oxigenación, relajando profundamente y liberando el estrés.">Masaje Relajación Premium</a></li>
-        <li><a href="/servicio/masaje-relax-express" title="Alivia el estrés diario con técnicas suaves y terapéuticas para un descanso reparador.">Masaje Relajación Express</a></li>
-        <li><a href="/servicio/sesion-premium-mixtas" title="Sesión integral que combina aromaterapia, maniobras de relajación, terapia descontracturante, piedras calientes y un masaje facial–craneal para liberar tensiones, equilibrar el cuerpo y ofrecer un bienestar profundo y renovador.">Masajes Técnicas Mixtas Premium</a></li>
-        <li><a href="/servicio/reflexologia-podal" title="Estimulación natural de zonas reflejas en los pies para aliviar el estrés y promover bienestar integral.">Reflexología Podal</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Masajes Terapéuticos</span><span class="seo-dir-cat-meta">8 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Relajación profunda, alivio de tensiones y bienestar integral a través de técnicas expertas y piedras calientes.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/masaje-piedras-calientes" title="Tratamiento terapéutico con calor volcánico que alivia tensiones, reduce el estrés y mejora la circulación.">Masaje con Piedras Calientes Premium</a></li>
+          <li><a href="/servicio/masaje-piedras-express" title="Equilibrio del calor volcánico en sesión concentrada para liberar tensiones y renovar cuerpo y mente.">Masaje con Piedras Calientes Express</a></li>
+          <li><a href="/servicio/masaje-descontracturante" title="Terapia de presión profunda para deshacer nudos, aliviar sobrecargas musculares y mejorar movilidad.">Masaje Descontracturante Premium</a></li>
+          <li><a href="/servicio/masaje-descontracturante-express" title="Técnicas específicas en cuello, espalda y hombros para reducir contracturas y restaurar flexibilidad.">Masaje Descontracturante Express</a></li>
+          <li><a href="/servicio/masaje-relax" title="Movimientos suaves y envolventes que favorecen la oxigenación, relajando profundamente y liberando el estrés.">Masaje Relajación Premium</a></li>
+          <li><a href="/servicio/masaje-relax-express" title="Alivia el estrés diario con técnicas suaves y terapéuticas para un descanso reparador.">Masaje Relajación Express</a></li>
+          <li><a href="/servicio/sesion-premium-mixtas" title="Sesión integral que combina aromaterapia, maniobras de relajación, terapia descontracturante, piedras calientes y un masaje facial–craneal para liberar tensiones, equilibrar el cuerpo y ofrecer un bienestar profundo y renovador.">Masajes Técnicas Mixtas Premium</a></li>
+          <li><a href="/servicio/reflexologia-podal" title="Estimulación natural de zonas reflejas en los pies para aliviar el estrés y promover bienestar integral.">Reflexología Podal</a></li>
+        </ul>
+        <a href="/categoria/masajes-terapeuticos" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/pestanas-cejas">Pestañas & Cejas</a><span class="seo-dir-cat-meta">5 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Realza tu mirada con tratamientos de lifting, ondulación, tinte, bótox y perfilación armónica de cejas.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/lifting-tinte-botox" title="Eleva y curva las pestañas desde la raíz, tinte que intensifica el color natural y bótox que nutre cada pestaña. Dura hasta 6 semanas.">Lifting de Pestañas + Tinte + Bótox</a></li>
-        <li><a href="/servicio/ondulacion-tinte-botox" title="Curvatura suave y natural, color intenso con tinte y tratamiento botánico que nutre y fortalece cada pestaña.">Ondulación de Pestañas + Tinte + Bótox</a></li>
-        <li><a href="/servicio/pack-mirada-expresiva" title="Tratamiento completo: lifting u ondulación, perfilación de cejas, tinte y bótox para una mirada intensa y radiante.">Pack Mirada Expresiva</a></li>
-        <li><a href="/servicio/mantenimiento-lifting" title="Refresca la curvatura y el cuidado de las pestañas para conservar su forma, fuerza y brillo a los 40 días.">Mantenimiento Lifting/Ondulación (40 días)</a></li>
-        <li><a href="/servicio/perfilacion-cejas" title="Diseño y perfilado según la estructura del rostro para un acabado equilibrado y armónico que enmarca los ojos.">Perfilación de Cejas</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Pestañas & Cejas</span><span class="seo-dir-cat-meta">5 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Realza tu mirada con tratamientos de lifting, ondulación, tinte, bótox y perfilación armónica de cejas.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/lifting-tinte-botox" title="Eleva y curva las pestañas desde la raíz, tinte que intensifica el color natural y bótox que nutre cada pestaña. Dura hasta 6 semanas.">Lifting de Pestañas + Tinte + Bótox</a></li>
+          <li><a href="/servicio/ondulacion-tinte-botox" title="Curvatura suave y natural, color intenso con tinte y tratamiento botánico que nutre y fortalece cada pestaña.">Ondulación de Pestañas + Tinte + Bótox</a></li>
+          <li><a href="/servicio/pack-mirada-expresiva" title="Tratamiento completo: lifting u ondulación, perfilación de cejas, tinte y bótox para una mirada intensa y radiante.">Pack Mirada Expresiva</a></li>
+          <li><a href="/servicio/mantenimiento-lifting" title="Refresca la curvatura y el cuidado de las pestañas para conservar su forma, fuerza y brillo a los 40 días.">Mantenimiento Lifting/Ondulación (40 días)</a></li>
+          <li><a href="/servicio/perfilacion-cejas" title="Diseño y perfilado según la estructura del rostro para un acabado equilibrado y armónico que enmarca los ojos.">Perfilación de Cejas</a></li>
+        </ul>
+        <a href="/categoria/pestanas-cejas" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <article class="seo-dir-cat">
-      <h3><a href="/categoria/plantillas">Plantillas Personalizadas</a><span class="seo-dir-cat-meta">2 servicios</span></h3>
-      <p class="seo-dir-cat-desc">Evaluación biomecánica + plantillas personalizadas ofrece un enfoque completo para mejorar tu bienestar desde la base: tus pies.</p>
-      <ul class="seo-dir-list">
-        <li><a href="/servicio/plantillas-asd" title="Evaluación Biomecánica+Plantillas Confortables. Ideal para el dia dia una, 100% amortiguables.">Plantillas Step Comfort</a></li>
-        <li><a href="/servicio/plantillas-prueba-2" title="Evaluación Biomecánica+Plantillas de Cuero. Ideal para zapatos de vestir fino.">Plantillas Step Executive</a></li>
-      </ul>
+      <button class="seo-dir-cat-head" onclick="this.parentElement.classList.toggle(&quot;open&quot;)" aria-expanded="false">
+        <span class="seo-dir-cat-headline"><span class="seo-dir-cat-name">Plantillas Personalizadas</span><span class="seo-dir-cat-meta">2 servicios</span></span>
+        <svg class="seo-dir-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="seo-dir-cat-body">
+        <p class="seo-dir-cat-desc">Evaluación biomecánica + plantillas personalizadas ofrece un enfoque completo para mejorar tu bienestar desde la base: tus pies.</p>
+        <ul class="seo-dir-list">
+          <li><a href="/servicio/plantillas-asd" title="Evaluación Biomecánica+Plantillas Confortables. Ideal para el dia dia una, 100% amortiguables.">Plantillas Step Comfort</a></li>
+          <li><a href="/servicio/plantillas-prueba-2" title="Evaluación Biomecánica+Plantillas de Cuero. Ideal para zapatos de vestir fino.">Plantillas Step Executive</a></li>
+        </ul>
+        <a href="/categoria/plantillas" class="seo-dir-cat-link">Ver categoría completa →</a>
+      </div>
     </article>
 
     <div class="seo-dir-cta">
