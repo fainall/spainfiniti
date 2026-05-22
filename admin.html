@@ -1343,6 +1343,9 @@ function showSvcList(catId) {
           </div>
         </div>
       `).join('')}
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);text-align:center">
+        <button class="btn btn-primary" onclick="addNewService('${catId}')">+ Agregar servicio a ${esc(cat.name)}</button>
+      </div>
     </div>
   `
 }
