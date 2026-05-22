@@ -1381,19 +1381,20 @@ async function moveService(catId, svcId, dir) {
   cat.services[i] = cat.services[j]
   cat.services[j] = tmp
 
-  // Reasignar sort_order secuencial a toda la categoría
+  // Reasignar sort_order secuencial a TODA la categoría
   cat.services.forEach((s, idx) => { s.sortOrder = idx })
 
   // Re-render inmediato
   showSvcList(catId)
 
-  // Persistir en Supabase (solo los dos que cambiaron de posición)
+  // Persistir en Supabase: reescribir el orden de TODOS los servicios de la
+  // categoría (no solo los dos), para evitar inconsistencias con sort_order
+  // nulos o repetidos heredados.
   if (typeof supabase !== 'undefined') {
     try {
-      await Promise.all([
-        supabase.update('services', cat.services[i].id, { sort_order: i }),
-        supabase.update('services', cat.services[j].id, { sort_order: j })
-      ])
+      await Promise.all(
+        cat.services.map((s, idx) => supabase.update('services', s.id, { sort_order: idx }))
+      )
       toast('Orden actualizado', 'success')
     } catch (e) {
       console.error('Reorder sync fail:', e)
