@@ -22,6 +22,12 @@ RewriteRule ^ /categoria/%1? [R=301,L]
 RewriteRule ^servicio/([a-z0-9-]+)/?$ /servicio.html?id=$1 [L,QSA]
 RewriteRule ^categoria/([a-z0-9-]+)/?$ /categoria.html?cat=$1 [L,QSA]
 
+# ── PROMO: URL dinámica según el evento activo ──
+# URL vieja (día de la madre) → página genérica
+RewriteRule ^promocion-dia-de-la-madre(\.html)?/?$ /promocion [R=301,L]
+# /promocion/{slug} → promocion.html (el slug es cosmético; la página carga el evento activo)
+RewriteRule ^promocion(/[a-z0-9-]+)?/?$ /promocion.html [L,QSA]
+
 # Remove .html extension (general)
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.html -f

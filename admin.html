@@ -977,7 +977,7 @@ body {
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="/supabase-client.js?v=7"></script>
+<script src="/supabase-client.js?v=8"></script>
 <script src="/data.js?v=5"></script>
 <script>
 /* ═══════════════════════════════════════════
@@ -2080,7 +2080,7 @@ async function renderPromos() {
           <span><strong>Precio desde:</strong> ${esc(c.minPrice || '—')}</span>
           <span><strong>Botón flotante:</strong> ${esc(c.floatText || '—')}</span>
           <span><strong>Pop-up:</strong> ${c.popupEnabled ? '✅ Activo' : '❌ Inactivo'}</span>
-          <a href="/promocion-dia-de-la-madre" target="_blank" style="color:var(--gold);font-weight:600">Ver página →</a>
+          <a href="${promoPageUrl(c)}" target="_blank" style="color:var(--gold);font-weight:600">Ver página →</a>
         </div>
       </div>`
     }).join('')}`
@@ -2107,7 +2107,7 @@ function addNewPromo() { editPromoEvent(-1) }
 
 async function editPromoEvent(id) {
   const isNew = id === -1
-  let evt = isNew ? { active: true, config: { eventName:'', year:'', heroBadge:'', heroSubtitle:'', heroTitle:'', heroTagline:'', heroDescription:'', heroImage:'', minPrice:'', floatText:'', floatIcon:'♡', bottomUrgency:'Cupos limitados!', bottomTitle:'Agenda hoy, sorprende manana.', popupEnabled:false, popupImage:'', popupText:'', popupButtonText:'Ver Promoción', popupButtonLink:'promocion-dia-de-la-madre', packs:[] } } : _promoEvents.find(e => e.id === id)
+  let evt = isNew ? { active: true, config: { eventName:'', year:'', heroBadge:'', heroSubtitle:'', heroTitle:'', heroTagline:'', heroDescription:'', heroImage:'', minPrice:'', floatText:'', floatIcon:'♡', bottomUrgency:'Cupos limitados!', bottomTitle:'Agenda hoy, sorprende manana.', popupEnabled:false, popupImage:'', popupText:'', popupButtonText:'Ver Promoción', popupButtonLink:'', packs:[] } } : _promoEvents.find(e => e.id === id)
   if (!evt) { toast('Evento no encontrado','error'); return }
   const c = evt.config
 
@@ -2246,7 +2246,7 @@ async function editPromoEvent(id) {
       </div>
       <div class="form-row">
         <div class="form-group"><label>Texto del botón</label><input type="text" id="pe-popup-btn" value="${esc(c.popupButtonText||'Ver Promoción')}" /></div>
-        <div class="form-group"><label>Enlace del botón</label><input type="text" id="pe-popup-link" value="${esc(c.popupButtonLink||'promocion-dia-de-la-madre')}" /></div>
+        <div class="form-group"><label>Enlace del botón <span style="font-weight:400;color:var(--light)">(vacío = página del evento, automático)</span></label><input type="text" id="pe-popup-link" value="${esc((c.popupButtonLink||'').includes('promocion-dia-de-la-madre') ? '' : (c.popupButtonLink||''))}" placeholder="Automático: ${promoPageUrl(c)}" /></div>
       </div>
 
       <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">CTA Final</h3>
@@ -2324,7 +2324,7 @@ async function savePromoEvt(id) {
     popupImage: document.getElementById('pe-popup-img').value.trim(),
     popupText: document.getElementById('pe-popup-text').value.trim(),
     popupButtonText: document.getElementById('pe-popup-btn').value.trim() || 'Ver Promoción',
-    popupButtonLink: document.getElementById('pe-popup-link').value.trim() || 'promocion-dia-de-la-madre',
+    popupButtonLink: document.getElementById('pe-popup-link').value.trim(),
     bottomUrgency: document.getElementById('pe-burg').value.trim(),
     bottomTitle: document.getElementById('pe-btitle').value.trim(),
     packs: collectPacks()

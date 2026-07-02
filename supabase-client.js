@@ -171,6 +171,21 @@ function categoryToRow(cat) {
 }
 
 /* ── Promo Events ─────────────────────────── */
+/* URL limpia de la página de promo, derivada del nombre del evento.
+   Ej: "Mes Renovación Total" → /promocion/mes-renovacion-total
+   El slug es cosmético (la página siempre carga el evento activo). */
+function promoSlugify(name) {
+  return (name || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+function promoPageUrl(cfg) {
+  const slug = promoSlugify(cfg && (cfg.eventName || cfg.heroTitle))
+  return slug ? `/promocion/${slug}` : '/promocion'
+}
+
 async function loadActivePromoEvent() {
   try {
     const rows = await supabase.fetch('promo_events', {

@@ -244,8 +244,9 @@ async function initPromoFloat() {
     if (!slot) return
     const icon = cfg.floatIcon || '♡'
     const text = cfg.floatText || 'Promoción Especial'
+    const promoHref = typeof promoPageUrl === 'function' ? promoPageUrl(cfg) : '/promocion'
     slot.innerHTML = `
-      <a href="/promocion-dia-de-la-madre" class="promo-float" id="promoFloat" title="${text}">
+      <a href="${promoHref}" class="promo-float" id="promoFloat" title="${text}">
         <span class="promo-float-icon">${icon}</span>
         <span class="promo-float-arrow">›</span>
         <span class="promo-float-text">${text}</span>
@@ -286,7 +287,12 @@ async function initPromoPopup() {
     const img = cfg.popupImage || ''
     const text = cfg.popupText || ''
     const btnText = cfg.popupButtonText || 'Ver Promoción'
-    const btnLink = cfg.popupButtonLink || 'promocion-dia-de-la-madre'
+    // El popup y el botón flotante llevan a la MISMA página del evento activo.
+    // Enlaces vacíos o el legacy "promocion-dia-de-la-madre" → URL del evento.
+    const autoLink = typeof promoPageUrl === 'function' ? promoPageUrl(cfg) : '/promocion'
+    let btnLink = (cfg.popupButtonLink || '').trim()
+    if (!btnLink || btnLink.includes('promocion-dia-de-la-madre')) btnLink = autoLink
+    else if (!/^(https?:\/\/|\/)/.test(btnLink)) btnLink = '/' + btnLink
     if (!img && !text) return
 
     sessionStorage.setItem('spaPromoPopupSeen', '1')
