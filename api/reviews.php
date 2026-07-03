@@ -33,22 +33,22 @@ if (!$apiKey || !$placeId) {
     exit;
 }
 
-/* 3. Consultar Google Places API (New) */
-$url = 'https://places.googleapis.com/v1/places/' . rawurlencode($placeId)
-     . '?languageCode=es&regionCode=CL';
-
-$ch = curl_init($url);
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_TIMEOUT        => 15,
-    CURLOPT_HTTPHEADER     => [
-        'X-Goog-Api-Key: ' . $apiKey,
-        'X-Goog-FieldMask: rating,userRatingCount,reviews,googleMapsUri',
-    ],
-]);
-$resp = curl_exec($ch);
-$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+/* 3. Consultar Google.
+   Primero la Places API clásica (permite ordenar por MÁS RECIENTES);
+   si no está habilitada en el proyecto, cae a la Places API (New),
+   que solo entrega las 5 "más relevantes". */
+function httpGet($url, $headers = []) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => $headers,
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    return [$code, $resp];
+}
 
 $serveStale = function () use ($cacheFile) {
     if (file_exists($cacheFile)) { readfile($cacheFile); }
@@ -56,29 +56,64 @@ $serveStale = function () use ($cacheFile) {
     exit;
 };
 
-if ($code !== 200 || !$resp) { $serveStale(); }
+$rating = null; $total = null; $mapsUrl = ''; $reviews = [];
 
-$data = json_decode($resp, true);
-if (!$data || !isset($data['reviews'])) { $serveStale(); }
+/* 3a. API clásica: reseñas más recientes */
+$legacyUrl = 'https://maps.googleapis.com/maps/api/place/details/json'
+    . '?place_id=' . rawurlencode($placeId)
+    . '&fields=rating,user_ratings_total,reviews,url'
+    . '&reviews_sort=newest&language=es&key=' . rawurlencode($apiKey);
+list($code, $resp) = httpGet($legacyUrl);
+$legacy = ($code === 200 && $resp) ? json_decode($resp, true) : null;
 
-/* 4. Normalizar */
-$reviews = [];
-foreach ($data['reviews'] as $r) {
-    $text = $r['text']['text'] ?? ($r['originalText']['text'] ?? '');
-    if (!$text) continue;
-    $reviews[] = [
-        'name'   => $r['authorAttribution']['displayName'] ?? 'Cliente',
-        'rating' => $r['rating'] ?? 5,
-        'time'   => $r['relativePublishTimeDescription'] ?? '',
-        'text'   => $text,
-    ];
+if ($legacy && ($legacy['status'] ?? '') === 'OK') {
+    $res     = $legacy['result'];
+    $rating  = $res['rating'] ?? null;
+    $total   = $res['user_ratings_total'] ?? null;
+    $mapsUrl = $res['url'] ?? '';
+    foreach (($res['reviews'] ?? []) as $r) {
+        if (empty($r['text'])) continue;
+        $reviews[] = [
+            'name'   => $r['author_name'] ?? 'Cliente',
+            'rating' => $r['rating'] ?? 5,
+            'time'   => $r['relative_time_description'] ?? '',
+            'text'   => $r['text'],
+        ];
+    }
+} else {
+    /* 3b. Fallback: Places API (New) — 5 más relevantes */
+    list($code, $resp) = httpGet(
+        'https://places.googleapis.com/v1/places/' . rawurlencode($placeId) . '?languageCode=es&regionCode=CL',
+        [
+            'X-Goog-Api-Key: ' . $apiKey,
+            'X-Goog-FieldMask: rating,userRatingCount,reviews,googleMapsUri',
+        ]
+    );
+    if ($code !== 200 || !$resp) { $serveStale(); }
+    $data = json_decode($resp, true);
+    if (!$data || !isset($data['reviews'])) { $serveStale(); }
+    $rating  = $data['rating'] ?? null;
+    $total   = $data['userRatingCount'] ?? null;
+    $mapsUrl = $data['googleMapsUri'] ?? '';
+    foreach ($data['reviews'] as $r) {
+        $text = $r['text']['text'] ?? ($r['originalText']['text'] ?? '');
+        if (!$text) continue;
+        $reviews[] = [
+            'name'   => $r['authorAttribution']['displayName'] ?? 'Cliente',
+            'rating' => $r['rating'] ?? 5,
+            'time'   => $r['relativePublishTimeDescription'] ?? '',
+            'text'   => $text,
+        ];
+    }
 }
+
+if (!$reviews) { $serveStale(); }
 
 $out = json_encode([
     'ok'      => true,
-    'rating'  => $data['rating'] ?? null,
-    'total'   => $data['userRatingCount'] ?? null,
-    'mapsUrl' => $data['googleMapsUri'] ?? '',
+    'rating'  => $rating,
+    'total'   => $total,
+    'mapsUrl' => $mapsUrl,
     'reviews' => $reviews,
 ], JSON_UNESCAPED_UNICODE);
 
