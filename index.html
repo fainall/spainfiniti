@@ -2137,9 +2137,51 @@
     </div>
   </div>
   <div class="reviews-badge">
-    <a href="https://www.google.com/maps/place/Spa+Infinity%7CPodolog%C3%ADa+Cl%C3%ADnica+en+Santiago+Centro/@-33.4362104,-70.6525466,17z/data=!4m6!3m5!1s0x9662c58bdf4db79f:0x4cb49d7c4248482f!8m2!3d-33.4362104!4d-70.6525466!16s%2Fg%2F11yl8_r6kq" target="_blank" rel="noopener">Ver todas las 56 reseñas en Google</a>
+    <a id="reviewsBadgeLink" href="https://www.google.com/maps/place/Spa+Infinity%7CPodolog%C3%ADa+Cl%C3%ADnica+en+Santiago+Centro/@-33.4362104,-70.6525466,17z/data=!4m6!3m5!1s0x9662c58bdf4db79f:0x4cb49d7c4248482f!8m2!3d-33.4362104!4d-70.6525466!16s%2Fg%2F11yl8_r6kq" target="_blank" rel="noopener">Ver todas las 56 reseñas en Google</a>
   </div>
 </section>
+
+<script>
+/* Reseñas de Google actualizadas automáticamente (api/reviews.php, caché 24h).
+   Si el endpoint no está configurado o falla, quedan las reseñas estáticas. */
+(async () => {
+  const GOOGLE_SVG = document.querySelector('.review-google') ? document.querySelector('.review-google').outerHTML : ''
+  const escHtml = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+  try {
+    const res = await fetch('/api/reviews.php')
+    if (!res.ok) return
+    const data = await res.json()
+    if (!data.ok || !Array.isArray(data.reviews) || data.reviews.length < 3) return
+
+    const grid = document.querySelector('.reviews-grid')
+    if (!grid) return
+    const delays = ['', ' fu-d1', ' fu-d2']
+    grid.innerHTML = data.reviews.filter(r => r.rating >= 4).map((r, i) => `
+      <div class="review-card fu${delays[i % 3]}">
+        <div class="review-header">
+          <div class="review-avatar">${escHtml((r.name || 'C').charAt(0).toUpperCase())}</div>
+          <div class="review-info">
+            <div class="review-name">${escHtml(r.name)}</div>
+            <div class="review-time">${escHtml(r.time)}</div>
+          </div>
+          ${GOOGLE_SVG}
+        </div>
+        <div class="review-stars">${'★'.repeat(Math.round(r.rating))}${'☆'.repeat(5 - Math.round(r.rating))}</div>
+        <p class="review-text">${escHtml(r.text)}</p>
+      </div>`).join('')
+    grid.querySelectorAll('.fu').forEach(el => el.classList.add('active'))
+
+    if (data.rating) {
+      const p = document.querySelector('.reviews-sec .sec-header p strong')
+      if (p) p.textContent = `${Number(data.rating).toFixed(1)} / 5.0`
+    }
+    if (data.total) {
+      const badge = document.getElementById('reviewsBadgeLink')
+      if (badge) badge.textContent = `Ver todas las ${data.total} reseñas en Google`
+    }
+  } catch (e) { /* fallback: reseñas estáticas */ }
+})()
+</script>
 
 <!-- CONTACT ─────────────────────────────────────── -->
 <section class="contact-sec" id="contacto">

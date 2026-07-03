@@ -4,3 +4,5 @@ node_modules/
 .claude/
 api/flow-config.php
 _upload.zip
+api/reviews-config.php
+api/cache/
