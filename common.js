@@ -304,10 +304,10 @@ async function initPromoPopup() {
     const text = cfg.popupText || ''
     const btnText = cfg.popupButtonText || 'Ver Promoción'
     // El popup y el botón flotante llevan a la MISMA página del evento activo.
-    // Enlaces vacíos o el legacy "promocion-dia-de-la-madre" → URL del evento.
+    // Vacío o cualquier variante manual de "promocion..." → URL canónica del evento.
     const autoLink = typeof promoPageUrl === 'function' ? promoPageUrl(cfg) : '/promocion'
     let btnLink = (cfg.popupButtonLink || '').trim()
-    if (!btnLink || btnLink.includes('promocion-dia-de-la-madre')) btnLink = autoLink
+    if (!btnLink || /promocion/i.test(btnLink)) btnLink = autoLink
     else if (!/^(https?:\/\/|\/)/.test(btnLink)) btnLink = '/' + btnLink
     if (!img && !text) return
 
