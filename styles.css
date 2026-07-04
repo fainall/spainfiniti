@@ -169,6 +169,46 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .nav-links a:hover, .nav-links a.active { color: var(--gold); }
 .nav-links a:hover::after, .nav-links a.active::after { width: 100%; }
 
+/* ── Botón Promociones (destacado) ────────── */
+.nav-links li { display: flex; align-items: center; }
+.nav-links a.nav-promo-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #C5A467 0%, #A8883F 50%, #C5A467 100%);
+  background-size: 200% auto;
+  color: #fff;
+  border-radius: 30px;
+  font-weight: 600;
+  box-shadow: 0 3px 12px rgba(197,164,103,0.35);
+  animation: promoShine 3s linear infinite;
+  transition: transform var(--tr), box-shadow var(--tr);
+}
+.nav-links a.nav-promo-btn:hover {
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(197,164,103,0.5);
+}
+.nav-links a.nav-promo-btn::after { display: none; }
+.nav-promo-spark { font-size: 0.75rem; line-height: 1; animation: promoSpark 1.8s ease-in-out infinite; }
+@keyframes promoShine { to { background-position: 200% center; } }
+@keyframes promoSpark {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.25); }
+}
+
+/* Versión móvil del botón */
+.mob-link.mob-promo-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: linear-gradient(135deg, #C5A467, #A8883F);
+  color: #fff !important;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-weight: 600;
+  box-shadow: 0 3px 12px rgba(197,164,103,0.35);
+  margin-bottom: 6px;
+  width: fit-content;
+}
+
 /* ── Cascading Dropdown ────────────────── */
 .nav-has-mega { position: relative; }
 .nav-mega-arrow {

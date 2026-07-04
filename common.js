@@ -5,6 +5,7 @@
 /* ── NAVBAR ─────────────────────────────────────────── */
 function renderNavbar(activePage) {
   const pages = [
+    { href: '/promocion',     label: 'Promociones', promo: true },
     { href: '/index.html',    label: 'Inicio' },
     { href: '/nosotros.html',  label: 'Nosotros' },
     { href: '/servicios.html',label: 'Servicios', hasMega: true },
@@ -13,6 +14,9 @@ function renderNavbar(activePage) {
   ]
 
   const links = pages.map(p => {
+    if (p.promo) {
+      return `<li><a href="${p.href}" class="nav-promo-btn" data-promo-link><span class="nav-promo-spark">✦</span>${p.label}</a></li>`
+    }
     if (p.hasMega) {
       return `<li class="nav-has-mega">
         <a href="${p.href}" class="${activePage === p.label ? 'active' : ''}">${p.label}
@@ -81,6 +85,9 @@ function renderNavbar(activePage) {
   <!-- Panel 0: Main links -->
   <div class="mob-panel mob-panel--main" id="mobPanelMain">
     ${pages.map(p => {
+      if (p.promo) {
+        return `<a href="${p.href}" onclick="toggleMobMenu()" class="mob-link mob-promo-link" data-promo-link><span class="nav-promo-spark">✦</span>${p.label}</a>`
+      }
       if (p.hasMega) {
         return `<a href="javascript:void(0)" onclick="mobShowCats()" class="mob-link mob-link--arrow">
           <span>${p.label}</span>
@@ -238,8 +245,17 @@ async function initPromoFloat() {
   if (typeof loadActivePromoEvent !== 'function') return
   try {
     const evt = await loadActivePromoEvent()
-    if (!evt || !evt.active) return
+    if (!evt || !evt.active) {
+      // Sin promo activa: ocultar el botón "Promociones" del menú
+      document.querySelectorAll('[data-promo-link]').forEach(el => { el.style.display = 'none' })
+      return
+    }
     const cfg = evt.config
+    // Apuntar el botón del menú a la URL del evento activo
+    if (typeof promoPageUrl === 'function') {
+      const url = promoPageUrl(cfg)
+      document.querySelectorAll('[data-promo-link]').forEach(el => { el.href = url })
+    }
     const slot = document.getElementById('promoFloatSlot')
     if (!slot) return
     const icon = cfg.floatIcon || '♡'
