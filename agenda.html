@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Agenda — Spa Infinity</title>
+<link rel="icon" href="/logo.webp">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#C5A467; --gold-d:#A8883F; --gold-pale:#F5EDE2;
+  --cream:#FCFBF9; --cream-2:#F9F7F4; --dark:#1A2436; --mid:#6B7280;
+  --light:#9CA3AF; --border:#E5E7EB; --white:#fff; --red:#E74C3C; --green:#27AE60;
+  --hour-h:60px; --gutter-w:58px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Montserrat',sans-serif;background:var(--cream-2);color:var(--dark);height:100vh;overflow:hidden}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+
+/* ── LOGIN ── */
+.login-screen{position:fixed;inset:0;background:var(--dark);display:flex;align-items:center;justify-content:center;z-index:1000}
+.login-box{background:var(--white);padding:44px 40px;border-radius:16px;width:360px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-box h1{font-family:'Playfair Display',serif;font-size:1.5rem;margin-bottom:6px}
+.login-box .sub{color:var(--mid);font-size:.82rem;margin-bottom:24px}
+.login-box input{width:100%;padding:13px 16px;border:1px solid var(--border);border-radius:8px;font-size:.9rem;margin-bottom:14px}
+.login-box input:focus{outline:none;border-color:var(--gold)}
+.login-box button{width:100%;padding:13px;background:var(--gold);color:#fff;border:none;border-radius:8px;font-weight:600;letter-spacing:.05em}
+.login-box button:hover{background:var(--dark)}
+.login-err{color:var(--red);font-size:.8rem;margin-top:10px;display:none}
+
+/* ── LAYOUT ── */
+.app{display:none;height:100vh;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0}
+.brand{font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--dark);margin-right:6px}
+.brand small{display:block;font-family:'Montserrat';font-size:.52rem;letter-spacing:.28em;color:var(--gold-d);text-transform:uppercase;font-weight:600}
+.seg{display:inline-flex;background:var(--cream-2);border-radius:8px;padding:3px}
+.seg button{border:none;background:transparent;padding:7px 16px;border-radius:6px;font-size:.78rem;font-weight:600;color:var(--mid)}
+.seg button.on{background:var(--white);color:var(--dark);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.nav-arrows{display:flex;align-items:center;gap:4px}
+.icon-btn{width:34px;height:34px;border:1px solid var(--border);background:var(--white);border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:1rem;color:var(--dark)}
+.icon-btn:hover{border-color:var(--gold);color:var(--gold-d)}
+.btn-today{padding:8px 14px;border:1px solid var(--border);background:var(--white);border-radius:8px;font-size:.76rem;font-weight:600}
+.btn-today:hover{border-color:var(--gold)}
+.range-label{font-weight:600;font-size:.92rem;text-transform:capitalize;min-width:210px}
+.spacer{flex:1}
+.btn-g{padding:9px 16px;border-radius:8px;font-size:.78rem;font-weight:600;border:1px solid var(--border);background:var(--white);color:var(--dark)}
+.btn-g:hover{border-color:var(--gold)}
+.btn-primary{padding:9px 18px;border-radius:8px;font-size:.8rem;font-weight:600;border:none;background:var(--gold);color:#fff}
+.btn-primary:hover{background:var(--dark)}
+
+.body{flex:1;display:flex;min-height:0}
+.side{width:230px;flex-shrink:0;background:var(--white);border-right:1px solid var(--border);padding:18px;overflow-y:auto}
+.side h3{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--light);font-weight:700;margin:0 0 8px}
+.side .field{margin-bottom:20px}
+.side select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--white)}
+.prof-list{display:flex;flex-direction:column;gap:4px}
+.prof-chip{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:.82rem;cursor:pointer;border:1px solid transparent}
+.prof-chip:hover{background:var(--cream-2)}
+.prof-chip.on{background:var(--gold-pale);border-color:var(--gold)}
+.prof-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.prof-chip .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-link{margin-top:6px;font-size:.76rem;color:var(--gold-d);font-weight:600;background:none;border:none;padding:6px 0}
+.side-link:hover{text-decoration:underline}
+
+/* ── CALENDAR ── */
+.cal-wrap{flex:1;overflow:auto;position:relative;background:var(--white)}
+.cal-head{display:flex;position:sticky;top:0;z-index:5;background:var(--white);border-bottom:1px solid var(--border)}
+.cal-head .gutter{width:var(--gutter-w);flex-shrink:0;border-right:1px solid var(--border)}
+.cal-head .dcol{flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--border);min-width:0}
+.cal-head .dcol .dow{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);font-weight:600}
+.cal-head .dcol .dnum{font-size:1.05rem;font-weight:600;margin-top:2px}
+.cal-head .dcol.today .dnum{background:var(--gold);color:#fff;width:30px;height:30px;line-height:30px;border-radius:50%;display:inline-block;margin-top:0}
+.cal-grid{display:flex;position:relative}
+.gutter{width:var(--gutter-w);flex-shrink:0;border-right:1px solid var(--border)}
+.gutter .hr{height:var(--hour-h);position:relative}
+.gutter .hr span{position:absolute;top:-7px;right:7px;font-size:.62rem;color:var(--light)}
+.dcol{flex:1;border-right:1px solid var(--border);position:relative;min-width:0}
+.dcol.off{background:repeating-linear-gradient(45deg,#fafafa,#fafafa 8px,#f4f4f4 8px,#f4f4f4 16px)}
+.hr-line{position:absolute;left:0;right:0;border-top:1px solid #f0f0f0}
+.hr-line.half{border-top-style:dotted}
+.appt{position:absolute;left:2px;right:2px;border-radius:6px;padding:4px 7px;font-size:.7rem;color:#fff;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);border-left:3px solid rgba(0,0,0,.2)}
+.appt:hover{filter:brightness(.95);z-index:3}
+.appt .t{font-weight:700;font-size:.66rem;opacity:.95}
+.appt .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appt .s{opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appt.cancelled{background:#cfcfcf!important;text-decoration:line-through;opacity:.7}
+.now-line{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:4;pointer-events:none}
+.now-line::before{content:'';position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
+.empty-note{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--light);gap:12px;z-index:6}
+
+/* ── MODAL ── */
+.modal-ov{position:fixed;inset:0;background:rgba(26,36,54,.5);display:none;align-items:flex-start;justify-content:center;z-index:900;padding:40px 16px;overflow-y:auto}
+.modal-ov.open{display:flex}
+.modal{background:var(--white);border-radius:14px;width:440px;max-width:100%;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
+.modal h2{font-family:'Playfair Display',serif;font-size:1.25rem;margin-bottom:18px}
+.modal label{display:block;font-size:.7rem;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;margin-top:12px}
+.modal input,.modal select,.modal textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem}
+.modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;border-color:var(--gold)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;margin-top:22px}
+.modal-actions .btn-primary{flex:1;padding:12px}
+.btn-danger{padding:12px 16px;border:1px solid var(--red);background:#fff;color:var(--red);border-radius:8px;font-weight:600;font-size:.8rem}
+.btn-danger:hover{background:var(--red);color:#fff}
+.btn-ghost{padding:12px 16px;border:1px solid var(--border);background:#fff;border-radius:8px;font-weight:600;font-size:.8rem}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.swatch.on{border-color:var(--dark)}
+.prof-manage-item{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
+.prof-manage-item .nm{flex:1;font-size:.85rem;font-weight:600}
+.mini-btn{font-size:.72rem;padding:5px 10px;border-radius:6px;border:1px solid var(--border);background:#fff}
+.mini-btn:hover{border-color:var(--gold)}
+.wd-picker{display:flex;gap:5px;margin-top:4px}
+.wd-picker button{flex:1;padding:8px 0;border:1px solid var(--border);background:#fff;border-radius:6px;font-size:.72rem;font-weight:600;color:var(--mid)}
+.wd-picker button.on{background:var(--gold);color:#fff;border-color:var(--gold)}
+
+/* toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:#fff;padding:12px 22px;border-radius:10px;font-size:.82rem;opacity:0;transition:.3s;z-index:1100;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:var(--green)} .toast.error{background:var(--red)}
+
+@media(max-width:820px){
+  .side{display:none}
+  .range-label{min-width:0;font-size:.8rem}
+  .brand small{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h1>Agenda Spa Infinity</h1>
+    <p class="sub">Ingresa la clave de administrador</p>
+    <input type="password" id="loginPass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button onclick="doLogin()">Entrar</button>
+    <div class="login-err" id="loginErr">Contraseña incorrecta</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="brand">Agenda<small>Spa Infinity</small></div>
+    <div class="seg" id="viewSeg">
+      <button data-v="week" class="on" onclick="setView('week')">Semana</button>
+      <button data-v="day" onclick="setView('day')">Día</button>
+    </div>
+    <div class="nav-arrows">
+      <button class="icon-btn" onclick="navDate(-1)">‹</button>
+      <button class="icon-btn" onclick="navDate(1)">›</button>
+    </div>
+    <button class="btn-today" onclick="goToday()">Hoy</button>
+    <div class="range-label" id="rangeLabel"></div>
+    <div class="spacer"></div>
+    <button class="btn-g" onclick="openProfManager()">Profesionales</button>
+    <button class="btn-primary" onclick="openApptModal()">+ Nuevo</button>
+    <button class="btn-g" onclick="doLogout()" title="Salir">Salir</button>
+  </div>
+
+  <div class="body">
+    <aside class="side">
+      <div class="field">
+        <h3>Profesional</h3>
+        <div class="prof-list" id="profList"></div>
+        <button class="side-link" onclick="openProfManager()">+ Gestionar profesionales</button>
+      </div>
+      <div class="field">
+        <h3>Estado</h3>
+        <select id="statusFilter" onchange="loadAndRender()">
+          <option value="active">Reservas activas</option>
+          <option value="all">Todas</option>
+        </select>
+      </div>
+    </aside>
+
+    <div class="cal-wrap" id="calWrap">
+      <div class="cal-head" id="calHead"></div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Appointment -->
+<div class="modal-ov" id="apptModal">
+  <div class="modal">
+    <h2 id="apptTitle">Nueva reserva</h2>
+    <input type="hidden" id="apptId" />
+    <label>Profesional</label>
+    <select id="apptProf"></select>
+    <label>Servicio</label>
+    <select id="apptService" onchange="onServicePick()"></select>
+    <div class="row2">
+      <div><label>Cliente</label><input type="text" id="apptClient" placeholder="Nombre" /></div>
+      <div><label>Teléfono</label><input type="text" id="apptPhone" placeholder="+569..." /></div>
+    </div>
+    <div class="row2">
+      <div><label>Fecha</label><input type="date" id="apptDate" /></div>
+      <div><label>Hora inicio</label><input type="time" id="apptStart" step="300" /></div>
+    </div>
+    <div class="row2">
+      <div><label>Duración (min)</label><input type="number" id="apptDur" min="5" step="5" value="60" /></div>
+      <div><label>Estado</label>
+        <select id="apptStatus">
+          <option value="active">Activa</option>
+          <option value="done">Realizada</option>
+          <option value="no_show">No asistió</option>
+          <option value="cancelled">Cancelada</option>
+        </select>
+      </div>
+    </div>
+    <label>Notas</label>
+    <textarea id="apptNotes" rows="2" placeholder="Opcional"></textarea>
+    <div class="modal-actions">
+      <button class="btn-danger" id="apptDelBtn" onclick="deleteAppt()" style="display:none">Eliminar</button>
+      <button class="btn-ghost" onclick="closeModal('apptModal')">Cancelar</button>
+      <button class="btn-primary" onclick="saveAppt()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Professional manager -->
+<div class="modal-ov" id="profModal">
+  <div class="modal">
+    <h2>Profesionales</h2>
+    <div id="profManageList"></div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+    <h2 style="font-size:1rem" id="profFormTitle">Agregar profesional</h2>
+    <input type="hidden" id="pfId" />
+    <label>Nombre</label>
+    <input type="text" id="pfName" placeholder="Nombre del profesional" />
+    <label>Color en el calendario</label>
+    <div class="swatches" id="pfSwatches"></div>
+    <div class="row2">
+      <div><label>Hora inicio</label><input type="time" id="pfStart" step="900" value="10:00" /></div>
+      <div><label>Hora término</label><input type="time" id="pfEnd" step="900" value="20:00" /></div>
+    </div>
+    <label>Días que atiende</label>
+    <div class="wd-picker" id="pfDays"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('profModal')">Cerrar</button>
+      <button class="btn-primary" onclick="saveProf()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/supabase-client.js?v=8"></script>
+<script src="/data.js?v=5"></script>
+<script>
+const ADMIN_PASS = 'infinity2026'
+const COLORS = ['#C5A467','#C27B8A','#6B8E7F','#5B7DB1','#B06B9E','#D08B4F','#7A9E5B','#4FA3A3']
+const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+const DOW_FULL = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+const HOUR_H = 60
+
+let state = {
+  view: 'week',
+  anchor: new Date(),
+  profId: 'all',
+  professionals: [],
+  appointments: [],
+  services: []
+}
+
+/* ── LOGIN ── */
+function doLogin(){
+  if(document.getElementById('loginPass').value === ADMIN_PASS){
+    localStorage.setItem('spa_admin_auth','true'); boot()
+  } else { document.getElementById('loginErr').style.display='block' }
+}
+function doLogout(){ localStorage.removeItem('spa_admin_auth'); location.reload() }
+
+/* ── TIME HELPERS ── */
+const pad = n => String(n).padStart(2,'0')
+const toMin = t => { const [h,m]=t.split(':').map(Number); return h*60+m }
+const toHHMM = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`
+const isoDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+const addDays = (d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x }
+function weekStart(d){ const off=(d.getDay()+6)%7; return addDays(d,-off) } // Monday
+function isoWeekday(d){ return ((d.getDay()+6)%7)+1 } // 1=Mon..7=Sun
+function parseDur(str){ if(!str) return 60; const m=String(str).match(/\d+/); return m?parseInt(m[0]):60 }
+
+/* ── DATA ── */
+async function loadProfessionals(){
+  try{ state.professionals = await supabase.fetch('professionals',{order:'sort_order.asc,name.asc'}) || [] }
+  catch(e){ state.professionals=[]; console.warn(e) }
+}
+async function loadAppointments(){
+  const [from,to] = visibleRange()
+  let filters = `appt_date=gte.${isoDate(from)}&appt_date=lte.${isoDate(to)}`
+  if(document.getElementById('statusFilter').value==='active') filters += `&status=neq.cancelled`
+  try{ state.appointments = await supabase.fetch('appointments',{filters,order:'start_time.asc'}) || [] }
+  catch(e){ state.appointments=[]; console.warn(e) }
+}
+function flattenServices(){
+  const out=[]
+  ;(window.CATEGORIES||[]).forEach(c => (c.services||[]).forEach(s => out.push({
+    id:s.id, name:s.name, duration:parseDur(s.duration), price:s.price, cat:c.name
+  })))
+  state.services = out
+}
+
+/* ── RANGE ── */
+function visibleRange(){
+  if(state.view==='day') return [new Date(state.anchor), new Date(state.anchor)]
+  const ws=weekStart(state.anchor); return [ws, addDays(ws,6)]
+}
+function activeProfs(){
+  const list = state.professionals.filter(p=>p.active!==false)
+  return state.profId==='all' ? list : list.filter(p=>p.id===state.profId)
+}
+function hourBounds(){
+  const profs = activeProfs()
+  if(!profs.length) return [9*60, 20*60]
+  let mn=24*60, mx=0
+  profs.forEach(p=>{ mn=Math.min(mn,toMin(p.work_start||'09:00')); mx=Math.max(mx,toMin(p.work_end||'20:00')) })
+  return [Math.floor(mn/60)*60, Math.ceil(mx/60)*60]
+}
+
+/* ── RENDER ── */
+function render(){
+  renderSidebar(); renderRangeLabel(); renderCalendar()
+}
+function renderRangeLabel(){
+  const el=document.getElementById('rangeLabel')
+  if(state.view==='day'){
+    const d=state.anchor
+    el.textContent = `${DOW_FULL[d.getDay()]} ${d.getDate()}/${pad(d.getMonth()+1)}`
+  } else {
+    const ws=weekStart(state.anchor), we=addDays(ws,6)
+    el.textContent = `${ws.getDate()}/${pad(ws.getMonth()+1)} – ${we.getDate()}/${pad(we.getMonth()+1)} ${we.getFullYear()}`
+  }
+}
+function renderSidebar(){
+  const el=document.getElementById('profList')
+  let html=`<div class="prof-chip ${state.profId==='all'?'on':''}" onclick="selectProf('all')">
+    <span class="prof-dot" style="background:linear-gradient(135deg,#C5A467,#C27B8A)"></span>
+    <span class="nm">Todos</span></div>`
+  state.professionals.filter(p=>p.active!==false).forEach(p=>{
+    html+=`<div class="prof-chip ${state.profId===p.id?'on':''}" onclick="selectProf('${p.id}')">
+      <span class="prof-dot" style="background:${p.color||'#C5A467'}"></span>
+      <span class="nm">${esc(p.name)}</span></div>`
+  })
+  el.innerHTML=html
+}
+function selectProf(id){ state.profId=id; render() }
+
+function renderCalendar(){
+  const [from,to]=visibleRange()
+  const days=[]; let d=new Date(from)
+  while(d<=to){ days.push(new Date(d)); d=addDays(d,1) }
+  const [minM,maxM]=hourBounds()
+  const totalH=(maxM-minM)/60
+  const todayIso=isoDate(new Date())
+
+  // header
+  let head=`<div class="gutter"></div>`
+  days.forEach(dd=>{
+    const isToday=isoDate(dd)===todayIso
+    head+=`<div class="dcol ${isToday?'today':''}">
+      <div class="dow">${DOW[dd.getDay()]}</div>
+      <div class="dnum">${dd.getDate()}</div></div>`
+  })
+  document.getElementById('calHead').innerHTML=head
+
+  // gutter hours
+  let gut=''
+  for(let h=minM;h<maxM;h+=60) gut+=`<div class="hr"><span>${toHHMM(h)}</span></div>`
+
+  // day columns
+  const profs=activeProfs()
+  let cols=''
+  days.forEach(dd=>{
+    const wd=isoWeekday(dd)
+    const working = profs.some(p=>{ const wds=Array.isArray(p.work_days)?p.work_days:JSON.parse(p.work_days||'[1,2,3,4,5,6]'); return wds.includes(wd) })
+    let lines=''
+    for(let i=0;i<=totalH;i++){
+      lines+=`<div class="hr-line" style="top:${i*HOUR_H}px"></div>`
+      if(i<totalH) lines+=`<div class="hr-line half" style="top:${i*HOUR_H+HOUR_H/2}px"></div>`
+    }
+    // appointments for this day
+    const dayAppts=state.appointments.filter(a=>a.appt_date===isoDate(dd) && (state.profId==='all'||a.professional_id===state.profId))
+    const blocks=layoutDay(dayAppts).map(a=>{
+      const p=state.professionals.find(x=>x.id===a.professional_id)
+      const top=(toMin(a.start_time)-minM)/60*HOUR_H
+      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/60*HOUR_H-2)
+      const color=a.status==='cancelled'?'#cfcfcf':(p?p.color:'#C5A467')
+      const w=100/a._cols, left=a._col*w
+      return `<div class="appt ${a.status==='cancelled'?'cancelled':''}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${color}"
+        onclick="event.stopPropagation();openApptModal('${a.id}')">
+        <div class="t">${a.start_time.slice(0,5)}</div>
+        <div class="n">${esc(a.client_name||'—')}</div>
+        <div class="s">${esc(a.service_name||'')}</div></div>`
+    }).join('')
+    // now line
+    let now=''
+    if(isoDate(dd)===todayIso){
+      const nm=new Date().getHours()*60+new Date().getMinutes()
+      if(nm>=minM&&nm<=maxM) now=`<div class="now-line" style="top:${(nm-minM)/60*HOUR_H}px"></div>`
+    }
+    cols+=`<div class="dcol ${working?'':'off'}" style="height:${totalH*HOUR_H}px" data-date="${isoDate(dd)}" onclick="onSlotClick(event,this)">
+      ${lines}${blocks}${now}</div>`
+  })
+  document.getElementById('calGrid').innerHTML=`<div class="gutter">${gut}</div>${cols}`
+
+  if(!state.professionals.length){
+    document.getElementById('calGrid').innerHTML+=`<div class="empty-note">
+      <div>No hay profesionales todavía.</div>
+      <button class="btn-primary" onclick="openProfManager()">+ Agregar profesional</button></div>`
+  }
+}
+
+/* overlap layout: assign _col and _cols */
+function layoutDay(appts){
+  const sorted=[...appts].sort((a,b)=>toMin(a.start_time)-toMin(b.start_time)||toMin(a.end_time)-toMin(b.end_time))
+  const groups=[]; let cur=[]; let curEnd=-1
+  sorted.forEach(a=>{
+    const s=toMin(a.start_time)
+    if(cur.length && s>=curEnd){ groups.push(cur); cur=[]; curEnd=-1 }
+    cur.push(a); curEnd=Math.max(curEnd,toMin(a.end_time))
+  })
+  if(cur.length) groups.push(cur)
+  groups.forEach(g=>{
+    const colsEnd=[] // end time per column
+    g.forEach(a=>{
+      const s=toMin(a.start_time)
+      let placed=false
+      for(let i=0;i<colsEnd.length;i++){ if(s>=colsEnd[i]){ a._col=i; colsEnd[i]=toMin(a.end_time); placed=true; break } }
+      if(!placed){ a._col=colsEnd.length; colsEnd.push(toMin(a.end_time)) }
+    })
+    g.forEach(a=>a._cols=colsEnd.length)
+  })
+  return sorted
+}
+
+/* click empty slot → new appt prefilled */
+function onSlotClick(e,col){
+  const rect=col.getBoundingClientRect()
+  const [minM]=hourBounds()
+  let mins=minM + Math.floor((e.clientY-rect.top)/HOUR_H*60)
+  mins=Math.round(mins/15)*15
+  openApptModal(null,{date:col.dataset.date,start:toHHMM(mins)})
+}
+
+/* ── NAV ── */
+function setView(v){ state.view=v; document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
+function navDate(dir){ state.anchor=addDays(state.anchor, state.view==='day'?dir:dir*7); loadAndRender() }
+function goToday(){ state.anchor=new Date(); loadAndRender() }
+async function loadAndRender(){ await loadAppointments(); render() }
+
+/* ── APPOINTMENT MODAL ── */
+function fillServiceSelect(){
+  const sel=document.getElementById('apptService')
+  let html=`<option value="">— Servicio / bloqueo —</option>`
+  const byCat={}
+  state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
+  Object.entries(byCat).forEach(([cat,arr])=>{
+    html+=`<optgroup label="${esc(cat)}">`+arr.map(s=>`<option value="${s.id}" data-dur="${s.duration}" data-price="${esc(s.price||'')}" data-name="${esc(s.name)}">${esc(s.name)}</option>`).join('')+`</optgroup>`
+  })
+  sel.innerHTML=html
+}
+function fillProfSelect(){
+  document.getElementById('apptProf').innerHTML = state.professionals.filter(p=>p.active!==false)
+    .map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+}
+function onServicePick(){
+  const opt=document.getElementById('apptService').selectedOptions[0]
+  if(opt && opt.value){ document.getElementById('apptDur').value=opt.dataset.dur||60 }
+}
+function openApptModal(id,prefill){
+  fillProfSelect(); fillServiceSelect()
+  const del=document.getElementById('apptDelBtn')
+  if(id){
+    const a=state.appointments.find(x=>x.id===id); if(!a) return
+    document.getElementById('apptTitle').textContent='Editar reserva'
+    document.getElementById('apptId').value=a.id
+    document.getElementById('apptProf').value=a.professional_id
+    document.getElementById('apptService').value=a.service_id||''
+    document.getElementById('apptClient').value=a.client_name||''
+    document.getElementById('apptPhone').value=a.client_phone||''
+    document.getElementById('apptDate').value=a.appt_date
+    document.getElementById('apptStart').value=a.start_time.slice(0,5)
+    document.getElementById('apptDur').value=(toMin(a.end_time)-toMin(a.start_time))
+    document.getElementById('apptStatus').value=a.status||'active'
+    document.getElementById('apptNotes').value=a.notes||''
+    del.style.display='block'
+  } else {
+    document.getElementById('apptTitle').textContent='Nueva reserva'
+    document.getElementById('apptId').value=''
+    if(state.profId!=='all') document.getElementById('apptProf').value=state.profId
+    document.getElementById('apptService').value=''
+    document.getElementById('apptClient').value=''
+    document.getElementById('apptPhone').value=''
+    document.getElementById('apptDate').value=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
+    document.getElementById('apptStart').value=(prefill&&prefill.start)||'10:00'
+    document.getElementById('apptDur').value=60
+    document.getElementById('apptStatus').value='active'
+    document.getElementById('apptNotes').value=''
+    del.style.display='none'
+  }
+  openModal('apptModal')
+}
+async function saveAppt(){
+  const profId=document.getElementById('apptProf').value
+  const client=document.getElementById('apptClient').value.trim()
+  const date=document.getElementById('apptDate').value
+  const start=document.getElementById('apptStart').value
+  const dur=parseInt(document.getElementById('apptDur').value)||60
+  if(!profId){ toast('Selecciona un profesional','error'); return }
+  if(!client){ toast('Falta el nombre del cliente','error'); return }
+  if(!date||!start){ toast('Falta fecha u hora','error'); return }
+  const svcOpt=document.getElementById('apptService').selectedOptions[0]
+  const end=toHHMM(toMin(start)+dur)
+  const row={
+    professional_id:profId,
+    service_id:document.getElementById('apptService').value||null,
+    service_name:(svcOpt&&svcOpt.dataset.name)||'',
+    price:(svcOpt&&svcOpt.dataset.price)||'',
+    client_name:client,
+    client_phone:document.getElementById('apptPhone').value.trim(),
+    appt_date:date, start_time:start, end_time:end,
+    status:document.getElementById('apptStatus').value,
+    notes:document.getElementById('apptNotes').value.trim()
+  }
+  const id=document.getElementById('apptId').value
+  try{
+    if(id) await supabase.update('appointments',id,row)
+    else await supabase.insert('appointments',row)
+    closeModal('apptModal'); toast('Reserva guardada','success'); loadAndRender()
+  }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+async function deleteAppt(){
+  const id=document.getElementById('apptId').value
+  if(!id||!confirm('¿Eliminar esta reserva definitivamente?')) return
+  try{ await supabase.delete('appointments',id); closeModal('apptModal'); toast('Reserva eliminada','success'); loadAndRender() }
+  catch(e){ toast('Error al eliminar','error') }
+}
+
+/* ── PROFESSIONAL MANAGER ── */
+let pfColor=COLORS[0], pfDays=[1,2,3,4,5,6]
+function openProfManager(){ renderProfManage(); resetProfForm(); openModal('profModal') }
+function renderProfManage(){
+  const el=document.getElementById('profManageList')
+  if(!state.professionals.length){ el.innerHTML=`<p style="color:var(--mid);font-size:.82rem">Aún no hay profesionales.</p>`; return }
+  el.innerHTML=state.professionals.map(p=>`<div class="prof-manage-item">
+    <span class="prof-dot" style="background:${p.color||'#C5A467'}"></span>
+    <span class="nm">${esc(p.name)}</span>
+    <button class="mini-btn" onclick="editProf('${p.id}')">Editar</button>
+    <button class="mini-btn" onclick="deleteProf('${p.id}','${esc(p.name)}')">Borrar</button>
+  </div>`).join('')
+}
+function renderSwatches(){
+  document.getElementById('pfSwatches').innerHTML=COLORS.map(c=>
+    `<span class="swatch ${c===pfColor?'on':''}" style="background:${c}" onclick="pfColor='${c}';renderSwatches()"></span>`).join('')
+}
+function renderDayPicker(){
+  document.getElementById('pfDays').innerHTML=[1,2,3,4,5,6,7].map(d=>
+    `<button class="${pfDays.includes(d)?'on':''}" onclick="toggleDay(${d})">${DOW[d%7]}</button>`).join('')
+}
+function toggleDay(d){ pfDays=pfDays.includes(d)?pfDays.filter(x=>x!==d):[...pfDays,d].sort(); renderDayPicker() }
+function resetProfForm(){
+  document.getElementById('profFormTitle').textContent='Agregar profesional'
+  document.getElementById('pfId').value=''
+  document.getElementById('pfName').value=''
+  document.getElementById('pfStart').value='10:00'
+  document.getElementById('pfEnd').value='20:00'
+  pfColor=COLORS[state.professionals.length%COLORS.length]; pfDays=[1,2,3,4,5,6]
+  renderSwatches(); renderDayPicker()
+}
+function editProf(id){
+  const p=state.professionals.find(x=>x.id===id); if(!p) return
+  document.getElementById('profFormTitle').textContent='Editar profesional'
+  document.getElementById('pfId').value=p.id
+  document.getElementById('pfName').value=p.name
+  document.getElementById('pfStart').value=(p.work_start||'10:00').slice(0,5)
+  document.getElementById('pfEnd').value=(p.work_end||'20:00').slice(0,5)
+  pfColor=p.color||COLORS[0]
+  pfDays=Array.isArray(p.work_days)?p.work_days:JSON.parse(p.work_days||'[1,2,3,4,5,6]')
+  renderSwatches(); renderDayPicker()
+}
+async function saveProf(){
+  const name=document.getElementById('pfName').value.trim()
+  if(!name){ toast('Falta el nombre','error'); return }
+  const row={ name, color:pfColor, work_start:document.getElementById('pfStart').value,
+    work_end:document.getElementById('pfEnd').value, work_days:pfDays, active:true }
+  const id=document.getElementById('pfId').value
+  try{
+    if(id) await supabase.update('professionals',id,row)
+    else { row.sort_order=state.professionals.length; await supabase.insert('professionals',row) }
+    await loadProfessionals(); renderProfManage(); resetProfForm(); render(); toast('Profesional guardado','success')
+  }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+async function deleteProf(id,name){
+  if(!confirm(`¿Borrar a "${name}"? Se eliminarán también sus reservas.`)) return
+  try{ await supabase.delete('professionals',id); await loadProfessionals(); if(state.profId===id) state.profId='all'; renderProfManage(); render(); toast('Profesional borrado','success') }
+  catch(e){ toast('Error al borrar','error') }
+}
+
+/* ── UTIL ── */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+function openModal(id){ document.getElementById(id).classList.add('open') }
+function closeModal(id){ document.getElementById(id).classList.remove('open') }
+document.querySelectorAll('.modal-ov').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('open') }))
+let toastT
+function toast(msg,type){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+(type||''); clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast',2600) }
+
+/* ── BOOT ── */
+async function boot(){
+  document.getElementById('loginScreen').style.display='none'
+  document.getElementById('app').style.display='flex'
+  if(typeof initSupabaseData==='function'){ try{ await initSupabaseData() }catch(e){} }
+  flattenServices()
+  await loadProfessionals()
+  await loadAppointments()
+  render()
+  // refrescar línea de "ahora" cada minuto
+  setInterval(()=>{ if(document.getElementById('app').style.display!=='none') renderCalendar() }, 60000)
+  // scroll a las 9:00 aprox
+  setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
+}
+if(localStorage.getItem('spa_admin_auth')==='true') boot()
+</script>
+</body>
+</html>

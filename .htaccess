@@ -85,3 +85,8 @@ RewriteRule ^(.+)\.html$ /$1 [R=301,L]
 
 # Security: prevenir directory listing
 Options -Indexes
+
+# Security: bloquear archivos sensibles (SQL, config, ejemplos)
+<FilesMatch "\.(sql|example\.php|md)$">
+  Require all denied
+</FilesMatch>
