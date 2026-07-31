@@ -140,6 +140,10 @@ input,select,textarea{font-family:inherit}
 .hr-line.half{border-top-style:dotted}
 .appt{position:absolute;left:2px;right:2px;border-radius:6px;padding:4px 7px;font-size:.7rem;color:#fff;overflow:hidden;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);border-left:3px solid rgba(0,0,0,.2)}
 .appt:hover{filter:brightness(.95);z-index:3}
+.appt{cursor:grab}
+.appt.dragging{opacity:.3}
+.dragging-ghost{border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.28);color:#fff;padding:4px 7px;font-size:.7rem}
+.drop-hint{position:absolute;left:2px;right:2px;border:2px dashed var(--gold-d);background:rgba(197,164,103,.2);border-radius:6px;z-index:8;font-size:.66rem;color:var(--gold-d);font-weight:700;padding:2px 6px;pointer-events:none}
 .appt .t{font-weight:700;font-size:.66rem;opacity:.95}
 .appt .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .appt .s{opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -643,13 +647,13 @@ function renderCalendar(){
       const w=100/a._cols, left=a._col*w
       const pos=`top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px)`
       if(a.status==='block'){
-        return `<div class="appt block" style="${pos}" onclick="event.stopPropagation();openBlockModal(null,findAppt('${a.id}'))">
+        return `<div class="appt block" data-id="${a.id}" style="${pos}" onmousedown="apptMouseDown(event,'${a.id}')">
           <div class="t">🔒 ${a.start_time.slice(0,5)}</div>
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=a.status==='cancelled'?'#cfcfcf':(p?p.color:'#C5A467')
-      return `<div class="appt ${a.status==='cancelled'?'cancelled':''}" style="${pos};background:${color}"
-        onclick="event.stopPropagation();openApptModal('${a.id}')">
+      return `<div class="appt ${a.status==='cancelled'?'cancelled':''}" data-id="${a.id}" style="${pos};background:${color}"
+        onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div></div>`
@@ -729,6 +733,74 @@ function clearGhost(){ ['ghostAppt','ghostMenu'].forEach(id=>{ const e=document.
 document.addEventListener('click',e=>{
   if(document.getElementById('ghostMenu') && !e.target.closest('.dcol')) clearGhost()
 })
+
+/* ── ARRASTRAR RESERVAS (drag & drop) ── */
+let drag=null
+function apptMouseDown(e, id){
+  if(e.button!==0) return
+  e.preventDefault(); e.stopPropagation()
+  const a=findAppt(id); if(!a) return
+  clearGhost()
+  drag={ id, dur:toMin(a.end_time)-toMin(a.start_time), startX:e.clientX, startY:e.clientY,
+         moved:false, ghost:null, targetDate:a.appt_date, targetStart:a.start_time.slice(0,5) }
+  document.addEventListener('mousemove', apptMouseMove)
+  document.addEventListener('mouseup', apptMouseUp)
+}
+function columnAtPoint(x,y){
+  for(const c of document.querySelectorAll('.cal-grid .dcol[data-date]')){
+    const r=c.getBoundingClientRect()
+    if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom) return c
+  }
+  return null
+}
+function apptMouseMove(e){
+  if(!drag) return
+  if(!drag.moved){
+    if(Math.abs(e.clientX-drag.startX)<5 && Math.abs(e.clientY-drag.startY)<5) return
+    drag.moved=true
+    const src=document.querySelector(`.appt[data-id="${drag.id}"]`)
+    const g=src?src.cloneNode(true):document.createElement('div')
+    g.classList.add('dragging-ghost'); g.removeAttribute('style')
+    g.style.cssText=`position:fixed;pointer-events:none;z-index:999;opacity:.9;width:${src?src.offsetWidth:130}px;height:${src?src.offsetHeight:30}px;background:${src?getComputedStyle(src).background:'#C5A467'}`
+    document.body.appendChild(g); drag.ghost=g
+    if(src) src.classList.add('dragging')
+  }
+  drag.ghost.style.left=(e.clientX+8)+'px'
+  drag.ghost.style.top=(e.clientY+8)+'px'
+  const col=columnAtPoint(e.clientX,e.clientY)
+  clearDropHint()
+  if(col){
+    const rect=col.getBoundingClientRect()
+    const [minM,maxM]=hourBounds()
+    let mins=minM + Math.round(((e.clientY-rect.top)/HOUR_H*60)/15)*15
+    mins=Math.max(minM, Math.min(mins, maxM-drag.dur))
+    drag.targetDate=col.dataset.date
+    drag.targetStart=toHHMM(mins)
+    const top=(mins-minM)/60*HOUR_H, h=Math.max(20, drag.dur/60*HOUR_H-2)
+    const d=document.createElement('div'); d.className='drop-hint'; d.id='dropHint'
+    d.style.top=top+'px'; d.style.height=h+'px'; d.textContent=toHHMM(mins)
+    col.appendChild(d)
+  }
+}
+function clearDropHint(){ const d=document.getElementById('dropHint'); if(d) d.remove() }
+async function apptMouseUp(){
+  document.removeEventListener('mousemove', apptMouseMove)
+  document.removeEventListener('mouseup', apptMouseUp)
+  const d=drag; drag=null
+  if(!d) return
+  if(d.ghost) d.ghost.remove()
+  clearDropHint()
+  const a=findAppt(d.id); if(!a) return
+  if(!d.moved){ if(a.status==='block') openBlockModal(null,a); else openApptModal(d.id); return }
+  if(a.appt_date===d.targetDate && a.start_time.slice(0,5)===d.targetStart){ render(); return }
+  const newEnd=toHHMM(toMin(d.targetStart)+d.dur)
+  a.appt_date=d.targetDate; a.start_time=d.targetStart; a.end_time=newEnd  // optimista
+  render()
+  try{
+    await supabase.update('appointments', d.id, {appt_date:d.targetDate, start_time:d.targetStart, end_time:newEnd})
+    toast('Reserva movida','success')
+  }catch(err){ console.error(err); toast('Error al mover — recargando','error'); loadAndRender() }
+}
 
 /* ── NAV ── */
 function setView(v){ state.view=v; document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
