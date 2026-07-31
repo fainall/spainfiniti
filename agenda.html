@@ -63,6 +63,18 @@ input,select,textarea{font-family:inherit}
 .prof-chip .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .side-link{margin-top:6px;font-size:.76rem;color:var(--gold-d);font-weight:600;background:none;border:none;padding:6px 0}
 .side-link:hover{text-decoration:underline}
+/* mini calendar */
+.mini-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mini-cal-head .mc-title{font-size:.8rem;font-weight:600}
+.mini-cal-head button{width:24px;height:24px;border:none;background:none;color:var(--mid);cursor:pointer;border-radius:6px;font-size:1rem}
+.mini-cal-head button:hover{background:var(--cream-2)}
+.mini-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.mini-dow{font-size:.56rem;color:var(--light);font-weight:700;padding:3px 0;text-transform:uppercase}
+.mini-day{font-size:.72rem;padding:6px 0;border-radius:50%;cursor:pointer;color:var(--dark)}
+.mini-day:hover{background:var(--cream-2)}
+.mini-day.blank{cursor:default}
+.mini-day.inweek{background:var(--gold-pale)}
+.mini-day.today{background:var(--gold);color:#fff;font-weight:700}
 
 /* ── CALENDAR ── */
 .cal-wrap{flex:1;overflow:auto;position:relative;background:var(--white)}
@@ -207,6 +219,9 @@ input,select,textarea{font-family:inherit}
           <option value="active">Reservas activas</option>
           <option value="all">Todas</option>
         </select>
+      </div>
+      <div class="field">
+        <div class="mini-cal" id="miniCal"></div>
       </div>
     </aside>
 
@@ -354,11 +369,13 @@ let state = {
   view: 'week',
   anchor: new Date(),
   profId: 'all',
+  miniMonth: new Date(),
   professionals: [],
   appointments: [],
   services: [],
   clients: []
 }
+const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 /* ── LOGIN ── */
 function doLogin(){
@@ -421,8 +438,35 @@ function hourBounds(){
 
 /* ── RENDER ── */
 function render(){
-  renderSidebar(); renderRangeLabel(); renderCalendar()
+  renderSidebar(); renderMiniCal(); renderRangeLabel(); renderCalendar()
 }
+function renderMiniCal(){
+  const el=document.getElementById('miniCal'); if(!el) return
+  const m=state.miniMonth, year=m.getFullYear(), month=m.getMonth()
+  const first=new Date(year,month,1)
+  const startOff=(first.getDay()+6)%7
+  const daysInMonth=new Date(year,month+1,0).getDate()
+  const todayIso=isoDate(new Date())
+  const [wf,wt]=visibleRange(); const wfIso=isoDate(wf), wtIso=isoDate(wt)
+  let cells=''
+  ;['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].forEach(d=>cells+=`<div class="mini-dow">${d}</div>`)
+  for(let i=0;i<startOff;i++) cells+=`<div class="mini-day blank"></div>`
+  for(let d=1;d<=daysInMonth;d++){
+    const iso=isoDate(new Date(year,month,d))
+    const isToday=iso===todayIso
+    const inWeek = state.view==='week' ? (iso>=wfIso && iso<=wtIso) : (iso===isoDate(state.anchor))
+    cells+=`<div class="mini-day ${isToday?'today':''} ${inWeek&&!isToday?'inweek':''}" onclick="pickMiniDay(${year},${month},${d})">${d}</div>`
+  }
+  el.innerHTML=`
+    <div class="mini-cal-head">
+      <button onclick="miniNav(-1)">‹</button>
+      <span class="mc-title">${MONTHS[month]} ${year}</span>
+      <button onclick="miniNav(1)">›</button>
+    </div>
+    <div class="mini-grid">${cells}</div>`
+}
+function miniNav(dir){ const m=new Date(state.miniMonth); m.setMonth(m.getMonth()+dir); state.miniMonth=m; renderMiniCal() }
+function pickMiniDay(y,mo,d){ state.anchor=new Date(y,mo,d); state.miniMonth=new Date(y,mo,1); loadAndRender() }
 function renderRangeLabel(){
   const el=document.getElementById('rangeLabel')
   if(state.view==='day'){
@@ -578,8 +622,8 @@ document.addEventListener('click',e=>{
 
 /* ── NAV ── */
 function setView(v){ state.view=v; document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
-function navDate(dir){ state.anchor=addDays(state.anchor, state.view==='day'?dir:dir*7); loadAndRender() }
-function goToday(){ state.anchor=new Date(); loadAndRender() }
+function navDate(dir){ state.anchor=addDays(state.anchor, state.view==='day'?dir:dir*7); state.miniMonth=new Date(state.anchor); loadAndRender() }
+function goToday(){ state.anchor=new Date(); state.miniMonth=new Date(); loadAndRender() }
 async function loadAndRender(){ await loadAppointments(); render() }
 
 /* ── APPOINTMENT MODAL ── */
