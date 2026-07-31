@@ -1,6 +1,7 @@
 -- ═══════════════════════════════════════════
 -- SPA INFINITY — Sistema de Agenda (Fase 1)
 -- Pegar TODO esto en Supabase → SQL Editor → Run
+-- (Se puede correr varias veces sin problema)
 -- ═══════════════════════════════════════════
 
 -- 1. Profesionales
@@ -16,10 +17,23 @@ create table if not exists professionals (
   created_at  timestamptz default now()
 );
 
--- 2. Reservas / citas
+-- 2. Clientes
+create table if not exists clients (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  phone       text,
+  email       text,
+  rut         text,
+  notes       text,
+  created_at  timestamptz default now()
+);
+create index if not exists idx_clients_name on clients(name);
+
+-- 3. Reservas / citas
 create table if not exists appointments (
   id              uuid primary key default gen_random_uuid(),
   professional_id uuid references professionals(id) on delete cascade,
+  client_id       uuid references clients(id) on delete set null,
   service_id      text,
   service_name    text,
   client_name     text not null,
@@ -27,7 +41,7 @@ create table if not exists appointments (
   appt_date       date not null,
   start_time      time not null,
   end_time        time not null,
-  status          text default 'active',   -- active | done | cancelled | no_show
+  status          text default 'active',   -- active | done | cancelled | no_show | block
   price           text,
   notes           text,
   created_at      timestamptz default now()
@@ -35,15 +49,22 @@ create table if not exists appointments (
 create index if not exists idx_appt_date on appointments(appt_date);
 create index if not exists idx_appt_prof on appointments(professional_id);
 
--- 3. Permisos (igual patrón que el resto del sitio: acceso con clave anon)
+-- Si ya habías creado appointments antes, agrega la columna nueva:
+alter table appointments add column if not exists client_id uuid references clients(id) on delete set null;
+
+-- 4. Permisos (mismo patrón del resto del sitio)
 alter table professionals enable row level security;
+alter table clients       enable row level security;
 alter table appointments  enable row level security;
 
 drop policy if exists "anon all professionals" on professionals;
-drop policy if exists "anon all appointments"  on appointments;
+drop policy if exists "anon all clients"        on clients;
+drop policy if exists "anon all appointments"   on appointments;
 create policy "anon all professionals" on professionals for all using (true) with check (true);
-create policy "anon all appointments"  on appointments  for all using (true) with check (true);
+create policy "anon all clients"        on clients       for all using (true) with check (true);
+create policy "anon all appointments"   on appointments  for all using (true) with check (true);
 
--- 4. Un profesional de ejemplo para empezar (puedes editarlo/borrarlo en la agenda)
+-- 5. Un profesional de ejemplo para empezar
 insert into professionals (name, color, work_start, work_end, work_days)
-values ('Profesional 1', '#C5A467', '10:00', '20:00', '[1,2,3,4,5,6]');
+select 'Profesional 1', '#C5A467', '10:00', '20:00', '[1,2,3,4,5,6]'
+where not exists (select 1 from professionals);

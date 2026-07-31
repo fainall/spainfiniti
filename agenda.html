@@ -123,6 +123,19 @@ input,select,textarea{font-family:inherit}
 .wd-picker{display:flex;gap:5px;margin-top:4px}
 .wd-picker button{flex:1;padding:8px 0;border:1px solid var(--border);background:#fff;border-radius:6px;font-size:.72rem;font-weight:600;color:var(--mid)}
 .wd-picker button.on{background:var(--gold);color:#fff;border-color:var(--gold)}
+/* client picker */
+.client-row{display:flex;gap:10px;align-items:stretch}
+.client-search-wrap{position:relative;flex:1}
+.client-search-wrap input{width:100%}
+.client-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;max-height:190px;overflow-y:auto;z-index:10;display:none;box-shadow:0 10px 24px rgba(0,0,0,.12)}
+.client-dropdown.show{display:block}
+.client-opt{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--cream-2)}
+.client-opt:hover{background:var(--cream-2)}
+.client-opt .cn{font-weight:600;font-size:.82rem}
+.client-opt .cd{font-size:.72rem;color:var(--mid)}
+.client-opt.empty{color:var(--mid);cursor:default;text-align:center;font-size:.78rem}
+.btn-newclient{white-space:nowrap;padding:0 14px;border:1px solid var(--gold);background:var(--gold-pale);color:var(--gold-d);border-radius:8px;font-weight:600;font-size:.76rem}
+.btn-newclient:hover{background:var(--gold);color:#fff}
 
 /* toast */
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:#fff;padding:12px 22px;border-radius:10px;font-size:.82rem;opacity:0;transition:.3s;z-index:1100;pointer-events:none}
@@ -201,10 +214,17 @@ input,select,textarea{font-family:inherit}
     <select id="apptProf"></select>
     <label>Servicio</label>
     <select id="apptService" onchange="onServicePick()"></select>
-    <div class="row2">
-      <div><label>Cliente</label><input type="text" id="apptClient" placeholder="Nombre" /></div>
-      <div><label>Teléfono</label><input type="text" id="apptPhone" placeholder="+569..." /></div>
+    <label>Cliente</label>
+    <div class="client-row">
+      <div class="client-search-wrap">
+        <input type="text" id="apptClientSearch" placeholder="Busca por nombre, teléfono o email" autocomplete="off" oninput="onClientSearch()" onfocus="onClientSearch()" />
+        <div class="client-dropdown" id="clientDropdown"></div>
+      </div>
+      <button type="button" class="btn-newclient" onclick="openClientModal()">+ Nuevo cliente</button>
     </div>
+    <input type="hidden" id="apptClientId" />
+    <label>Teléfono</label>
+    <input type="text" id="apptPhone" placeholder="+569..." />
     <div class="row2">
       <div><label>Fecha</label><input type="date" id="apptDate" /></div>
       <div><label>Hora inicio</label><input type="time" id="apptStart" step="300" /></div>
@@ -253,6 +273,28 @@ input,select,textarea{font-family:inherit}
   </div>
 </div>
 
+<!-- MODAL: New client -->
+<div class="modal-ov" id="clientModal">
+  <div class="modal">
+    <h2 id="clientTitle">Nuevo cliente</h2>
+    <input type="hidden" id="clId" />
+    <label>Nombre y apellido</label>
+    <input type="text" id="clName" placeholder="Nombre del cliente" />
+    <div class="row2">
+      <div><label>Teléfono</label><input type="text" id="clPhone" placeholder="+569..." /></div>
+      <div><label>RUT</label><input type="text" id="clRut" placeholder="12.345.678-9" /></div>
+    </div>
+    <label>Email</label>
+    <input type="email" id="clEmail" placeholder="correo@ejemplo.cl" />
+    <label>Notas</label>
+    <textarea id="clNotes" rows="2" placeholder="Preferencias, alergias, etc."></textarea>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
+      <button class="btn-primary" onclick="saveClient()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Professional manager -->
 <div class="modal-ov" id="profModal">
   <div class="modal">
@@ -295,7 +337,8 @@ let state = {
   profId: 'all',
   professionals: [],
   appointments: [],
-  services: []
+  services: [],
+  clients: []
 }
 
 /* ── LOGIN ── */
@@ -320,6 +363,10 @@ function parseDur(str){ if(!str) return 60; const m=String(str).match(/\d+/); re
 async function loadProfessionals(){
   try{ state.professionals = await supabase.fetch('professionals',{order:'sort_order.asc,name.asc'}) || [] }
   catch(e){ state.professionals=[]; console.warn(e) }
+}
+async function loadClients(){
+  try{ state.clients = await supabase.fetch('clients',{order:'name.asc'}) || [] }
+  catch(e){ state.clients=[]; console.warn(e) }
 }
 async function loadAppointments(){
   const [from,to] = visibleRange()
@@ -539,7 +586,8 @@ function openApptModal(id,prefill){
     document.getElementById('apptId').value=a.id
     document.getElementById('apptProf').value=a.professional_id
     document.getElementById('apptService').value=a.service_id||''
-    document.getElementById('apptClient').value=a.client_name||''
+    document.getElementById('apptClientSearch').value=a.client_name||''
+    document.getElementById('apptClientId').value=a.client_id||''
     document.getElementById('apptPhone').value=a.client_phone||''
     document.getElementById('apptDate').value=a.appt_date
     document.getElementById('apptStart').value=a.start_time.slice(0,5)
@@ -552,7 +600,8 @@ function openApptModal(id,prefill){
     document.getElementById('apptId').value=''
     if(state.profId!=='all') document.getElementById('apptProf').value=state.profId
     document.getElementById('apptService').value=''
-    document.getElementById('apptClient').value=''
+    document.getElementById('apptClientSearch').value=''
+    document.getElementById('apptClientId').value=''
     document.getElementById('apptPhone').value=''
     document.getElementById('apptDate').value=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
     document.getElementById('apptStart').value=(prefill&&prefill.start)||'10:00'
@@ -565,7 +614,7 @@ function openApptModal(id,prefill){
 }
 async function saveAppt(){
   const profId=document.getElementById('apptProf').value
-  const client=document.getElementById('apptClient').value.trim()
+  const client=document.getElementById('apptClientSearch').value.trim()
   const date=document.getElementById('apptDate').value
   const start=document.getElementById('apptStart').value
   const dur=parseInt(document.getElementById('apptDur').value)||60
@@ -576,6 +625,7 @@ async function saveAppt(){
   const end=toHHMM(toMin(start)+dur)
   const row={
     professional_id:profId,
+    client_id:document.getElementById('apptClientId').value||null,
     service_id:document.getElementById('apptService').value||null,
     service_name:(svcOpt&&svcOpt.dataset.name)||'',
     price:(svcOpt&&svcOpt.dataset.price)||'',
@@ -597,6 +647,61 @@ async function deleteAppt(){
   if(!id||!confirm('¿Eliminar esta reserva definitivamente?')) return
   try{ await supabase.delete('appointments',id); closeModal('apptModal'); toast('Reserva eliminada','success'); loadAndRender() }
   catch(e){ toast('Error al eliminar','error') }
+}
+
+/* ── CLIENT PICKER ── */
+function onClientSearch(){
+  const q=document.getElementById('apptClientSearch').value.trim().toLowerCase()
+  document.getElementById('apptClientId').value=''  // escribir invalida la selección previa
+  const dd=document.getElementById('clientDropdown')
+  if(!state.clients.length){ dd.classList.remove('show'); return }
+  let list=state.clients
+  if(q) list=state.clients.filter(c=>((c.name||'')+' '+(c.phone||'')+' '+(c.email||'')+' '+(c.rut||'')).toLowerCase().includes(q))
+  list=list.slice(0,8)
+  dd.innerHTML = list.length
+    ? list.map(c=>`<div class="client-opt" onclick="selectClient('${c.id}')"><div class="cn">${esc(c.name)}</div><div class="cd">${esc(c.phone||'')}${c.email?' · '+esc(c.email):''}</div></div>`).join('')
+    : `<div class="client-opt empty">Sin coincidencias — usa “+ Nuevo cliente”</div>`
+  dd.classList.add('show')
+}
+function selectClient(id){
+  const c=state.clients.find(x=>x.id===id); if(!c) return
+  document.getElementById('apptClientId').value=c.id
+  document.getElementById('apptClientSearch').value=c.name
+  document.getElementById('apptPhone').value=c.phone||''
+  document.getElementById('clientDropdown').classList.remove('show')
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.client-search-wrap')){ const dd=document.getElementById('clientDropdown'); if(dd) dd.classList.remove('show') }
+})
+
+/* ── CLIENT MODAL ── */
+function openClientModal(){
+  document.getElementById('clId').value=''
+  document.getElementById('clName').value=document.getElementById('apptClientSearch').value.trim()||''
+  document.getElementById('clPhone').value=document.getElementById('apptPhone').value.trim()||''
+  document.getElementById('clEmail').value=''
+  document.getElementById('clRut').value=''
+  document.getElementById('clNotes').value=''
+  openModal('clientModal')
+}
+async function saveClient(){
+  const name=document.getElementById('clName').value.trim()
+  if(!name){ toast('Falta el nombre','error'); return }
+  const row={
+    name,
+    phone:document.getElementById('clPhone').value.trim(),
+    email:document.getElementById('clEmail').value.trim(),
+    rut:document.getElementById('clRut').value.trim(),
+    notes:document.getElementById('clNotes').value.trim()
+  }
+  try{
+    const res=await supabase.insert('clients',row)
+    const created=Array.isArray(res)?res[0]:res
+    await loadClients()
+    closeModal('clientModal'); toast('Cliente guardado','success')
+    // si el modal de reserva está abierto, seleccionarlo automáticamente
+    if(created && document.getElementById('apptModal').classList.contains('open')) selectClient(created.id)
+  }catch(e){ console.error(e); toast('Error al guardar cliente','error') }
 }
 
 /* ── BLOCK MODAL ── */
@@ -729,6 +834,7 @@ async function boot(){
   if(typeof initSupabaseData==='function'){ try{ await initSupabaseData() }catch(e){} }
   flattenServices()
   await loadProfessionals()
+  await loadClients()
   await loadAppointments()
   render()
   // refrescar línea de "ahora" cada minuto
