@@ -86,6 +86,15 @@ input,select,textarea{font-family:inherit}
 .appt .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .appt .s{opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .appt.cancelled{background:#cfcfcf!important;text-decoration:line-through;opacity:.7}
+.appt.block{background:repeating-linear-gradient(45deg,#8a8f99,#8a8f99 6px,#7c818b 6px,#7c818b 12px)!important;border-left-color:rgba(0,0,0,.35)}
+.appt.block .n{font-weight:600}
+/* slot popover */
+.slot-pop{position:fixed;z-index:800;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.18);width:210px;overflow:hidden;font-size:.82rem}
+.slot-pop-head{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--gold-pale);border-bottom:1px solid var(--border);font-weight:600;color:var(--gold-d);font-size:.76rem}
+.slot-pop-head button{border:none;background:none;color:var(--gold-d);font-size:.9rem}
+.slot-pop-item{display:flex;align-items:center;gap:9px;width:100%;padding:11px 14px;border:none;background:#fff;text-align:left;font-size:.83rem;color:var(--dark)}
+.slot-pop-item:hover{background:var(--cream-2)}
+.slot-pop-item+.slot-pop-item{border-top:1px solid var(--border)}
 .now-line{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:4;pointer-events:none}
 .now-line::before{content:'';position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
 .empty-note{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--light);gap:12px;z-index:6}
@@ -217,6 +226,29 @@ input,select,textarea{font-family:inherit}
       <button class="btn-danger" id="apptDelBtn" onclick="deleteAppt()" style="display:none">Eliminar</button>
       <button class="btn-ghost" onclick="closeModal('apptModal')">Cancelar</button>
       <button class="btn-primary" onclick="saveAppt()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Block -->
+<div class="modal-ov" id="blockModal">
+  <div class="modal">
+    <h2>🔒 Bloquear horario</h2>
+    <input type="hidden" id="blkId" />
+    <label>Profesional</label>
+    <select id="blkProf"></select>
+    <div class="row2">
+      <div><label>Fecha</label><input type="date" id="blkDate" /></div>
+      <div><label>Hora inicio</label><input type="time" id="blkStart" step="300" /></div>
+    </div>
+    <label>Duración (min)</label>
+    <input type="number" id="blkDur" min="5" step="5" value="30" />
+    <label>Motivo (opcional)</label>
+    <input type="text" id="blkReason" placeholder="Colación, reunión, etc." />
+    <div class="modal-actions">
+      <button class="btn-danger" id="blkDelBtn" onclick="deleteBlock()" style="display:none">Eliminar</button>
+      <button class="btn-ghost" onclick="closeModal('blockModal')">Cancelar</button>
+      <button class="btn-primary" onclick="saveBlock()">Guardar</button>
     </div>
   </div>
 </div>
@@ -388,9 +420,15 @@ function renderCalendar(){
       const p=state.professionals.find(x=>x.id===a.professional_id)
       const top=(toMin(a.start_time)-minM)/60*HOUR_H
       const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/60*HOUR_H-2)
-      const color=a.status==='cancelled'?'#cfcfcf':(p?p.color:'#C5A467')
       const w=100/a._cols, left=a._col*w
-      return `<div class="appt ${a.status==='cancelled'?'cancelled':''}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${color}"
+      const pos=`top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px)`
+      if(a.status==='block'){
+        return `<div class="appt block" style="${pos}" onclick="event.stopPropagation();openBlockModal(null,findAppt('${a.id}'))">
+          <div class="t">🔒 ${a.start_time.slice(0,5)}</div>
+          <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
+      }
+      const color=a.status==='cancelled'?'#cfcfcf':(p?p.color:'#C5A467')
+      return `<div class="appt ${a.status==='cancelled'?'cancelled':''}" style="${pos};background:${color}"
         onclick="event.stopPropagation();openApptModal('${a.id}')">
         <div class="t">${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -437,14 +475,33 @@ function layoutDay(appts){
   return sorted
 }
 
-/* click empty slot → new appt prefilled */
+/* click empty slot → popover: Reserva o Bloquear */
+let slotPrefill=null
 function onSlotClick(e,col){
   const rect=col.getBoundingClientRect()
   const [minM]=hourBounds()
   let mins=minM + Math.floor((e.clientY-rect.top)/HOUR_H*60)
   mins=Math.round(mins/15)*15
-  openApptModal(null,{date:col.dataset.date,start:toHHMM(mins)})
+  showSlotPop(e.clientX, e.clientY, {date:col.dataset.date,start:toHHMM(mins)})
 }
+function fmtDate(iso){ const [y,m,d]=iso.split('-'); return `${d}/${m}` }
+function showSlotPop(x,y,prefill){
+  closeSlotPop(); slotPrefill=prefill
+  const pop=document.createElement('div')
+  pop.className='slot-pop'; pop.id='slotPop'
+  pop.innerHTML=`
+    <div class="slot-pop-head"><span>${prefill.start} · ${fmtDate(prefill.date)}</span><button onclick="closeSlotPop()">✕</button></div>
+    <button class="slot-pop-item" onclick="closeSlotPop();openApptModal(null,slotPrefill)">📅 Reserva</button>
+    <button class="slot-pop-item" onclick="closeSlotPop();openBlockModal(slotPrefill)">🚫 Bloquear horario</button>`
+  document.body.appendChild(pop)
+  pop.style.left=Math.min(x, window.innerWidth-220)+'px'
+  pop.style.top=Math.min(y, window.innerHeight-130)+'px'
+}
+function closeSlotPop(){ const p=document.getElementById('slotPop'); if(p) p.remove() }
+document.addEventListener('click',e=>{
+  const p=document.getElementById('slotPop')
+  if(p && !p.contains(e.target) && !e.target.closest('.dcol')) closeSlotPop()
+})
 
 /* ── NAV ── */
 function setView(v){ state.view=v; document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
@@ -471,11 +528,13 @@ function onServicePick(){
   const opt=document.getElementById('apptService').selectedOptions[0]
   if(opt && opt.value){ document.getElementById('apptDur').value=opt.dataset.dur||60 }
 }
+function findAppt(id){ return state.appointments.find(x=>x.id===id) }
 function openApptModal(id,prefill){
   fillProfSelect(); fillServiceSelect()
   const del=document.getElementById('apptDelBtn')
   if(id){
     const a=state.appointments.find(x=>x.id===id); if(!a) return
+    if(a.status==='block'){ openBlockModal(null,a); return }
     document.getElementById('apptTitle').textContent='Editar reserva'
     document.getElementById('apptId').value=a.id
     document.getElementById('apptProf').value=a.professional_id
@@ -537,6 +596,61 @@ async function deleteAppt(){
   const id=document.getElementById('apptId').value
   if(!id||!confirm('¿Eliminar esta reserva definitivamente?')) return
   try{ await supabase.delete('appointments',id); closeModal('apptModal'); toast('Reserva eliminada','success'); loadAndRender() }
+  catch(e){ toast('Error al eliminar','error') }
+}
+
+/* ── BLOCK MODAL ── */
+function fillBlockProf(){
+  document.getElementById('blkProf').innerHTML = state.professionals.filter(p=>p.active!==false)
+    .map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+}
+function openBlockModal(prefill, existing){
+  fillBlockProf()
+  const del=document.getElementById('blkDelBtn')
+  if(existing){
+    document.getElementById('blkId').value=existing.id
+    document.getElementById('blkProf').value=existing.professional_id
+    document.getElementById('blkDate').value=existing.appt_date
+    document.getElementById('blkStart').value=existing.start_time.slice(0,5)
+    document.getElementById('blkDur').value=toMin(existing.end_time)-toMin(existing.start_time)
+    document.getElementById('blkReason').value=existing.notes||''
+    del.style.display='block'
+  } else {
+    document.getElementById('blkId').value=''
+    if(state.profId!=='all') document.getElementById('blkProf').value=state.profId
+    document.getElementById('blkDate').value=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
+    document.getElementById('blkStart').value=(prefill&&prefill.start)||'10:00'
+    document.getElementById('blkDur').value=30
+    document.getElementById('blkReason').value=''
+    del.style.display='none'
+  }
+  openModal('blockModal')
+}
+async function saveBlock(){
+  const profId=document.getElementById('blkProf').value
+  const date=document.getElementById('blkDate').value
+  const start=document.getElementById('blkStart').value
+  const dur=parseInt(document.getElementById('blkDur').value)||30
+  if(!profId){ toast('Selecciona un profesional','error'); return }
+  if(!date||!start){ toast('Falta fecha u hora','error'); return }
+  const reason=document.getElementById('blkReason').value.trim()
+  const row={
+    professional_id:profId, service_id:null, service_name:'',
+    client_name:reason||'Bloqueado', client_phone:'',
+    appt_date:date, start_time:start, end_time:toHHMM(toMin(start)+dur),
+    status:'block', notes:reason
+  }
+  const id=document.getElementById('blkId').value
+  try{
+    if(id) await supabase.update('appointments',id,row)
+    else await supabase.insert('appointments',row)
+    closeModal('blockModal'); toast('Horario bloqueado','success'); loadAndRender()
+  }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+async function deleteBlock(){
+  const id=document.getElementById('blkId').value
+  if(!id||!confirm('¿Eliminar este bloqueo?')) return
+  try{ await supabase.delete('appointments',id); closeModal('blockModal'); toast('Bloqueo eliminado','success'); loadAndRender() }
   catch(e){ toast('Error al eliminar','error') }
 }
 
