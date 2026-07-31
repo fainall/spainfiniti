@@ -108,6 +108,17 @@ input,select,textarea{font-family:inherit}
 .modal input,.modal select,.modal textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem}
 .modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;border-color:var(--gold)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-head-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.modal-head-row h2{margin:0}
+.status-wrap{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:20px;padding:5px 12px;background:var(--white)}
+.status-dot{width:9px;height:9px;border-radius:50%;background:#4a90d9;flex-shrink:0}
+.status-wrap select{border:none;font-size:.76rem;font-weight:600;padding:0;background:transparent;outline:none;cursor:pointer;width:auto}
+.collapse{border:1px solid var(--border);border-radius:8px;margin-top:16px;overflow:hidden}
+.collapse-head{width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--cream-2);border:none;font-size:.82rem;font-weight:600;color:var(--dark)}
+.collapse-head .chev{transition:transform .25s;font-size:.7rem}
+.collapse.open .collapse-head .chev{transform:rotate(180deg)}
+.collapse-body{padding:0 14px;max-height:0;overflow:hidden;transition:max-height .28s ease,padding .28s ease}
+.collapse.open .collapse-body{max-height:420px;padding:4px 14px 14px}
 .modal-actions{display:flex;gap:10px;margin-top:22px}
 .modal-actions .btn-primary{flex:1;padding:12px}
 .btn-danger{padding:12px 16px;border:1px solid var(--red);background:#fff;color:var(--red);border-radius:8px;font-weight:600;font-size:.8rem}
@@ -208,44 +219,51 @@ input,select,textarea{font-family:inherit}
 <!-- MODAL: Appointment -->
 <div class="modal-ov" id="apptModal">
   <div class="modal">
-    <h2 id="apptTitle">Nueva reserva</h2>
-    <input type="hidden" id="apptId" />
-    <label>Profesional</label>
-    <select id="apptProf"></select>
-    <label>Servicio</label>
-    <select id="apptService" onchange="onServicePick()"></select>
-    <label>Cliente</label>
-    <div class="client-row">
-      <div class="client-search-wrap">
-        <input type="text" id="apptClientSearch" placeholder="Busca por nombre, teléfono o email" autocomplete="off" oninput="onClientSearch()" onfocus="onClientSearch()" />
-        <div class="client-dropdown" id="clientDropdown"></div>
-      </div>
-      <button type="button" class="btn-newclient" onclick="openClientModal()">+ Nuevo cliente</button>
-    </div>
-    <input type="hidden" id="apptClientId" />
-    <label>Teléfono</label>
-    <input type="text" id="apptPhone" placeholder="+569..." />
-    <div class="row2">
-      <div><label>Fecha</label><input type="date" id="apptDate" /></div>
-      <div><label>Hora inicio</label><input type="time" id="apptStart" step="300" /></div>
-    </div>
-    <div class="row2">
-      <div><label>Duración (min)</label><input type="number" id="apptDur" min="5" step="5" value="60" /></div>
-      <div><label>Estado</label>
-        <select id="apptStatus">
-          <option value="active">Activa</option>
+    <div class="modal-head-row">
+      <h2 id="apptTitle">Nueva reserva</h2>
+      <div class="status-wrap">
+        <span class="status-dot" id="apptStatusDot"></span>
+        <select id="apptStatus" onchange="updateStatusDot()">
+          <option value="active">Reservada</option>
           <option value="done">Realizada</option>
           <option value="no_show">No asistió</option>
           <option value="cancelled">Cancelada</option>
         </select>
       </div>
     </div>
-    <label>Notas</label>
-    <textarea id="apptNotes" rows="2" placeholder="Opcional"></textarea>
+    <input type="hidden" id="apptId" />
+    <div class="row2">
+      <div><label>Fecha</label><input type="date" id="apptDate" /></div>
+      <div><label>Hora inicio</label><input type="time" id="apptStart" step="300" /></div>
+    </div>
+    <label>Cliente</label>
+    <div class="client-row">
+      <div class="client-search-wrap">
+        <input type="text" id="apptClientSearch" placeholder="Busca por nombre, apellido, teléfono o email" autocomplete="off" oninput="onClientSearch()" onfocus="onClientSearch()" />
+        <div class="client-dropdown" id="clientDropdown"></div>
+      </div>
+      <button type="button" class="btn-newclient" onclick="openClientModal()">+ Nuevo cliente</button>
+    </div>
+    <input type="hidden" id="apptClientId" />
+    <label>Profesional</label>
+    <select id="apptProf"></select>
+    <label>Servicio</label>
+    <select id="apptService" onchange="onServicePick()"></select>
+    <div class="collapse" id="apptCollapse">
+      <button type="button" class="collapse-head" onclick="toggleCollapse('apptCollapse')">Información adicional <span class="chev">▼</span></button>
+      <div class="collapse-body">
+        <div class="row2">
+          <div><label>Teléfono</label><input type="text" id="apptPhone" placeholder="+569..." /></div>
+          <div><label>Duración (min)</label><input type="number" id="apptDur" min="5" step="5" value="60" /></div>
+        </div>
+        <label>Notas</label>
+        <textarea id="apptNotes" rows="2" placeholder="Opcional"></textarea>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn-danger" id="apptDelBtn" onclick="deleteAppt()" style="display:none">Eliminar</button>
       <button class="btn-ghost" onclick="closeModal('apptModal')">Cancelar</button>
-      <button class="btn-primary" onclick="saveAppt()">Guardar</button>
+      <button class="btn-primary" onclick="saveAppt()">Guardar reserva</button>
     </div>
   </div>
 </div>
@@ -559,7 +577,7 @@ async function loadAndRender(){ await loadAppointments(); render() }
 /* ── APPOINTMENT MODAL ── */
 function fillServiceSelect(){
   const sel=document.getElementById('apptService')
-  let html=`<option value="">— Servicio / bloqueo —</option>`
+  let html=`<option value="">Seleccionar servicio</option>`
   const byCat={}
   state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
   Object.entries(byCat).forEach(([cat,arr])=>{
@@ -575,6 +593,9 @@ function onServicePick(){
   const opt=document.getElementById('apptService').selectedOptions[0]
   if(opt && opt.value){ document.getElementById('apptDur').value=opt.dataset.dur||60 }
 }
+const STATUS_COLORS={active:'#4a90d9',done:'#27AE60',no_show:'#E74C3C',cancelled:'#9CA3AF'}
+function updateStatusDot(){ const v=document.getElementById('apptStatus').value; document.getElementById('apptStatusDot').style.background=STATUS_COLORS[v]||'#4a90d9' }
+function toggleCollapse(id){ document.getElementById(id).classList.toggle('open') }
 function findAppt(id){ return state.appointments.find(x=>x.id===id) }
 function openApptModal(id,prefill){
   fillProfSelect(); fillServiceSelect()
@@ -610,6 +631,10 @@ function openApptModal(id,prefill){
     document.getElementById('apptNotes').value=''
     del.style.display='none'
   }
+  updateStatusDot()
+  // "Información adicional" abierta solo si hay teléfono o notas
+  const hasExtra = document.getElementById('apptPhone').value || document.getElementById('apptNotes').value
+  document.getElementById('apptCollapse').classList.toggle('open', !!hasExtra)
   openModal('apptModal')
 }
 async function saveAppt(){
