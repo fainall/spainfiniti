@@ -322,8 +322,13 @@ input,select,textarea{font-family:inherit}
       <div class="field">
         <h3>Estado</h3>
         <select id="statusFilter" onchange="loadAndRender()">
-          <option value="active">Reservas activas</option>
-          <option value="all">Todas</option>
+          <option value="all">Todos los estados</option>
+          <option value="reserved">Reservado</option>
+          <option value="confirmed">Confirmado</option>
+          <option value="attending">Asiste</option>
+          <option value="no_show">No asistió</option>
+          <option value="pending">Pendiente</option>
+          <option value="waiting">En espera</option>
         </select>
       </div>
       <div class="field">
@@ -536,10 +541,12 @@ input,select,textarea{font-family:inherit}
       <div class="status-wrap">
         <span class="status-dot" id="apptStatusDot"></span>
         <select id="apptStatus" onchange="updateStatusDot()">
-          <option value="active">Reservada</option>
-          <option value="done">Realizada</option>
+          <option value="reserved">Reservado</option>
+          <option value="confirmed">Confirmado</option>
+          <option value="attending">Asiste</option>
           <option value="no_show">No asistió</option>
-          <option value="cancelled">Cancelada</option>
+          <option value="pending">Pendiente</option>
+          <option value="waiting">En espera</option>
         </select>
       </div>
     </div>
@@ -560,7 +567,12 @@ input,select,textarea{font-family:inherit}
     <label>Profesional</label>
     <select id="apptProf"></select>
     <label>Servicio</label>
-    <select id="apptService" onchange="onServicePick()"></select>
+    <div class="client-search-wrap" id="apptServiceWrap">
+      <input type="text" id="apptServiceSearch" placeholder="Buscar servicio..." autocomplete="off" oninput="onApptServiceSearch()" onfocus="onApptServiceSearch()" />
+      <div class="client-dropdown" id="apptServiceDropdown"></div>
+    </div>
+    <input type="hidden" id="apptService" />
+    <input type="hidden" id="apptServiceName" />
     <div class="collapse" id="apptCollapse">
       <button type="button" class="collapse-head" onclick="toggleCollapse('apptCollapse')">Información adicional <span class="chev">▼</span></button>
       <div class="collapse-body">
@@ -655,6 +667,26 @@ input,select,textarea{font-family:inherit}
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
       <button class="btn-primary" onclick="saveClient()">Guardar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Crear servicio (rápido) -->
+<div class="modal-ov" id="svcCreateModal">
+  <div class="modal" style="width:440px">
+    <h2>Crear servicio</h2>
+    <label>Nombre del servicio</label>
+    <input type="text" id="scName" placeholder="Ej: Masaje descontracturante" />
+    <label>Categoría</label>
+    <select id="scCat"></select>
+    <div class="row2">
+      <div><label>Precio</label><input type="number" id="scPrice" min="0" step="500" value="0" /></div>
+      <div><label>Duración (min)</label><input type="number" id="scDur" min="5" step="5" value="60" /></div>
+    </div>
+    <p style="font-size:.72rem;color:var(--light);margin-top:10px">El servicio se agrega al catálogo (también aparece en la web). Puedes completar foto y descripción luego en Administración.</p>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('svcCreateModal')">Cancelar</button>
+      <button class="btn-primary" onclick="createService()">Crear servicio</button>
     </div>
   </div>
 </div>
@@ -856,7 +888,8 @@ async function loadClients(){
 async function loadAppointments(){
   const [from,to] = visibleRange()
   let filters = `appt_date=gte.${isoDate(from)}&appt_date=lte.${isoDate(to)}`
-  if(document.getElementById('statusFilter').value==='active') filters += `&status=neq.cancelled`
+  const sf=document.getElementById('statusFilter').value
+  if(sf!=='all') filters += `&status=in.(${sf},block)`
   try{ state.appointments = await supabase.fetch('appointments',{filters,order:'start_time.asc'}) || [] }
   catch(e){ state.appointments=[]; console.warn(e) }
 }
@@ -987,8 +1020,8 @@ function renderCalendar(){
           <div class="t">🔒 ${a.start_time.slice(0,5)}</div>
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
-      const color=a.status==='cancelled'?'#cfcfcf':(p?p.color:'#C5A467')
-      return `<div class="appt ${a.status==='cancelled'?'cancelled':''}" data-id="${a.id}" style="${pos};background:${color}"
+      const color=STATUS_COLORS[a.status]||(p?p.color:'#C5A467')
+      return `<div class="appt" data-id="${a.id}" style="${pos};background:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -1163,12 +1196,63 @@ function onServicePick(){
   const opt=document.getElementById('apptService').selectedOptions[0]
   if(opt && opt.value){ document.getElementById('apptDur').value=opt.dataset.dur||60 }
 }
-const STATUS_COLORS={active:'#4a90d9',done:'#27AE60',no_show:'#E74C3C',cancelled:'#9CA3AF'}
-function updateStatusDot(){ const v=document.getElementById('apptStatus').value; document.getElementById('apptStatusDot').style.background=STATUS_COLORS[v]||'#4a90d9' }
+/* buscador de servicios (reserva) con opción de crear */
+function onApptServiceSearch(){
+  const q=document.getElementById('apptServiceSearch').value.trim().toLowerCase()
+  document.getElementById('apptService').value=''
+  const dd=document.getElementById('apptServiceDropdown')
+  let list=state.services
+  if(q) list=list.filter(s=>(s.name+' '+(s.cat||'')).toLowerCase().includes(q))
+  list=list.slice(0,40)
+  let html=`<div class="client-opt" style="color:var(--gold-d);font-weight:600" onclick="openSvcCreate()">+ Crear servicio</div>`
+  html+=list.map(s=>`<div class="client-opt" onclick="selectApptService('${s.id}')"><div class="cn">${esc(s.name)}</div><div class="cd">${esc(s.cat||'')} · ${esc(s.price||'')} · ${s.duration||60} min</div></div>`).join('')
+  if(!list.length && q) html+=`<div class="client-opt empty">Sin servicios — usa “+ Crear servicio”</div>`
+  dd.innerHTML=html; dd.classList.add('show')
+}
+function selectApptService(id){
+  const s=state.services.find(x=>x.id===id); if(!s) return
+  document.getElementById('apptService').value=s.id
+  document.getElementById('apptServiceName').value=s.name
+  document.getElementById('apptServiceSearch').value=s.name
+  document.getElementById('apptDur').value=s.duration||60
+  document.getElementById('apptServiceDropdown').classList.remove('show')
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('#apptServiceWrap')){ const dd=document.getElementById('apptServiceDropdown'); if(dd) dd.classList.remove('show') } })
+/* crear servicio rápido */
+function openSvcCreate(){
+  const sel=document.getElementById('scCat')
+  sel.innerHTML=(window.CATEGORIES||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
+  document.getElementById('scName').value=document.getElementById('apptServiceSearch').value.trim()
+  document.getElementById('scPrice').value=0
+  document.getElementById('scDur').value=60
+  document.getElementById('apptServiceDropdown').classList.remove('show')
+  openModal('svcCreateModal')
+}
+async function createService(){
+  const name=document.getElementById('scName').value.trim()
+  if(!name){ toast('Falta el nombre','error'); return }
+  const catId=document.getElementById('scCat').value
+  const price=parseInt(document.getElementById('scPrice').value)||0
+  const dur=parseInt(document.getElementById('scDur').value)||60
+  const base=name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,36)
+  const slug=(base||'servicio')+'-'+Date.now().toString(36).slice(-4)
+  const row={ id:slug, cat_id:catId, name, tag:'', price:price?fmtMoney(price):'', duration:dur+' min', short_desc:'', long_desc:'', img:'', link:'', includes:[], process_steps:[] }
+  try{
+    await supabase.insert('services', row)
+    const cat=(window.CATEGORIES||[]).find(c=>c.id===catId)
+    if(cat){ cat.services=cat.services||[]; cat.services.push({id:slug, catId, name, price:row.price, duration:dur+' min', shortDesc:'', tag:''}) }
+    flattenServices()
+    closeModal('svcCreateModal'); toast('Servicio creado','success')
+    selectApptService(slug)
+  }catch(e){ console.error(e); toast('Error al crear el servicio','error') }
+}
+const STATUS_COLORS={reserved:'#3FC7EB',confirmed:'#F5A623',attending:'#EC6FBF',no_show:'#F4A29B',pending:'#E9573F',waiting:'#9CCC65',active:'#3FC7EB'}
+const STATUS_LABEL={reserved:'Reservado',confirmed:'Confirmado',attending:'Asiste',no_show:'No asistió',pending:'Pendiente',waiting:'En espera',active:'Reservado'}
+function updateStatusDot(){ const v=document.getElementById('apptStatus').value; document.getElementById('apptStatusDot').style.background=STATUS_COLORS[v]||'#3FC7EB' }
 function toggleCollapse(id){ document.getElementById(id).classList.toggle('open') }
 function findAppt(id){ return state.appointments.find(x=>x.id===id) }
 function openApptModal(id,prefill){
-  fillProfSelect(); fillServiceSelect()
+  fillProfSelect()
   const del=document.getElementById('apptDelBtn')
   if(id){
     const a=state.appointments.find(x=>x.id===id); if(!a) return
@@ -1177,13 +1261,15 @@ function openApptModal(id,prefill){
     document.getElementById('apptId').value=a.id
     document.getElementById('apptProf').value=a.professional_id
     document.getElementById('apptService').value=a.service_id||''
+    document.getElementById('apptServiceName').value=a.service_name||''
+    document.getElementById('apptServiceSearch').value=a.service_name||''
     document.getElementById('apptClientSearch').value=a.client_name||''
     document.getElementById('apptClientId').value=a.client_id||''
     document.getElementById('apptPhone').value=a.client_phone||''
     document.getElementById('apptDate').value=a.appt_date
     document.getElementById('apptStart').value=a.start_time.slice(0,5)
     document.getElementById('apptDur').value=(toMin(a.end_time)-toMin(a.start_time))
-    document.getElementById('apptStatus').value=a.status||'active'
+    document.getElementById('apptStatus').value=(['reserved','confirmed','attending','no_show','pending','waiting'].includes(a.status)?a.status:'reserved')
     document.getElementById('apptNotes').value=a.notes||''
     del.style.display='block'
   } else {
@@ -1191,13 +1277,15 @@ function openApptModal(id,prefill){
     document.getElementById('apptId').value=''
     if(state.profId!=='all') document.getElementById('apptProf').value=state.profId
     document.getElementById('apptService').value=''
+    document.getElementById('apptServiceName').value=''
+    document.getElementById('apptServiceSearch').value=''
     document.getElementById('apptClientSearch').value=''
     document.getElementById('apptClientId').value=''
     document.getElementById('apptPhone').value=''
     document.getElementById('apptDate').value=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
     document.getElementById('apptStart').value=(prefill&&prefill.start)||'10:00'
     document.getElementById('apptDur').value=60
-    document.getElementById('apptStatus').value='active'
+    document.getElementById('apptStatus').value='reserved'
     document.getElementById('apptNotes').value=''
     del.style.display='none'
   }
@@ -1216,14 +1304,15 @@ async function saveAppt(){
   if(!profId){ toast('Selecciona un profesional','error'); return }
   if(!client){ toast('Falta el nombre del cliente','error'); return }
   if(!date||!start){ toast('Falta fecha u hora','error'); return }
-  const svcOpt=document.getElementById('apptService').selectedOptions[0]
+  const svcId=document.getElementById('apptService').value||null
+  const svc=state.services.find(s=>s.id===svcId)
   const end=toHHMM(toMin(start)+dur)
   const row={
     professional_id:profId,
     client_id:document.getElementById('apptClientId').value||null,
-    service_id:document.getElementById('apptService').value||null,
-    service_name:(svcOpt&&svcOpt.dataset.name)||'',
-    price:(svcOpt&&svcOpt.dataset.price)||'',
+    service_id:svcId,
+    service_name:document.getElementById('apptServiceName').value||(svc?svc.name:''),
+    price:svc?(svc.price||''):'',
     client_name:client,
     client_phone:document.getElementById('apptPhone').value.trim(),
     appt_date:date, start_time:start, end_time:end,
@@ -1439,8 +1528,8 @@ function renderReportes(){
   document.getElementById('repRange').textContent=`Semana ${wf.getDate()}/${pad(wf.getMonth()+1)} – ${wt.getDate()}/${pad(wt.getMonth()+1)}`
   const appts=state.appointments.filter(a=>a.status!=='block')
   const total=appts.length
-  const done=appts.filter(a=>a.status==='done').length
-  const cancelled=appts.filter(a=>a.status==='cancelled').length
+  const confirmed=appts.filter(a=>a.status==='confirmed').length
+  const attended=appts.filter(a=>a.status==='attending').length
   const noShow=appts.filter(a=>a.status==='no_show').length
   // por profesional
   const byProf={}
@@ -1451,9 +1540,9 @@ function renderReportes(){
   cont.innerHTML=`
     <div class="rep-cards">
       <div class="rep-card"><div class="rc-num">${total}</div><div class="rc-lbl">Reservas</div></div>
-      <div class="rep-card"><div class="rc-num">${done}</div><div class="rc-lbl">Realizadas</div></div>
+      <div class="rep-card"><div class="rc-num">${confirmed}</div><div class="rc-lbl">Confirmadas</div></div>
+      <div class="rep-card"><div class="rc-num">${attended}</div><div class="rc-lbl">Asistió</div></div>
       <div class="rep-card"><div class="rc-num">${noShow}</div><div class="rc-lbl">No asistió</div></div>
-      <div class="rep-card"><div class="rc-num">${cancelled}</div><div class="rc-lbl">Canceladas</div></div>
     </div>
     <div class="rep-block">
       <h3>Reservas por profesional</h3>
@@ -1974,7 +2063,7 @@ function renderRecordatorios(){
   const today=new Date(); today.setHours(0,0,0,0)
   const to=addDays(today,range)
   const list=state.appointments.filter(a=>{
-    if(a.status==='block'||a.status==='cancelled') return false
+    if(a.status==='block') return false
     const d=new Date(a.appt_date+'T00:00:00'); return d>=today && d<=to
   }).sort((a,b)=>(a.appt_date+a.start_time).localeCompare(b.appt_date+b.start_time))
   if(!list.length){ el.innerHTML='<div class="empty-state">No hay citas en este período.</div>'; return }
