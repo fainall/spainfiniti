@@ -341,6 +341,24 @@ input,select,textarea{font-family:inherit}
         </div>
       </div>
       <input class="view-search" id="clientListSearch" placeholder="Buscar por nombre, teléfono, email o RUT..." oninput="renderClientList()" />
+      <div class="sales-filters">
+        <select id="clfGender" onchange="renderClientList()">
+          <option value="">Todos los géneros</option><option>Femenino</option><option>Masculino</option><option>Otro</option>
+        </select>
+        <select id="clfBirthMonth" onchange="renderClientList()">
+          <option value="">Cumpleaños: todos</option>
+          <option value="1">Cumple en Enero</option><option value="2">Cumple en Febrero</option><option value="3">Cumple en Marzo</option>
+          <option value="4">Cumple en Abril</option><option value="5">Cumple en Mayo</option><option value="6">Cumple en Junio</option>
+          <option value="7">Cumple en Julio</option><option value="8">Cumple en Agosto</option><option value="9">Cumple en Septiembre</option>
+          <option value="10">Cumple en Octubre</option><option value="11">Cumple en Noviembre</option><option value="12">Cumple en Diciembre</option>
+        </select>
+        <select id="clfReserved" onchange="renderClientList()">
+          <option value="">¿Ha reservado?: todos</option><option value="yes">Sí ha reservado</option><option value="no">Nunca ha reservado</option>
+        </select>
+        <select id="clfCreated" onchange="renderClientList()">
+          <option value="">Creado: cualquier fecha</option><option value="7">Creado últimos 7 días</option><option value="30">Creado últimos 30 días</option>
+        </select>
+      </div>
       <div id="clientTable"></div>
     </div>
   </div>
@@ -585,6 +603,12 @@ input,select,textarea{font-family:inherit}
     </div>
     <label>Email</label>
     <input type="email" id="clEmail" placeholder="correo@ejemplo.cl" />
+    <div class="row2">
+      <div><label>Género</label>
+        <select id="clGender"><option value="">—</option><option>Femenino</option><option>Masculino</option><option>Otro</option></select>
+      </div>
+      <div><label>Fecha de nacimiento</label><input type="date" id="clBirthday" /></div>
+    </div>
     <label>Notas</label>
     <textarea id="clNotes" rows="2" placeholder="Preferencias, alergias, etc."></textarea>
     <div class="modal-actions">
@@ -1183,6 +1207,8 @@ function openClientModal(standalone, id){
   document.getElementById('clPhone').value = c ? (c.phone||'') : (standalone ? '' : (document.getElementById('apptPhone').value.trim()||''))
   document.getElementById('clEmail').value = c ? (c.email||'') : ''
   document.getElementById('clRut').value = c ? (c.rut||'') : ''
+  document.getElementById('clGender').value = c ? (c.gender||'') : ''
+  document.getElementById('clBirthday').value = c ? (c.birthday||'') : ''
   document.getElementById('clNotes').value = c ? (c.notes||'') : ''
   openModal('clientModal')
 }
@@ -1194,6 +1220,8 @@ async function saveClient(){
     phone:document.getElementById('clPhone').value.trim(),
     email:document.getElementById('clEmail').value.trim(),
     rut:document.getElementById('clRut').value.trim(),
+    gender:document.getElementById('clGender').value||null,
+    birthday:document.getElementById('clBirthday').value||null,
     notes:document.getElementById('clNotes').value.trim()
   }
   const id=document.getElementById('clId').value
@@ -1303,10 +1331,20 @@ function switchView(v){
 function renderClientList(){
   const cont=document.getElementById('clientTable'); if(!cont) return
   const q=(document.getElementById('clientListSearch').value||'').trim().toLowerCase()
+  const fG=document.getElementById('clfGender').value
+  const fM=document.getElementById('clfBirthMonth').value
+  const fR=document.getElementById('clfReserved').value
+  const fC=document.getElementById('clfCreated').value
+  const reservedIds=new Set(state.appointments.filter(a=>a.status!=='block'&&a.client_id).map(a=>a.client_id))
   let list=state.clients
   if(q) list=list.filter(c=>((c.name||'')+' '+(c.phone||'')+' '+(c.email||'')+' '+(c.rut||'')).toLowerCase().includes(q))
+  if(fG) list=list.filter(c=>c.gender===fG)
+  if(fM) list=list.filter(c=>c.birthday && String(parseInt(c.birthday.split('-')[1]))===fM)
+  if(fR==='yes') list=list.filter(c=>reservedIds.has(c.id))
+  if(fR==='no') list=list.filter(c=>!reservedIds.has(c.id))
+  if(fC){ const lim=new Date(); lim.setHours(0,0,0,0); lim.setDate(lim.getDate()-parseInt(fC)); list=list.filter(c=>c.created_at && new Date(c.created_at)>=lim) }
   if(!state.clients.length){ cont.innerHTML=`<div class="empty-state">Aún no hay clientes. Crea el primero con “+ Nuevo cliente”.</div>`; return }
-  if(!list.length){ cont.innerHTML=`<div class="empty-state">Sin coincidencias para “${esc(q)}”.</div>`; return }
+  if(!list.length){ cont.innerHTML=`<div class="empty-state">Sin clientes para los filtros seleccionados.</div>`; return }
   cont.innerHTML=`<table class="ctbl">
     <thead><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th>RUT</th><th></th></tr></thead>
     <tbody>${list.map(c=>`<tr>

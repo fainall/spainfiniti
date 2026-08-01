@@ -26,10 +26,14 @@ create table if not exists clients (
   phone       text,
   email       text,
   rut         text,
+  gender      text,
+  birthday    date,
   notes       text,
   created_at  timestamptz default now()
 );
 create index if not exists idx_clients_name on clients(name);
+alter table clients add column if not exists gender text;
+alter table clients add column if not exists birthday date;
 
 -- 3. Reservas / citas
 create table if not exists appointments (
