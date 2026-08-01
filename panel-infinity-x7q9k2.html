@@ -279,6 +279,7 @@ input,select,textarea{font-family:inherit}
       <button data-view="clientes" onclick="switchView('clientes')">Clientes</button>
       <button data-view="productos" onclick="switchView('productos')">Productos</button>
       <button data-view="reportes" onclick="switchView('reportes')">Reportes</button>
+      <button data-view="recordatorios" onclick="switchView('recordatorios')">Recordatorios</button>
       <a class="topnav-link" href="/admin" target="_blank">Administración</a>
     </nav>
     <div class="topnav-right">
@@ -368,6 +369,30 @@ input,select,textarea{font-family:inherit}
     <div class="view-inner">
       <div class="view-head"><h2>Reportes</h2><span class="view-sub" id="repRange"></span></div>
       <div id="reportBody"></div>
+    </div>
+  </div>
+
+  <!-- VISTA: RECORDATORIOS -->
+  <div class="view" id="view-recordatorios">
+    <div class="view-inner" style="max-width:1000px">
+      <div class="view-head">
+        <div><h2>Recordatorios</h2><span class="view-sub">Envía recordatorios de WhatsApp a las próximas citas.</span></div>
+        <select id="remRange" onchange="renderRecordatorios()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px">
+          <option value="0">Hoy</option>
+          <option value="1" selected>Hoy y mañana</option>
+          <option value="3">Próximos 3 días</option>
+          <option value="7">Próximos 7 días</option>
+        </select>
+      </div>
+      <div class="rep-block">
+        <h3>Mensaje del recordatorio</h3>
+        <textarea id="remTpl" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></textarea>
+        <div style="font-size:.75rem;color:var(--mid);margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span>Variables: <code>{cliente}</code> <code>{fecha}</code> <code>{hora}</code> <code>{servicio}</code></span>
+          <button class="mini-btn" onclick="saveRemTpl()">Guardar mensaje</button>
+        </div>
+      </div>
+      <div id="remTable"></div>
     </div>
   </div>
 
@@ -1364,6 +1389,7 @@ function switchView(v){
   if(v==='comisiones') renderComisiones()
   if(v==='planes') renderPlanes()
   if(v==='productos') renderProducts()
+  if(v==='recordatorios') renderRecordatorios()
 }
 
 /* ── CLIENTES (lista) ── */
@@ -1909,6 +1935,69 @@ function exportProducts(){
   if(!list.length){ toast('No hay productos para exportar','error'); return }
   const rows=list.map(p=>[p.name, p.category||'', p.sku||'', Number(p.price||0), Number(p.cost||0), p.stock||0, p.min_stock||0])
   downloadCSV('productos.csv', ['Producto','Categoría','SKU','Precio','Costo','Stock','Alerta stock'], rows)
+}
+
+/* ── RECORDATORIOS (WhatsApp semi-automático) ── */
+const REM_TPL_DEFAULT='Hola {cliente} 👋 Te recordamos tu cita en Spa Infinity el {fecha} a las {hora} ({servicio}). ¡Te esperamos! Si necesitas reagendar, responde este mensaje.'
+function getRemTpl(){ return localStorage.getItem('spa_reminder_tpl') || REM_TPL_DEFAULT }
+function saveRemTpl(){ localStorage.setItem('spa_reminder_tpl', document.getElementById('remTpl').value); toast('Mensaje guardado','success') }
+function waPhone(raw){
+  let d=String(raw||'').replace(/\D/g,'')
+  if(!d) return ''
+  if(d.startsWith('56')) return d
+  if(d.length===9 && d.startsWith('9')) return '56'+d
+  if(d.length===8) return '569'+d
+  return d
+}
+function buildReminderMsg(a){
+  const [y,m,dd]=a.appt_date.split('-').map(Number)
+  const dObj=new Date(y,m-1,dd)
+  const fecha=`${DOW_FULL[dObj.getDay()].toLowerCase()} ${dd} de ${MONTHS[m-1].toLowerCase()}`
+  return getRemTpl()
+    .replace(/{cliente}/g, a.client_name||'')
+    .replace(/{fecha}/g, fecha)
+    .replace(/{hora}/g, a.start_time.slice(0,5))
+    .replace(/{servicio}/g, a.service_name||'tu servicio')
+}
+function renderRecordatorios(){
+  const el=document.getElementById('remTable'); if(!el) return
+  document.getElementById('remTpl').value=getRemTpl()
+  const range=parseInt(document.getElementById('remRange').value)
+  const today=new Date(); today.setHours(0,0,0,0)
+  const to=addDays(today,range)
+  const list=state.appointments.filter(a=>{
+    if(a.status==='block'||a.status==='cancelled') return false
+    const d=new Date(a.appt_date+'T00:00:00'); return d>=today && d<=to
+  }).sort((a,b)=>(a.appt_date+a.start_time).localeCompare(b.appt_date+b.start_time))
+  if(!list.length){ el.innerHTML='<div class="empty-state">No hay citas en este período.</div>'; return }
+  el.innerHTML=`<table class="ctbl">
+    <thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Recordatorio</th><th></th></tr></thead>
+    <tbody>${list.map(a=>{
+      const [y,m,d]=a.appt_date.split('-')
+      const phone=waPhone(a.client_phone)
+      const sent=!!a.reminded_at
+      return `<tr>
+        <td>${d}/${m}</td>
+        <td>${a.start_time.slice(0,5)}</td>
+        <td class="cname">${esc(a.client_name||'—')}${a.client_phone?`<div style="font-size:.7rem;color:var(--light)">${esc(a.client_phone)}</div>`:''}</td>
+        <td>${esc(a.service_name||'—')}</td>
+        <td>${sent?'<span class="badge paid">Enviado</span>':'<span class="badge" style="background:#eee;color:#888">Pendiente</span>'}</td>
+        <td class="cacts">${phone
+          ? `<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="sendReminder('${a.id}')">WhatsApp</button>`
+          : '<span style="font-size:.72rem;color:var(--light)">Sin teléfono</span>'}</td>
+      </tr>`}).join('')}</tbody></table>
+    <p style="color:var(--mid);font-size:.78rem;margin-top:12px">Al pulsar “WhatsApp” se abre el chat con el mensaje ya escrito; solo pulsa enviar. La cita queda marcada como “Enviado”.</p>`
+}
+async function sendReminder(id){
+  const a=findAppt(id); if(!a) return
+  const phone=waPhone(a.client_phone)
+  if(!phone){ toast('El cliente no tiene teléfono','error'); return }
+  const msg=encodeURIComponent(buildReminderMsg(a))
+  window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
+  try{
+    await supabase.update('appointments', id, { reminded_at: new Date().toISOString() })
+    a.reminded_at=new Date().toISOString(); renderRecordatorios()
+  }catch(e){ console.warn('No se pudo marcar como enviado:', e) }
 }
 
 /* ── BLOCK MODAL ── */

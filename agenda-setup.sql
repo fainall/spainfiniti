@@ -55,8 +55,9 @@ create table if not exists appointments (
 create index if not exists idx_appt_date on appointments(appt_date);
 create index if not exists idx_appt_prof on appointments(professional_id);
 
--- Si ya habías creado appointments antes, agrega la columna nueva:
+-- Si ya habías creado appointments antes, agrega las columnas nuevas:
 alter table appointments add column if not exists client_id uuid references clients(id) on delete set null;
+alter table appointments add column if not exists reminded_at timestamptz;
 
 -- 3b. Ventas (caja)
 create table if not exists sales (
