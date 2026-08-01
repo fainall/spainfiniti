@@ -73,20 +73,42 @@ create index if not exists idx_sales_date on sales(sale_date);
 alter table sales add column if not exists professional_id uuid references professionals(id) on delete set null;
 alter table sales add column if not exists tip numeric default 0;
 
+-- 3c. Planes / Bonos (packs de sesiones prepagadas)
+create table if not exists plans (
+  id             uuid primary key default gen_random_uuid(),
+  client_id      uuid references clients(id) on delete set null,
+  client_name    text,
+  name           text not null,
+  service_id     text,
+  service_name   text,
+  total_sessions int default 1,
+  used_sessions  int default 0,
+  price          numeric default 0,
+  purchase_date  date default current_date,
+  expiry_date    date,
+  status         text default 'active',   -- active | cancelled
+  notes          text,
+  created_at     timestamptz default now()
+);
+create index if not exists idx_plans_client on plans(client_id);
+
 -- 4. Permisos (mismo patrón del resto del sitio)
 alter table professionals enable row level security;
 alter table clients       enable row level security;
 alter table appointments  enable row level security;
 alter table sales         enable row level security;
+alter table plans         enable row level security;
 
 drop policy if exists "anon all professionals" on professionals;
 drop policy if exists "anon all clients"        on clients;
 drop policy if exists "anon all appointments"   on appointments;
 drop policy if exists "anon all sales"          on sales;
+drop policy if exists "anon all plans"          on plans;
 create policy "anon all professionals" on professionals for all using (true) with check (true);
 create policy "anon all clients"        on clients       for all using (true) with check (true);
 create policy "anon all appointments"   on appointments  for all using (true) with check (true);
 create policy "anon all sales"          on sales         for all using (true) with check (true);
+create policy "anon all plans"          on plans         for all using (true) with check (true);
 
 -- 5. Un profesional de ejemplo para empezar
 insert into professionals (name, color, work_start, work_end, work_days)

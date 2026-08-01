@@ -270,6 +270,7 @@ input,select,textarea{font-family:inherit}
         <button data-view="ventas" onclick="switchView('ventas')">Ventas ▾</button>
         <div class="topnav-dd-menu">
           <button onclick="switchView('ventas')">Detalle de ventas</button>
+          <button onclick="switchView('planes')">Planes / Bonos</button>
           <button onclick="switchView('caja')">Caja / Cierre diario</button>
           <button onclick="switchView('propinas')">Propinas</button>
           <button onclick="switchView('comisiones')">Comisiones</button>
@@ -427,6 +428,28 @@ input,select,textarea{font-family:inherit}
         </div>
       </div>
       <div id="commBody"></div>
+    </div>
+  </div>
+
+  <!-- VISTA: PLANES / BONOS -->
+  <div class="view" id="view-planes">
+    <div class="view-inner" style="max-width:1000px">
+      <div class="view-head">
+        <div><h2>Planes / Bonos</h2><span class="view-sub">Packs de sesiones prepagadas.</span></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-g" onclick="exportPlanes()">⬇ Exportar</button>
+          <button class="btn-primary" onclick="openPlanModal()">+ Nuevo bono</button>
+        </div>
+      </div>
+      <div class="sales-filters">
+        <select id="planStatusF" onchange="renderPlanes()">
+          <option value="active">Activos</option>
+          <option value="completed">Completados</option>
+          <option value="all">Todos</option>
+        </select>
+        <input id="planSearch" placeholder="Buscar cliente o bono..." oninput="renderPlanes()" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem" />
+      </div>
+      <div id="planTable"></div>
     </div>
   </div>
 
@@ -589,6 +612,42 @@ input,select,textarea{font-family:inherit}
   </div>
 </div>
 
+<!-- MODAL: Nuevo bono / plan -->
+<div class="modal-ov" id="planModal">
+  <div class="modal" style="width:500px">
+    <h2 id="planTitle">Nuevo bono</h2>
+    <input type="hidden" id="planId" />
+    <label>Nombre del bono</label>
+    <input type="text" id="planName" placeholder="Ej: Pack 10 Masajes" />
+    <label>Cliente</label>
+    <div class="client-row">
+      <div class="client-search-wrap">
+        <input type="text" id="planClientSearch" placeholder="Busca por nombre, teléfono o email" autocomplete="off" oninput="onPlanClientSearch()" onfocus="onPlanClientSearch()" />
+        <div class="client-dropdown" id="planClientDropdown"></div>
+      </div>
+    </div>
+    <input type="hidden" id="planClientId" />
+    <label>Servicio que cubre (opcional)</label>
+    <select id="planService"></select>
+    <div class="row2">
+      <div><label>N° de sesiones</label><input type="number" id="planTotal" min="1" value="10" /></div>
+      <div><label>Precio del pack</label><input type="number" id="planPrice" min="0" step="1000" value="0" /></div>
+    </div>
+    <div class="row2">
+      <div><label>Fecha de compra</label><input type="date" id="planDate" /></div>
+      <div><label>Vence (opcional)</label><input type="date" id="planExpiry" /></div>
+    </div>
+    <div id="planUsedRow" style="display:none"><label>Sesiones usadas</label><input type="number" id="planUsed" min="0" value="0" /></div>
+    <label>Notas</label>
+    <textarea id="planNotes" rows="2" placeholder="Opcional"></textarea>
+    <div class="modal-actions">
+      <button class="btn-danger" id="planDelBtn" onclick="deletePlan()" style="display:none">Eliminar</button>
+      <button class="btn-ghost" onclick="closeModal('planModal')">Cancelar</button>
+      <button class="btn-primary" onclick="savePlan()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Professional manager -->
 <div class="modal-ov" id="profModal">
   <div class="modal">
@@ -636,7 +695,8 @@ let state = {
   appointments: [],
   services: [],
   clients: [],
-  sales: []
+  sales: [],
+  plans: []
 }
 const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -1124,7 +1184,7 @@ async function deleteClient(id, name){
 }
 
 /* ── VIEW SWITCHING ── */
-const VENTAS_GROUP=['ventas','caja','propinas','comisiones']
+const VENTAS_GROUP=['ventas','planes','caja','propinas','comisiones']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : v
@@ -1135,6 +1195,7 @@ function switchView(v){
   if(v==='caja') renderCaja()
   if(v==='propinas') renderPropinas()
   if(v==='comisiones') renderComisiones()
+  if(v==='planes') renderPlanes()
 }
 
 /* ── CLIENTES (lista) ── */
@@ -1469,6 +1530,124 @@ function exportComisiones(){
   downloadCSV('comisiones.csv', ['Profesional','Ventas','% Comisión','Monto comisión'], rows)
 }
 
+/* ── PLANES / BONOS ── */
+async function loadPlans(){
+  try{ state.plans = await supabase.fetch('plans',{order:'purchase_date.desc'}) || [] }
+  catch(e){ state.plans=[]; console.warn(e) }
+}
+function fillPlanService(){
+  const byCat={}; state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
+  let html='<option value="">— Ninguno —</option>'
+  Object.entries(byCat).forEach(([cat,arr])=>{ html+=`<optgroup label="${esc(cat)}">`+arr.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}">${esc(s.name)}</option>`).join('')+'</optgroup>' })
+  document.getElementById('planService').innerHTML=html
+}
+function renderPlanes(){
+  const cont=document.getElementById('planTable'); if(!cont) return
+  const f=document.getElementById('planStatusF').value
+  const q=(document.getElementById('planSearch').value||'').trim().toLowerCase()
+  let list=state.plans.filter(p=>p.status!=='cancelled')
+  list=list.filter(p=>{ const done=(p.used_sessions||0)>=p.total_sessions; return f==='active'?!done : f==='completed'?done : true })
+  if(q) list=list.filter(p=>((p.client_name||'')+' '+(p.name||'')).toLowerCase().includes(q))
+  if(!state.plans.length){ cont.innerHTML='<div class="empty-state">Aún no hay bonos. Crea el primero con “+ Nuevo bono”.</div>'; return }
+  if(!list.length){ cont.innerHTML='<div class="empty-state">No hay bonos para este filtro.</div>'; return }
+  cont.innerHTML=`<table class="ctbl">
+    <thead><tr><th>Cliente</th><th>Bono</th><th>Progreso</th><th style="text-align:right">Precio</th><th>Vence</th><th></th></tr></thead>
+    <tbody>${list.map(p=>{
+      const used=p.used_sessions||0, total=p.total_sessions, done=used>=total
+      const exp=p.expiry_date?p.expiry_date.split('-').reverse().join('/'):'—'
+      return `<tr>
+        <td class="cname">${esc(p.client_name||'—')}</td>
+        <td>${esc(p.name)}${p.service_name?`<div style="font-size:.72rem;color:var(--mid)">${esc(p.service_name)}</div>`:''}</td>
+        <td style="min-width:150px"><div style="display:flex;align-items:center;gap:8px"><span class="rr-bar" style="flex:1"><span class="rr-fill" style="width:${used/total*100}%;background:${done?'#27AE60':'var(--gold)'}"></span></span><span style="font-weight:700;font-size:.8rem;white-space:nowrap">${used}/${total}</span></div></td>
+        <td style="text-align:right">${fmtMoney(Number(p.price||0))}</td>
+        <td>${exp}</td>
+        <td class="cacts">${done?'<span class="badge paid">Completado</span>':`<button class="mini-btn" onclick="usePlanSession('${p.id}')">Usar sesión</button>`} <button class="mini-btn" onclick="openPlanModal('${p.id}')">Editar</button></td>
+      </tr>`}).join('')}</tbody></table>`
+}
+async function usePlanSession(id){
+  const p=state.plans.find(x=>x.id===id); if(!p) return
+  const used=(p.used_sessions||0)+1
+  if(used>p.total_sessions) return
+  try{
+    await supabase.update('plans',id,{used_sessions:used}); p.used_sessions=used; renderPlanes()
+    toast(used>=p.total_sessions?'¡Bono completado!':'Sesión registrada ('+used+'/'+p.total_sessions+')','success')
+  }catch(e){ toast('Error al registrar','error') }
+}
+function onPlanClientSearch(){
+  const q=document.getElementById('planClientSearch').value.trim().toLowerCase()
+  document.getElementById('planClientId').value=''
+  const dd=document.getElementById('planClientDropdown')
+  if(!state.clients.length){ dd.classList.remove('show'); return }
+  let list=state.clients
+  if(q) list=list.filter(c=>((c.name||'')+' '+(c.phone||'')+' '+(c.email||'')).toLowerCase().includes(q))
+  list=list.slice(0,8)
+  dd.innerHTML=list.length?list.map(c=>`<div class="client-opt" onclick="selectPlanClient('${c.id}')"><div class="cn">${esc(c.name)}</div><div class="cd">${esc(c.phone||'')}</div></div>`).join(''):'<div class="client-opt empty">Sin coincidencias</div>'
+  dd.classList.add('show')
+}
+function selectPlanClient(id){
+  const c=state.clients.find(x=>x.id===id); if(!c) return
+  document.getElementById('planClientId').value=c.id
+  document.getElementById('planClientSearch').value=c.name
+  document.getElementById('planClientDropdown').classList.remove('show')
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('#planModal .client-search-wrap')){ const dd=document.getElementById('planClientDropdown'); if(dd) dd.classList.remove('show') } })
+function openPlanModal(id){
+  fillPlanService()
+  const p=id?state.plans.find(x=>x.id===id):null
+  document.getElementById('planTitle').textContent=p?'Editar bono':'Nuevo bono'
+  document.getElementById('planId').value=p?p.id:''
+  document.getElementById('planName').value=p?p.name:''
+  document.getElementById('planClientSearch').value=p?(p.client_name||''):''
+  document.getElementById('planClientId').value=p?(p.client_id||''):''
+  document.getElementById('planService').value=p?(p.service_id||''):''
+  document.getElementById('planTotal').value=p?p.total_sessions:10
+  document.getElementById('planPrice').value=p?(p.price||0):0
+  document.getElementById('planDate').value=p?p.purchase_date:isoDate(new Date())
+  document.getElementById('planExpiry').value=p?(p.expiry_date||''):''
+  document.getElementById('planUsed').value=p?(p.used_sessions||0):0
+  document.getElementById('planUsedRow').style.display=p?'block':'none'
+  document.getElementById('planNotes').value=p?(p.notes||''):''
+  document.getElementById('planDelBtn').style.display=p?'block':'none'
+  openModal('planModal')
+}
+async function savePlan(){
+  const name=document.getElementById('planName').value.trim()
+  if(!name){ toast('Falta el nombre del bono','error'); return }
+  const svcOpt=document.getElementById('planService').selectedOptions[0]
+  const total=parseInt(document.getElementById('planTotal').value)||1
+  let used=parseInt(document.getElementById('planUsed').value)||0
+  if(used>total) used=total
+  const row={
+    client_id:document.getElementById('planClientId').value||null,
+    client_name:document.getElementById('planClientSearch').value.trim(),
+    name, service_id:document.getElementById('planService').value||null,
+    service_name:(svcOpt&&svcOpt.dataset.name)||'',
+    total_sessions:total, used_sessions:used,
+    price:parseInt(document.getElementById('planPrice').value)||0,
+    purchase_date:document.getElementById('planDate').value||isoDate(new Date()),
+    expiry_date:document.getElementById('planExpiry').value||null,
+    status:'active',
+    notes:document.getElementById('planNotes').value.trim()
+  }
+  const id=document.getElementById('planId').value
+  try{
+    if(id) await supabase.update('plans',id,row); else await supabase.insert('plans',row)
+    await loadPlans(); closeModal('planModal'); toast('Bono guardado','success'); renderPlanes()
+  }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+async function deletePlan(){
+  const id=document.getElementById('planId').value
+  if(!id||!confirm('¿Eliminar este bono?')) return
+  try{ await supabase.delete('plans',id); await loadPlans(); closeModal('planModal'); toast('Bono eliminado','success'); renderPlanes() }
+  catch(e){ toast('Error al eliminar','error') }
+}
+function exportPlanes(){
+  const list=state.plans.filter(p=>p.status!=='cancelled')
+  if(!list.length){ toast('No hay bonos para exportar','error'); return }
+  const rows=list.map(p=>[p.client_name||'', p.name, p.service_name||'', p.used_sessions||0, p.total_sessions, Number(p.price||0), p.purchase_date||'', p.expiry_date||''])
+  downloadCSV('bonos.csv', ['Cliente','Bono','Servicio','Usadas','Total','Precio','Compra','Vence'], rows)
+}
+
 /* ── BLOCK MODAL ── */
 function fillBlockProf(){
   document.getElementById('blkProf').innerHTML = state.professionals.filter(p=>p.active!==false)
@@ -1605,6 +1784,7 @@ async function boot(){
   await loadClients()
   await loadAppointments()
   await loadSales()
+  await loadPlans()
   render()
   // refrescar línea de "ahora" cada minuto
   setInterval(()=>{ if(document.getElementById('app').style.display!=='none') renderCalendar() }, 60000)
