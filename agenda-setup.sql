@@ -14,8 +14,10 @@ create table if not exists professionals (
   work_start  time default '09:00',
   work_end    time default '20:00',
   work_days   jsonb default '[1,2,3,4,5,6]',  -- 1=Lun ... 7=Dom
+  commission_pct numeric default 0,
   created_at  timestamptz default now()
 );
+alter table professionals add column if not exists commission_pct numeric default 0;
 
 -- 2. Clientes
 create table if not exists clients (
@@ -54,18 +56,22 @@ alter table appointments add column if not exists client_id uuid references clie
 
 -- 3b. Ventas (caja)
 create table if not exists sales (
-  id             uuid primary key default gen_random_uuid(),
-  client_id      uuid references clients(id) on delete set null,
-  client_name    text,
-  sale_date      date not null default current_date,
-  items          jsonb default '[]',
-  total          numeric default 0,
-  payment_method text,
-  status         text default 'paid',   -- paid | partial | deleted
-  notes          text,
-  created_at     timestamptz default now()
+  id              uuid primary key default gen_random_uuid(),
+  client_id       uuid references clients(id) on delete set null,
+  client_name     text,
+  professional_id uuid references professionals(id) on delete set null,
+  sale_date       date not null default current_date,
+  items           jsonb default '[]',
+  total           numeric default 0,
+  tip             numeric default 0,
+  payment_method  text,
+  status          text default 'paid',   -- paid | partial | deleted
+  notes           text,
+  created_at      timestamptz default now()
 );
 create index if not exists idx_sales_date on sales(sale_date);
+alter table sales add column if not exists professional_id uuid references professionals(id) on delete set null;
+alter table sales add column if not exists tip numeric default 0;
 
 -- 4. Permisos (mismo patrón del resto del sitio)
 alter table professionals enable row level security;
