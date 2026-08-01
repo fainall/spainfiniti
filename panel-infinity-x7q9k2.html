@@ -335,7 +335,10 @@ input,select,textarea{font-family:inherit}
     <div class="view-inner">
       <div class="view-head">
         <h2>Clientes</h2>
-        <button class="btn-primary" onclick="openClientModal(true)">+ Nuevo cliente</button>
+        <div style="display:flex;gap:10px">
+          <button class="btn-g" onclick="openImportModal()">⬆ Importar</button>
+          <button class="btn-primary" onclick="openClientModal(true)">+ Nuevo cliente</button>
+        </div>
       </div>
       <input class="view-search" id="clientListSearch" placeholder="Buscar por nombre, teléfono, email o RUT..." oninput="renderClientList()" />
       <div id="clientTable"></div>
@@ -537,6 +540,34 @@ input,select,textarea{font-family:inherit}
       <button class="btn-danger" id="blkDelBtn" onclick="deleteBlock()" style="display:none">Eliminar</button>
       <button class="btn-ghost" onclick="closeModal('blockModal')">Cancelar</button>
       <button class="btn-primary" onclick="saveBlock()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Client detail -->
+<div class="modal-ov" id="clientDetailModal">
+  <div class="modal" style="width:540px">
+    <h2 id="cdName" style="margin-bottom:4px"></h2>
+    <div id="cdInfo"></div>
+    <div id="cdBody"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('clientDetailModal')">Cerrar</button>
+      <button class="btn-primary" id="cdEditBtn">Editar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Importar clientes -->
+<div class="modal-ov" id="importModal">
+  <div class="modal" style="width:540px">
+    <h2>Importar clientes</h2>
+    <p style="color:var(--mid);font-size:.82rem;margin-bottom:12px">Sube un archivo <strong>CSV</strong> (exportado de Excel) o pega los datos. Detecta automáticamente las columnas Nombre, Apellido, Email, Teléfono y RUT. Si no hay encabezado, el orden es: <em>Nombre ; Teléfono ; Email ; RUT</em></p>
+    <input type="file" id="importFile" accept=".csv,text/csv" onchange="onImportFile()" style="margin-bottom:10px" />
+    <textarea id="importText" rows="6" placeholder="Juan Pérez;+56911111111;juan@mail.cl;12.345.678-9" oninput="previewImport()" style="font-family:monospace;font-size:.8rem"></textarea>
+    <div id="importPreview" style="font-size:.8rem;color:var(--mid);margin-top:8px"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('importModal')">Cancelar</button>
+      <button class="btn-primary" onclick="doImport()">Importar</button>
     </div>
   </div>
 </div>
@@ -1183,6 +1214,76 @@ async function deleteClient(id, name){
   catch(e){ toast('Error al borrar','error') }
 }
 
+/* ── DETALLE DE CLIENTE (historial) ── */
+function openClientDetail(id){
+  const c=state.clients.find(x=>x.id===id); if(!c) return
+  document.getElementById('cdName').textContent=c.name
+  document.getElementById('cdInfo').innerHTML=`<div style="color:var(--mid);font-size:.84rem;margin-bottom:16px">
+    ${c.phone?`📞 ${esc(c.phone)}　`:''}${c.email?`✉ ${esc(c.email)}　`:''}${c.rut?`RUT ${esc(c.rut)}`:''}
+    ${c.notes?`<div style="margin-top:6px">${esc(c.notes)}</div>`:''}</div>`
+  const appts=state.appointments.filter(a=>a.client_id===id && a.status!=='block').sort((a,b)=>b.appt_date.localeCompare(a.appt_date))
+  const bonos=state.plans.filter(p=>p.client_id===id && p.status!=='cancelled')
+  const sales=state.sales.filter(s=>s.client_id===id && s.status!=='deleted')
+  const spent=sales.reduce((a,s)=>a+Number(s.total||0),0)
+  document.getElementById('cdBody').innerHTML=`
+    <div class="rep-cards" style="margin-bottom:16px">
+      <div class="rep-card"><div class="rc-num">${appts.length}</div><div class="rc-lbl">Reservas</div></div>
+      <div class="rep-card"><div class="rc-num" style="font-size:1.4rem">${fmtMoney(spent)}</div><div class="rc-lbl">Total gastado</div></div>
+      <div class="rep-card"><div class="rc-num">${bonos.length}</div><div class="rc-lbl">Bonos</div></div>
+    </div>
+    ${bonos.length?`<h3 style="font-size:.85rem;margin-bottom:8px">Bonos</h3>${bonos.map(p=>`<div style="font-size:.82rem;padding:6px 0;border-bottom:1px solid var(--cream-2)">${esc(p.name)} — <strong>${p.used_sessions||0}/${p.total_sessions}</strong></div>`).join('')}`:''}
+    <h3 style="font-size:.85rem;margin:14px 0 8px">Historial de reservas</h3>
+    ${appts.length?appts.slice(0,12).map(a=>{const [y,m,d]=a.appt_date.split('-');return `<div style="font-size:.82rem;padding:6px 0;border-bottom:1px solid var(--cream-2);display:flex;justify-content:space-between;gap:10px"><span>${d}/${m}/${y} ${a.start_time.slice(0,5)} — ${esc(a.service_name||'—')}</span><span style="color:var(--mid);white-space:nowrap">${esc(profName(a.professional_id))}</span></div>`}).join(''):'<p style="color:var(--mid);font-size:.82rem">Sin reservas registradas.</p>'}`
+  document.getElementById('cdEditBtn').onclick=()=>{ closeModal('clientDetailModal'); openClientModal(true,id) }
+  openModal('clientDetailModal')
+}
+
+/* ── IMPORTAR CLIENTES (CSV) ── */
+function openImportModal(){
+  document.getElementById('importText').value=''
+  document.getElementById('importFile').value=''
+  document.getElementById('importPreview').textContent=''
+  openModal('importModal')
+}
+function onImportFile(){
+  const f=document.getElementById('importFile').files[0]; if(!f) return
+  const rd=new FileReader()
+  rd.onload=()=>{ document.getElementById('importText').value=rd.result; previewImport() }
+  rd.readAsText(f,'UTF-8')
+}
+function parseImport(text){
+  const lines=String(text||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
+  if(!lines.length) return []
+  const sep = lines[0].includes(';')?';':(lines[0].includes('\t')?'\t':',')
+  let header=null, start=0
+  if(/nombre|apellido|correo|email|tel|fono|rut/i.test(lines[0])){ header=lines[0].split(sep).map(s=>s.trim().toLowerCase()); start=1 }
+  const idx=names=>{ if(!header) return -1; for(const n of names){ const i=header.findIndex(h=>h.includes(n)); if(i>=0) return i } return -1 }
+  const iNom=idx(['nombre']), iApe=idx(['apellido']), iMail=idx(['correo','email','mail']), iTel=idx(['tel','fono','phone']), iRut=idx(['rut'])
+  const rows=[]
+  for(let k=start;k<lines.length;k++){
+    const p=lines[k].split(sep).map(s=>s.trim().replace(/^"|"$/g,''))
+    let name,phone,email,rut
+    if(header){
+      name=[iNom>=0?p[iNom]:'', iApe>=0?p[iApe]:''].filter(Boolean).join(' ').trim()
+      email=iMail>=0?(p[iMail]||''):''; phone=iTel>=0?(p[iTel]||''):''; rut=iRut>=0?(p[iRut]||''):''
+    } else { name=p[0]||''; phone=p[1]||''; email=p[2]||''; rut=p[3]||'' }
+    if(name) rows.push({name,phone,email,rut})
+  }
+  return rows
+}
+function previewImport(){
+  const rows=parseImport(document.getElementById('importText').value)
+  document.getElementById('importPreview').textContent=rows.length?`Se detectaron ${rows.length} cliente(s). Ej: ${rows[0].name}${rows[0].phone?' · '+rows[0].phone:''}`:'No se detectaron clientes.'
+}
+async function doImport(){
+  const rows=parseImport(document.getElementById('importText').value)
+  if(!rows.length){ toast('No se detectaron clientes','error'); return }
+  try{
+    await supabase.insert('clients', rows)
+    await loadClients(); closeModal('importModal'); toast(rows.length+' clientes importados','success'); renderClientList()
+  }catch(e){ console.error(e); toast('Error al importar','error') }
+}
+
 /* ── VIEW SWITCHING ── */
 const VENTAS_GROUP=['ventas','planes','caja','propinas','comisiones']
 function switchView(v){
@@ -1214,6 +1315,7 @@ function renderClientList(){
       <td>${esc(c.email||'—')}</td>
       <td>${esc(c.rut||'—')}</td>
       <td class="cacts">
+        <button class="mini-btn" onclick="openClientDetail('${c.id}')">Ver</button>
         <button class="mini-btn" onclick="openClientModal(true,'${c.id}')">Editar</button>
         <button class="mini-btn" onclick="deleteClient('${c.id}','${esc(c.name)}')">Borrar</button>
       </td></tr>`).join('')}</tbody></table>`
