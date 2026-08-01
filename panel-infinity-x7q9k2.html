@@ -83,6 +83,14 @@ input,select,textarea{font-family:inherit}
 .soon-icon{font-size:2.6rem;margin-bottom:14px}
 .soon-card h3{font-size:1.05rem;margin-bottom:10px}
 .soon-card p{color:var(--mid);font-size:.86rem;line-height:1.6}
+/* acordeón (secciones colapsables dentro de una vista) */
+.acc{border:1px solid var(--border);border-radius:10px;margin-top:24px;overflow:hidden}
+.acc-head{width:100%;display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--cream-2);border:none;font-family:inherit;font-size:.9rem;font-weight:600;color:var(--dark);cursor:pointer}
+.acc-head:hover{background:var(--gold-pale)}
+.acc-head .chev{transition:transform .25s;font-size:.72rem}
+.acc.open .acc-head .chev{transform:rotate(180deg)}
+.acc-body{display:none;padding:16px}
+.acc.open .acc-body{display:block}
 /* ventas */
 .sales-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .sales-filters select{padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--white)}
@@ -279,7 +287,6 @@ input,select,textarea{font-family:inherit}
       <button data-view="clientes" onclick="switchView('clientes')">Clientes</button>
       <button data-view="productos" onclick="switchView('productos')">Productos</button>
       <button data-view="reportes" onclick="switchView('reportes')">Reportes</button>
-      <button data-view="recordatorios" onclick="switchView('recordatorios')">Recordatorios</button>
       <a class="topnav-link" href="/admin" target="_blank">Administración</a>
     </nav>
     <div class="topnav-right">
@@ -361,6 +368,31 @@ input,select,textarea{font-family:inherit}
         </select>
       </div>
       <div id="clientTable"></div>
+
+      <!-- Acordeón: Recordatorios de WhatsApp -->
+      <div class="acc" id="remAcc">
+        <button class="acc-head" onclick="toggleAcc('remAcc')">📲 Recordatorios de WhatsApp <span class="chev">▼</span></button>
+        <div class="acc-body">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            <span style="font-size:.82rem;color:var(--mid)">Envía recordatorios a las próximas citas.</span>
+            <select id="remRange" onchange="renderRecordatorios()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px">
+              <option value="0">Hoy</option>
+              <option value="1" selected>Hoy y mañana</option>
+              <option value="3">Próximos 3 días</option>
+              <option value="7">Próximos 7 días</option>
+            </select>
+          </div>
+          <div class="rep-block">
+            <h3>Mensaje del recordatorio</h3>
+            <textarea id="remTpl" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></textarea>
+            <div style="font-size:.75rem;color:var(--mid);margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span>Variables: <code>{cliente}</code> <code>{fecha}</code> <code>{hora}</code> <code>{servicio}</code></span>
+              <button class="mini-btn" onclick="saveRemTpl()">Guardar mensaje</button>
+            </div>
+          </div>
+          <div id="remTable"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -369,30 +401,6 @@ input,select,textarea{font-family:inherit}
     <div class="view-inner">
       <div class="view-head"><h2>Reportes</h2><span class="view-sub" id="repRange"></span></div>
       <div id="reportBody"></div>
-    </div>
-  </div>
-
-  <!-- VISTA: RECORDATORIOS -->
-  <div class="view" id="view-recordatorios">
-    <div class="view-inner" style="max-width:1000px">
-      <div class="view-head">
-        <div><h2>Recordatorios</h2><span class="view-sub">Envía recordatorios de WhatsApp a las próximas citas.</span></div>
-        <select id="remRange" onchange="renderRecordatorios()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px">
-          <option value="0">Hoy</option>
-          <option value="1" selected>Hoy y mañana</option>
-          <option value="3">Próximos 3 días</option>
-          <option value="7">Próximos 7 días</option>
-        </select>
-      </div>
-      <div class="rep-block">
-        <h3>Mensaje del recordatorio</h3>
-        <textarea id="remTpl" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></textarea>
-        <div style="font-size:.75rem;color:var(--mid);margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <span>Variables: <code>{cliente}</code> <code>{fecha}</code> <code>{hora}</code> <code>{servicio}</code></span>
-          <button class="mini-btn" onclick="saveRemTpl()">Guardar mensaje</button>
-        </div>
-      </div>
-      <div id="remTable"></div>
     </div>
   </div>
 
@@ -1034,7 +1042,7 @@ function onSlotClick(e,col){
   const rect=col.getBoundingClientRect()
   const [minM]=hourBounds()
   let mins=minM + Math.floor((e.clientY-rect.top)/HOUR_H*60)
-  mins=Math.round(mins/15)*15
+  mins=Math.floor(mins/60)*60   // bloque de 1 hora
   showGhost(col, mins, {date:col.dataset.date, start:toHHMM(mins)})
 }
 function showGhost(col, mins, prefill){
@@ -1100,7 +1108,7 @@ function apptMouseMove(e){
   if(col){
     const rect=col.getBoundingClientRect()
     const [minM,maxM]=hourBounds()
-    let mins=minM + Math.round(((e.clientY-rect.top)/HOUR_H*60)/15)*15
+    let mins=minM + Math.round(((e.clientY-rect.top)/HOUR_H*60)/60)*60   // bloque de 1 hora
     mins=Math.max(minM, Math.min(mins, maxM-drag.dur))
     drag.targetDate=col.dataset.date
     drag.targetStart=toHHMM(mins)
@@ -1381,7 +1389,7 @@ function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : v
   document.querySelectorAll('.topnav-tabs [data-view]').forEach(b=>b.classList.toggle('on', b.dataset.view===hi))
-  if(v==='clientes') renderClientList()
+  if(v==='clientes'){ renderClientList(); renderRecordatorios() }
   if(v==='reportes') renderReportes()
   if(v==='ventas') renderSales()
   if(v==='caja') renderCaja()
@@ -1389,8 +1397,8 @@ function switchView(v){
   if(v==='comisiones') renderComisiones()
   if(v==='planes') renderPlanes()
   if(v==='productos') renderProducts()
-  if(v==='recordatorios') renderRecordatorios()
 }
+function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
 
 /* ── CLIENTES (lista) ── */
 function renderClientList(){
@@ -1975,6 +1983,7 @@ function renderRecordatorios(){
     <tbody>${list.map(a=>{
       const [y,m,d]=a.appt_date.split('-')
       const phone=waPhone(a.client_phone)
+      const email=(state.clients.find(c=>c.id===a.client_id)||{}).email||''
       const sent=!!a.reminded_at
       return `<tr>
         <td>${d}/${m}</td>
@@ -1982,9 +1991,11 @@ function renderRecordatorios(){
         <td class="cname">${esc(a.client_name||'—')}${a.client_phone?`<div style="font-size:.7rem;color:var(--light)">${esc(a.client_phone)}</div>`:''}</td>
         <td>${esc(a.service_name||'—')}</td>
         <td>${sent?'<span class="badge paid">Enviado</span>':'<span class="badge" style="background:#eee;color:#888">Pendiente</span>'}</td>
-        <td class="cacts">${phone
-          ? `<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="sendReminder('${a.id}')">WhatsApp</button>`
-          : '<span style="font-size:.72rem;color:var(--light)">Sin teléfono</span>'}</td>
+        <td class="cacts">
+          ${phone?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="sendReminder('${a.id}')">WhatsApp</button>`:''}
+          ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}')">Email</button>`:''}
+          ${(!phone&&!email)?'<span style="font-size:.72rem;color:var(--light)">Sin contacto</span>':''}
+        </td>
       </tr>`}).join('')}</tbody></table>
     <p style="color:var(--mid);font-size:.78rem;margin-top:12px">Al pulsar “WhatsApp” se abre el chat con el mensaje ya escrito; solo pulsa enviar. La cita queda marcada como “Enviado”.</p>`
 }
@@ -1998,6 +2009,21 @@ async function sendReminder(id){
     await supabase.update('appointments', id, { reminded_at: new Date().toISOString() })
     a.reminded_at=new Date().toISOString(); renderRecordatorios()
   }catch(e){ console.warn('No se pudo marcar como enviado:', e) }
+}
+async function sendReminderEmail(id){
+  const a=findAppt(id); if(!a) return
+  const c=state.clients.find(x=>x.id===a.client_id)
+  const email=c&&c.email
+  if(!email){ toast('El cliente no tiene email','error'); return }
+  try{
+    const res=await fetch('/api/send-reminder.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email, name:a.client_name, message:buildReminderMsg(a)})})
+    const j=await res.json().catch(()=>({}))
+    if(res.ok && j.success){
+      await supabase.update('appointments', id, { reminded_at: new Date().toISOString() })
+      a.reminded_at=new Date().toISOString(); renderRecordatorios()
+      toast('Email enviado','success')
+    } else { toast(j.error||'No se pudo enviar el email','error') }
+  }catch(e){ console.error(e); toast('Error al enviar el email','error') }
 }
 
 /* ── BLOCK MODAL ── */
