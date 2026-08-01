@@ -96,23 +96,41 @@ create table if not exists plans (
 );
 create index if not exists idx_plans_client on plans(client_id);
 
+-- 3d. Productos (inventario)
+create table if not exists products (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  sku         text,
+  category    text,
+  price       numeric default 0,
+  cost        numeric default 0,
+  stock       int default 0,
+  min_stock   int default 0,
+  active      boolean default true,
+  notes       text,
+  created_at  timestamptz default now()
+);
+
 -- 4. Permisos (mismo patrón del resto del sitio)
 alter table professionals enable row level security;
 alter table clients       enable row level security;
 alter table appointments  enable row level security;
 alter table sales         enable row level security;
 alter table plans         enable row level security;
+alter table products      enable row level security;
 
 drop policy if exists "anon all professionals" on professionals;
 drop policy if exists "anon all clients"        on clients;
 drop policy if exists "anon all appointments"   on appointments;
 drop policy if exists "anon all sales"          on sales;
 drop policy if exists "anon all plans"          on plans;
+drop policy if exists "anon all products"       on products;
 create policy "anon all professionals" on professionals for all using (true) with check (true);
 create policy "anon all clients"        on clients       for all using (true) with check (true);
 create policy "anon all appointments"   on appointments  for all using (true) with check (true);
 create policy "anon all sales"          on sales         for all using (true) with check (true);
 create policy "anon all plans"          on plans         for all using (true) with check (true);
+create policy "anon all products"       on products      for all using (true) with check (true);
 
 -- 5. Un profesional de ejemplo para empezar
 insert into professionals (name, color, work_start, work_end, work_days)

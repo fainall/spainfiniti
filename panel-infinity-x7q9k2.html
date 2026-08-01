@@ -476,13 +476,21 @@ input,select,textarea{font-family:inherit}
 
   <!-- VISTA: PRODUCTOS -->
   <div class="view" id="view-productos">
-    <div class="view-inner">
-      <div class="view-head"><h2>Productos</h2></div>
-      <div class="soon-card">
-        <div class="soon-icon">📦</div>
-        <h3>Inventario — en desarrollo</h3>
-        <p>Aquí irá el control de stock: productos, cantidades, alertas de bajo stock y descuento automático al vender. Se construye como fase aparte.</p>
+    <div class="view-inner" style="max-width:1000px">
+      <div class="view-head">
+        <div><h2>Productos</h2><span class="view-sub">Inventario y stock. Se descuenta solo al vender.</span></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-g" onclick="exportProducts()">⬇ Exportar</button>
+          <button class="btn-primary" onclick="openProductModal()">+ Nuevo producto</button>
+        </div>
       </div>
+      <div class="rep-cards">
+        <div class="rep-card"><div class="rc-num" id="prodCount">0</div><div class="rc-lbl">Productos</div></div>
+        <div class="rep-card"><div class="rc-num" id="prodStockVal">$0</div><div class="rc-lbl">Valor inventario</div></div>
+        <div class="rep-card"><div class="rc-num" id="prodLow">0</div><div class="rc-lbl">Bajo stock</div></div>
+      </div>
+      <input id="prodSearch" placeholder="Buscar producto..." oninput="renderProducts()" style="width:100%;padding:11px 15px;border:1px solid var(--border);border-radius:10px;font-size:.88rem;margin-bottom:16px" />
+      <div id="prodTable"></div>
     </div>
   </div>
 </div>
@@ -667,6 +675,35 @@ input,select,textarea{font-family:inherit}
   </div>
 </div>
 
+<!-- MODAL: Producto -->
+<div class="modal-ov" id="productModal">
+  <div class="modal" style="width:500px">
+    <h2 id="prodTitle">Nuevo producto</h2>
+    <input type="hidden" id="prodId" />
+    <label>Nombre</label>
+    <input type="text" id="prodName" placeholder="Ej: Crema hidratante 200ml" />
+    <div class="row2">
+      <div><label>Categoría</label><input type="text" id="prodCat" placeholder="Ej: Cosmética" /></div>
+      <div><label>SKU / código</label><input type="text" id="prodSku" placeholder="Opcional" /></div>
+    </div>
+    <div class="row2">
+      <div><label>Precio de venta</label><input type="number" id="prodPrice" min="0" step="500" value="0" /></div>
+      <div><label>Costo (opcional)</label><input type="number" id="prodCost" min="0" step="500" value="0" /></div>
+    </div>
+    <div class="row2">
+      <div><label>Stock actual</label><input type="number" id="prodStock" min="0" value="0" /></div>
+      <div><label>Alerta bajo stock</label><input type="number" id="prodMin" min="0" value="0" /></div>
+    </div>
+    <label>Notas</label>
+    <textarea id="prodNotes" rows="2" placeholder="Opcional"></textarea>
+    <div class="modal-actions">
+      <button class="btn-danger" id="prodDelBtn" onclick="deleteProduct()" style="display:none">Eliminar</button>
+      <button class="btn-ghost" onclick="closeModal('productModal')">Cancelar</button>
+      <button class="btn-primary" onclick="saveProduct()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Nuevo bono / plan -->
 <div class="modal-ov" id="planModal">
   <div class="modal" style="width:500px">
@@ -751,7 +788,8 @@ let state = {
   services: [],
   clients: [],
   sales: [],
-  plans: []
+  plans: [],
+  products: []
 }
 const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -1325,6 +1363,7 @@ function switchView(v){
   if(v==='propinas') renderPropinas()
   if(v==='comisiones') renderComisiones()
   if(v==='planes') renderPlanes()
+  if(v==='productos') renderProducts()
 }
 
 /* ── CLIENTES (lista) ── */
@@ -1440,12 +1479,16 @@ function fillSaleItemPick(){
   const byCat={}; state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
   let html=`<option value="">+ Agregar servicio…</option>`
   Object.entries(byCat).forEach(([cat,arr])=>{ html+=`<optgroup label="${esc(cat)}">`+arr.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}" data-price="${parseMoney(s.price)}">${esc(s.name)} — ${esc(s.price||'')}</option>`).join('')+`</optgroup>` })
+  const prods=(state.products||[]).filter(p=>p.active!==false)
+  if(prods.length){
+    html+='<optgroup label="Productos">'+prods.map(p=>`<option value="prod-${p.id}" data-product-id="${p.id}" data-price="${p.price}" data-name="${esc(p.name)}">${esc(p.name)} — ${fmtMoney(Number(p.price||0))} (stock ${p.stock||0})</option>`).join('')+'</optgroup>'
+  }
   sel.innerHTML=html
 }
 function onSaleItemPick(){
   const opt=document.getElementById('saleItemPick').selectedOptions[0]
   if(!opt||!opt.value) return
-  saleItemsArr.push({name:opt.dataset.name, qty:1, price:parseInt(opt.dataset.price)||0})
+  saleItemsArr.push({name:opt.dataset.name, qty:1, price:parseInt(opt.dataset.price)||0, productId:opt.dataset.productId||null})
   document.getElementById('saleItemPick').value=''
   renderSaleItems()
 }
@@ -1539,7 +1582,16 @@ async function saveSale(){
   const id=document.getElementById('saleId').value
   try{
     if(id) await supabase.update('sales',id,row)
-    else await supabase.insert('sales',row)
+    else {
+      await supabase.insert('sales',row)
+      // descontar stock de los productos vendidos (solo en venta nueva)
+      for(const it of saleItemsArr){
+        if(it.productId){
+          const p=state.products.find(x=>x.id===it.productId)
+          if(p){ const ns=Math.max(0,(p.stock||0)-(it.qty||1)); await supabase.update('products',p.id,{stock:ns}); p.stock=ns }
+        }
+      }
+    }
     await loadSales(); closeModal('saleModal'); toast('Venta guardada','success'); renderSales()
   }catch(e){ console.error(e); toast('Error al guardar la venta','error') }
 }
@@ -1788,6 +1840,77 @@ function exportPlanes(){
   downloadCSV('bonos.csv', ['Cliente','Bono','Servicio','Usadas','Total','Precio','Compra','Vence'], rows)
 }
 
+/* ── PRODUCTOS / INVENTARIO ── */
+async function loadProducts(){
+  try{ state.products = await supabase.fetch('products',{order:'name.asc'}) || [] }
+  catch(e){ state.products=[]; console.warn(e) }
+}
+function isLowStock(p){ return (p.stock||0)===0 || ((p.min_stock||0)>0 && (p.stock||0)<=(p.min_stock||0)) }
+function renderProducts(){
+  const cont=document.getElementById('prodTable'); if(!cont) return
+  const q=(document.getElementById('prodSearch').value||'').trim().toLowerCase()
+  let list=state.products.filter(p=>p.active!==false)
+  const invVal=list.reduce((a,p)=>a+(p.stock||0)*Number(p.cost||p.price||0),0)
+  const low=list.filter(isLowStock).length
+  document.getElementById('prodCount').textContent=list.length
+  document.getElementById('prodStockVal').textContent=fmtMoney(invVal)
+  document.getElementById('prodLow').textContent=low
+  if(q) list=list.filter(p=>((p.name||'')+' '+(p.category||'')+' '+(p.sku||'')).toLowerCase().includes(q))
+  if(!state.products.length){ cont.innerHTML='<div class="empty-state">Aún no hay productos. Crea el primero con “+ Nuevo producto”.</div>'; return }
+  if(!list.length){ cont.innerHTML='<div class="empty-state">Sin coincidencias.</div>'; return }
+  cont.innerHTML=`<table class="ctbl">
+    <thead><tr><th>Producto</th><th>Categoría</th><th style="text-align:right">Precio</th><th style="text-align:center">Stock</th><th></th></tr></thead>
+    <tbody>${list.map(p=>`<tr>
+      <td class="cname">${esc(p.name)}${p.sku?`<div style="font-size:.7rem;color:var(--light)">${esc(p.sku)}</div>`:''}</td>
+      <td>${esc(p.category||'—')}</td>
+      <td style="text-align:right">${fmtMoney(Number(p.price||0))}</td>
+      <td style="text-align:center">${isLowStock(p)?`<span class="badge" style="background:#fdecea;color:#c0392b">${p.stock||0}</span>`:`<strong>${p.stock||0}</strong>`}</td>
+      <td class="cacts"><button class="mini-btn" onclick="openProductModal('${p.id}')">Editar</button></td>
+    </tr>`).join('')}</tbody></table>`
+}
+function openProductModal(id){
+  const p=id?state.products.find(x=>x.id===id):null
+  document.getElementById('prodTitle').textContent=p?'Editar producto':'Nuevo producto'
+  document.getElementById('prodId').value=p?p.id:''
+  document.getElementById('prodName').value=p?p.name:''
+  document.getElementById('prodCat').value=p?(p.category||''):''
+  document.getElementById('prodSku').value=p?(p.sku||''):''
+  document.getElementById('prodPrice').value=p?(p.price||0):0
+  document.getElementById('prodCost').value=p?(p.cost||0):0
+  document.getElementById('prodStock').value=p?(p.stock||0):0
+  document.getElementById('prodMin').value=p?(p.min_stock||0):0
+  document.getElementById('prodNotes').value=p?(p.notes||''):''
+  document.getElementById('prodDelBtn').style.display=p?'block':'none'
+  openModal('productModal')
+}
+async function saveProduct(){
+  const name=document.getElementById('prodName').value.trim()
+  if(!name){ toast('Falta el nombre','error'); return }
+  const row={
+    name, category:document.getElementById('prodCat').value.trim(), sku:document.getElementById('prodSku').value.trim(),
+    price:parseInt(document.getElementById('prodPrice').value)||0, cost:parseInt(document.getElementById('prodCost').value)||0,
+    stock:parseInt(document.getElementById('prodStock').value)||0, min_stock:parseInt(document.getElementById('prodMin').value)||0,
+    active:true, notes:document.getElementById('prodNotes').value.trim()
+  }
+  const id=document.getElementById('prodId').value
+  try{
+    if(id) await supabase.update('products',id,row); else await supabase.insert('products',row)
+    await loadProducts(); closeModal('productModal'); toast('Producto guardado','success'); renderProducts()
+  }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+async function deleteProduct(){
+  const id=document.getElementById('prodId').value
+  if(!id||!confirm('¿Eliminar este producto?')) return
+  try{ await supabase.delete('products',id); await loadProducts(); closeModal('productModal'); toast('Producto eliminado','success'); renderProducts() }
+  catch(e){ toast('Error al eliminar','error') }
+}
+function exportProducts(){
+  const list=state.products.filter(p=>p.active!==false)
+  if(!list.length){ toast('No hay productos para exportar','error'); return }
+  const rows=list.map(p=>[p.name, p.category||'', p.sku||'', Number(p.price||0), Number(p.cost||0), p.stock||0, p.min_stock||0])
+  downloadCSV('productos.csv', ['Producto','Categoría','SKU','Precio','Costo','Stock','Alerta stock'], rows)
+}
+
 /* ── BLOCK MODAL ── */
 function fillBlockProf(){
   document.getElementById('blkProf').innerHTML = state.professionals.filter(p=>p.active!==false)
@@ -1925,6 +2048,7 @@ async function boot(){
   await loadAppointments()
   await loadSales()
   await loadPlans()
+  await loadProducts()
   render()
   // refrescar línea de "ahora" cada minuto
   setInterval(()=>{ if(document.getElementById('app').style.display!=='none') renderCalendar() }, 60000)
