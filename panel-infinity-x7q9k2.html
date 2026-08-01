@@ -624,10 +624,11 @@ function activeProfs(){
   return state.profId==='all' ? list : list.filter(p=>p.id===state.profId)
 }
 function hourBounds(){
-  const profs = activeProfs()
-  if(!profs.length) return [9*60, 20*60]
-  let mn=24*60, mx=0
-  profs.forEach(p=>{ mn=Math.min(mn,toMin(p.work_start||'09:00')); mx=Math.max(mx,toMin(p.work_end||'20:00')) })
+  // Rango base amplio para que se pueda ver y agendar en todo el día
+  let mn=8*60, mx=21*60
+  activeProfs().forEach(p=>{ mn=Math.min(mn,toMin(p.work_start||'09:00')); mx=Math.max(mx,toMin(p.work_end||'20:00')) })
+  // Nunca cortar una reserva existente
+  state.appointments.forEach(a=>{ mn=Math.min(mn,toMin(a.start_time)); mx=Math.max(mx,toMin(a.end_time)) })
   return [Math.floor(mn/60)*60, Math.ceil(mx/60)*60]
 }
 
