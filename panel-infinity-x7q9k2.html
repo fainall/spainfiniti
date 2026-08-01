@@ -78,6 +78,21 @@ input,select,textarea{font-family:inherit}
 .soon-icon{font-size:2.6rem;margin-bottom:14px}
 .soon-card h3{font-size:1.05rem;margin-bottom:10px}
 .soon-card p{color:var(--mid);font-size:.86rem;line-height:1.6}
+/* ventas */
+.sales-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.sales-filters select{padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--white)}
+.sale-add{display:flex;gap:10px;margin-top:8px;align-items:center}
+.sale-add select{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem}
+.sale-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--cream-2)}
+.sale-item .si-name{flex:1;font-size:.84rem}
+.sale-item input.si-qty{width:52px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;text-align:center;font-size:.82rem}
+.sale-item input.si-price{width:96px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;text-align:right;font-size:.82rem}
+.sale-item .si-del{border:none;background:none;color:var(--red);cursor:pointer;font-size:1rem}
+.sale-total-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:2px solid var(--border);font-size:.9rem;color:var(--mid)}
+.sale-total-row strong{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--dark)}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:700}
+.badge.paid{background:#e6f5ec;color:#1e874b}
+.badge.partial{background:#fdf3e0;color:#b5842a}
 .topbar{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--white);border-bottom:1px solid var(--border);flex-shrink:0}
 .brand{font-family:'Playfair Display',serif;font-size:1.15rem;color:var(--dark);margin-right:6px}
 .brand small{display:block;font-family:'Montserrat';font-size:.52rem;letter-spacing:.28em;color:var(--gold-d);text-transform:uppercase;font-weight:600}
@@ -323,13 +338,33 @@ input,select,textarea{font-family:inherit}
 
   <!-- VISTA: VENTAS -->
   <div class="view" id="view-ventas">
-    <div class="view-inner">
-      <div class="view-head"><h2>Ventas</h2></div>
-      <div class="soon-card">
-        <div class="soon-icon">🧾</div>
-        <h3>Módulo de Ventas — en desarrollo</h3>
-        <p>Aquí irá la caja: registrar ventas de servicios y productos, medios de pago, boletas y cierre de caja diario. Es un módulo grande que armamos como fase aparte.</p>
+    <div class="view-inner" style="max-width:1100px">
+      <div class="view-head">
+        <div><h2>Ventas</h2><span class="view-sub">Registra y revisa las ventas del spa.</span></div>
+        <button class="btn-primary" onclick="openSaleModal()">+ Nueva venta</button>
       </div>
+      <div class="rep-cards">
+        <div class="rep-card"><div class="rc-num" id="salesCount">0</div><div class="rc-lbl">Ventas</div></div>
+        <div class="rep-card"><div class="rc-num" id="salesAmount">$0</div><div class="rc-lbl">Monto total</div></div>
+        <div class="rep-card"><div class="rc-num" id="salesPartial">0</div><div class="rc-lbl">Pagos parciales</div></div>
+      </div>
+      <div class="sales-filters">
+        <select id="salesPeriod" onchange="renderSales()">
+          <option value="7">Últimos 7 días</option>
+          <option value="30">Últimos 30 días</option>
+          <option value="all">Todo</option>
+        </select>
+        <select id="salesStatusF" onchange="renderSales()">
+          <option value="all">Todos los estados</option>
+          <option value="paid">Pagadas</option>
+          <option value="partial">Pago parcial</option>
+        </select>
+        <select id="salesPayF" onchange="renderSales()">
+          <option value="all">Todos los métodos</option>
+          <option>Efectivo</option><option>Débito</option><option>Crédito</option><option>Transferencia</option>
+        </select>
+      </div>
+      <div id="salesTable"></div>
     </div>
   </div>
 
@@ -443,6 +478,51 @@ input,select,textarea{font-family:inherit}
   </div>
 </div>
 
+<!-- MODAL: Nueva venta -->
+<div class="modal-ov" id="saleModal">
+  <div class="modal" style="width:540px">
+    <div class="modal-head-row">
+      <h2 id="saleTitle">Nueva venta</h2>
+      <div class="status-wrap">
+        <span class="status-dot" id="saleStatusDot"></span>
+        <select id="saleStatus" onchange="updateSaleDot()">
+          <option value="paid">Pagada</option>
+          <option value="partial">Pago parcial</option>
+        </select>
+      </div>
+    </div>
+    <input type="hidden" id="saleId" />
+    <div class="row2">
+      <div><label>Fecha</label><input type="date" id="saleDate" /></div>
+      <div><label>Método de pago</label>
+        <select id="salePay"><option>Efectivo</option><option>Débito</option><option>Crédito</option><option>Transferencia</option></select>
+      </div>
+    </div>
+    <label>Cliente (opcional)</label>
+    <div class="client-row">
+      <div class="client-search-wrap">
+        <input type="text" id="saleClientSearch" placeholder="Busca por nombre, teléfono o email" autocomplete="off" oninput="onSaleClientSearch()" onfocus="onSaleClientSearch()" />
+        <div class="client-dropdown" id="saleClientDropdown"></div>
+      </div>
+    </div>
+    <input type="hidden" id="saleClientId" />
+    <label>Ítems</label>
+    <div id="saleItemsList"></div>
+    <div class="sale-add">
+      <select id="saleItemPick" onchange="onSaleItemPick()"><option value="">+ Agregar servicio…</option></select>
+      <button type="button" class="mini-btn" onclick="addSaleItemManual()">+ Ítem manual</button>
+    </div>
+    <div class="sale-total-row">Total <strong id="saleTotal">$0</strong></div>
+    <label>Nota</label>
+    <textarea id="saleNotes" rows="2" placeholder="Opcional"></textarea>
+    <div class="modal-actions">
+      <button class="btn-danger" id="saleDelBtn" onclick="deleteSale()" style="display:none">Eliminar</button>
+      <button class="btn-ghost" onclick="closeModal('saleModal')">Cancelar</button>
+      <button class="btn-primary" onclick="saveSale()">Guardar venta</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Professional manager -->
 <div class="modal-ov" id="profModal">
   <div class="modal">
@@ -487,7 +567,8 @@ let state = {
   professionals: [],
   appointments: [],
   services: [],
-  clients: []
+  clients: [],
+  sales: []
 }
 const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
@@ -979,6 +1060,7 @@ function switchView(v){
   document.querySelectorAll('.topnav-tabs button').forEach(b=>b.classList.toggle('on', b.dataset.view===v))
   if(v==='clientes') renderClientList()
   if(v==='reportes') renderReportes()
+  if(v==='ventas') renderSales()
 }
 
 /* ── CLIENTES (lista) ── */
@@ -1033,6 +1115,158 @@ function renderReportes(){
         <span class="rr-n">${r.n}</span></div>`).join('') : '<p style="color:var(--mid);font-size:.84rem">Sin profesionales.</p>'}
     </div>
     <p style="color:var(--mid);font-size:.78rem">Datos de la semana mostrada en la agenda. Cambia de semana con el mini-calendario para ver otros períodos.</p>`
+}
+
+/* ── VENTAS ── */
+function parseMoney(s){ if(typeof s==='number') return s; const n=String(s||'').replace(/[^0-9]/g,''); return n?parseInt(n):0 }
+function fmtMoney(n){ return '$'+(n||0).toLocaleString('es-CL') }
+const PAY_LABEL={Efectivo:'Efectivo',Débito:'Débito',Crédito:'Crédito',Transferencia:'Transferencia'}
+let saleItemsArr=[]
+
+async function loadSales(){
+  try{ state.sales = await supabase.fetch('sales',{order:'sale_date.desc'}) || [] }
+  catch(e){ state.sales=[]; console.warn(e) }
+}
+function renderSales(){
+  const cont=document.getElementById('salesTable'); if(!cont) return
+  const period=document.getElementById('salesPeriod').value
+  const statusF=document.getElementById('salesStatusF').value
+  const payF=document.getElementById('salesPayF').value
+  const today=new Date(); today.setHours(0,0,0,0)
+  let list=state.sales.filter(s=>s.status!=='deleted')
+  if(period!=='all'){ const lim=new Date(today); lim.setDate(lim.getDate()-parseInt(period)); list=list.filter(s=>new Date(s.sale_date+'T00:00:00')>=lim) }
+  // tarjetas (sobre el período, antes de filtros de estado/método)
+  const amount=list.reduce((a,s)=>a+Number(s.total||0),0)
+  document.getElementById('salesCount').textContent=list.length
+  document.getElementById('salesAmount').textContent=fmtMoney(amount)
+  document.getElementById('salesPartial').textContent=list.filter(s=>s.status==='partial').length
+  if(statusF!=='all') list=list.filter(s=>s.status===statusF)
+  if(payF!=='all') list=list.filter(s=>s.payment_method===payF)
+  if(!state.sales.length){ cont.innerHTML=`<div class="empty-state">Aún no hay ventas. Registra la primera con “+ Nueva venta”.</div>`; return }
+  if(!list.length){ cont.innerHTML=`<div class="empty-state">No hay ventas para los filtros seleccionados.</div>`; return }
+  cont.innerHTML=`<table class="ctbl">
+    <thead><tr><th>Fecha</th><th>Cliente</th><th>Detalle</th><th>Método</th><th>Estado</th><th style="text-align:right">Total</th><th></th></tr></thead>
+    <tbody>${list.map(s=>{
+      const items=Array.isArray(s.items)?s.items:(typeof s.items==='string'?JSON.parse(s.items||'[]'):[])
+      const detail=items.map(i=>`${i.qty>1?i.qty+'× ':''}${i.name}`).join(', ')||'—'
+      const [y,m,d]=s.sale_date.split('-')
+      return `<tr>
+        <td>${d}/${m}/${y}</td>
+        <td class="cname">${esc(s.client_name||'—')}</td>
+        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(detail)}</td>
+        <td>${esc(s.payment_method||'—')}</td>
+        <td><span class="badge ${s.status}">${s.status==='paid'?'Pagada':'Pago parcial'}</span></td>
+        <td style="text-align:right;font-weight:700">${fmtMoney(Number(s.total||0))}</td>
+        <td class="cacts"><button class="mini-btn" onclick="editSale('${s.id}')">Ver</button></td>
+      </tr>`}).join('')}</tbody></table>`
+}
+function fillSaleItemPick(){
+  const sel=document.getElementById('saleItemPick')
+  const byCat={}; state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
+  let html=`<option value="">+ Agregar servicio…</option>`
+  Object.entries(byCat).forEach(([cat,arr])=>{ html+=`<optgroup label="${esc(cat)}">`+arr.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}" data-price="${parseMoney(s.price)}">${esc(s.name)} — ${esc(s.price||'')}</option>`).join('')+`</optgroup>` })
+  sel.innerHTML=html
+}
+function onSaleItemPick(){
+  const opt=document.getElementById('saleItemPick').selectedOptions[0]
+  if(!opt||!opt.value) return
+  saleItemsArr.push({name:opt.dataset.name, qty:1, price:parseInt(opt.dataset.price)||0})
+  document.getElementById('saleItemPick').value=''
+  renderSaleItems()
+}
+function addSaleItemManual(){ saleItemsArr.push({name:'Producto/servicio', qty:1, price:0}); renderSaleItems() }
+function renderSaleItems(){
+  const c=document.getElementById('saleItemsList')
+  c.innerHTML=saleItemsArr.map((it,i)=>`<div class="sale-item">
+    <input class="si-name-in" value="${esc(it.name)}" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem" oninput="saleItemsArr[${i}].name=this.value" />
+    <input class="si-qty" type="number" min="1" value="${it.qty}" oninput="saleItemsArr[${i}].qty=parseInt(this.value)||1;computeSaleTotal()" />
+    <input class="si-price" type="number" min="0" step="500" value="${it.price}" oninput="saleItemsArr[${i}].price=parseInt(this.value)||0;computeSaleTotal()" />
+    <button class="si-del" onclick="saleItemsArr.splice(${i},1);renderSaleItems()">✕</button>
+  </div>`).join('')
+  computeSaleTotal()
+}
+function computeSaleTotal(){
+  const t=saleItemsArr.reduce((a,it)=>a+(it.qty*it.price),0)
+  document.getElementById('saleTotal').textContent=fmtMoney(t)
+  return t
+}
+const SALE_COLORS={paid:'#27AE60',partial:'#b5842a'}
+function updateSaleDot(){ document.getElementById('saleStatusDot').style.background=SALE_COLORS[document.getElementById('saleStatus').value]||'#27AE60' }
+/* cliente picker para ventas */
+function onSaleClientSearch(){
+  const q=document.getElementById('saleClientSearch').value.trim().toLowerCase()
+  document.getElementById('saleClientId').value=''
+  const dd=document.getElementById('saleClientDropdown')
+  if(!state.clients.length){ dd.classList.remove('show'); return }
+  let list=state.clients
+  if(q) list=list.filter(c=>((c.name||'')+' '+(c.phone||'')+' '+(c.email||'')).toLowerCase().includes(q))
+  list=list.slice(0,8)
+  dd.innerHTML=list.length?list.map(c=>`<div class="client-opt" onclick="selectSaleClient('${c.id}')"><div class="cn">${esc(c.name)}</div><div class="cd">${esc(c.phone||'')}</div></div>`).join(''):`<div class="client-opt empty">Sin coincidencias</div>`
+  dd.classList.add('show')
+}
+function selectSaleClient(id){
+  const c=state.clients.find(x=>x.id===id); if(!c) return
+  document.getElementById('saleClientId').value=c.id
+  document.getElementById('saleClientSearch').value=c.name
+  document.getElementById('saleClientDropdown').classList.remove('show')
+}
+document.addEventListener('click',e=>{ if(!e.target.closest('#saleModal .client-search-wrap')){ const dd=document.getElementById('saleClientDropdown'); if(dd) dd.classList.remove('show') } })
+
+function openSaleModal(){
+  fillSaleItemPick()
+  document.getElementById('saleTitle').textContent='Nueva venta'
+  document.getElementById('saleId').value=''
+  document.getElementById('saleDate').value=isoDate(new Date())
+  document.getElementById('salePay').value='Efectivo'
+  document.getElementById('saleStatus').value='paid'
+  document.getElementById('saleClientSearch').value=''
+  document.getElementById('saleClientId').value=''
+  document.getElementById('saleNotes').value=''
+  saleItemsArr=[]
+  renderSaleItems(); updateSaleDot()
+  document.getElementById('saleDelBtn').style.display='none'
+  openModal('saleModal')
+}
+function editSale(id){
+  const s=state.sales.find(x=>x.id===id); if(!s) return
+  fillSaleItemPick()
+  document.getElementById('saleTitle').textContent='Venta'
+  document.getElementById('saleId').value=s.id
+  document.getElementById('saleDate').value=s.sale_date
+  document.getElementById('salePay').value=s.payment_method||'Efectivo'
+  document.getElementById('saleStatus').value=s.status==='partial'?'partial':'paid'
+  document.getElementById('saleClientSearch').value=s.client_name||''
+  document.getElementById('saleClientId').value=s.client_id||''
+  document.getElementById('saleNotes').value=s.notes||''
+  saleItemsArr=(Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')).map(i=>({name:i.name,qty:i.qty||1,price:i.price||0}))
+  renderSaleItems(); updateSaleDot()
+  document.getElementById('saleDelBtn').style.display='block'
+  openModal('saleModal')
+}
+async function saveSale(){
+  if(!saleItemsArr.length){ toast('Agrega al menos un ítem','error'); return }
+  const row={
+    client_id:document.getElementById('saleClientId').value||null,
+    client_name:document.getElementById('saleClientSearch').value.trim(),
+    sale_date:document.getElementById('saleDate').value,
+    items:JSON.stringify(saleItemsArr),
+    total:computeSaleTotal(),
+    payment_method:document.getElementById('salePay').value,
+    status:document.getElementById('saleStatus').value,
+    notes:document.getElementById('saleNotes').value.trim()
+  }
+  const id=document.getElementById('saleId').value
+  try{
+    if(id) await supabase.update('sales',id,row)
+    else await supabase.insert('sales',row)
+    await loadSales(); closeModal('saleModal'); toast('Venta guardada','success'); renderSales()
+  }catch(e){ console.error(e); toast('Error al guardar la venta','error') }
+}
+async function deleteSale(){
+  const id=document.getElementById('saleId').value
+  if(!id||!confirm('¿Eliminar esta venta?')) return
+  try{ await supabase.update('sales',id,{status:'deleted'}); await loadSales(); closeModal('saleModal'); toast('Venta eliminada','success'); renderSales() }
+  catch(e){ toast('Error al eliminar','error') }
 }
 
 /* ── BLOCK MODAL ── */
@@ -1167,6 +1401,7 @@ async function boot(){
   await loadProfessionals()
   await loadClients()
   await loadAppointments()
+  await loadSales()
   render()
   // refrescar línea de "ahora" cada minuto
   setInterval(()=>{ if(document.getElementById('app').style.display!=='none') renderCalendar() }, 60000)

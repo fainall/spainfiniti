@@ -52,17 +52,35 @@ create index if not exists idx_appt_prof on appointments(professional_id);
 -- Si ya habías creado appointments antes, agrega la columna nueva:
 alter table appointments add column if not exists client_id uuid references clients(id) on delete set null;
 
+-- 3b. Ventas (caja)
+create table if not exists sales (
+  id             uuid primary key default gen_random_uuid(),
+  client_id      uuid references clients(id) on delete set null,
+  client_name    text,
+  sale_date      date not null default current_date,
+  items          jsonb default '[]',
+  total          numeric default 0,
+  payment_method text,
+  status         text default 'paid',   -- paid | partial | deleted
+  notes          text,
+  created_at     timestamptz default now()
+);
+create index if not exists idx_sales_date on sales(sale_date);
+
 -- 4. Permisos (mismo patrón del resto del sitio)
 alter table professionals enable row level security;
 alter table clients       enable row level security;
 alter table appointments  enable row level security;
+alter table sales         enable row level security;
 
 drop policy if exists "anon all professionals" on professionals;
 drop policy if exists "anon all clients"        on clients;
 drop policy if exists "anon all appointments"   on appointments;
+drop policy if exists "anon all sales"          on sales;
 create policy "anon all professionals" on professionals for all using (true) with check (true);
 create policy "anon all clients"        on clients       for all using (true) with check (true);
 create policy "anon all appointments"   on appointments  for all using (true) with check (true);
+create policy "anon all sales"          on sales         for all using (true) with check (true);
 
 -- 5. Un profesional de ejemplo para empezar
 insert into professionals (name, color, work_start, work_end, work_days)
