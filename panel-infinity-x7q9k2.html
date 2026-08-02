@@ -172,6 +172,17 @@ input,select,textarea{font-family:inherit}
 .appt.dragging{opacity:.3}
 .dragging-ghost{border-radius:6px;box-shadow:0 10px 28px rgba(0,0,0,.28);color:#fff;padding:4px 7px;font-size:.7rem}
 .drop-hint{position:absolute;left:2px;right:2px;border:2px dashed var(--gold-d);background:rgba(197,164,103,.2);border-radius:6px;z-index:8;font-size:.66rem;color:var(--gold-d);font-weight:700;padding:2px 6px;pointer-events:none}
+/* tarjeta vista rápida de reserva */
+.qv{position:fixed;z-index:850;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.28);width:340px;max-width:92vw;padding:16px;font-size:.85rem}
+.qv-head{display:flex;justify-content:flex-end;gap:6px;margin-bottom:6px}
+.qv-icon{border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;padding:6px 10px;font-size:.8rem;font-family:inherit;color:var(--dark)}
+.qv-icon:hover{border-color:var(--gold)}
+.qv-name{font-weight:700;font-size:1.05rem;color:var(--dark);margin-bottom:4px}
+.qv-svc{font-size:.9rem;margin-bottom:8px}
+.qv-row{display:flex;align-items:center;gap:8px;color:var(--mid);margin:6px 0;flex-wrap:wrap}
+.qv-dots{display:flex;align-items:center;gap:7px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}
+.qv-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px var(--border)}
+.qv-dot.on{box-shadow:0 0 0 2px var(--dark)}
 .appt .t{font-weight:700;font-size:.66rem;opacity:.95}
 .appt .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .appt .s{opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1160,7 +1171,7 @@ async function apptMouseUp(){
   if(d.ghost) d.ghost.remove()
   clearDropHint()
   const a=findAppt(d.id); if(!a) return
-  if(!d.moved){ if(a.status==='block') openBlockModal(null,a); else openApptModal(d.id); return }
+  if(!d.moved){ if(a.status==='block') openBlockModal(null,a); else openApptQuickView(d.id); return }
   if(a.appt_date===d.targetDate && a.start_time.slice(0,5)===d.targetStart){ render(); return }
   const newEnd=toHHMM(toMin(d.targetStart)+d.dur)
   a.appt_date=d.targetDate; a.start_time=d.targetStart; a.end_time=newEnd  // optimista
@@ -1251,6 +1262,65 @@ const STATUS_LABEL={reserved:'Reservado',confirmed:'Confirmado',attending:'Asist
 function updateStatusDot(){ const v=document.getElementById('apptStatus').value; document.getElementById('apptStatusDot').style.background=STATUS_COLORS[v]||'#3FC7EB' }
 function toggleCollapse(id){ document.getElementById(id).classList.toggle('open') }
 function findAppt(id){ return state.appointments.find(x=>x.id===id) }
+/* ── VISTA RÁPIDA DE RESERVA (al hacer clic) ── */
+function fmtLongDate(iso){ const [y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d); return `${DOW_FULL[dt.getDay()].toLowerCase()}, ${d} de ${MONTHS[m-1].toLowerCase()}` }
+function openApptQuickView(id){
+  closeQuickView()
+  const a=findAppt(id); if(!a) return
+  const p=state.professionals.find(x=>x.id===a.professional_id)
+  const c=state.clients.find(x=>x.id===a.client_id)
+  const email=(c&&c.email)||''
+  const phone=a.client_phone||''
+  const waP=waPhone(phone)
+  const dots=['reserved','confirmed','attending','no_show','pending','waiting']
+    .map(s=>`<span class="qv-dot ${a.status===s?'on':''}" title="${STATUS_LABEL[s]}" style="background:${STATUS_COLORS[s]}" onclick="setApptStatus('${id}','${s}')"></span>`).join('')
+  const qv=document.createElement('div'); qv.className='qv'; qv.id='apptQV'
+  qv.innerHTML=`
+    <div class="qv-head">
+      <button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="qvDelete('${id}')">🗑</button>
+      <button class="qv-icon" title="Editar" onclick="closeQuickView();openApptModal('${id}')">✎ Editar</button>
+      <button class="qv-icon" onclick="closeQuickView()">✕</button>
+    </div>
+    <div class="qv-name">${esc(a.client_name||'Sin cliente')}</div>
+    ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${a.price?` <span style="color:var(--gold-d);font-weight:600">${esc(a.price)}</span>`:''}</div>`:''}
+    <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
+    ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--dark)">${esc(p.name)}</strong></div>`:''}
+    ${phone?`<div class="qv-row">📱 ${esc(phone)} ${waP?`<a href="https://wa.me/${waP}" target="_blank" class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366">WhatsApp</a>`:''}</div>`:''}
+    ${email?`<div class="qv-row">✉ ${esc(email)}</div>`:''}
+    <div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>
+    <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--dark)">${STATUS_LABEL[a.status]||''}</span></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="mini-btn" onclick="payFromAppt('${id}')">$ Pagar</button>
+      ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();switchView('clientes');openClientDetail('${a.client_id}')">Ficha</button>`:''}
+    </div>`
+  document.body.appendChild(qv)
+  const el=document.querySelector(`.appt[data-id="${id}"]`)
+  const r=el?el.getBoundingClientRect():{right:window.innerWidth/2,left:window.innerWidth/2,top:120}
+  let left=r.right+8; if(left+352>window.innerWidth) left=Math.max(8, r.left-352)
+  let top=r.top; if(top+360>window.innerHeight) top=Math.max(8, window.innerHeight-370)
+  qv.style.left=left+'px'; qv.style.top=top+'px'
+}
+function closeQuickView(){ const q=document.getElementById('apptQV'); if(q) q.remove() }
+async function setApptStatus(id,status){
+  const a=findAppt(id); if(!a) return
+  a.status=status
+  try{ await supabase.update('appointments',id,{status}); renderCalendar(); openApptQuickView(id) }
+  catch(e){ toast('Error al cambiar estado','error') }
+}
+async function qvDelete(id){
+  if(!confirm('¿Eliminar esta reserva?')) return
+  try{ await supabase.delete('appointments',id); closeQuickView(); toast('Reserva eliminada','success'); loadAndRender() }
+  catch(e){ toast('Error al eliminar','error') }
+}
+function payFromAppt(id){
+  const a=findAppt(id); if(!a) return
+  closeQuickView(); openSaleModal()
+  document.getElementById('saleClientSearch').value=a.client_name||''
+  document.getElementById('saleClientId').value=a.client_id||''
+  if(a.professional_id) document.getElementById('saleProf').value=a.professional_id
+  if(a.service_name){ saleItemsArr=[{name:a.service_name, qty:1, price:parseMoney(a.price), productId:null}]; renderSaleItems() }
+}
+document.addEventListener('click',e=>{ if(document.getElementById('apptQV') && !e.target.closest('#apptQV') && !e.target.closest('.appt')) closeQuickView() })
 function openApptModal(id,prefill){
   fillProfSelect()
   const del=document.getElementById('apptDelBtn')
