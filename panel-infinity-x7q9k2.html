@@ -430,6 +430,15 @@ input,select,textarea{font-family:inherit}
             </select>
           </div>
           <div class="rep-block">
+            <h3>⚡ Recordatorios automáticos</h3>
+            <label class="bot-switch"><input type="checkbox" id="remAuto" /> <span>Enviar solos antes de cada cita</span></label>
+            <div class="row2" style="margin-top:10px">
+              <div><label style="font-size:.72rem;font-weight:600;color:var(--mid)">Horas antes</label><input type="number" id="remHours" min="1" value="24" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px" /></div>
+              <div><label style="font-size:.72rem;font-weight:600;color:var(--mid)">Canal</label><select id="remChannel" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px"><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="both">Ambos</option></select></div>
+            </div>
+            <div style="text-align:right;margin-top:10px"><button class="btn-primary" onclick="saveRemAuto()">Guardar automatización</button></div>
+          </div>
+          <div class="rep-block">
             <h3>Mensaje del recordatorio</h3>
             <textarea id="remTpl" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></textarea>
             <div style="font-size:.75rem;color:var(--mid);margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -2329,8 +2338,17 @@ function exportProducts(){
 
 /* ── RECORDATORIOS (WhatsApp semi-automático) ── */
 const REM_TPL_DEFAULT='Hola {cliente} 👋 Te recordamos tu cita en Spa Infinity el {fecha} a las {hora} ({servicio}). ¡Te esperamos! Si necesitas reagendar, responde este mensaje.'
-function getRemTpl(){ return localStorage.getItem('spa_reminder_tpl') || REM_TPL_DEFAULT }
-function saveRemTpl(){ localStorage.setItem('spa_reminder_tpl', document.getElementById('remTpl').value); toast('Mensaje guardado','success') }
+function getRemTpl(){ return (botCfg && botCfg.rem_template) || REM_TPL_DEFAULT }
+async function saveRemTpl(){
+  const tpl=document.getElementById('remTpl').value
+  try{ await supabase.update('bot_config','1',{rem_template:tpl}); botCfg.rem_template=tpl; toast('Mensaje guardado','success') }
+  catch(e){ toast('Error al guardar','error') }
+}
+async function saveRemAuto(){
+  const row={ rem_auto:document.getElementById('remAuto').checked, rem_hours:parseInt(document.getElementById('remHours').value)||24, rem_channel:document.getElementById('remChannel').value }
+  try{ await supabase.update('bot_config','1',row); Object.assign(botCfg,row); toast('Automatización guardada','success') }
+  catch(e){ toast('Error al guardar','error') }
+}
 function waPhone(raw){
   let d=String(raw||'').replace(/\D/g,'')
   if(!d) return ''
@@ -2352,6 +2370,9 @@ function buildReminderMsg(a){
 function renderRecordatorios(){
   const el=document.getElementById('remTable'); if(!el) return
   document.getElementById('remTpl').value=getRemTpl()
+  document.getElementById('remAuto').checked=!!botCfg.rem_auto
+  document.getElementById('remHours').value=botCfg.rem_hours||24
+  document.getElementById('remChannel').value=botCfg.rem_channel||'email'
   const range=parseInt(document.getElementById('remRange').value)
   const today=new Date(); today.setHours(0,0,0,0)
   const to=addDays(today,range)
