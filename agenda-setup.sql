@@ -112,6 +112,18 @@ create table if not exists products (
   created_at  timestamptz default now()
 );
 
+-- 3e. Configuración del asistente/bot (una sola fila, id=1)
+create table if not exists bot_config (
+  id               int primary key default 1,
+  active           boolean default false,
+  welcome          text,
+  tone             text,
+  faq              jsonb default '[]',
+  handoff_keywords text,
+  updated_at       timestamptz default now()
+);
+insert into bot_config (id) select 1 where not exists (select 1 from bot_config);
+
 -- 4. Permisos (mismo patrón del resto del sitio)
 alter table professionals enable row level security;
 alter table clients       enable row level security;
@@ -119,8 +131,11 @@ alter table appointments  enable row level security;
 alter table sales         enable row level security;
 alter table plans         enable row level security;
 alter table products      enable row level security;
+alter table bot_config    enable row level security;
 
 drop policy if exists "anon all professionals" on professionals;
+drop policy if exists "anon all bot_config"     on bot_config;
+create policy "anon all bot_config"     on bot_config    for all using (true) with check (true);
 drop policy if exists "anon all clients"        on clients;
 drop policy if exists "anon all appointments"   on appointments;
 drop policy if exists "anon all sales"          on sales;

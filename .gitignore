@@ -6,3 +6,5 @@ api/flow-config.php
 _upload.zip
 api/reviews-config.php
 api/cache/
+api/bot-config.php
+api/bot-sessions/

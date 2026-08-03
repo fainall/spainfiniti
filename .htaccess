@@ -90,3 +90,6 @@ Options -Indexes
 <FilesMatch "\.(sql|example\.php|md)$">
   Require all denied
 </FilesMatch>
+
+# Security: bloquear sesiones del bot (historial de conversaciones)
+RedirectMatch 403 ^/api/bot-sessions/
