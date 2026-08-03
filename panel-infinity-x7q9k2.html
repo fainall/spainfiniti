@@ -66,6 +66,14 @@ input,select,textarea{font-family:inherit}
 .ctbl .cname{font-weight:600}
 .ctbl .cacts{text-align:right;white-space:nowrap}
 .empty-state{text-align:center;color:var(--mid);padding:60px 20px;font-size:.9rem}
+/* clientes: filtros a la izquierda */
+.cli-layout{display:flex;gap:20px;align-items:flex-start}
+.cli-filters{width:230px;flex-shrink:0;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px}
+.cli-filters h3{font-size:.9rem;margin-bottom:6px}
+.cli-filters label{display:block;font-size:.7rem;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px}
+.cli-filters select{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--white)}
+.cli-main{flex:1;min-width:0}
+@media(max-width:820px){.cli-layout{flex-direction:column}.cli-filters{width:100%}}
 /* reportes */
 .rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .rep-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
@@ -395,26 +403,34 @@ input,select,textarea{font-family:inherit}
           <button class="btn-primary" onclick="openClientModal(true)">+ Nuevo cliente</button>
         </div>
       </div>
-      <input class="view-search" id="clientListSearch" placeholder="Buscar por nombre, teléfono, email o RUT..." oninput="renderClientList()" />
-      <div class="sales-filters">
-        <select id="clfGender" onchange="renderClientList()">
-          <option value="">Todos los géneros</option><option>Femenino</option><option>Masculino</option><option>Otro</option>
-        </select>
-        <select id="clfBirthMonth" onchange="renderClientList()">
-          <option value="">Cumpleaños: todos</option>
-          <option value="1">Cumple en Enero</option><option value="2">Cumple en Febrero</option><option value="3">Cumple en Marzo</option>
-          <option value="4">Cumple en Abril</option><option value="5">Cumple en Mayo</option><option value="6">Cumple en Junio</option>
-          <option value="7">Cumple en Julio</option><option value="8">Cumple en Agosto</option><option value="9">Cumple en Septiembre</option>
-          <option value="10">Cumple en Octubre</option><option value="11">Cumple en Noviembre</option><option value="12">Cumple en Diciembre</option>
-        </select>
-        <select id="clfReserved" onchange="renderClientList()">
-          <option value="">¿Ha reservado?: todos</option><option value="yes">Sí ha reservado</option><option value="no">Nunca ha reservado</option>
-        </select>
-        <select id="clfCreated" onchange="renderClientList()">
-          <option value="">Creado: cualquier fecha</option><option value="7">Creado últimos 7 días</option><option value="30">Creado últimos 30 días</option>
-        </select>
-      </div>
-      <div id="clientTable"></div>
+      <div class="cli-layout">
+        <aside class="cli-filters">
+          <h3>Filtros avanzados</h3>
+          <label>Género</label>
+          <select id="clfGender" onchange="renderClientList()">
+            <option value="">Todos</option><option>Femenino</option><option>Masculino</option><option>Otro</option>
+          </select>
+          <label>Cumpleaños (mes)</label>
+          <select id="clfBirthMonth" onchange="renderClientList()">
+            <option value="">Todos</option>
+            <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+            <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+            <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+            <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select>
+          <label>¿Ha reservado?</label>
+          <select id="clfReserved" onchange="renderClientList()">
+            <option value="">Todos</option><option value="yes">Sí ha reservado</option><option value="no">Nunca ha reservado</option>
+          </select>
+          <label>Cliente creado en el período</label>
+          <select id="clfCreated" onchange="renderClientList()">
+            <option value="">Cualquier fecha</option><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option>
+          </select>
+          <button class="btn-g" style="width:100%;margin-top:18px" onclick="resetClientFilters()">↺ Reestablecer</button>
+        </aside>
+        <div class="cli-main">
+          <input class="view-search" id="clientListSearch" placeholder="Busca por nombre, apellido, RUT, email y teléfono" oninput="renderClientList()" style="margin-bottom:16px" />
+          <div id="clientTable"></div>
 
       <!-- Acordeón: Recordatorios de WhatsApp -->
       <div class="acc" id="remAcc">
@@ -449,6 +465,8 @@ input,select,textarea{font-family:inherit}
           <div id="remTable"></div>
         </div>
       </div>
+        </div><!-- /cli-main -->
+      </div><!-- /cli-layout -->
     </div>
   </div>
 
@@ -1766,6 +1784,11 @@ function renderFaq(){
     <button onclick="botCfg.faq.splice(${i},1);renderFaq()">✕</button></div>`).join('')
 }
 function addFaqRow(){ botCfg.faq=botCfg.faq||[]; botCfg.faq.push({q:'',a:''}); renderFaq() }
+function resetClientFilters(){
+  ['clfGender','clfBirthMonth','clfReserved','clfCreated'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value='' })
+  document.getElementById('clientListSearch').value=''
+  renderClientList()
+}
 async function saveBotConfig(){
   const row={ active:document.getElementById('botActive').checked, welcome:document.getElementById('botWelcome').value.trim(),
     tone:document.getElementById('botTone').value.trim(), handoff_keywords:document.getElementById('botHandoff').value.trim(),
