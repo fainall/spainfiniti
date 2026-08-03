@@ -183,6 +183,19 @@ input,select,textarea{font-family:inherit}
 .qv-dots{display:flex;align-items:center;gap:7px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}
 .qv-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1px var(--border)}
 .qv-dot.on{box-shadow:0 0 0 2px var(--dark)}
+/* modal detalle de reserva con pestañas */
+.ad-chip{display:inline-block;background:#efe7fb;color:#6b45b8;font-size:.78rem;font-weight:600;padding:4px 14px;border-radius:20px;margin:6px 0 2px}
+.ad-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-top:12px;flex-wrap:wrap}
+.ad-tab{background:none;border:none;padding:10px 14px;font-family:inherit;font-size:.85rem;font-weight:600;color:var(--mid);cursor:pointer;border-bottom:2px solid transparent}
+.ad-tab:hover{color:var(--dark)}
+.ad-tab.on{color:var(--dark);border-bottom-color:var(--gold)}
+#adContent{min-height:200px;padding-top:16px;font-size:.86rem}
+.ad-info-row{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream-2)}
+.ad-info-row .k{width:130px;color:var(--mid);flex-shrink:0}
+.ad-empty{text-align:center;color:var(--mid);padding:30px 10px}
+.ad-sub{display:flex;gap:6px;margin-bottom:14px}
+.ad-sub button{padding:7px 12px;border:1px solid var(--border);background:#fff;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer}
+.ad-sub button.on{background:var(--gold-pale);border-color:var(--gold);color:var(--gold-d)}
 .appt .t{font-weight:700;font-size:.66rem;opacity:.95}
 .appt .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .appt .s{opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -679,6 +692,21 @@ input,select,textarea{font-family:inherit}
       <button class="btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
       <button class="btn-primary" onclick="saveClient()">Guardar cliente</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: Detalle de reserva (pestañas) -->
+<div class="modal-ov" id="apptDetailModal">
+  <div class="modal" style="width:640px;max-width:96vw">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <h2 id="adTitle" style="margin-bottom:2px">Reserva</h2>
+        <div id="adChip"></div>
+      </div>
+      <button class="qv-icon" onclick="closeModal('apptDetailModal')">✕</button>
+    </div>
+    <div class="ad-tabs" id="adTabs"></div>
+    <div id="adContent"></div>
   </div>
 </div>
 
@@ -1278,7 +1306,7 @@ function openApptQuickView(id){
   qv.innerHTML=`
     <div class="qv-head">
       <button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="qvDelete('${id}')">🗑</button>
-      <button class="qv-icon" title="Editar" onclick="closeQuickView();openApptModal('${id}')">✎ Editar</button>
+      <button class="qv-icon" title="Editar" onclick="closeQuickView();openApptDetail('${id}')">✎ Editar</button>
       <button class="qv-icon" onclick="closeQuickView()">✕</button>
     </div>
     <div class="qv-name">${esc(a.client_name||'Sin cliente')}</div>
@@ -1321,6 +1349,95 @@ function payFromAppt(id){
   if(a.service_name){ saleItemsArr=[{name:a.service_name, qty:1, price:parseMoney(a.price), productId:null}]; renderSaleItems() }
 }
 document.addEventListener('click',e=>{ if(document.getElementById('apptQV') && !e.target.closest('#apptQV') && !e.target.closest('.appt')) closeQuickView() })
+
+/* ── DETALLE DE RESERVA (modal con pestañas) ── */
+let adState={id:null, tab:'reserva', hist:'cliente'}
+const AD_TABS=[['reserva','Reserva'],['pago','Pago'],['recordatorios','Recordatorios'],['cliente','Cliente'],['ficha','Ficha'],['historial','Historial']]
+function openApptDetail(id){
+  closeQuickView()
+  const a=findAppt(id); if(!a) return
+  adState={id, tab:'reserva', hist:'cliente'}
+  document.getElementById('adTitle').textContent='Reserva de '+(a.client_name||'—')
+  document.getElementById('adChip').innerHTML=a.service_name?`<span class="ad-chip">${esc(a.service_name)}</span>`:''
+  document.getElementById('adTabs').innerHTML=AD_TABS.map(([k,l])=>`<button class="ad-tab ${k==='reserva'?'on':''}" data-tab="${k}" onclick="setApptTab('${k}')">${l}</button>`).join('')
+  renderApptTab()
+  openModal('apptDetailModal')
+}
+function setApptTab(t){ adState.tab=t; document.querySelectorAll('#adTabs .ad-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t)); renderApptTab() }
+function statusDotsRow(id, status){
+  return ['reserved','confirmed','attending','no_show','pending','waiting']
+    .map(s=>`<span class="qv-dot ${status===s?'on':''}" title="${STATUS_LABEL[s]}" style="background:${STATUS_COLORS[s]}" onclick="setApptStatus('${id}','${s}'); setTimeout(renderApptTab,200)"></span>`).join('')
+}
+function renderApptTab(){
+  const a=findAppt(adState.id); if(!a) return
+  const el=document.getElementById('adContent'); if(!el) return
+  const c=state.clients.find(x=>x.id===a.client_id)
+  const p=state.professionals.find(x=>x.id===a.professional_id)
+  const t=adState.tab
+  if(t==='reserva'){
+    el.innerHTML=`
+      <div class="ad-info-row"><span class="k">Fecha y hora</span><span>${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</span></div>
+      <div class="ad-info-row"><span class="k">Profesional</span><span>${esc(p?p.name:'—')}</span></div>
+      <div class="ad-info-row"><span class="k">Servicio</span><span>${esc(a.service_name||'—')} ${a.price?`· ${esc(a.price)}`:''}</span></div>
+      <div class="ad-info-row"><span class="k">Estado</span><span style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">${statusDotsRow(a.id,a.status)} <strong style="margin-left:4px">${STATUS_LABEL[a.status]||''}</strong></span></div>
+      <div class="ad-info-row"><span class="k">Notas</span><span>${a.notes?esc(a.notes):'<em style="color:var(--light)">Sin notas</em>'}</span></div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn-danger" onclick="qvDelete('${a.id}');closeModal('apptDetailModal')">Eliminar</button>
+        <button class="btn-primary" style="margin-left:auto" onclick="closeModal('apptDetailModal');openApptModal('${a.id}')">Editar reserva</button>
+      </div>`
+  } else if(t==='pago'){
+    const sales=state.sales.filter(s=>s.status!=='deleted' && s.client_id && s.client_id===a.client_id)
+    el.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="color:var(--mid)">Pagos del cliente</span>
+        <button class="btn-primary" onclick="payFromAppt('${a.id}')">$ Registrar pago</button>
+      </div>
+      ${sales.length?`<table class="ctbl"><thead><tr><th>Fecha</th><th>Detalle</th><th>Método</th><th style="text-align:right">Total</th></tr></thead><tbody>${sales.map(s=>{const it=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]');const [y,m,d]=s.sale_date.split('-');return `<tr><td>${d}/${m}</td><td>${esc(it.map(i=>i.name).join(', '))}</td><td>${esc(s.payment_method||'')}</td><td style="text-align:right;font-weight:700">${fmtMoney(Number(s.total||0))}</td></tr>`}).join('')}</tbody></table>`:'<div class="ad-empty">Sin pagos registrados para este cliente.</div>'}`
+  } else if(t==='recordatorios'){
+    const phone=waPhone(a.client_phone); const email=(c&&c.email)||''; const sent=!!a.reminded_at
+    el.innerHTML=`
+      <div class="ad-info-row"><span class="k">Estado</span><span>${sent?'<span class="badge paid">Enviado</span>':'<span class="badge" style="background:#eee;color:#888">Pendiente</span>'}</span></div>
+      <div class="ad-info-row"><span class="k">Mensaje</span><span style="color:var(--mid)">${esc(buildReminderMsg(a))}</span></div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        ${phone?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="sendReminder('${a.id}');setTimeout(renderApptTab,300)">Enviar WhatsApp</button>`:''}
+        ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}');setTimeout(renderApptTab,600)">Enviar Email</button>`:''}
+        ${(!phone&&!email)?'<span style="color:var(--light)">El cliente no tiene teléfono ni email.</span>':''}
+      </div>`
+  } else if(t==='cliente'){
+    if(!c){ el.innerHTML='<div class="ad-empty">Reserva sin cliente registrado.<br><button class="btn-primary" style="margin-top:12px" onclick="closeModal(\'apptDetailModal\');openClientModal(true)">+ Crear cliente</button></div>'; return }
+    el.innerHTML=`
+      <div class="ad-info-row"><span class="k">Nombre</span><span>${esc(c.name)}</span></div>
+      <div class="ad-info-row"><span class="k">Teléfono</span><span>${esc(c.phone||'—')}</span></div>
+      <div class="ad-info-row"><span class="k">Email</span><span>${esc(c.email||'—')}</span></div>
+      <div class="ad-info-row"><span class="k">RUT</span><span>${esc(c.rut||'—')}</span></div>
+      <div class="ad-info-row"><span class="k">Género</span><span>${esc(c.gender||'—')}</span></div>
+      <div class="ad-info-row"><span class="k">Nacimiento</span><span>${c.birthday?c.birthday.split('-').reverse().join('/'):'—'}</span></div>
+      <div style="text-align:right;margin-top:16px"><button class="btn-primary" onclick="closeModal('apptDetailModal');openClientModal(true,'${c.id}')">Editar cliente</button></div>`
+  } else if(t==='ficha'){
+    if(!c){ el.innerHTML='<div class="ad-empty">Guarda primero un cliente para tener su ficha.</div>'; return }
+    el.innerHTML=`
+      <label style="font-size:.72rem;font-weight:600;color:var(--mid);text-transform:uppercase">Observaciones / ficha del cliente</label>
+      <textarea id="adFicha" rows="6" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.86rem;margin-top:6px">${esc(c.notes||'')}</textarea>
+      <div style="text-align:right;margin-top:10px"><button class="btn-primary" onclick="saveFicha('${c.id}')">Guardar ficha</button></div>`
+  } else if(t==='historial'){
+    const appts=state.appointments.filter(x=>x.client_id===a.client_id && x.status!=='block')
+    const sales=state.sales.filter(s=>s.status!=='deleted' && s.client_id===a.client_id)
+    el.innerHTML=`
+      <div class="ad-sub">
+        <button class="${adState.hist==='cliente'?'on':''}" onclick="adState.hist='cliente';renderApptTab()">Reservas</button>
+        <button class="${adState.hist==='pagos'?'on':''}" onclick="adState.hist='pagos';renderApptTab()">Pagos</button>
+        <button class="${adState.hist==='reserva'?'on':''}" onclick="adState.hist='reserva';renderApptTab()">Esta reserva</button>
+      </div>
+      ${adState.hist==='cliente' ? (appts.length?`<table class="ctbl"><tbody>${appts.sort((x,y)=>y.appt_date.localeCompare(x.appt_date)).map(x=>{const[y2,m,d]=x.appt_date.split('-');return `<tr><td>${d}/${m}/${y2} ${x.start_time.slice(0,5)}</td><td>${esc(x.service_name||'')}</td><td><span class="qv-dot" style="display:inline-block;width:12px;height:12px;background:${STATUS_COLORS[x.status]||'#ccc'};box-shadow:none;vertical-align:middle"></span> ${STATUS_LABEL[x.status]||''}</td></tr>`}).join('')}</tbody></table>`:'<div class="ad-empty">Sin otras reservas.</div>')
+        : adState.hist==='pagos' ? (sales.length?`<table class="ctbl"><tbody>${sales.map(s=>{const[y2,m,d]=s.sale_date.split('-');return `<tr><td>${d}/${m}/${y2}</td><td>${esc(s.payment_method||'')}</td><td style="text-align:right;font-weight:700">${fmtMoney(Number(s.total||0))}</td></tr>`}).join('')}</tbody></table>`:'<div class="ad-empty">Sin pagos.</div>')
+        : `<div class="ad-info-row"><span class="k">Creada</span><span>${a.created_at?new Date(a.created_at).toLocaleString('es-CL'):'—'}</span></div><div class="ad-info-row"><span class="k">Estado actual</span><span>${STATUS_LABEL[a.status]||''}</span></div><div class="ad-info-row"><span class="k">Recordatorio</span><span>${a.reminded_at?'Enviado '+new Date(a.reminded_at).toLocaleString('es-CL'):'Pendiente'}</span></div>`}`
+  }
+}
+async function saveFicha(clientId){
+  const notes=document.getElementById('adFicha').value
+  try{ await supabase.update('clients',clientId,{notes}); const c=state.clients.find(x=>x.id===clientId); if(c) c.notes=notes; toast('Ficha guardada','success') }
+  catch(e){ toast('Error al guardar','error') }
+}
 function openApptModal(id,prefill){
   fillProfSelect()
   const del=document.getElementById('apptDelBtn')
