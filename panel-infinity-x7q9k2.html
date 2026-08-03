@@ -1123,14 +1123,8 @@ function renderCalendar(){
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div></div>`
     }).join('')
-    // now line
-    let now=''
-    if(isoDate(dd)===todayIso){
-      const nm=new Date().getHours()*60+new Date().getMinutes()
-      if(nm>=minM&&nm<=maxM) now=`<div class="now-line" style="top:${(nm-minM)/60*HOUR_H}px"></div>`
-    }
     cols+=`<div class="dcol ${working?'':'off'}" style="height:${totalH*HOUR_H}px" data-date="${isoDate(dd)}" onclick="onSlotClick(event,this)">
-      ${lines}${blocks}${now}</div>`
+      ${lines}${blocks}</div>`
   })
   document.getElementById('calGrid').innerHTML=`<div class="gutter">${gut}</div>${cols}`
 
@@ -2554,8 +2548,6 @@ async function boot(){
   await loadProducts()
   await loadBotConfig()
   render()
-  // refrescar línea de "ahora" cada minuto
-  setInterval(()=>{ if(document.getElementById('app').style.display!=='none') renderCalendar() }, 60000)
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
 }
