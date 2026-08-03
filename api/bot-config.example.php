@@ -4,8 +4,8 @@
    - Los campos de WhatsApp se completan cuando conectes Meta (fase en vivo). */
 return [
     // ── IA (obligatorio para que el bot piense) ──
-    'anthropicKey'  => 'sk-ant-xxxxxxxx',
-    'model'         => 'claude-haiku-4-5-20251001',
+    'openaiKey'     => 'sk-proj-xxxxxxxx',   // API key de OpenAI
+    'model'         => 'gpt-4o-mini',
 
     // ── WhatsApp Cloud API (para la conexión en vivo) ──
     'waToken'       => '',                       // token permanente de Meta
