@@ -51,7 +51,7 @@ foreach ($appts as $a) {
         $email = $emailById[$a['client_id']] ?? '';
         if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $body = '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><div style="background:linear-gradient(135deg,#c5a467,#8a7344);color:#fff;padding:22px;border-radius:8px 8px 0 0;text-align:center"><h2 style="margin:0;font-family:Georgia,serif">Spa Infinity</h2><p style="margin:6px 0 0;font-size:12px;letter-spacing:2px;text-transform:uppercase">Recordatorio de tu cita</p></div><div style="background:#fff;border:1px solid #e0e0e0;border-top:none;padding:22px;border-radius:0 0 8px 8px;font-size:15px;line-height:1.6">'.nl2br(htmlspecialchars($msg)).'</div></div>';
-            $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: Spa Infinity <reservainfinity@spainfinity.cl>\r\n";
+            $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: Spa Infinity <noreply@spainfinity.cl>\r\nReply-To: reservainfinity@spainfinity.cl\r\n";
             if (@mail($email, '=?UTF-8?B?'.base64_encode('Recordatorio de tu cita — Spa Infinity').'?=', $body, $headers)) { $sentEmail++; $doneAny=true; }
         }
     }

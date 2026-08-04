@@ -43,7 +43,7 @@ $bodyHTML .= '</div></body></html>';
 $headers = [];
 $headers[] = 'MIME-Version: 1.0';
 $headers[] = 'Content-Type: text/html; charset=UTF-8';
-$headers[] = 'From: Spa Infinity <reservainfinity@spainfinity.cl>';
+$headers[] = 'From: Spa Infinity <noreply@spainfinity.cl>';
 $headers[] = 'Reply-To: reservainfinity@spainfinity.cl';
 $headers[] = 'X-Mailer: PHP/' . phpversion();
 

@@ -49,7 +49,7 @@ foreach ($clients as $c) {
     if ($btnText && $btnUrl) $html .= '<div style="text-align:center;margin-top:22px"><a href="'.htmlspecialchars($btnUrl).'" style="display:inline-block;background:#c5a467;color:#fff;text-decoration:none;padding:13px 30px;border-radius:30px;font-weight:bold">'.htmlspecialchars($btnText).'</a></div>';
     $html .= '<div style="margin-top:24px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#999;text-align:center">'.htmlspecialchars($cfg['address']??'').'<br><a href="'.$unsub.'" style="color:#999">Cancelar suscripción</a></div>';
     $html .= '</div></div>';
-    $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: ".($cfg['businessName']??'Spa Infinity')." <reservainfinity@spainfinity.cl>\r\nList-Unsubscribe: <".$unsub.">\r\n";
+    $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: ".($cfg['businessName']??'Spa Infinity')." <noreply@spainfinity.cl>\r\nReply-To: reservainfinity@spainfinity.cl\r\nList-Unsubscribe: <".$unsub.">\r\n";
     if (@mail($email, '=?UTF-8?B?'.base64_encode($subject).'?=', $html, $headers)) $sent++; else $skipped++;
     usleep(80000); // 80ms entre envíos
 }
