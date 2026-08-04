@@ -465,6 +465,43 @@ input,select,textarea{font-family:inherit}
           <div id="remTable"></div>
         </div>
       </div>
+
+      <!-- Acordeón: Email Marketing -->
+      <div class="acc" id="campAcc">
+        <button class="acc-head" onclick="toggleAcc('campAcc');renderCampaigns()">✉️ Email Marketing <span class="chev">▼</span></button>
+        <div class="acc-body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+            <span style="font-size:.82rem;color:var(--mid);flex:1;min-width:200px">Envía novedades y promociones a tus clientes por email.</span>
+            <span id="campCount" style="font-size:.75rem;color:var(--gold-d);font-weight:600"></span>
+          </div>
+          <div class="rep-block">
+            <h3>Nueva campaña</h3>
+            <label>Asunto</label>
+            <input type="text" id="campSubject" placeholder="Ej: 20% de descuento en masajes este mes" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem" />
+            <label>Imagen (URL, opcional)</label>
+            <input type="text" id="campImg" placeholder="https://spainfinity.cl/images/promo.jpg" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem" />
+            <label>Mensaje</label>
+            <textarea id="campMsg" rows="6" placeholder="Hola! Este mes tenemos una promoción especial..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem"></textarea>
+            <div class="row2">
+              <div><label>Texto del botón (opcional)</label><input type="text" id="campBtnText" placeholder="Reservar ahora" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px" /></div>
+              <div><label>Enlace del botón</label><input type="text" id="campBtnUrl" placeholder="https://spainfinity.cl" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px" /></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;margin-top:14px;cursor:pointer">
+              <input type="checkbox" id="campUseFilters" onchange="updateCampAudience()" />
+              <span style="font-size:.85rem">Enviar solo a los clientes que coincidan con los filtros de arriba (si no, se envía a todos con email)</span>
+            </label>
+            <div id="campAudience" style="margin-top:8px;font-size:.8rem;color:var(--mid)"></div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+              <button class="btn-g" onclick="previewCampaign()">Vista previa</button>
+              <button class="btn-primary" onclick="sendCampaign()">Enviar campaña</button>
+            </div>
+          </div>
+          <div class="rep-block">
+            <h3>Historial de campañas</h3>
+            <div id="campHistory" style="font-size:.85rem;color:var(--mid)">Cargando...</div>
+          </div>
+        </div>
+      </div>
         </div><!-- /cli-main -->
       </div><!-- /cli-layout -->
     </div>
@@ -1788,6 +1825,73 @@ function resetClientFilters(){
   ['clfGender','clfBirthMonth','clfReserved','clfCreated'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value='' })
   document.getElementById('clientListSearch').value=''
   renderClientList()
+}
+
+/* ── EMAIL MARKETING (Campañas) ── */
+const CAMPAIGN_KEY='spa-camp-2026'
+function filteredAudience(){
+  // Aplica los mismos filtros de la barra lateral para decidir a quién enviar.
+  const fG=document.getElementById('clfGender').value
+  const fM=document.getElementById('clfBirthMonth').value
+  const fR=document.getElementById('clfReserved').value
+  const fC=document.getElementById('clfCreated').value
+  const reservedIds=new Set(state.appointments.filter(a=>a.status!=='block'&&a.client_id).map(a=>a.client_id))
+  let list=state.clients.filter(c=>c.email && /.+@.+\..+/.test(c.email))
+  if(fG) list=list.filter(c=>c.gender===fG)
+  if(fM) list=list.filter(c=>c.birthday && String(parseInt(c.birthday.split('-')[1]))===fM)
+  if(fR==='yes') list=list.filter(c=>reservedIds.has(c.id))
+  if(fR==='no') list=list.filter(c=>!reservedIds.has(c.id))
+  if(fC){ const lim=new Date(); lim.setHours(0,0,0,0); lim.setDate(lim.getDate()-parseInt(fC)); list=list.filter(c=>c.created_at && new Date(c.created_at)>=lim) }
+  return list
+}
+function allWithEmail(){ return state.clients.filter(c=>c.email && /.+@.+\..+/.test(c.email)) }
+function updateCampAudience(){
+  const useF=document.getElementById('campUseFilters').checked
+  const list = useF ? filteredAudience() : allWithEmail()
+  document.getElementById('campAudience').textContent = `Se enviará a ${list.length} destinatario${list.length===1?'':'s'} con email.`
+  return list
+}
+function previewCampaign(){
+  const subj=document.getElementById('campSubject').value.trim()
+  const msg=document.getElementById('campMsg').value.trim()
+  if(!subj||!msg){ toast('Falta asunto o mensaje','error'); return }
+  const img=document.getElementById('campImg').value.trim()
+  const btnT=document.getElementById('campBtnText').value.trim()
+  const btnU=document.getElementById('campBtnUrl').value.trim()
+  const w=window.open('','_blank','width=640,height=800')
+  w.document.write(`<html><head><meta charset="utf-8"><title>Vista previa: ${esc(subj)}</title></head><body style="margin:0;background:#f5f2ec;padding:20px"><div style="font-family:Arial;max-width:600px;margin:auto;color:#333"><div style="background:linear-gradient(135deg,#c5a467,#8a7344);color:#fff;padding:22px;text-align:center;border-radius:8px 8px 0 0"><h2 style="margin:0;font-family:Georgia,serif">Spa Infinity</h2></div><div style="background:#fff;border:1px solid #e0e0e0;border-top:none;padding:24px;border-radius:0 0 8px 8px">${img?`<img src="${esc(img)}" style="max-width:100%;border-radius:8px;margin-bottom:16px">`:''}<div style="font-size:15px;line-height:1.7;white-space:pre-wrap">${esc(msg)}</div>${btnT&&btnU?`<div style="text-align:center;margin-top:22px"><a href="${esc(btnU)}" style="display:inline-block;background:#c5a467;color:#fff;text-decoration:none;padding:13px 30px;border-radius:30px;font-weight:bold">${esc(btnT)}</a></div>`:''}<div style="margin-top:24px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#999;text-align:center">Santo Domingo 1083, Santiago<br><a style="color:#999" href="#">Cancelar suscripción</a></div></div></div></body></html>`)
+}
+async function sendCampaign(){
+  const subj=document.getElementById('campSubject').value.trim()
+  const msg=document.getElementById('campMsg').value.trim()
+  if(!subj||!msg){ toast('Falta asunto o mensaje','error'); return }
+  const list=updateCampAudience()
+  if(!list.length){ toast('No hay destinatarios con email para el filtro elegido','error'); return }
+  if(!confirm(`¿Enviar la campaña a ${list.length} cliente${list.length===1?'':'s'}? Esto puede tardar unos segundos.`)) return
+  const btn=event.target; btn.disabled=true; btn.textContent='Enviando...'
+  try{
+    const res=await fetch('/api/send-campaign.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      key:CAMPAIGN_KEY, subject:subj, message:msg,
+      imageUrl:document.getElementById('campImg').value.trim(),
+      btnText:document.getElementById('campBtnText').value.trim(),
+      btnUrl:document.getElementById('campBtnUrl').value.trim(),
+      clientIds:list.map(c=>c.id)
+    })})
+    const j=await res.json()
+    if(j.sent!=null){ toast(`Enviados: ${j.sent}. Omitidos: ${j.skipped||0}`,'success'); renderCampaigns() }
+    else toast(j.error||'Error al enviar','error')
+  }catch(e){ console.error(e); toast('Error al enviar','error') }
+  finally{ btn.disabled=false; btn.textContent='Enviar campaña' }
+}
+async function renderCampaigns(){
+  updateCampAudience()
+  const el=document.getElementById('campHistory'); if(!el) return
+  try{
+    const rows=await supabase.fetch('campaigns',{order:'created_at.desc'}) || []
+    if(!rows.length){ el.innerHTML='<div style="color:var(--light)">Aún no hay campañas enviadas.</div>'; document.getElementById('campCount').textContent=''; return }
+    document.getElementById('campCount').textContent=`${rows.length} campaña${rows.length===1?'':'s'} enviada${rows.length===1?'':'s'}`
+    el.innerHTML=`<table class="ctbl"><thead><tr><th>Fecha</th><th>Asunto</th><th style="text-align:right">Enviados</th></tr></thead><tbody>${rows.map(r=>{const d=new Date(r.created_at);return `<tr><td>${d.toLocaleDateString('es-CL')} ${d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</td><td>${esc(r.subject||'—')}</td><td style="text-align:right;font-weight:700">${r.sent_count||0}</td></tr>`}).join('')}</tbody></table>`
+  }catch(e){ el.innerHTML='<div style="color:var(--light)">Historial no disponible.</div>' }
 }
 async function saveBotConfig(){
   const row={ active:document.getElementById('botActive').checked, welcome:document.getElementById('botWelcome').value.trim(),
