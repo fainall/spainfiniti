@@ -423,6 +423,7 @@ input,select,textarea{font-family:inherit}
           <button onclick="switchView('ventas')">Detalle de ventas</button>
           <button onclick="switchView('transacciones')">Transacciones</button>
           <button onclick="switchView('planes')">Planes / Bonos</button>
+          <button onclick="switchView('giftcards')">Gift Cards</button>
           <button onclick="switchView('caja')">Caja / Cierre diario</button>
           <button onclick="switchView('propinas')">Propinas</button>
           <button onclick="switchView('comisiones')">Comisiones</button>
@@ -711,6 +712,64 @@ input,select,textarea{font-family:inherit}
         </div>
         <div id="txTable"></div>
         <div class="tx-pager" id="txPager"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA: GIFT CARDS -->
+  <div class="view" id="view-giftcards">
+    <div class="view-inner" style="max-width:1150px">
+      <div class="view-head">
+        <div>
+          <h2>Gift cards</h2>
+          <p class="inv-sub">Controla tus Gift Cards vendidas, cuáles ya se canjearon y cuánto saldo queda por usar.</p>
+        </div>
+      </div>
+      <div class="sales-panel">
+        <div class="sales-filters">
+          <select id="gcPeriod" onchange="gcPage=1;renderGiftCards()">
+            <option value="30">Período Últimos 30 días</option>
+            <option value="90">Período Últimos 90 días</option>
+            <option value="all" selected>Período Todo</option>
+          </select>
+          <select id="gcStatus" onchange="gcPage=1;renderGiftCards()">
+            <option value="">Estado</option>
+            <option value="available">Disponible</option>
+            <option value="used">Canjeada</option>
+            <option value="pending">Pago pendiente</option>
+          </select>
+          <input id="gcCode" placeholder="Código" oninput="gcPage=1;renderGiftCards()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit" />
+          <input id="gcClient" placeholder="Cliente" oninput="gcPage=1;renderGiftCards()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit" />
+        </div>
+        <div class="sales-stats" style="margin-top:16px;margin-bottom:0">
+          <div class="sales-stat" style="cursor:default"><span class="ss-lbl">MONTO VENDIDO</span><span class="ss-num" id="gcSold">$0</span></div>
+          <div class="sales-stat" style="cursor:default"><span class="ss-lbl">MONTO CANJEADO</span><span class="ss-num" id="gcUsed">$0</span></div>
+          <div class="sales-stat" style="cursor:default"><span class="ss-lbl">MONTO SIN CANJEAR</span><span class="ss-num" id="gcLeft">$0</span></div>
+        </div>
+      </div>
+      <div class="sales-table-card">
+        <div class="sales-table-head">
+          <button class="btn-g" onclick="exportGiftCards()">⬇ Exportar</button>
+        </div>
+        <div id="gcTable"></div>
+        <div class="tx-pager" id="gcPager"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Canjear gift card -->
+  <div class="modal-ov" id="gcRedeemModal">
+    <div class="modal" style="width:440px">
+      <h2>Canjear Gift Card</h2>
+      <input type="hidden" id="gcrCode" />
+      <div id="gcrInfo" style="background:var(--cream-2);padding:12px 14px;border-radius:8px;font-size:.85rem;margin-bottom:4px"></div>
+      <label>Monto a canjear</label>
+      <input type="number" id="gcrAmount" min="1" step="500" />
+      <label>Nota (opcional)</label>
+      <input type="text" id="gcrNote" placeholder="Ej: usada en masaje del 20/08" />
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('gcRedeemModal')">Cancelar</button>
+        <button class="btn-primary" onclick="saveRedeem()">Registrar canje</button>
       </div>
     </div>
   </div>
@@ -2060,7 +2119,7 @@ async function doImport(){
 }
 
 /* ── VIEW SWITCHING ── */
-const VENTAS_GROUP=['ventas','transacciones','planes','caja','propinas','comisiones']
+const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : v
@@ -2069,6 +2128,7 @@ function switchView(v){
   if(v==='reportes') renderReportes()
   if(v==='ventas') renderSales()
   if(v==='transacciones') renderTransacciones()
+  if(v==='giftcards') loadGiftCards()
   if(v==='caja') renderCaja()
   if(v==='propinas') renderPropinas()
   if(v==='comisiones') renderComisiones()
@@ -2457,6 +2517,129 @@ function exportTransacciones(){
       s.status==='paid'?'Pagada':'Pago parcial']
   })
   downloadCSV('transacciones.csv', ['ID','Fecha','Comprobante','Monto','Propina','Método de pago','Profesional','Cliente','Estado de pago'], rows)
+}
+
+/* ── GIFT CARDS (vendidas por la web con Flow) ── */
+let gcPage=1, gcPerPage=25
+state.giftcards=[]; state.gcUses=[]
+async function loadGiftCards(){
+  const cont=document.getElementById('gcTable')
+  if(cont && !state.giftcards.length) cont.innerHTML='<div class="empty-state">Cargando gift cards…</div>'
+  try{
+    const res=await fetch('/api/giftcards.php?key='+CAMPAIGN_KEY)
+    const j=await res.json()
+    state.giftcards = j.giftcards || []
+  }catch(e){ console.warn('gift cards:',e); state.giftcards=[] }
+  try{ state.gcUses = await supabase.fetch('gift_card_uses',{order:'used_at.desc'}) || [] }
+  catch(e){ state.gcUses=[] }
+  renderGiftCards()
+}
+function gcUsedAmount(code){ return state.gcUses.filter(u=>u.code===code).reduce((a,u)=>a+Number(u.amount||0),0) }
+function gcFiltered(){
+  const period=document.getElementById('gcPeriod').value
+  const st=document.getElementById('gcStatus').value
+  const code=(document.getElementById('gcCode').value||'').trim().toLowerCase()
+  const cli=(document.getElementById('gcClient').value||'').trim().toLowerCase()
+  let list=[...state.giftcards]
+  if(period!=='all'){ const lim=new Date(); lim.setDate(lim.getDate()-parseInt(period))
+    list=list.filter(g=>g.soldAt && new Date(g.soldAt)>=lim) }
+  if(code) list=list.filter(g=>(g.code||'').toLowerCase().includes(code))
+  if(cli) list=list.filter(g=>((g.from||'')+' '+(g.to||'')+' '+(g.toEmail||'')).toLowerCase().includes(cli))
+  if(st){
+    list=list.filter(g=>{
+      if(st==='pending') return g.status!=='paid'
+      const left=g.amount-gcUsedAmount(g.code)
+      if(st==='used') return g.status==='paid' && left<=0
+      return g.status==='paid' && left>0   // available
+    })
+  }
+  return list
+}
+function renderGiftCards(){
+  const cont=document.getElementById('gcTable'); if(!cont) return
+  const list=gcFiltered()
+  const pagadas=list.filter(g=>g.status==='paid')
+  const vendido=pagadas.reduce((a,g)=>a+g.amount,0)
+  const canjeado=pagadas.reduce((a,g)=>a+Math.min(g.amount, gcUsedAmount(g.code)),0)
+  document.getElementById('gcSold').textContent=fmtMoney(vendido)
+  document.getElementById('gcUsed').textContent=fmtMoney(canjeado)
+  document.getElementById('gcLeft').textContent=fmtMoney(vendido-canjeado)
+
+  if(!list.length){
+    cont.innerHTML='<div class="empty-state">No hay resultados</div>'
+    document.getElementById('gcPager').innerHTML=''
+    return
+  }
+  const pages=Math.max(1, Math.ceil(list.length/gcPerPage))
+  if(gcPage>pages) gcPage=pages
+  const slice=list.slice((gcPage-1)*gcPerPage, gcPage*gcPerPage)
+
+  cont.innerHTML=`<div class="tx-total">${list.length} gift card${list.length===1?'':'s'}</div>
+  <table class="ctbl">
+    <thead><tr><th>Código</th><th>Fecha de venta</th><th>Nombre del gift card</th><th>De → Para</th><th>Estado</th><th style="text-align:right">Saldo inicial</th><th style="text-align:right">Saldo actual</th><th>N° canjes</th><th></th></tr></thead>
+    <tbody>${slice.map(g=>{
+      const used=gcUsedAmount(g.code), left=Math.max(0,g.amount-used)
+      const n=state.gcUses.filter(u=>u.code===g.code).length
+      const d=g.soldAt?new Date(g.soldAt):null
+      const fecha=d?`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`:'—'
+      let badge
+      if(g.status!=='paid') badge='<span class="badge" style="background:#eee;color:#888">Pago pendiente</span>'
+      else if(left<=0) badge='<span class="badge" style="background:#e6f4fa;color:#256b81">Canjeada</span>'
+      else badge='<span class="badge paid">Disponible</span>'
+      return `<tr>
+        <td style="font-family:monospace;font-size:.76rem;font-weight:700">${esc(g.code)}</td>
+        <td>${fecha}</td>
+        <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(g.name)}</td>
+        <td style="font-size:.78rem">${esc(g.from||'—')}<div style="color:var(--mid)">→ ${esc(g.to||'—')}</div></td>
+        <td>${badge}</td>
+        <td style="text-align:right">${fmtMoney(g.amount)}</td>
+        <td style="text-align:right;font-weight:700;${left<=0&&g.status==='paid'?'color:var(--light)':''}">${fmtMoney(left)}</td>
+        <td style="text-align:center">${n}</td>
+        <td class="cacts">${g.status==='paid'&&left>0?`<button class="mini-btn" onclick="openRedeem('${esc(g.code)}')">Canjear</button>`:''}</td>
+      </tr>`}).join('')}</tbody></table>`
+
+  document.getElementById('gcPager').innerHTML=`
+    <button onclick="gcPage--;renderGiftCards()" ${gcPage<=1?'disabled':''}>‹ Anterior</button>
+    <span class="tx-cur">${gcPage}</span><span>de ${pages}</span>
+    <button onclick="gcPage++;renderGiftCards()" ${gcPage>=pages?'disabled':''}>Siguiente ›</button>
+    <select onchange="gcPerPage=parseInt(this.value);gcPage=1;renderGiftCards()">
+      ${[25,50,100].map(n=>`<option value="${n}" ${n===gcPerPage?'selected':''}>${n} por página</option>`).join('')}
+    </select>`
+}
+function openRedeem(code){
+  const g=state.giftcards.find(x=>x.code===code); if(!g) return
+  const left=Math.max(0,g.amount-gcUsedAmount(code))
+  document.getElementById('gcrCode').value=code
+  document.getElementById('gcrInfo').innerHTML=`<strong>${esc(code)}</strong> · ${esc(g.name)}<br>Para: ${esc(g.to||'—')} · Saldo disponible: <strong>${fmtMoney(left)}</strong>`
+  document.getElementById('gcrAmount').value=left
+  document.getElementById('gcrAmount').max=left
+  document.getElementById('gcrNote').value=''
+  openModal('gcRedeemModal')
+}
+async function saveRedeem(){
+  const code=document.getElementById('gcrCode').value
+  const amount=parseInt(document.getElementById('gcrAmount').value)||0
+  const g=state.giftcards.find(x=>x.code===code); if(!g) return
+  const left=Math.max(0,g.amount-gcUsedAmount(code))
+  if(amount<=0){ toast('Ingresa un monto válido','error'); return }
+  if(amount>left){ toast('El monto supera el saldo disponible','error'); return }
+  try{
+    await supabase.insert('gift_card_uses',{code, amount, note:document.getElementById('gcrNote').value.trim(), used_at:new Date().toISOString()})
+    state.gcUses = await supabase.fetch('gift_card_uses',{order:'used_at.desc'}) || []
+    closeModal('gcRedeemModal'); toast('Canje registrado','success'); renderGiftCards()
+  }catch(e){ console.error(e); toast('Error al registrar el canje','error') }
+}
+function exportGiftCards(){
+  const list=gcFiltered()
+  if(!list.length){ toast('No hay gift cards para exportar','error'); return }
+  const rows=list.map(g=>{
+    const used=gcUsedAmount(g.code), left=Math.max(0,g.amount-used)
+    const d=g.soldAt?new Date(g.soldAt):null
+    return [g.code, d?`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`:'', g.name,
+      g.from||'', g.to||'', g.toEmail||'', g.status==='paid'?(left<=0?'Canjeada':'Disponible'):'Pago pendiente',
+      g.amount, used, left, state.gcUses.filter(u=>u.code===g.code).length]
+  })
+  downloadCSV('giftcards.csv', ['Código','Fecha de venta','Gift card','De','Para','Email','Estado','Saldo inicial','Canjeado','Saldo actual','N° canjes'], rows)
 }
 
 function fillSaleItemPick(){
