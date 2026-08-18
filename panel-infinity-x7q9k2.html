@@ -154,6 +154,20 @@ input,select,textarea{font-family:inherit}
 .plan-table-head h3{font-size:.98rem;font-weight:600}
 .plan-exp{font-size:.7rem;color:#c0392b;font-weight:600}
 @media(max-width:820px){.plan-filters{grid-template-columns:1fr}}
+/* comisiones */
+.comm-filters{display:grid;grid-template-columns:repeat(2,minmax(220px,340px));gap:18px}
+.comm-filters label{display:block;font-size:.78rem;font-weight:600;color:var(--dark);margin-bottom:5px}
+.comm-filters select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;background:#fff;font-family:inherit}
+.comm-range{display:flex;align-items:center;gap:8px}
+.comm-range input{flex:1;padding:10px 10px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit}
+.comm-range span{color:var(--mid)}
+.comm-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:0;background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:18px}
+.comm-kpis>div{display:flex;flex-direction:column;gap:4px;padding-right:16px}
+.comm-kpis .ck-lbl{font-size:.78rem;color:var(--mid)}
+.comm-kpis .ck-num{font-size:1.1rem;font-weight:700;color:var(--dark)}
+.comm-table-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+.comm-totals{font-size:.9rem;color:var(--dark)}
+@media(max-width:820px){.comm-filters{grid-template-columns:1fr}.comm-kpis{grid-template-columns:1fr 1fr;gap:14px}}
 /* reportes */
 .rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .rep-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
@@ -733,17 +747,47 @@ input,select,textarea{font-family:inherit}
 
   <!-- VISTA: COMISIONES -->
   <div class="view" id="view-comisiones">
-    <div class="view-inner" style="max-width:820px">
+    <div class="view-inner" style="max-width:1100px">
       <div class="view-head">
-        <div><h2>Comisiones</h2><span class="view-sub">Según el % de cada profesional y sus ventas.</span></div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <select id="commPeriod" onchange="renderComisiones()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px">
-            <option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="all">Todo</option>
-          </select>
-          <button class="btn-g" onclick="exportComisiones()">⬇ Exportar</button>
+        <div>
+          <h2>Reporte de comisiones</h2>
+          <p class="inv-sub">Calcula cuánto debes pagarle de comisión a cada profesional según las ventas del periodo.</p>
         </div>
       </div>
-      <div id="commBody"></div>
+      <div class="sales-panel">
+        <div class="comm-filters">
+          <div>
+            <label>Período de tiempo</label>
+            <div class="comm-range">
+              <input type="date" id="commFrom" />
+              <span>–</span>
+              <input type="date" id="commTo" />
+            </div>
+          </div>
+          <div>
+            <label>Profesional</label>
+            <select id="commProf"><option value="">Todos los profesionales</option></select>
+          </div>
+        </div>
+        <button class="btn-primary" style="margin-top:14px" onclick="renderComisiones()">🔍 Buscar</button>
+      </div>
+      <div class="comm-kpis">
+        <div><span class="ck-lbl">Ventas de servicios</span><span class="ck-num" id="ckServices">$0</span></div>
+        <div><span class="ck-lbl">Ventas de planes</span><span class="ck-num" id="ckPlans">$0</span></div>
+        <div><span class="ck-lbl">Venta de productos</span><span class="ck-num" id="ckProducts">$0</span></div>
+        <div><span class="ck-lbl">Propinas</span><span class="ck-num" id="ckTips">$0</span></div>
+      </div>
+      <div class="sales-table-card">
+        <div class="comm-table-head">
+          <div class="comm-totals">
+            Ventas totales: <strong id="ckTotalSales" style="color:#27AE60">$0</strong>
+            &nbsp;&nbsp;Comisiones totales: <strong id="ckTotalComm" style="color:#F5A623">$0</strong>
+          </div>
+          <button class="btn-g" onclick="exportComisiones()">⬇ Exportar</button>
+        </div>
+        <div class="tx-total" id="commCount"></div>
+        <div id="commBody"></div>
+      </div>
     </div>
   </div>
 
@@ -2595,23 +2639,84 @@ function renderPropinas(){
 }
 
 /* ── COMISIONES ── */
+/* rango de fechas del reporte de comisiones (por defecto: últimos 7 días) */
+function commRange(){
+  const f=document.getElementById('commFrom'), t=document.getElementById('commTo')
+  if(f && !f.value){ const d=new Date(); d.setDate(d.getDate()-7); f.value=isoDate(d) }
+  if(t && !t.value){ t.value=isoDate(new Date()) }
+  return [f?f.value:'', t?t.value:'']
+}
+function commSales(){
+  const [from,to]=commRange()
+  let list=state.sales.filter(s=>s.status!=='deleted')
+  if(from) list=list.filter(s=>s.sale_date>=from)
+  if(to) list=list.filter(s=>s.sale_date<=to)
+  const prof=document.getElementById('commProf')?.value
+  if(prof) list=list.filter(s=>s.professional_id===prof)
+  return list
+}
+/* clasifica los ítems de una venta en servicios / productos */
+function splitSaleItems(s){
+  const items=Array.isArray(s.items)?s.items:(typeof s.items==='string'?JSON.parse(s.items||'[]'):[])
+  let serv=0, prod=0
+  items.forEach(i=>{
+    const amount=(i.qty||1)*(i.price||0)
+    if(i.productId) prod+=amount; else serv+=amount
+  })
+  return {serv, prod}
+}
 function renderComisiones(){
   const el=document.getElementById('commBody'); if(!el) return
-  const list=salesInPeriod(document.getElementById('commPeriod').value)
+  // poblar profesionales
+  const psel=document.getElementById('commProf')
+  if(psel){ const cur=psel.value
+    psel.innerHTML='<option value="">Todos los profesionales</option>'+state.professionals.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+    psel.value=cur }
+
+  const list=commSales()
+  const [from,to]=commRange()
+
+  // KPIs por tipo de venta
+  let vServ=0, vProd=0, tips=0
+  list.forEach(s=>{ const {serv,prod}=splitSaleItems(s); vServ+=serv; vProd+=prod; tips+=Number(s.tip||0) })
+  // planes vendidos en el período
+  const vPlans=state.plans.filter(p=>p.status!=='cancelled' && (!from||p.purchase_date>=from) && (!to||p.purchase_date<=to))
+    .reduce((a,p)=>a+Number(p.price||0),0)
+  document.getElementById('ckServices').textContent=fmtMoney(vServ)
+  document.getElementById('ckPlans').textContent=fmtMoney(vPlans)
+  document.getElementById('ckProducts').textContent=fmtMoney(vProd)
+  document.getElementById('ckTips').textContent=fmtMoney(tips)
+
+  // por profesional
   const byProf={}
-  list.forEach(s=>{ if(!s.professional_id) return; byProf[s.professional_id]=(byProf[s.professional_id]||0)+Number(s.total||0) })
-  const rows=state.professionals.map(p=>{
-    const sales=byProf[p.id]||0, pct=Number(p.commission_pct||0)
-    return {name:p.name, sales, pct, comm:Math.round(sales*pct/100)}
-  }).filter(r=>r.sales>0 || r.pct>0).sort((a,b)=>b.comm-a.comm)
+  list.forEach(s=>{ if(!s.professional_id) return
+    byProf[s.professional_id]=byProf[s.professional_id]||{sales:0,tips:0}
+    byProf[s.professional_id].sales+=Number(s.total||0)
+    byProf[s.professional_id].tips+=Number(s.tip||0) })
+  const profList=psel && psel.value ? state.professionals.filter(p=>p.id===psel.value) : state.professionals
+  const rows=profList.map(p=>{
+    const d=byProf[p.id]||{sales:0,tips:0}, pct=Number(p.commission_pct||0)
+    return {name:p.name, sales:d.sales, tips:d.tips, pct, comm:Math.round(d.sales*pct/100)}
+  }).sort((a,b)=>b.comm-a.comm)
+
+  const totalSales=rows.reduce((a,r)=>a+r.sales,0)
   const totalComm=rows.reduce((a,r)=>a+r.comm,0)
+  document.getElementById('ckTotalSales').textContent=fmtMoney(totalSales)
+  document.getElementById('ckTotalComm').textContent=fmtMoney(totalComm)
+  document.getElementById('commCount').textContent=`Mostrando ${rows.length} de ${rows.length} registros`
+
   const unassigned=list.filter(s=>!s.professional_id).reduce((a,s)=>a+Number(s.total||0),0)
-  el.innerHTML=`
-    <div class="rep-cards"><div class="rep-card"><div class="rc-num">${fmtMoney(totalComm)}</div><div class="rc-lbl">Total comisiones</div></div></div>
-    ${rows.length?`<table class="ctbl"><thead><tr><th>Profesional</th><th style="text-align:right">Ventas</th><th style="text-align:right">%</th><th style="text-align:right">Comisión</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr><td class="cname">${esc(r.name)}</td><td style="text-align:right">${fmtMoney(r.sales)}</td><td style="text-align:right">${r.pct}%</td><td style="text-align:right;font-weight:700">${fmtMoney(r.comm)}</td></tr>`).join('')}</tbody></table>`
-    :'<div class="empty-state">Sin datos. Asigna un % de comisión a los profesionales (en “Profesionales”) y atribuye ventas a cada uno.</div>'}
-    ${unassigned>0?`<p style="color:var(--mid);font-size:.78rem;margin-top:10px">${fmtMoney(unassigned)} en ventas sin profesional asignado (no generan comisión).</p>`:''}`
+  el.innerHTML=`${rows.length?`<table class="ctbl">
+      <thead><tr><th>Profesional o Staff</th><th style="text-align:right">Ventas totales</th><th style="text-align:right">% Comisión</th><th style="text-align:right">Monto comisión</th><th style="text-align:right">Propinas</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td class="cname">${esc(r.name)}</td>
+        <td style="text-align:right">${fmtMoney(r.sales)}</td>
+        <td style="text-align:right">${r.pct}%</td>
+        <td style="text-align:right;font-weight:700">${fmtMoney(r.comm)}</td>
+        <td style="text-align:right">${fmtMoney(r.tips)}</td>
+      </tr>`).join('')}</tbody></table>`
+    :'<div class="empty-state">No hay resultados para mostrar</div>'}
+    ${unassigned>0?`<p style="color:var(--mid);font-size:.78rem;margin-top:12px">${fmtMoney(unassigned)} en ventas sin profesional asignado (no generan comisión).</p>`:''}`
 }
 
 /* ── EXPORTAR CSV (abre en Excel) ── */
@@ -2656,11 +2761,18 @@ function exportPropinas(){
   downloadCSV('propinas.csv', ['Profesional','Ventas con propina','Total propinas'], rows)
 }
 function exportComisiones(){
-  const list=salesInPeriod(document.getElementById('commPeriod').value)
-  const bp={}; list.forEach(s=>{ if(s.professional_id) bp[s.professional_id]=(bp[s.professional_id]||0)+Number(s.total||0) })
-  const rows=state.professionals.map(p=>{ const v=bp[p.id]||0, pct=Number(p.commission_pct||0); return [p.name, v, pct, Math.round(v*pct/100)] }).filter(r=>r[1]>0||r[2]>0)
+  const list=commSales()
+  const byProf={}
+  list.forEach(s=>{ if(!s.professional_id) return
+    byProf[s.professional_id]=byProf[s.professional_id]||{sales:0,tips:0}
+    byProf[s.professional_id].sales+=Number(s.total||0)
+    byProf[s.professional_id].tips+=Number(s.tip||0) })
+  const psel=document.getElementById('commProf')
+  const profList=psel&&psel.value?state.professionals.filter(p=>p.id===psel.value):state.professionals
+  const rows=profList.map(p=>{ const d=byProf[p.id]||{sales:0,tips:0}, pct=Number(p.commission_pct||0)
+    return [p.name, d.sales, pct, Math.round(d.sales*pct/100), d.tips] })
   if(!rows.length){ toast('No hay datos para exportar','error'); return }
-  downloadCSV('comisiones.csv', ['Profesional','Ventas','% Comisión','Monto comisión'], rows)
+  downloadCSV('comisiones.csv', ['Profesional o Staff','Ventas totales','% Comisión','Monto comisión','Propinas'], rows)
 }
 
 /* ── PLANES / BONOS ── */
