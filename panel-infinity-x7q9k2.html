@@ -112,6 +112,24 @@ input,select,textarea{font-family:inherit}
 .slot-menu button{display:block;width:100%;text-align:left;background:none;border:none;font-family:inherit;font-size:.84rem;color:var(--dark);padding:9px 14px;border-radius:7px;cursor:pointer}
 .slot-menu button:hover{background:var(--cream-2)}
 .slot-menu button.on{background:var(--gold-pale);color:var(--gold-d);font-weight:600}
+/* detalle de ventas */
+.sales-panel{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px}
+.sales-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.sales-stat{display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 14px;border:1px solid var(--border);border-radius:10px;background:#fff;cursor:pointer;font-family:inherit;transition:all .2s}
+.sales-stat:hover{border-color:var(--gold)}
+.sales-stat.on{background:var(--cream-2);border-color:var(--gold)}
+.sales-stat .ss-lbl{font-size:.7rem;letter-spacing:.06em;color:var(--mid);text-transform:uppercase;font-weight:600}
+.sales-stat .ss-num{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--dark);line-height:1}
+.sales-table-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.sales-table-head{display:flex;justify-content:flex-end;align-items:center;gap:14px;margin-bottom:14px;position:relative}
+.sales-link{background:none;border:none;font-family:inherit;font-size:.82rem;color:var(--dark);text-decoration:underline;cursor:pointer;padding:0}
+.sales-link:hover{color:var(--gold-d)}
+.cols-menu{position:absolute;top:calc(100% + 6px);right:90px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:6px;display:none;z-index:60;min-width:170px}
+.cols-menu.open{display:block}
+.cols-menu label{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:7px;font-size:.82rem;cursor:pointer;color:var(--dark)}
+.cols-menu label:hover{background:var(--cream-2)}
+.cols-menu input{width:15px;height:15px;margin:0;cursor:pointer}
+@media(max-width:820px){.sales-stats{grid-template-columns:1fr}}
 /* reportes */
 .rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .rep-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
@@ -561,34 +579,50 @@ input,select,textarea{font-family:inherit}
   <div class="view" id="view-ventas">
     <div class="view-inner" style="max-width:1100px">
       <div class="view-head">
-        <div><h2>Ventas</h2><span class="view-sub">Registra y revisa las ventas del spa.</span></div>
-        <div style="display:flex;gap:10px">
-          <button class="btn-g" onclick="exportSales()">⬇ Exportar</button>
-          <button class="btn-primary" onclick="openSaleModal()">+ Nueva venta</button>
+        <div>
+          <h2>Ventas</h2>
+          <p class="inv-sub">Revisa y da seguimiento a todas tus ventas en un solo lugar, y consulta el detalle de cada una cuando lo necesites.</p>
+        </div>
+        <button class="btn-primary" onclick="openSaleModal()">+ Nueva venta</button>
+      </div>
+      <div class="sales-panel">
+        <div class="sales-stats">
+          <button class="sales-stat" id="statAll" onclick="setSalesTab('all')">
+            <span class="ss-lbl">TODAS LAS VENTAS</span><span class="ss-num" id="salesCount">0</span>
+          </button>
+          <button class="sales-stat" id="statPartial" onclick="setSalesTab('partial')">
+            <span class="ss-lbl">PAGOS PARCIALES</span><span class="ss-num" id="salesPartial">0</span>
+          </button>
+          <button class="sales-stat" id="statDeleted" onclick="setSalesTab('deleted')">
+            <span class="ss-lbl">ELIMINADAS</span><span class="ss-num" id="salesDeleted">0</span>
+          </button>
+        </div>
+        <div class="sales-filters">
+          <select id="salesPeriod" onchange="renderSales()">
+            <option value="7">Período Últimos 7 días</option>
+            <option value="30">Período Últimos 30 días</option>
+            <option value="all">Período Todo</option>
+          </select>
+          <select id="salesClientF" onchange="renderSales()"><option value="">Cliente</option></select>
+          <select id="salesStatusF" onchange="renderSales()">
+            <option value="all">Estado</option>
+            <option value="paid">Pagadas</option>
+            <option value="partial">Pago parcial</option>
+          </select>
+          <select id="salesPayF" onchange="renderSales()">
+            <option value="all">Método de pago</option>
+            <option>Efectivo</option><option>Débito</option><option>Crédito</option><option>Transferencia</option>
+          </select>
         </div>
       </div>
-      <div class="rep-cards">
-        <div class="rep-card"><div class="rc-num" id="salesCount">0</div><div class="rc-lbl">Ventas</div></div>
-        <div class="rep-card"><div class="rc-num" id="salesAmount">$0</div><div class="rc-lbl">Monto total</div></div>
-        <div class="rep-card"><div class="rc-num" id="salesPartial">0</div><div class="rc-lbl">Pagos parciales</div></div>
+      <div class="sales-table-card">
+        <div class="sales-table-head">
+          <button class="sales-link" onclick="toggleSalesColumns(event)">⚙ Editar columnas</button>
+          <button class="btn-g" onclick="exportSales()">⬇ Exportar</button>
+          <div class="cols-menu" id="colsMenu"></div>
+        </div>
+        <div id="salesTable"></div>
       </div>
-      <div class="sales-filters">
-        <select id="salesPeriod" onchange="renderSales()">
-          <option value="7">Últimos 7 días</option>
-          <option value="30">Últimos 30 días</option>
-          <option value="all">Todo</option>
-        </select>
-        <select id="salesStatusF" onchange="renderSales()">
-          <option value="all">Todos los estados</option>
-          <option value="paid">Pagadas</option>
-          <option value="partial">Pago parcial</option>
-        </select>
-        <select id="salesPayF" onchange="renderSales()">
-          <option value="all">Todos los métodos</option>
-          <option>Efectivo</option><option>Débito</option><option>Crédito</option><option>Transferencia</option>
-        </select>
-      </div>
-      <div id="salesTable"></div>
     </div>
   </div>
 
@@ -2110,38 +2144,98 @@ async function loadSales(){
   try{ state.sales = await supabase.fetch('sales',{order:'sale_date.desc'}) || [] }
   catch(e){ state.sales=[]; console.warn(e) }
 }
+/* ── DETALLE DE VENTAS ── */
+let salesTab='all'
+const SALES_COLS=[
+  {k:'date',   l:'Fecha',    on:true},
+  {k:'client', l:'Cliente',  on:true},
+  {k:'detail', l:'Detalle',  on:true},
+  {k:'prof',   l:'Profesional', on:false},
+  {k:'method', l:'Método',   on:true},
+  {k:'status', l:'Estado',   on:true},
+  {k:'tip',    l:'Propina',  on:false},
+  {k:'total',  l:'Total',    on:true},
+]
+function salesColsState(){
+  try{ const saved=JSON.parse(localStorage.getItem('spa_sales_cols')||'null')
+    if(saved) return SALES_COLS.map(c=>({...c, on: saved[c.k]!==undefined ? saved[c.k] : c.on}))
+  }catch(e){}
+  return SALES_COLS.map(c=>({...c}))
+}
+let salesCols=salesColsState()
+function toggleSalesColumns(e){
+  if(e) e.stopPropagation()
+  const m=document.getElementById('colsMenu')
+  m.innerHTML=salesCols.map((c,i)=>`<label><input type="checkbox" ${c.on?'checked':''} onchange="salesCols[${i}].on=this.checked;saveSalesCols();renderSales()" /> ${c.l}</label>`).join('')
+  m.classList.toggle('open')
+}
+function saveSalesCols(){
+  const o={}; salesCols.forEach(c=>o[c.k]=c.on)
+  localStorage.setItem('spa_sales_cols', JSON.stringify(o))
+}
+document.addEventListener('click',e=>{
+  const m=document.getElementById('colsMenu')
+  if(m && m.classList.contains('open') && !e.target.closest('.sales-table-head')) m.classList.remove('open')
+})
+function setSalesTab(t){ salesTab=t; renderSales() }
+function fillSalesClients(){
+  const sel=document.getElementById('salesClientF'); if(!sel) return
+  const cur=sel.value
+  const names=[...new Set(state.sales.map(s=>(s.client_name||'').trim()).filter(Boolean))].sort()
+  sel.innerHTML='<option value="">Cliente</option>'+names.map(n=>`<option>${esc(n)}</option>`).join('')
+  if(names.includes(cur)) sel.value=cur
+}
 function renderSales(){
   const cont=document.getElementById('salesTable'); if(!cont) return
+  fillSalesClients()
   const period=document.getElementById('salesPeriod').value
   const statusF=document.getElementById('salesStatusF').value
   const payF=document.getElementById('salesPayF').value
+  const clientF=document.getElementById('salesClientF').value
   const today=new Date(); today.setHours(0,0,0,0)
-  let list=state.sales.filter(s=>s.status!=='deleted')
-  if(period!=='all'){ const lim=new Date(today); lim.setDate(lim.getDate()-parseInt(period)); list=list.filter(s=>new Date(s.sale_date+'T00:00:00')>=lim) }
-  // tarjetas (sobre el período, antes de filtros de estado/método)
-  const amount=list.reduce((a,s)=>a+Number(s.total||0),0)
-  document.getElementById('salesCount').textContent=list.length
-  document.getElementById('salesAmount').textContent=fmtMoney(amount)
-  document.getElementById('salesPartial').textContent=list.filter(s=>s.status==='partial').length
-  if(statusF!=='all') list=list.filter(s=>s.status===statusF)
+
+  // universo del período (incluye eliminadas para poder contarlas)
+  let all=state.sales
+  if(period!=='all'){ const lim=new Date(today); lim.setDate(lim.getDate()-parseInt(period)); all=all.filter(s=>new Date(s.sale_date+'T00:00:00')>=lim) }
+  const activas=all.filter(s=>s.status!=='deleted')
+  document.getElementById('salesCount').textContent=activas.length
+  document.getElementById('salesPartial').textContent=activas.filter(s=>s.status==='partial').length
+  document.getElementById('salesDeleted').textContent=all.filter(s=>s.status==='deleted').length
+  ;['statAll','statPartial','statDeleted'].forEach((id,i)=>{
+    const on=['all','partial','deleted'][i]===salesTab
+    document.getElementById(id).classList.toggle('on', on)
+  })
+
+  // lista según la tarjeta seleccionada
+  let list = salesTab==='deleted' ? all.filter(s=>s.status==='deleted')
+           : salesTab==='partial' ? activas.filter(s=>s.status==='partial')
+           : activas
+  if(statusF!=='all' && salesTab==='all') list=list.filter(s=>s.status===statusF)
   if(payF!=='all') list=list.filter(s=>s.payment_method===payF)
+  if(clientF) list=list.filter(s=>(s.client_name||'')===clientF)
+
   if(!state.sales.length){ cont.innerHTML=`<div class="empty-state">Aún no hay ventas. Registra la primera con “+ Nueva venta”.</div>`; return }
-  if(!list.length){ cont.innerHTML=`<div class="empty-state">No hay ventas para los filtros seleccionados.</div>`; return }
+  if(!list.length){ cont.innerHTML=`<div class="empty-state">No hay resultados para mostrar</div>`; return }
+
+  const show=k=>salesCols.find(c=>c.k===k)?.on
+  const th=salesCols.filter(c=>c.on).map(c=>`<th${c.k==='total'?' style="text-align:right"':''}>${c.l}</th>`).join('')
   cont.innerHTML=`<table class="ctbl">
-    <thead><tr><th>Fecha</th><th>Cliente</th><th>Detalle</th><th>Método</th><th>Estado</th><th style="text-align:right">Total</th><th></th></tr></thead>
+    <thead><tr>${th}<th></th></tr></thead>
     <tbody>${list.map(s=>{
       const items=Array.isArray(s.items)?s.items:(typeof s.items==='string'?JSON.parse(s.items||'[]'):[])
       const detail=items.map(i=>`${i.qty>1?i.qty+'× ':''}${i.name}`).join(', ')||'—'
       const [y,m,d]=s.sale_date.split('-')
-      return `<tr>
-        <td>${d}/${m}/${y}</td>
-        <td class="cname">${esc(s.client_name||'—')}</td>
-        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(detail)}</td>
-        <td>${esc(s.payment_method||'—')}</td>
-        <td><span class="badge ${s.status}">${s.status==='paid'?'Pagada':'Pago parcial'}</span></td>
-        <td style="text-align:right;font-weight:700">${fmtMoney(Number(s.total||0))}</td>
-        <td class="cacts"><button class="mini-btn" onclick="editSale('${s.id}')">Ver</button></td>
-      </tr>`}).join('')}</tbody></table>`
+      const cells=[]
+      if(show('date'))   cells.push(`<td>${d}/${m}/${y}</td>`)
+      if(show('client')) cells.push(`<td class="cname">${esc(s.client_name||'—')}</td>`)
+      if(show('detail')) cells.push(`<td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(detail)}</td>`)
+      if(show('prof'))   cells.push(`<td>${esc(s.professional_id?profName(s.professional_id):'—')}</td>`)
+      if(show('method')) cells.push(`<td>${esc(s.payment_method||'—')}</td>`)
+      if(show('status')) cells.push(`<td>${s.status==='deleted'?'<span class="badge" style="background:#eee;color:#888">Eliminada</span>':`<span class="badge ${s.status}">${s.status==='paid'?'Pagada':'Pago parcial'}</span>`}</td>`)
+      if(show('tip'))    cells.push(`<td style="text-align:right">${fmtMoney(Number(s.tip||0))}</td>`)
+      if(show('total'))  cells.push(`<td style="text-align:right;font-weight:700">${fmtMoney(Number(s.total||0))}</td>`)
+      return `<tr>${cells.join('')}<td class="cacts"><button class="mini-btn" onclick="editSale('${s.id}')">Ver</button></td></tr>`
+    }).join('')}</tbody></table>`
 }
 function fillSaleItemPick(){
   const sel=document.getElementById('saleItemPick')
