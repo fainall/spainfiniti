@@ -168,6 +168,33 @@ input,select,textarea{font-family:inherit}
 .comm-table-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
 .comm-totals{font-size:.9rem;color:var(--dark)}
 @media(max-width:820px){.comm-filters{grid-template-columns:1fr}.comm-kpis{grid-template-columns:1fr 1fr;gap:14px}}
+/* caja de ventas */
+.caja-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn-income,.btn-expense,.btn-adjust{padding:9px 15px;border-radius:8px;font-family:inherit;font-size:.79rem;font-weight:600;cursor:pointer;border:1px solid transparent}
+.btn-income{background:#6B4FD8;color:#fff}
+.btn-income:hover{background:#5a41bb}
+.btn-expense{background:#fff;color:var(--dark);border-color:var(--border)}
+.btn-expense:hover{border-color:var(--gold)}
+.btn-adjust{background:#fff;color:#b5842a;border-color:#e8c98a}
+.btn-adjust:hover{background:#fdf6e8}
+.caja-top{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-bottom:18px}
+.caja-cash{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;align-items:center;gap:18px;justify-content:center}
+.cc-icon{width:52px;height:52px;border-radius:50%;border:2px solid #27AE60;color:#27AE60;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;flex-shrink:0}
+.cc-lbl{font-size:.95rem;color:var(--dark);font-weight:600}
+.cc-num{font-family:'Playfair Display',serif;font-size:1.8rem;color:#27AE60;line-height:1.1}
+.caja-flow-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.caja-flow-head h3{font-size:1rem;font-weight:600}
+.caja-flow{display:flex;align-items:center;gap:4px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 14px;margin-bottom:18px;overflow-x:auto}
+.cf-item{flex:1;min-width:118px;text-align:center;border:1px solid var(--border);border-radius:10px;padding:12px 8px}
+.cf-item .cf-lbl{font-size:.72rem;color:var(--mid);display:block;margin-bottom:6px;line-height:1.3}
+.cf-item .cf-num{font-size:.95rem;font-weight:700;color:var(--dark)}
+.cf-op{font-size:1.1rem;color:var(--mid);flex-shrink:0;padding:0 4px}
+.cf-item.total{background:var(--cream-2);border-color:var(--gold)}
+.caja-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:0;flex-wrap:wrap;background:#fff;border-radius:12px 12px 0 0;padding:0 8px}
+.caja-tabs button{background:none;border:none;padding:12px 16px;font-family:inherit;font-size:.83rem;font-weight:600;color:var(--mid);cursor:pointer;border-bottom:2px solid transparent}
+.caja-tabs button:hover{color:var(--dark)}
+.caja-tabs button.on{color:var(--dark);border-bottom-color:var(--gold)}
+@media(max-width:820px){.caja-top{grid-template-columns:1fr}}
 /* reportes */
 .rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .rep-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
@@ -776,15 +803,66 @@ input,select,textarea{font-family:inherit}
 
   <!-- VISTA: CAJA / CIERRE DIARIO -->
   <div class="view" id="view-caja">
-    <div class="view-inner" style="max-width:820px">
+    <div class="view-inner" style="max-width:1200px">
       <div class="view-head">
-        <div><h2>Caja / Cierre diario</h2><span class="view-sub">Total del día por método de pago.</span></div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <input type="date" id="cajaDate" onchange="renderCaja()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px" />
-          <button class="btn-g" onclick="exportCaja()">⬇ Exportar</button>
+        <div>
+          <h2>Caja de Ventas</h2>
+          <p class="inv-sub">Conoce la utilidad real de tu negocio y cuadra el efectivo de tu caja considerando todos tus ingresos y egresos.</p>
+        </div>
+        <div class="caja-actions">
+          <button class="btn-income" onclick="openCashModal('income')">→ Ingresos</button>
+          <button class="btn-expense" onclick="openCashModal('expense')">← Egresos</button>
+          <button class="btn-adjust" onclick="openCashModal('adjust')">⚖ Rectificar Efectivo</button>
         </div>
       </div>
-      <div id="cajaBody"></div>
+      <div class="inv-notice">ℹ Las ventas que cobras desde la Agenda ya se registran aquí. Agrega manualmente solo tus ingresos externos.</div>
+      <div class="caja-top">
+        <div class="sales-panel" style="margin-bottom:0">
+          <div class="comm-filters" style="grid-template-columns:repeat(2,minmax(180px,1fr))">
+            <div><label>Desde</label><input type="date" id="cajaFrom" /></div>
+            <div><label>Hasta</label><input type="date" id="cajaTo" /></div>
+          </div>
+          <button class="btn-primary" style="margin-top:14px" onclick="renderCaja()">🔍 Buscar</button>
+        </div>
+        <div class="caja-cash">
+          <div class="cc-icon">$</div>
+          <div>
+            <div class="cc-lbl">Efectivo en caja</div>
+            <div class="cc-num" id="cajaCash">$0</div>
+          </div>
+        </div>
+      </div>
+      <div class="caja-flow-head">
+        <h3>Resumen del período</h3>
+        <button class="btn-g" onclick="exportCaja()">⬇ Descargar reporte</button>
+      </div>
+      <div class="caja-flow" id="cajaFlow"></div>
+      <div class="caja-tabs" id="cajaTabs"></div>
+      <div class="sales-table-card"><div id="cajaBody"></div></div>
+    </div>
+  </div>
+
+  <!-- MODAL: Movimiento de caja -->
+  <div class="modal-ov" id="cashModal">
+    <div class="modal" style="width:460px">
+      <h2 id="cashTitle">Nuevo ingreso</h2>
+      <input type="hidden" id="cashType" />
+      <label>Fecha</label>
+      <input type="date" id="cashDate" />
+      <label>Descripción</label>
+      <input type="text" id="cashDesc" placeholder="Ej: Venta externa, pago proveedor, arriendo..." />
+      <div class="row2">
+        <div><label>Monto</label><input type="number" id="cashAmount" min="0" step="500" value="0" /></div>
+        <div><label>Método</label>
+          <select id="cashMethod"><option>Efectivo</option><option>Débito</option><option>Crédito</option><option>Transferencia</option></select>
+        </div>
+      </div>
+      <label>Categoría</label>
+      <input type="text" id="cashCat" placeholder="Ej: Insumos, Sueldos, Otros ingresos" />
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('cashModal')">Cancelar</button>
+        <button class="btn-primary" onclick="saveCashMovement()">Guardar</button>
+      </div>
     </div>
   </div>
 
@@ -2781,29 +2859,135 @@ function salesInPeriod(days){
 }
 function profName(id){ const p=state.professionals.find(x=>x.id===id); return p?p.name:'Sin asignar' }
 
-/* ── CAJA / CIERRE DIARIO ── */
+/* ── CAJA DE VENTAS ── */
+let cajaTab='ventas'
+state.cash=[]
+async function loadCash(){
+  try{ state.cash = await supabase.fetch('cash_movements',{order:'move_date.desc'}) || [] }
+  catch(e){ state.cash=[] }
+}
+function cajaRange(){
+  const f=document.getElementById('cajaFrom'), t=document.getElementById('cajaTo')
+  if(f && !f.value) f.value=isoDate(new Date())
+  if(t && !t.value) t.value=isoDate(new Date())
+  return [f?f.value:'', t?t.value:'']
+}
+function inRange(d,from,to){ return (!from||d>=from) && (!to||d<=to) }
+function cajaData(){
+  const [from,to]=cajaRange()
+  const ventas=state.sales.filter(s=>s.status!=='deleted' && inRange(s.sale_date,from,to))
+  const facturadas=ventas.filter(s=>s.status==='paid')
+  const abonos=ventas.filter(s=>s.status==='partial')
+  const gcs=(state.giftcards||[]).filter(g=>g.status==='paid' && g.soldAt && inRange(g.soldAt.slice(0,10),from,to))
+  const movs=state.cash.filter(m=>inRange(m.move_date,from,to))
+  const otros=movs.filter(m=>m.type==='income')
+  const egresos=movs.filter(m=>m.type==='expense')
+  const ajustes=movs.filter(m=>m.type==='adjust')
+  return {from,to,facturadas,abonos,gcs,otros,egresos,ajustes,movs}
+}
 function renderCaja(){
   const el=document.getElementById('cajaBody'); if(!el) return
-  const dInput=document.getElementById('cajaDate')
-  if(!dInput.value) dInput.value=isoDate(new Date())
-  const day=dInput.value
-  const list=state.sales.filter(s=>s.status!=='deleted' && s.sale_date===day)
-  const methods=['Efectivo','Débito','Crédito','Transferencia']
-  const byMethod={}; methods.forEach(m=>byMethod[m]=0)
-  let total=0, tips=0
-  list.forEach(s=>{ total+=Number(s.total||0); tips+=Number(s.tip||0); if(byMethod[s.payment_method]!=null) byMethod[s.payment_method]+=Number(s.total||0) })
-  el.innerHTML=`
-    <div class="rep-cards">
-      <div class="rep-card"><div class="rc-num">${list.length}</div><div class="rc-lbl">Ventas del día</div></div>
-      <div class="rep-card"><div class="rc-num">${fmtMoney(total)}</div><div class="rc-lbl">Total</div></div>
-      <div class="rep-card"><div class="rc-num">${fmtMoney(tips)}</div><div class="rc-lbl">Propinas</div></div>
-    </div>
-    <div class="rep-block">
-      <h3>Desglose por método de pago</h3>
-      ${methods.map(m=>`<div class="rep-row"><span class="rr-name">${m}</span>
-        <span class="rr-bar"><span class="rr-fill" style="width:${total?byMethod[m]/total*100:0}%"></span></span>
-        <span class="rr-n" style="width:80px">${fmtMoney(byMethod[m])}</span></div>`).join('')}
-    </div>`
+  const d=cajaData()
+  const sum=(arr,k='total')=>arr.reduce((a,x)=>a+Number(x[k]||0),0)
+  const vFact=sum(d.facturadas), vAbono=sum(d.abonos)
+  const vGc=d.gcs.reduce((a,g)=>a+Number(g.amount||0),0)
+  const vOtros=sum(d.otros,'amount'), vEgr=sum(d.egresos,'amount'), vAjuste=sum(d.ajustes,'amount')
+  const resultado=vFact+vAbono+vGc+vOtros-vEgr+vAjuste
+
+  // efectivo en caja: solo movimientos en efectivo
+  const efeVentas=[...d.facturadas,...d.abonos].filter(s=>s.payment_method==='Efectivo').reduce((a,s)=>a+Number(s.total||0),0)
+  const efeOtros=d.otros.filter(m=>m.method==='Efectivo').reduce((a,m)=>a+Number(m.amount||0),0)
+  const efeEgr=d.egresos.filter(m=>m.method==='Efectivo').reduce((a,m)=>a+Number(m.amount||0),0)
+  document.getElementById('cajaCash').textContent=fmtMoney(efeVentas+efeOtros-efeEgr+vAjuste)
+
+  // fila de flujo
+  document.getElementById('cajaFlow').innerHTML=`
+    <div class="cf-item"><span class="cf-lbl">Ventas Facturadas</span><span class="cf-num">${fmtMoney(vFact)}</span></div>
+    <span class="cf-op">+</span>
+    <div class="cf-item"><span class="cf-lbl">Abonos</span><span class="cf-num">${fmtMoney(vAbono)}</span></div>
+    <span class="cf-op">+</span>
+    <div class="cf-item"><span class="cf-lbl">Gift card</span><span class="cf-num">${fmtMoney(vGc)}</span></div>
+    <span class="cf-op">+</span>
+    <div class="cf-item"><span class="cf-lbl">Otros Ingresos</span><span class="cf-num">${fmtMoney(vOtros)}</span></div>
+    <span class="cf-op">−</span>
+    <div class="cf-item"><span class="cf-lbl">Egresos</span><span class="cf-num">${fmtMoney(vEgr)}</span></div>
+    <span class="cf-op">=</span>
+    <div class="cf-item total"><span class="cf-lbl">Resultado del Período</span><span class="cf-num">${fmtMoney(resultado)}</span></div>`
+
+  // pestañas
+  const tabs=[['ventas','Ventas Facturadas',d.facturadas.length],['abonos','Abonos',d.abonos.length],
+    ['giftcards','Gift cards',d.gcs.length],['otros','Otros Ingresos',d.otros.length],
+    ['egresos','Egresos',d.egresos.length],['ajustes','Rectificar Efectivo',d.ajustes.length]]
+  document.getElementById('cajaTabs').innerHTML=tabs.map(([k,l,n])=>
+    `<button class="${k===cajaTab?'on':''}" onclick="cajaTab='${k}';renderCaja()">${l}${n?` (${n})`:''}</button>`).join('')
+
+  // contenido de la pestaña
+  const money=v=>`<td style="text-align:right;font-weight:700">${fmtMoney(Number(v||0))}</td>`
+  const fecha=s=>{ const [y,m,dd]=String(s).slice(0,10).split('-'); return `${dd}/${m}/${y}` }
+  let html=''
+  if(cajaTab==='ventas'||cajaTab==='abonos'){
+    const list=cajaTab==='ventas'?d.facturadas:d.abonos
+    html=list.length?`<table class="ctbl"><thead><tr><th>Fecha</th><th>Cliente</th><th>Detalle</th><th>Método</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody>${list.map(s=>{ const it=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+        return `<tr><td>${fecha(s.sale_date)}</td><td class="cname">${esc(s.client_name||'—')}</td>
+        <td>${esc(it.map(i=>i.name).join(', ')||'—')}</td><td>${esc(s.payment_method||'—')}</td>${money(s.total)}</tr>`}).join('')}</tbody></table>`
+      :'<div class="empty-state">No hay nada aquí para mostrar.</div>'
+  } else if(cajaTab==='giftcards'){
+    html=d.gcs.length?`<table class="ctbl"><thead><tr><th>Fecha</th><th>Código</th><th>Gift card</th><th>Para</th><th style="text-align:right">Monto</th></tr></thead>
+      <tbody>${d.gcs.map(g=>`<tr><td>${fecha(g.soldAt)}</td><td style="font-family:monospace;font-size:.76rem">${esc(g.code)}</td>
+      <td>${esc(g.name)}</td><td>${esc(g.to||'—')}</td>${money(g.amount)}</tr>`).join('')}</tbody></table>`
+      :'<div class="empty-state">No hay nada aquí para mostrar.</div>'
+  } else {
+    const list=cajaTab==='otros'?d.otros:cajaTab==='egresos'?d.egresos:d.ajustes
+    html=list.length?`<table class="ctbl"><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Método</th><th style="text-align:right">Monto</th><th></th></tr></thead>
+      <tbody>${list.map(m=>`<tr><td>${fecha(m.move_date)}</td><td class="cname">${esc(m.description||'—')}</td>
+      <td>${esc(m.category||'—')}</td><td>${esc(m.method||'—')}</td>${money(m.amount)}
+      <td class="cacts"><button class="mini-btn" onclick="deleteCashMovement('${m.id}')">Borrar</button></td></tr>`).join('')}</tbody></table>`
+      :'<div class="empty-state">No hay nada aquí para mostrar.</div>'
+  }
+  el.innerHTML=html
+}
+function openCashModal(type){
+  document.getElementById('cashType').value=type
+  document.getElementById('cashTitle').textContent = type==='income'?'Nuevo ingreso' : type==='expense'?'Nuevo egreso' : 'Rectificar efectivo'
+  document.getElementById('cashDate').value=isoDate(new Date())
+  document.getElementById('cashDesc').value = type==='adjust'?'Ajuste de caja':''
+  document.getElementById('cashAmount').value=0
+  document.getElementById('cashMethod').value='Efectivo'
+  document.getElementById('cashCat').value = type==='adjust'?'Ajuste':''
+  openModal('cashModal')
+}
+async function saveCashMovement(){
+  const type=document.getElementById('cashType').value
+  const amount=parseInt(document.getElementById('cashAmount').value)||0
+  const desc=document.getElementById('cashDesc').value.trim()
+  if(!desc){ toast('Falta la descripción','error'); return }
+  if(!amount){ toast('Ingresa un monto','error'); return }
+  const row={ type, description:desc, amount, method:document.getElementById('cashMethod').value,
+    category:document.getElementById('cashCat').value.trim(), move_date:document.getElementById('cashDate').value }
+  try{
+    await supabase.insert('cash_movements',row)
+    await loadCash(); closeModal('cashModal'); toast('Movimiento guardado','success')
+    cajaTab = type==='income'?'otros' : type==='expense'?'egresos':'ajustes'
+    renderCaja()
+  }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+async function deleteCashMovement(id){
+  if(!confirm('¿Borrar este movimiento?')) return
+  try{ await supabase.delete('cash_movements',id); await loadCash(); renderCaja(); toast('Movimiento borrado','success') }
+  catch(e){ toast('Error al borrar','error') }
+}
+function exportCaja(){
+  const d=cajaData()
+  const rows=[]
+  d.facturadas.forEach(s=>rows.push([s.sale_date,'Venta facturada',s.client_name||'',s.payment_method||'',Number(s.total||0)]))
+  d.abonos.forEach(s=>rows.push([s.sale_date,'Abono',s.client_name||'',s.payment_method||'',Number(s.total||0)]))
+  d.gcs.forEach(g=>rows.push([String(g.soldAt).slice(0,10),'Gift card',g.code,'Flow',Number(g.amount||0)]))
+  d.otros.forEach(m=>rows.push([m.move_date,'Otro ingreso',m.description||'',m.method||'',Number(m.amount||0)]))
+  d.egresos.forEach(m=>rows.push([m.move_date,'Egreso',m.description||'',m.method||'',-Number(m.amount||0)]))
+  d.ajustes.forEach(m=>rows.push([m.move_date,'Ajuste',m.description||'',m.method||'',Number(m.amount||0)]))
+  if(!rows.length){ toast('No hay movimientos para exportar','error'); return }
+  downloadCSV('caja.csv', ['Fecha','Tipo','Detalle','Método','Monto'], rows)
 }
 
 /* ── PROPINAS ── */
@@ -3471,6 +3655,7 @@ async function boot(){
   await loadSales()
   await loadPlans()
   await loadProducts()
+  await loadCash()
   await loadBotConfig()
   render()
   // scroll a las 9:00 aprox
