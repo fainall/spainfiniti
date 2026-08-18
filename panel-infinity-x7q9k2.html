@@ -105,6 +105,13 @@ input,select,textarea{font-family:inherit}
 .blk-repeat-row{display:inline-flex!important;align-items:center;gap:10px;width:auto!important;margin-top:18px!important;margin-bottom:0!important;cursor:pointer;text-transform:none!important;letter-spacing:0!important;font-size:.85rem!important;font-weight:500!important;color:var(--dark)!important;justify-content:flex-start!important}
 .blk-repeat-row input[type=checkbox]{width:16px!important;height:16px!important;margin:0!important;padding:0!important;flex:0 0 auto!important;cursor:pointer}
 .blk-repeat-row span{white-space:nowrap;flex:0 0 auto}
+/* selector de minutos por bloque */
+.slot-picker{position:relative}
+.slot-menu{position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);min-width:150px;padding:6px;display:none;z-index:60}
+.slot-menu.open{display:block}
+.slot-menu button{display:block;width:100%;text-align:left;background:none;border:none;font-family:inherit;font-size:.84rem;color:var(--dark);padding:9px 14px;border-radius:7px;cursor:pointer}
+.slot-menu button:hover{background:var(--cream-2)}
+.slot-menu button.on{background:var(--gold-pale);color:var(--gold-d);font-weight:600}
 /* reportes */
 .rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .rep-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
@@ -387,6 +394,10 @@ input,select,textarea{font-family:inherit}
       <button class="icon-btn" onclick="navDate(1)">›</button>
     </div>
     <button class="btn-today" onclick="goToday()">Hoy</button>
+    <div class="slot-picker">
+      <button class="icon-btn" id="slotBtn" onclick="toggleSlotMenu(event)" title="Minutos por bloque">🕐</button>
+      <div class="slot-menu" id="slotMenu"></div>
+    </div>
     <div class="range-label" id="rangeLabel"></div>
     <div class="spacer"></div>
     <button class="btn-g" onclick="openProfManager()">Profesionales</button>
@@ -1076,6 +1087,32 @@ const COLORS = ['#C5A467','#C27B8A','#6B8E7F','#5B7DB1','#B06B9E','#D08B4F','#7A
 const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
 const DOW_FULL = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const HOUR_H = 60
+/* minutos por bloque de la grilla (configurable con el reloj) */
+const SLOT_OPTIONS=[5,10,15,20,30,40,45,60]
+let slotMin = parseInt(localStorage.getItem('spa_slot_min')) || 60
+/* Alto de cada bloque: proporcional a la hora, pero nunca menor a 28px
+   para que los bloques cortos (5/10 min) sigan siendo clickeables. */
+function slotPx(){ return Math.max(28, HOUR_H * (slotMin/60)) }
+function renderSlotMenu(){
+  const m=document.getElementById('slotMenu'); if(!m) return
+  m.innerHTML=SLOT_OPTIONS.map(v=>`<button class="${v===slotMin?'on':''}" onclick="setSlotMin(${v})">${v} minutos</button>`).join('')
+  const b=document.getElementById('slotBtn'); if(b) b.title=`Bloques de ${slotMin} min`
+}
+function toggleSlotMenu(e){
+  if(e) e.stopPropagation()
+  renderSlotMenu()
+  document.getElementById('slotMenu').classList.toggle('open')
+}
+function setSlotMin(v){
+  slotMin=v; localStorage.setItem('spa_slot_min', v)
+  document.getElementById('slotMenu').classList.remove('open')
+  renderCalendar(); renderSlotMenu()
+  toast(`Bloques de ${v} minutos`,'success')
+}
+document.addEventListener('click',e=>{
+  const m=document.getElementById('slotMenu')
+  if(m && m.classList.contains('open') && !e.target.closest('.slot-picker')) m.classList.remove('open')
+})
 
 let state = {
   view: 'week',
@@ -1226,9 +1263,10 @@ function renderCalendar(){
   })
   document.getElementById('calHead').innerHTML=head
 
-  // gutter hours
+  // gutter: una etiqueta por bloque según la granularidad elegida
+  const SP=slotPx(), nSlots=Math.ceil((maxM-minM)/slotMin), gridH=nSlots*SP
   let gut=''
-  for(let h=minM;h<maxM;h+=60) gut+=`<div class="hr"><span>${toHHMM(h)}</span></div>`
+  for(let i=0;i<nSlots;i++) gut+=`<div class="hr" style="height:${SP}px"><span>${toHHMM(minM+i*slotMin)}</span></div>`
 
   // day columns
   const profs=activeProfs()
@@ -1237,16 +1275,17 @@ function renderCalendar(){
     const wd=isoWeekday(dd)
     const working = profs.some(p=>{ const wds=Array.isArray(p.work_days)?p.work_days:JSON.parse(p.work_days||'[1,2,3,4,5,6]'); return wds.includes(wd) })
     let lines=''
-    for(let i=0;i<=totalH;i++){
-      lines+=`<div class="hr-line" style="top:${i*HOUR_H}px"></div>`
-      if(i<totalH) lines+=`<div class="hr-line half" style="top:${i*HOUR_H+HOUR_H/2}px"></div>`
+    for(let i=0;i<=nSlots;i++){
+      // línea sólida cuando el bloque cae en hora exacta, punteada el resto
+      const isHour=((minM+i*slotMin)%60)===0
+      lines+=`<div class="hr-line ${isHour?'':'half'}" style="top:${i*SP}px"></div>`
     }
     // appointments for this day
     const dayAppts=state.appointments.filter(a=>a.appt_date===isoDate(dd) && (state.profId==='all'||a.professional_id===state.profId))
     const blocks=layoutDay(dayAppts).map(a=>{
       const p=state.professionals.find(x=>x.id===a.professional_id)
-      const top=(toMin(a.start_time)-minM)/60*HOUR_H
-      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/60*HOUR_H-2)
+      const top=(toMin(a.start_time)-minM)/slotMin*SP
+      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-2)
       const w=100/a._cols, left=a._col*w
       const pos=`top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px)`
       if(a.status==='block'){
@@ -1261,7 +1300,7 @@ function renderCalendar(){
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div></div>`
     }).join('')
-    cols+=`<div class="dcol ${working?'':'off'}" style="height:${totalH*HOUR_H}px" data-date="${isoDate(dd)}" onclick="onSlotClick(event,this)">
+    cols+=`<div class="dcol ${working?'':'off'}" style="height:${gridH}px" data-date="${isoDate(dd)}" onclick="onSlotClick(event,this)">
       ${lines}${blocks}</div>`
   })
   document.getElementById('calGrid').innerHTML=`<div class="gutter">${gut}</div>${cols}`
@@ -1302,23 +1341,25 @@ function onSlotClick(e,col){
   if(e.target.closest('.appt')||e.target.closest('.ghost-appt')||e.target.closest('.ghost-menu')) return
   const rect=col.getBoundingClientRect()
   const [minM]=hourBounds()
-  let mins=minM + Math.floor((e.clientY-rect.top)/HOUR_H*60)
-  mins=Math.floor(mins/60)*60   // bloque de 1 hora
+  // el bloque clickeado según la granularidad configurada
+  const idx=Math.floor((e.clientY-rect.top)/slotPx())
+  const mins=minM + idx*slotMin
   showGhost(col, mins, {date:col.dataset.date, start:toHHMM(mins)})
 }
 function showGhost(col, mins, prefill){
   clearGhost(); slotPrefill=prefill
   const [minM]=hourBounds()
-  const top=(mins-minM)/60*HOUR_H
+  const SP=slotPx()
+  const top=(mins-minM)/slotMin*SP
   const ghost=document.createElement('div')
   ghost.className='ghost-appt'; ghost.id='ghostAppt'
-  ghost.style.top=top+'px'; ghost.style.height=HOUR_H+'px'
+  ghost.style.top=top+'px'; ghost.style.height=Math.max(24,SP)+'px'
   ghost.innerHTML=`<span>+ Agregar</span><button onclick="event.stopPropagation();clearGhost()">✕</button>`
   col.appendChild(ghost)
   const menu=document.createElement('div')
   menu.className='ghost-menu'; menu.id='ghostMenu'
   const menuH=96
-  let menuTop=top+HOUR_H+4
+  let menuTop=top+Math.max(24,SP)+4
   if(menuTop+menuH > col.offsetHeight) menuTop=Math.max(0, top-menuH-4)
   menu.style.top=menuTop+'px'
   menu.innerHTML=`
@@ -1369,11 +1410,13 @@ function apptMouseMove(e){
   if(col){
     const rect=col.getBoundingClientRect()
     const [minM,maxM]=hourBounds()
-    let mins=minM + Math.round(((e.clientY-rect.top)/HOUR_H*60)/60)*60   // bloque de 1 hora
+    const SP=slotPx()
+    // ajustar al bloque más cercano según la granularidad configurada
+    let mins=minM + Math.round((e.clientY-rect.top)/SP)*slotMin
     mins=Math.max(minM, Math.min(mins, maxM-drag.dur))
     drag.targetDate=col.dataset.date
     drag.targetStart=toHHMM(mins)
-    const top=(mins-minM)/60*HOUR_H, h=Math.max(20, drag.dur/60*HOUR_H-2)
+    const top=(mins-minM)/slotMin*SP, h=Math.max(20, drag.dur/slotMin*SP-2)
     const d=document.createElement('div'); d.className='drop-hint'; d.id='dropHint'
     d.style.top=top+'px'; d.style.height=h+'px'; d.textContent=toHHMM(mins)
     col.appendChild(d)
