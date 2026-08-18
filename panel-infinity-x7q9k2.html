@@ -130,6 +130,19 @@ input,select,textarea{font-family:inherit}
 .cols-menu label:hover{background:var(--cream-2)}
 .cols-menu input{width:15px;height:15px;margin:0;cursor:pointer}
 @media(max-width:820px){.sales-stats{grid-template-columns:1fr}}
+/* transacciones */
+.tx-pager{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:16px;font-size:.82rem;color:var(--mid);flex-wrap:wrap}
+.tx-pager button{background:none;border:none;font-family:inherit;font-size:.82rem;color:var(--mid);cursor:pointer;padding:6px 10px;border-radius:7px}
+.tx-pager button:hover:not(:disabled){background:var(--cream-2);color:var(--dark)}
+.tx-pager button:disabled{opacity:.4;cursor:default}
+.tx-pager .tx-cur{border-bottom:2px solid var(--gold);color:var(--dark);font-weight:600;padding:2px 10px}
+.tx-pager select{padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:.8rem;font-family:inherit}
+.tx-total{text-align:right;font-size:.75rem;color:var(--mid);margin-bottom:8px}
+.tx-mrow{display:flex;align-items:center;gap:12px;padding:8px 0;font-size:.84rem}
+.tx-mrow .tm-name{width:120px;color:var(--dark)}
+.tx-mrow .tm-bar{flex:1;height:8px;background:var(--cream-2);border-radius:5px;overflow:hidden;display:block;min-width:60px}
+.tx-mrow .tm-fill{display:block;height:8px;background:var(--gold);border-radius:5px}
+.tx-mrow .tm-val{width:100px;text-align:right;font-weight:600}
 /* reportes */
 .rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .rep-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
@@ -383,6 +396,7 @@ input,select,textarea{font-family:inherit}
         <button data-view="ventas" onclick="switchView('ventas')">Ventas ▾</button>
         <div class="topnav-dd-menu">
           <button onclick="switchView('ventas')">Detalle de ventas</button>
+          <button onclick="switchView('transacciones')">Transacciones</button>
           <button onclick="switchView('planes')">Planes / Bonos</button>
           <button onclick="switchView('caja')">Caja / Cierre diario</button>
           <button onclick="switchView('propinas')">Propinas</button>
@@ -622,6 +636,56 @@ input,select,textarea{font-family:inherit}
           <div class="cols-menu" id="colsMenu"></div>
         </div>
         <div id="salesTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA: TRANSACCIONES -->
+  <div class="view" id="view-transacciones">
+    <div class="view-inner" style="max-width:1150px">
+      <div class="view-head">
+        <div>
+          <h2>Transacciones</h2>
+          <p class="inv-sub">Haz seguimiento de cada pago recibido con su método, estado y venta asociada.</p>
+        </div>
+      </div>
+      <div class="sales-panel">
+        <div class="sales-stats" style="grid-template-columns:repeat(2,1fr)">
+          <div class="sales-stat" style="cursor:default">
+            <span class="ss-lbl">TODAS</span><span class="ss-num" id="txCount">0</span>
+          </div>
+          <div class="sales-stat" style="cursor:default">
+            <span class="ss-lbl">MONTO TOTAL</span><span class="ss-num" id="txAmount">$0</span>
+          </div>
+        </div>
+        <div class="sales-filters">
+          <select id="txPeriod" onchange="txPage=1;renderTransacciones()">
+            <option value="7">Período Últimos 7 días</option>
+            <option value="30">Período Últimos 30 días</option>
+            <option value="all">Período Todo</option>
+          </select>
+          <select id="txProf" onchange="txPage=1;renderTransacciones()"><option value="">Profesional</option></select>
+          <select id="txPay" onchange="txPage=1;renderTransacciones()">
+            <option value="">Método de pago</option>
+            <option>Efectivo</option><option>Débito</option><option>Crédito</option><option>Transferencia</option>
+          </select>
+          <select id="txStatus" onchange="txPage=1;renderTransacciones()">
+            <option value="">Estado de pago</option>
+            <option value="paid">Pagada</option>
+            <option value="partial">Pago parcial</option>
+          </select>
+        </div>
+      </div>
+      <div class="sales-table-card" style="margin-bottom:18px">
+        <h3 style="font-size:.95rem;margin-bottom:12px">Métodos de pago</h3>
+        <div id="txMethods"></div>
+      </div>
+      <div class="sales-table-card">
+        <div class="sales-table-head">
+          <button class="btn-g" onclick="exportTransacciones()">⬇ Exportar</button>
+        </div>
+        <div id="txTable"></div>
+        <div class="tx-pager" id="txPager"></div>
       </div>
     </div>
   </div>
@@ -1926,7 +1990,7 @@ async function doImport(){
 }
 
 /* ── VIEW SWITCHING ── */
-const VENTAS_GROUP=['ventas','planes','caja','propinas','comisiones']
+const VENTAS_GROUP=['ventas','transacciones','planes','caja','propinas','comisiones']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : v
@@ -1934,6 +1998,7 @@ function switchView(v){
   if(v==='clientes'){ renderClientList(); renderRecordatorios() }
   if(v==='reportes') renderReportes()
   if(v==='ventas') renderSales()
+  if(v==='transacciones') renderTransacciones()
   if(v==='caja') renderCaja()
   if(v==='propinas') renderPropinas()
   if(v==='comisiones') renderComisiones()
@@ -2237,6 +2302,93 @@ function renderSales(){
       return `<tr>${cells.join('')}<td class="cacts"><button class="mini-btn" onclick="editSale('${s.id}')">Ver</button></td></tr>`
     }).join('')}</tbody></table>`
 }
+/* ── TRANSACCIONES ── */
+let txPage=1, txPerPage=25
+function txFiltered(){
+  const period=document.getElementById('txPeriod').value
+  const prof=document.getElementById('txProf').value
+  const pay=document.getElementById('txPay').value
+  const st=document.getElementById('txStatus').value
+  const today=new Date(); today.setHours(0,0,0,0)
+  let list=state.sales.filter(s=>s.status!=='deleted')
+  if(period!=='all'){ const lim=new Date(today); lim.setDate(lim.getDate()-parseInt(period)); list=list.filter(s=>new Date(s.sale_date+'T00:00:00')>=lim) }
+  if(prof) list=list.filter(s=>s.professional_id===prof)
+  if(pay) list=list.filter(s=>s.payment_method===pay)
+  if(st) list=list.filter(s=>s.status===st)
+  return list.sort((a,b)=>(b.sale_date||'').localeCompare(a.sale_date||''))
+}
+function renderTransacciones(){
+  const cont=document.getElementById('txTable'); if(!cont) return
+  // poblar profesionales
+  const psel=document.getElementById('txProf'); const cur=psel.value
+  psel.innerHTML='<option value="">Profesional</option>'+state.professionals.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+  psel.value=cur
+
+  const list=txFiltered()
+  const total=list.reduce((a,s)=>a+Number(s.total||0),0)
+  document.getElementById('txCount').textContent=list.length
+  document.getElementById('txAmount').textContent=fmtMoney(total)
+
+  // resumen por método de pago
+  const methods=['Efectivo','Débito','Crédito','Transferencia']
+  const bm={}; methods.forEach(m=>bm[m]=0)
+  list.forEach(s=>{ if(bm[s.payment_method]!=null) bm[s.payment_method]+=Number(s.total||0) })
+  const mEl=document.getElementById('txMethods')
+  mEl.innerHTML = total===0
+    ? '<div style="color:var(--light);font-size:.85rem;text-align:center;padding:16px">Sin datos para este período</div>'
+    : methods.map(m=>`<div class="tx-mrow"><span class="tm-name">${m}</span>
+        <span class="tm-bar"><span class="tm-fill" style="width:${total?bm[m]/total*100:0}%"></span></span>
+        <span class="tm-val">${fmtMoney(bm[m])}</span></div>`).join('')
+
+  if(!list.length){
+    cont.innerHTML='<div class="empty-state">No hay resultados</div>'
+    document.getElementById('txPager').innerHTML=''
+    return
+  }
+  // paginación
+  const pages=Math.max(1, Math.ceil(list.length/txPerPage))
+  if(txPage>pages) txPage=pages
+  const slice=list.slice((txPage-1)*txPerPage, txPage*txPerPage)
+
+  cont.innerHTML=`<div class="tx-total">${list.length} transacción${list.length===1?'':'es'}</div>
+  <table class="ctbl">
+    <thead><tr><th>ID</th><th>Fecha</th><th>Comprobante</th><th style="text-align:right">Monto</th><th style="text-align:right">Propina</th><th>Método de pago</th><th>Venta</th><th>Estado de pago</th></tr></thead>
+    <tbody>${slice.map(s=>{
+      const [y,m,d]=s.sale_date.split('-')
+      const items=Array.isArray(s.items)?s.items:(typeof s.items==='string'?JSON.parse(s.items||'[]'):[])
+      const detail=items.map(i=>`${i.qty>1?i.qty+'× ':''}${i.name}`).join(', ')||'—'
+      return `<tr>
+        <td style="font-family:monospace;font-size:.76rem;color:var(--mid)">${esc(String(s.id).slice(0,8))}</td>
+        <td>${d}/${m}/${y}</td>
+        <td>${esc(s.receipt||'—')}</td>
+        <td style="text-align:right;font-weight:700">${fmtMoney(Number(s.total||0))}</td>
+        <td style="text-align:right">${Number(s.tip||0)?fmtMoney(Number(s.tip)):'—'}</td>
+        <td>${esc(s.payment_method||'—')}</td>
+        <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><button class="mini-btn" onclick="editSale('${s.id}')" title="${esc(detail)}">Ver venta</button></td>
+        <td><span class="badge ${s.status}">${s.status==='paid'?'Pagada':'Pago parcial'}</span></td>
+      </tr>`}).join('')}</tbody></table>`
+
+  document.getElementById('txPager').innerHTML=`
+    <button onclick="txPage--;renderTransacciones()" ${txPage<=1?'disabled':''}>‹ Anterior</button>
+    <span class="tx-cur">${txPage}</span>
+    <span>de ${pages}</span>
+    <button onclick="txPage++;renderTransacciones()" ${txPage>=pages?'disabled':''}>Siguiente ›</button>
+    <select onchange="txPerPage=parseInt(this.value);txPage=1;renderTransacciones()">
+      ${[25,50,100].map(n=>`<option value="${n}" ${n===txPerPage?'selected':''}>${n} por página</option>`).join('')}
+    </select>`
+}
+function exportTransacciones(){
+  const list=txFiltered()
+  if(!list.length){ toast('No hay transacciones para exportar','error'); return }
+  const rows=list.map(s=>{
+    const [y,m,d]=s.sale_date.split('-')
+    return [String(s.id).slice(0,8), `${d}/${m}/${y}`, s.receipt||'', Number(s.total||0), Number(s.tip||0),
+      s.payment_method||'', s.professional_id?profName(s.professional_id):'', s.client_name||'',
+      s.status==='paid'?'Pagada':'Pago parcial']
+  })
+  downloadCSV('transacciones.csv', ['ID','Fecha','Comprobante','Monto','Propina','Método de pago','Profesional','Cliente','Estado de pago'], rows)
+}
+
 function fillSaleItemPick(){
   const sel=document.getElementById('saleItemPick')
   const byCat={}; state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
