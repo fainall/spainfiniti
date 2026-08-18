@@ -97,6 +97,14 @@ input,select,textarea{font-family:inherit}
 .inv-notice{background:#e6f4fa;color:#256b81;padding:12px 16px;border-radius:8px;font-size:.8rem;margin-bottom:14px;line-height:1.5}
 .inv-count{text-align:right;font-size:.75rem;color:var(--mid);margin-bottom:10px}
 @media(max-width:820px){.inv-filters{grid-template-columns:1fr 1fr}}
+/* bloqueo de horas */
+.blk-datetime{display:flex;gap:8px;align-items:center}
+.blk-datetime input[type=date]{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit}
+.blk-datetime select{width:78px;padding:10px 8px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit;background:#fff}
+.blk-colon{font-weight:700;color:var(--mid)}
+.blk-repeat-row{display:inline-flex!important;align-items:center;gap:10px;width:auto!important;margin-top:18px!important;margin-bottom:0!important;cursor:pointer;text-transform:none!important;letter-spacing:0!important;font-size:.85rem!important;font-weight:500!important;color:var(--dark)!important;justify-content:flex-start!important}
+.blk-repeat-row input[type=checkbox]{width:16px!important;height:16px!important;margin:0!important;padding:0!important;flex:0 0 auto!important;cursor:pointer}
+.blk-repeat-row span{white-space:nowrap;flex:0 0 auto}
 /* reportes */
 .rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .rep-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
@@ -777,23 +785,47 @@ input,select,textarea{font-family:inherit}
 
 <!-- MODAL: Block -->
 <div class="modal-ov" id="blockModal">
-  <div class="modal">
-    <h2>🔒 Bloquear horario</h2>
+  <div class="modal" style="width:620px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h2 style="margin:0">Bloqueo de horas</h2>
+      <button class="qv-icon" onclick="closeModal('blockModal')">✕</button>
+    </div>
     <input type="hidden" id="blkId" />
+    <label>Motivo/Etiqueta</label>
+    <input type="text" id="blkReason" placeholder="Ej: Almuerzo, reunión..." />
     <label>Profesional</label>
     <select id="blkProf"></select>
-    <div class="row2">
-      <div><label>Fecha</label><input type="date" id="blkDate" /></div>
-      <div><label>Hora inicio</label><input type="time" id="blkStart" step="300" /></div>
+    <label>Fecha de inicio</label>
+    <div class="blk-datetime">
+      <input type="date" id="blkDate" onchange="syncBlockEnd()" />
+      <select id="blkStartH" onchange="syncBlockEnd()"></select>
+      <span class="blk-colon">:</span>
+      <select id="blkStartM" onchange="syncBlockEnd()"></select>
     </div>
-    <label>Duración (min)</label>
-    <input type="number" id="blkDur" min="5" step="5" value="30" />
-    <label>Motivo (opcional)</label>
-    <input type="text" id="blkReason" placeholder="Colación, reunión, etc." />
+    <label>Fecha de fin</label>
+    <div class="blk-datetime">
+      <input type="date" id="blkEndDate" />
+      <select id="blkEndH"></select>
+      <span class="blk-colon">:</span>
+      <select id="blkEndM"></select>
+    </div>
+    <label class="blk-repeat-row">
+      <input type="checkbox" id="blkRepeat" onchange="document.getElementById('blkRepeatBox').style.display=this.checked?'block':'none'" />
+      <span>Repetir bloqueo</span>
+    </label>
+    <div id="blkRepeatBox" style="display:none;margin-top:10px;padding:14px;background:var(--cream-2);border-radius:8px">
+      <div class="row2">
+        <div><label style="margin-top:0">Frecuencia</label>
+          <select id="blkRepeatFreq"><option value="daily">Todos los días</option><option value="weekly">Cada semana</option></select>
+        </div>
+        <div><label style="margin-top:0">Repetir hasta</label><input type="date" id="blkRepeatUntil" /></div>
+      </div>
+      <p style="font-size:.72rem;color:var(--mid);margin-top:8px">Se crearán bloqueos repetidos hasta la fecha indicada (máx. 60).</p>
+    </div>
     <div class="modal-actions">
       <button class="btn-danger" id="blkDelBtn" onclick="deleteBlock()" style="display:none">Eliminar</button>
       <button class="btn-ghost" onclick="closeModal('blockModal')">Cancelar</button>
-      <button class="btn-primary" onclick="saveBlock()">Guardar</button>
+      <button class="btn-primary" onclick="saveBlock()">Guardar bloqueo</button>
     </div>
   </div>
 </div>
@@ -2631,23 +2663,49 @@ function fillBlockProf(){
   document.getElementById('blkProf').innerHTML = state.professionals.filter(p=>p.active!==false)
     .map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
 }
+function fillTimeSelects(){
+  const hOpts=Array.from({length:24},(_,i)=>`<option value="${pad(i)}">${pad(i)}</option>`).join('')
+  const mOpts=[0,15,30,45].map(m=>`<option value="${pad(m)}">${pad(m)}</option>`).join('')
+  ;['blkStartH','blkEndH'].forEach(id=>{ const el=document.getElementById(id); if(el&&!el.options.length) el.innerHTML=hOpts })
+  ;['blkStartM','blkEndM'].forEach(id=>{ const el=document.getElementById(id); if(el&&!el.options.length) el.innerHTML=mOpts })
+}
+/* si el fin queda antes del inicio, lo empuja a +1h */
+function syncBlockEnd(){
+  const d=document.getElementById('blkDate').value
+  const s=toMin(document.getElementById('blkStartH').value+':'+document.getElementById('blkStartM').value)
+  const ed=document.getElementById('blkEndDate').value
+  const e=toMin(document.getElementById('blkEndH').value+':'+document.getElementById('blkEndM').value)
+  if(!ed || ed<d || (ed===d && e<=s)){
+    document.getElementById('blkEndDate').value=d
+    const end=Math.min(s+60, 23*60+45)
+    document.getElementById('blkEndH').value=pad(Math.floor(end/60))
+    document.getElementById('blkEndM').value=pad(end%60)
+  }
+}
 function openBlockModal(prefill, existing){
-  fillBlockProf()
+  fillBlockProf(); fillTimeSelects()
   const del=document.getElementById('blkDelBtn')
+  const setStart=(t)=>{ document.getElementById('blkStartH').value=t.slice(0,2); document.getElementById('blkStartM').value=t.slice(3,5) }
+  const setEnd=(t)=>{ document.getElementById('blkEndH').value=t.slice(0,2); document.getElementById('blkEndM').value=t.slice(3,5) }
+  document.getElementById('blkRepeat').checked=false
+  document.getElementById('blkRepeatBox').style.display='none'
+  document.getElementById('blkRepeatUntil').value=''
   if(existing){
     document.getElementById('blkId').value=existing.id
     document.getElementById('blkProf').value=existing.professional_id
     document.getElementById('blkDate').value=existing.appt_date
-    document.getElementById('blkStart').value=existing.start_time.slice(0,5)
-    document.getElementById('blkDur').value=toMin(existing.end_time)-toMin(existing.start_time)
+    document.getElementById('blkEndDate').value=existing.appt_date
+    setStart(existing.start_time.slice(0,5)); setEnd(existing.end_time.slice(0,5))
     document.getElementById('blkReason').value=existing.notes||''
     del.style.display='block'
   } else {
     document.getElementById('blkId').value=''
     if(state.profId!=='all') document.getElementById('blkProf').value=state.profId
-    document.getElementById('blkDate').value=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
-    document.getElementById('blkStart').value=(prefill&&prefill.start)||'10:00'
-    document.getElementById('blkDur').value=30
+    const d=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
+    const st=(prefill&&prefill.start)||'10:00'
+    document.getElementById('blkDate').value=d
+    document.getElementById('blkEndDate').value=d
+    setStart(st); setEnd(toHHMM(Math.min(toMin(st)+60, 23*60+45)))
     document.getElementById('blkReason').value=''
     del.style.display='none'
   }
@@ -2656,22 +2714,45 @@ function openBlockModal(prefill, existing){
 async function saveBlock(){
   const profId=document.getElementById('blkProf').value
   const date=document.getElementById('blkDate').value
-  const start=document.getElementById('blkStart').value
-  const dur=parseInt(document.getElementById('blkDur').value)||30
+  const endDate=document.getElementById('blkEndDate').value||date
+  const start=document.getElementById('blkStartH').value+':'+document.getElementById('blkStartM').value
+  const end=document.getElementById('blkEndH').value+':'+document.getElementById('blkEndM').value
   if(!profId){ toast('Selecciona un profesional','error'); return }
-  if(!date||!start){ toast('Falta fecha u hora','error'); return }
+  if(!date){ toast('Falta la fecha','error'); return }
+  if(endDate===date && toMin(end)<=toMin(start)){ toast('La hora de fin debe ser posterior al inicio','error'); return }
+  if(endDate<date){ toast('La fecha de fin no puede ser anterior al inicio','error'); return }
   const reason=document.getElementById('blkReason').value.trim()
-  const row={
-    professional_id:profId, service_id:null, service_name:'',
-    client_name:reason||'Bloqueado', client_phone:'',
-    appt_date:date, start_time:start, end_time:toHHMM(toMin(start)+dur),
-    status:'block', notes:reason
+  const mk=(d,s,e)=>({ professional_id:profId, service_id:null, service_name:'', client_name:reason||'Bloqueado',
+    client_phone:'', appt_date:d, start_time:s, end_time:e, status:'block', notes:reason })
+
+  // Un bloqueo puede abarcar varios días: se crea una fila por día.
+  const rows=[]
+  let cur=new Date(date+'T00:00:00'), last=new Date(endDate+'T00:00:00')
+  while(cur<=last && rows.length<60){
+    const d=isoDate(cur)
+    const s = d===date ? start : '00:00'
+    const e = d===endDate ? end : '23:59'
+    rows.push(mk(d,s,e))
+    cur=addDays(cur,1)
+  }
+  // Repetición
+  if(document.getElementById('blkRepeat').checked){
+    const until=document.getElementById('blkRepeatUntil').value
+    const freq=document.getElementById('blkRepeatFreq').value
+    if(until && until>endDate){
+      const step=freq==='weekly'?7:1
+      let next=addDays(new Date(date+'T00:00:00'), step)
+      const lim=new Date(until+'T00:00:00')
+      while(next<=lim && rows.length<60){ rows.push(mk(isoDate(next), start, end)); next=addDays(next, step) }
+    }
   }
   const id=document.getElementById('blkId').value
   try{
-    if(id) await supabase.update('appointments',id,row)
-    else await supabase.insert('appointments',row)
-    closeModal('blockModal'); toast('Horario bloqueado','success'); loadAndRender()
+    if(id) await supabase.update('appointments',id,rows[0])
+    else { for(const r of rows) await supabase.insert('appointments',r) }
+    closeModal('blockModal')
+    toast(rows.length>1?`${rows.length} bloqueos creados`:'Horario bloqueado','success')
+    loadAndRender()
   }catch(e){ console.error(e); toast('Error al guardar','error') }
 }
 async function deleteBlock(){
