@@ -143,6 +143,17 @@ input,select,textarea{font-family:inherit}
 .tx-mrow .tm-bar{flex:1;height:8px;background:var(--cream-2);border-radius:5px;overflow:hidden;display:block;min-width:60px}
 .tx-mrow .tm-fill{display:block;height:8px;background:var(--gold);border-radius:5px}
 .tx-mrow .tm-val{width:100px;text-align:right;font-weight:600}
+/* planes */
+.plan-filters{display:grid;grid-template-columns:repeat(2,minmax(200px,300px));gap:18px}
+.plan-filters label{display:block;font-size:.78rem;font-weight:600;color:var(--dark);margin-bottom:5px}
+.plan-filters select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;background:#fff;font-family:inherit}
+.plan-search{display:flex;align-items:center;background:#fff;border:1px solid var(--border);border-radius:8px;padding:0 12px}
+.plan-search span{color:var(--light);font-size:.85rem;margin-right:6px}
+.plan-search input{border:none;outline:none;padding:10px 0;font-size:.84rem;font-family:inherit;width:100%;background:transparent}
+.plan-table-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.plan-table-head h3{font-size:.98rem;font-weight:600}
+.plan-exp{font-size:.7rem;color:#c0392b;font-weight:600}
+@media(max-width:820px){.plan-filters{grid-template-columns:1fr}}
 /* reportes */
 .rep-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .rep-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
@@ -740,21 +751,36 @@ input,select,textarea{font-family:inherit}
   <div class="view" id="view-planes">
     <div class="view-inner" style="max-width:1000px">
       <div class="view-head">
-        <div><h2>Planes / Bonos</h2><span class="view-sub">Packs de sesiones prepagadas.</span></div>
-        <div style="display:flex;gap:10px">
-          <button class="btn-g" onclick="exportPlanes()">⬇ Exportar</button>
-          <button class="btn-primary" onclick="openPlanModal()">+ Nuevo bono</button>
+        <div>
+          <h2>Planes</h2>
+          <p class="inv-sub">Gestiona los planes que vendiste y anticípate a sus vencimientos para impulsar las renovaciones.</p>
+        </div>
+        <button class="btn-primary" onclick="openPlanModal()">+ Nuevo bono</button>
+      </div>
+      <div class="sales-panel">
+        <div class="plan-filters">
+          <div>
+            <label>Estado</label>
+            <select id="planStatusF" onchange="renderPlanes()">
+              <option value="all">Todos</option>
+              <option value="active">Activos</option>
+              <option value="completed">Completados</option>
+              <option value="expiring">Por vencer (30 días)</option>
+            </select>
+          </div>
+          <div>
+            <label>Cliente</label>
+            <div class="plan-search"><span>🔍</span><input id="planSearch" placeholder="Buscar" oninput="renderPlanes()" /></div>
+          </div>
         </div>
       </div>
-      <div class="sales-filters">
-        <select id="planStatusF" onchange="renderPlanes()">
-          <option value="active">Activos</option>
-          <option value="completed">Completados</option>
-          <option value="all">Todos</option>
-        </select>
-        <input id="planSearch" placeholder="Buscar cliente o bono..." oninput="renderPlanes()" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem" />
+      <div class="sales-table-card">
+        <div class="plan-table-head">
+          <h3>Detalle de planes</h3>
+          <button class="btn-g" onclick="exportPlanes()">⬇ Exportar</button>
+        </div>
+        <div id="planTable"></div>
       </div>
-      <div id="planTable"></div>
     </div>
   </div>
 
@@ -2652,22 +2678,38 @@ function renderPlanes(){
   const cont=document.getElementById('planTable'); if(!cont) return
   const f=document.getElementById('planStatusF').value
   const q=(document.getElementById('planSearch').value||'').trim().toLowerCase()
+  const today=new Date(); today.setHours(0,0,0,0)
+  const in30=new Date(today); in30.setDate(in30.getDate()+30)
   let list=state.plans.filter(p=>p.status!=='cancelled')
-  list=list.filter(p=>{ const done=(p.used_sessions||0)>=p.total_sessions; return f==='active'?!done : f==='completed'?done : true })
+  list=list.filter(p=>{
+    const done=(p.used_sessions||0)>=p.total_sessions
+    if(f==='active') return !done
+    if(f==='completed') return done
+    if(f==='expiring'){ if(done||!p.expiry_date) return false
+      const e=new Date(p.expiry_date+'T00:00:00'); return e>=today && e<=in30 }
+    return true
+  })
   if(q) list=list.filter(p=>((p.client_name||'')+' '+(p.name||'')).toLowerCase().includes(q))
   if(!state.plans.length){ cont.innerHTML='<div class="empty-state">Aún no hay bonos. Crea el primero con “+ Nuevo bono”.</div>'; return }
-  if(!list.length){ cont.innerHTML='<div class="empty-state">No hay bonos para este filtro.</div>'; return }
+  if(!list.length){ cont.innerHTML='<div class="empty-state">No hay resultados para mostrar</div>'; return }
   cont.innerHTML=`<table class="ctbl">
     <thead><tr><th>Cliente</th><th>Bono</th><th>Progreso</th><th style="text-align:right">Precio</th><th>Vence</th><th></th></tr></thead>
     <tbody>${list.map(p=>{
       const used=p.used_sessions||0, total=p.total_sessions, done=used>=total
-      const exp=p.expiry_date?p.expiry_date.split('-').reverse().join('/'):'—'
+      let exp='—', expWarn=''
+      if(p.expiry_date){
+        exp=p.expiry_date.split('-').reverse().join('/')
+        const e=new Date(p.expiry_date+'T00:00:00')
+        const dias=Math.ceil((e-today)/86400000)
+        if(!done && dias>=0 && dias<=30) expWarn='<div class="plan-exp">Vence en '+dias+' d'+String.fromCharCode(237)+'as</div>'
+        else if(!done && dias<0) expWarn='<div class="plan-exp">Vencido</div>'
+      }
       return `<tr>
         <td class="cname">${esc(p.client_name||'—')}</td>
         <td>${esc(p.name)}${p.service_name?`<div style="font-size:.72rem;color:var(--mid)">${esc(p.service_name)}</div>`:''}</td>
         <td style="min-width:150px"><div style="display:flex;align-items:center;gap:8px"><span class="rr-bar" style="flex:1"><span class="rr-fill" style="width:${used/total*100}%;background:${done?'#27AE60':'var(--gold)'}"></span></span><span style="font-weight:700;font-size:.8rem;white-space:nowrap">${used}/${total}</span></div></td>
         <td style="text-align:right">${fmtMoney(Number(p.price||0))}</td>
-        <td>${exp}</td>
+        <td>${exp}${expWarn}</td>
         <td class="cacts">${done?'<span class="badge paid">Completado</span>':`<button class="mini-btn" onclick="usePlanSession('${p.id}')">Usar sesión</button>`} <button class="mini-btn" onclick="openPlanModal('${p.id}')">Editar</button></td>
       </tr>`}).join('')}</tbody></table>`
 }
