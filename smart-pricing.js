@@ -10,7 +10,8 @@ const SmartPricing = {
 
   async load() {
     try {
-      const rows = await supabase.fetch('bot_config', { filters: 'id=eq.1' })
+      /* vista pública: expone SOLO las reglas de precios, nada más de la configuración */
+      const rows = await supabase.fetch('public_pricing')
       const cfg = rows && rows[0] && rows[0].smart_pricing
       const sp = typeof cfg === 'string' ? JSON.parse(cfg || '{}') : (cfg || {})
       this.on = !!sp.on

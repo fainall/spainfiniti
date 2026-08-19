@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/supa-key.php';
 /**
  * Envío AUTOMÁTICO de recordatorios — Spa Infinity
  * Lo llama un cron cada ~30 min:  curl https://spainfinity.cl/api/send-reminders-cron.php?key=SECRET
@@ -12,7 +13,7 @@ $secret = $cfg['cronKey'] ?? 'spa-cron-2026';
 if (($_GET['key'] ?? '') !== $secret) { http_response_code(403); echo json_encode(['error'=>'forbidden']); exit; }
 
 $SUPA = 'https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
-$KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA';
+$KEY  = supa_key();
 function supa($m,$p,$b=null){ global $SUPA,$KEY; $ch=curl_init($SUPA.$p); $h=['apikey: '.$KEY,'Authorization: Bearer '.$KEY,'Content-Type: application/json']; if($m!=='GET')$h[]='Prefer: return=representation'; curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$m,CURLOPT_HTTPHEADER=>$h,CURLOPT_TIMEOUT=>15]); if($b!==null)curl_setopt($ch,CURLOPT_POSTFIELDS,json_encode($b)); $r=curl_exec($ch); curl_close($ch); return json_decode($r,true); }
 
 $botRows = supa('GET','bot_config?id=eq.1'); $bot = $botRows[0] ?? [];

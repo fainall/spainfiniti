@@ -683,7 +683,8 @@ body {
   <div class="login-box">
     <h1>Spa Infinity</h1>
     <div class="subtitle">Panel de Administración</div>
-    <input type="password" id="loginPass" placeholder="Contraseña de administrador" onkeydown="if(event.key==='Enter')doLogin()" />
+    <input type="email" id="loginEmail" placeholder="Correo" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()" />
+    <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
     <button onclick="doLogin()">INGRESAR</button>
     <div class="login-error" id="loginError">Contraseña incorrecta</div>
   </div>
@@ -1061,22 +1062,49 @@ function saveAll() {
 }
 
 /* ── LOGIN ────────────────────── */
-function doLogin() {
+async function doLogin() {
+  const email = (document.getElementById('loginEmail').value || '').trim()
   const pass = document.getElementById('loginPass').value
-  if (pass === ADMIN_PASS) {
+  const err = document.getElementById('loginError')
+  err.style.display = 'none'
+
+  /* respaldo: clave maestra sin correo (mientras se crean las cuentas) */
+  if (!email && pass === ADMIN_PASS) {
     localStorage.setItem('spa_admin_auth', 'true')
     document.getElementById('loginScreen').style.display = 'none'
     document.getElementById('adminPanel').style.display = 'flex'
     initAdmin()
-  } else {
-    document.getElementById('loginError').style.display = 'block'
+    return
+  }
+  if (!email || !pass) { err.textContent = 'Escribe tu correo y contraseña'; err.style.display = 'block'; return }
+
+  try {
+    await supaAuth.signIn(email, pass)
+    /* solo administradores pueden editar el sitio */
+    const rows = await supabase.fetch('panel_users', { filters: 'id=eq.' + supaAuth.session().user.id })
+    const perfil = rows && rows[0]
+    if (!perfil || perfil.role !== 'admin') {
+      supaAuth.signOut()
+      err.textContent = 'Tu cuenta no tiene permisos de administrador'
+      err.style.display = 'block'
+      return
+    }
+    localStorage.setItem('spa_admin_auth', 'true')
+    document.getElementById('loginScreen').style.display = 'none'
+    document.getElementById('adminPanel').style.display = 'flex'
+    initAdmin()
+  } catch (e) {
+    err.textContent = /Invalid login/i.test(e.message) ? 'Correo o contraseña incorrectos' : e.message
+    err.style.display = 'block'
   }
 }
 function doLogout() {
+  if (typeof supaAuth !== 'undefined') supaAuth.signOut()
   localStorage.removeItem('spa_admin_auth')
   location.reload()
 }
 if (localStorage.getItem('spa_admin_auth') === 'true') {
+  if (typeof supaAuth !== 'undefined' && supaAuth.session()) supaAuth.ensureFresh()
   document.getElementById('loginScreen').style.display = 'none'
   document.getElementById('adminPanel').style.display = 'flex'
   initAdmin()

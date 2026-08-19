@@ -1,10 +1,11 @@
 <?php
+require_once __DIR__ . '/supa-key.php';
 /** Desuscripción de emails — Spa Infinity. Agrega el email a email_suppressions. */
 $email = trim($_GET['e'] ?? '');
 $ok = false;
 if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
     $SUPA='https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
-    $KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA';
+    $KEY=supa_key();
     $ch=curl_init($SUPA.'email_suppressions');
     curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_HTTPHEADER=>['apikey: '.$KEY,'Authorization: Bearer '.$KEY,'Content-Type: application/json','Prefer: resolution=ignore-duplicates'],CURLOPT_POSTFIELDS=>json_encode(['email'=>$email]),CURLOPT_TIMEOUT=>15]);
     curl_exec($ch); $code=curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);

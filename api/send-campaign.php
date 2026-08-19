@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/supa-key.php';
 /**
  * Envío de campaña de Email Marketing — Spa Infinity
  * POST JSON { key, subject, imageUrl?, message, btnText?, btnUrl?, clientIds:[...] }
@@ -26,7 +27,7 @@ if (!is_array($ids) || !count($ids)) { echo json_encode(['sent'=>0,'skipped'=>0,
 $ids = array_slice($ids, 0, 300); // tope de seguridad
 
 $SUPA='https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
-$KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA';
+$KEY=supa_key();
 function supa($m,$p,$b=null){ global $SUPA,$KEY; $ch=curl_init($SUPA.$p); $h=['apikey: '.$KEY,'Authorization: Bearer '.$KEY,'Content-Type: application/json']; if($m!=='GET')$h[]='Prefer: return=representation'; curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$m,CURLOPT_HTTPHEADER=>$h,CURLOPT_TIMEOUT=>20]); if($b!==null)curl_setopt($ch,CURLOPT_POSTFIELDS,json_encode($b)); $r=curl_exec($ch); curl_close($ch); return json_decode($r,true); }
 
 $idList = implode(',', array_map(fn($x)=>'"'.$x.'"', $ids));

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/supa-key.php';
 /**
  * Cerebro del asistente de reservas — Spa Infinity (OpenAI)
  * POST JSON { messages:[{role,content}...], phone?:string }
@@ -17,7 +18,7 @@ if (!$KEY || strpos($KEY,'sk-')!==0) { echo json_encode(['reply'=>'⚙️ Falta 
 $MODEL = $cfg['model'] ?? 'gpt-4o-mini';
 
 $SUPA_URL = 'https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
-$SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA';
+$SUPA_KEY = supa_key();
 
 function supa($method, $path, $body = null) {
     global $SUPA_URL, $SUPA_KEY;
