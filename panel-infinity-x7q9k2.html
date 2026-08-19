@@ -1515,6 +1515,11 @@ label.chk input{width:auto;margin:0}
           <select id="svcCat"></select>
           <button class="mini-link" onclick="openSvcCatModal()">+ Nueva categoría</button>
         </div>
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Selecciona qué profesionales realizarán el servicio</h3>
+          <label class="chk" style="font-weight:700"><input type="checkbox" id="svcAllProf" onchange="document.querySelectorAll('#svcProfs input').forEach(c=>c.checked=this.checked)" /> <span>Seleccionar todo</span></label>
+          <div id="svcProfs" style="margin-top:8px"></div>
+        </div>
       </div>
       <div class="mtab-pane" id="svtab-web">
         <div class="fbox">
@@ -4067,6 +4072,14 @@ function openSvcModal(id){
   let inc=[]
   try{ inc=raw? (Array.isArray(raw.includes)?raw.includes:JSON.parse(raw.includes||'[]')) : [] }catch(e){}
   document.getElementById('svcIncludes').value=inc.join('\n')
+  // profesionales que lo realizan (se lee de lo guardado en cada profesional)
+  const svcName=s?s.name:''
+  const doesIt=p=>{ const sv=metaOf(p.id).services
+    return !sv || sv==='all' || (svcName && sv.includes(svcName)) || !svcName }
+  document.getElementById('svcProfs').innerHTML=state.professionals.map(p=>
+    `<label class="chk" style="padding:4px 0"><input type="checkbox" value="${p.id}" ${doesIt(p)?'checked':''} /> <span>${esc(p.name)}</span></label>`).join('')
+    || '<p class="rem-note" style="margin:0">Aún no hay profesionales.</p>'
+  document.getElementById('svcAllProf').checked=state.professionals.every(doesIt)
   document.getElementById('svcDelBtn').style.display=s?'block':'none'
   svcTab('basicos')
   openModal('svcModal')
@@ -4088,12 +4101,29 @@ async function saveSvc(){
     original_price:document.getElementById('svcOrig').value.trim(),
     discount_label:document.getElementById('svcDiscLbl').value.trim(),
     includes:document.getElementById('svcIncludes').value.split('\n').map(x=>x.trim()).filter(Boolean) }
+  const oldName=(state.services.find(x=>x.id===id)||{}).name
   try{
     if(id) await supabase.update('services',id,row)
     else await supabase.insert('services',{ ...row, id:slugify(name)+'-'+Date.now().toString(36).slice(-4), sort_order:999 })
-    await reloadServices(); closeModal('svcModal'); renderAdmin()
+    await reloadServices()
+    await saveSvcProfs(name, oldName)
+    closeModal('svcModal'); renderAdmin()
     toast('Servicio guardado · ya se ve en el sitio web','success')
   }catch(e){ console.error(e); toast('Error al guardar el servicio','error') }
+}
+/* guarda, para cada profesional, si realiza o no este servicio */
+async function saveSvcProfs(name, oldName){
+  const marcados=new Set([...document.querySelectorAll('#svcProfs input:checked')].map(c=>c.value))
+  const todos=state.services.map(s=>s.name)
+  state.professionals.forEach(p=>{
+    const m=profMeta[p.id]=profMeta[p.id]||{}
+    let list = (!m.services || m.services==='all') ? todos.slice() : m.services.slice()
+    if(oldName && oldName!==name) list=list.map(n=>n===oldName?name:n)
+    list=list.filter(n=>n!==name)
+    if(marcados.has(p.id)) list.push(name)
+    m.services = list.length===todos.length ? 'all' : list
+  })
+  await persistProfMeta()
 }
 async function deleteSvc(){
   const id=document.getElementById('svcId').value
