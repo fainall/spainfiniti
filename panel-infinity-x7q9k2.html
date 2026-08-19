@@ -1405,6 +1405,7 @@ label.chk input{width:auto;margin:0}
             <button class="adm-nav" onclick="switchView('encuestas')">📊 Encuestas</button>
             <button class="adm-nav" onclick="switchView('asistente')">💬 WhatsApp / Asistente</button>
             <button class="adm-nav" onclick="switchView('recordatorios')">🔔 Recordatorios</button>
+            <button class="adm-nav" data-sec="precios" onclick="admSec('precios')">💲 Precios Inteligentes</button>
           </div>
         </div>
       </aside>
@@ -1489,6 +1490,38 @@ label.chk input{width:auto;margin:0}
         <button class="btn-danger" id="proDelBtn" onclick="deletePro()" style="display:none">Eliminar</button>
         <button class="btn-ghost" onclick="closeModal('proModal')">Cerrar</button>
         <button class="btn-primary" onclick="savePro()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: regla de precio inteligente -->
+  <div class="modal-ov" id="spModal">
+    <div class="modal" style="width:640px;max-width:94vw">
+      <h2 id="spTitle">Nueva regla de descuento</h2>
+      <input type="hidden" id="spId" />
+      <div class="fbox">
+        <label>Nombre de la regla <span style="color:var(--red)">*</span></label>
+        <input type="text" id="spName" placeholder="Ej: Martes de tarde" />
+        <div class="row2" style="margin-top:14px">
+          <div><label>Descuento (%)</label><input type="number" id="spPct" min="5" max="70" step="5" value="20" /></div>
+          <div><label>Estado</label><select id="spActive"><option value="1">Activa</option><option value="0">Pausada</option></select></div>
+        </div>
+        <label style="margin-top:14px">Días en que aplica</label>
+        <div class="wd-picker" id="spDays"></div>
+        <div class="row2" style="margin-top:14px">
+          <div><label>Desde</label><select id="spFrom"></select></div>
+          <div><label>Hasta</label><select id="spTo"></select></div>
+        </div>
+      </div>
+      <div class="fbox">
+        <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Servicios con descuento</h3>
+        <label class="chk" style="font-weight:700"><input type="checkbox" id="spAllSvc" onchange="document.querySelectorAll('#spSvcs input').forEach(c=>c.checked=this.checked)" /> <span>Todos los servicios</span></label>
+        <div id="spSvcs" style="margin-top:8px;max-height:220px;overflow:auto"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="spDelBtn" onclick="deleteSmartRule()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('spModal')">Cancelar</button>
+        <button class="btn-primary" onclick="saveSmartRule()">Guardar</button>
       </div>
     </div>
   </div>
@@ -3862,6 +3895,7 @@ function renderAdmin(){
   else if(admCurrent==='profesionales') el.innerHTML=admProfesionales()
   else if(admCurrent==='comisiones'){ el.innerHTML=admComisiones(); renderLiquidacion() }
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
+  else if(admCurrent==='precios') el.innerHTML=admPrecios()
   else el.innerHTML=admServicios()
 }
 function admLocales(){
@@ -3876,6 +3910,135 @@ function admLocales(){
       <button class="mini-btn" onclick="openLocalModal()">✎ Editar</button>
     </div>`
 }
+/* ── ADMINISTRACIÓN · PRECIOS INTELIGENTES ──
+   Descuentos automáticos en las franjas de baja demanda. Se guardan en
+   bot_config.smart_pricing y el asistente los usa al ofrecer horas. */
+let smartRules=[], smartOn=false
+function loadSmartPricing(){
+  try{ const l=JSON.parse(localStorage.getItem('spa_smart_pricing')||'null')
+    if(l){ smartRules=l.rules||[]; smartOn=!!l.on } }catch(e){}
+  if(botCfg && botCfg.smart_pricing){ smartRules=botCfg.smart_pricing.rules||[]; smartOn=!!botCfg.smart_pricing.on }
+}
+async function persistSmartPricing(){
+  const obj={on:smartOn, rules:smartRules}
+  localStorage.setItem('spa_smart_pricing',JSON.stringify(obj))
+  try{ await supabase.update('bot_config','1',{smart_pricing:obj}); botCfg.smart_pricing=obj; return true }
+  catch(e){ return false }
+}
+/* ocupación por franja: sirve para sugerir dónde conviene descontar */
+function demandaPorFranja(){
+  const slots={}
+  const hoy=new Date(); const from=isoDate(addDays(hoy,-56)), to=isoDate(hoy)
+  state.appointments.filter(a=>a.status!=='block' && a.appt_date>=from && a.appt_date<=to).forEach(a=>{
+    const d=new Date(a.appt_date+'T00:00:00').getDay()
+    const h=parseInt(a.start_time.slice(0,2))
+    const k=d+'|'+(h<13?'manana':h<17?'tarde':'noche')
+    slots[k]=(slots[k]||0)+1
+  })
+  return slots
+}
+function franjaLabel(k){
+  const [d,f]=k.split('|')
+  return DOW_ADM[(Number(d)+6)%7]+' · '+({manana:'mañana',tarde:'tarde',noche:'tarde-noche'})[f]
+}
+function admPrecios(){
+  if(!smartOn && !smartRules.length){
+    return `<div class="rr-panel" style="padding:26px 28px">
+      <span class="badge" style="background:#e4f7ec;color:#2e9e63">Sin costo adicional</span>
+      <p class="rem-note" style="margin:14px 0 6px">¿Agenda llena el sábado y muerta un martes a las 3?</p>
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.45rem;margin-bottom:10px">Llena tus horas menos concurridas con los Precios Inteligentes</h3>
+      <p class="inv-sub" style="max-width:560px">Define descuentos automáticos para tus horas de baja demanda y atrae clientes nuevos, sin tocar el precio de tus horarios llenos.</p>
+      <div style="margin:18px 0 22px;display:flex;flex-direction:column;gap:10px">
+        ${['Aplica descuentos automáticos en las franjas de baja demanda',
+           'Atrae clientes que buscan una oportunidad para probarte',
+           'Mide el impacto en la ocupación y decide qué reglas mantener',
+           'El asistente de WhatsApp ofrece esas horas con su precio rebajado']
+          .map(t=>`<div style="display:flex;gap:10px;align-items:flex-start;font-size:.86rem"><span style="color:#2e9e63;font-weight:700">✓</span><span>${t}</span></div>`).join('')}
+      </div>
+      <button class="btn-primary" onclick="startSmartPricing()">Empezar ahora</button>
+    </div>`
+  }
+  const dem=demandaPorFranja()
+  const flojas=Object.entries(dem).sort((a,b)=>a[1]-b[1]).slice(0,3)
+  const rows=smartRules.map(r=>`<div class="adm-row">
+      <span class="ar-name">${esc(r.name)}</span>
+      <span class="ar-meta">${(r.days||[]).map(d=>DOW_ADM[(d+6)%7].slice(0,3)).join(' · ')||'sin días'} · ${r.from}–${r.to}</span>
+      <span class="ar-meta">${r.services==='all'?'Todos los servicios':(r.services||[]).length+' servicios'}</span>
+      <strong style="color:#2e9e63">−${r.pct}%</strong>
+      <span class="adm-dot ${r.active?'':'off'}">● ${r.active?'Activa':'Pausada'}</span>
+      <button class="mini-btn" onclick="openSmartRule('${r.id}')">✎ Editar</button>
+    </div>`).join('')
+  return `<div class="inv-notice">⭐ <strong>Precios inteligentes:</strong> aplican un descuento automático en las horas que sueles tener vacías. El precio normal de tus horarios llenos no se toca.</div>
+    <div class="adm-head">
+      <label class="chk"><input type="checkbox" ${smartOn?'checked':''} onchange="toggleSmartPricing(this.checked)" /> <span>Descuentos activos</span></label>
+      <button class="btn-primary" onclick="openSmartRule()">+ Nueva regla</button>
+    </div>
+    ${rows || '<div class="empty-state">Aún no has creado reglas de descuento.</div>'}
+    <div class="rr-panel" style="margin-top:18px">
+      <h5>Tus franjas con menos demanda (últimas 8 semanas)</h5>
+      ${flojas.length ? flojas.map(([k,n])=>`<div class="rs-line"><span class="rl-n">${franjaLabel(k)}</span><span class="rl-v">${n} reservas</span></div>`).join('')
+        : '<p class="rem-note" style="margin:0">Aún no hay suficientes reservas para calcular la demanda por franja.</p>'}
+      <p class="rem-note" style="margin-top:10px">Son las horas donde un descuento rinde más: no compites contra tu propia demanda.</p>
+    </div>`
+}
+async function startSmartPricing(){ smartOn=true; await persistSmartPricing(); renderAdmin(); openSmartRule() }
+async function toggleSmartPricing(on){ smartOn=on; await persistSmartPricing(); renderAdmin()
+  toast(on?'Descuentos activados':'Descuentos pausados','success') }
+function openSmartRule(id){
+  const r=id?smartRules.find(x=>x.id===id):null
+  document.getElementById('spTitle').textContent=r?'Editando '+r.name:'Nueva regla de descuento'
+  document.getElementById('spId').value=r?r.id:''
+  document.getElementById('spName').value=r?r.name:''
+  document.getElementById('spPct').value=r?r.pct:20
+  document.getElementById('spActive').value=r&&!r.active?'0':'1'
+  document.getElementById('spDays').innerHTML=[1,2,3,4,5,6,0].map(d=>
+    `<button type="button" class="wd${r&&r.days.includes(d)?' on':''}" data-spd="${d}" onclick="this.classList.toggle('on')">${DOW_ADM[(d+6)%7].slice(0,3)}</button>`).join('')
+  document.getElementById('spFrom').innerHTML=hourOpts(r?r.from:'14:00')
+  document.getElementById('spTo').innerHTML=hourOpts(r?r.to:'17:00')
+  const sel=r?r.services:'all'
+  document.getElementById('spSvcs').innerHTML=state.services.map(s=>
+    `<label class="chk" style="padding:4px 0"><input type="checkbox" value="${esc(s.name)}" ${sel==='all'||(sel||[]).includes(s.name)?'checked':''} /> <span>${esc(s.name)} <span style="color:var(--light)">${esc(s.price||'')}</span></span></label>`).join('')
+    || '<p class="rem-note" style="margin:0">Aún no hay servicios.</p>'
+  document.getElementById('spAllSvc').checked=(sel==='all')
+  document.getElementById('spDelBtn').style.display=r?'block':'none'
+  openModal('spModal')
+}
+async function saveSmartRule(){
+  const name=document.getElementById('spName').value.trim()
+  if(!name){ toast('Ponle nombre a la regla','error'); return }
+  const days=[...document.querySelectorAll('#spDays .wd.on')].map(b=>parseInt(b.dataset.spd))
+  if(!days.length){ toast('Elige al menos un día','error'); return }
+  const marcados=[...document.querySelectorAll('#spSvcs input:checked')].map(c=>c.value)
+  const obj={ id:document.getElementById('spId').value||('sp-'+slugify(name)), name,
+    pct:parseInt(document.getElementById('spPct').value)||10,
+    active:document.getElementById('spActive').value==='1', days,
+    from:document.getElementById('spFrom').value, to:document.getElementById('spTo').value,
+    services: marcados.length===state.services.length ? 'all' : marcados }
+  const i=smartRules.findIndex(x=>x.id===obj.id)
+  if(i>=0) smartRules[i]=obj; else smartRules.push(obj)
+  smartOn=true
+  const ok=await persistSmartPricing()
+  closeModal('spModal'); renderAdmin()
+  toast(ok?'Regla guardada':'Guardada solo en este navegador','success')
+}
+async function deleteSmartRule(){
+  const id=document.getElementById('spId').value
+  if(!id||!confirm('¿Eliminar esta regla de descuento?')) return
+  smartRules=smartRules.filter(r=>r.id!==id)
+  await persistSmartPricing(); closeModal('spModal'); renderAdmin(); toast('Regla eliminada','success')
+}
+/* precio con descuento para una fecha/hora/servicio concretos */
+function smartPriceFor(dateStr, timeStr, serviceName, basePrice){
+  if(!smartOn) return {price:basePrice, pct:0}
+  const d=new Date(dateStr+'T00:00:00').getDay()
+  const hhmm=String(timeStr||'').slice(0,5)
+  const r=smartRules.find(x=>x.active && x.days.includes(d) && hhmm>=x.from && hhmm<x.to
+    && (x.services==='all' || (x.services||[]).includes(serviceName)))
+  if(!r) return {price:basePrice, pct:0}
+  const base=parseMoney(basePrice)
+  return {price:Math.round(base*(100-r.pct)/100), pct:r.pct, rule:r.name}
+}
+
 /* ── ADMINISTRACIÓN · PLANES (catálogo de membresías) ──
    Son las plantillas que luego se venden a un cliente en Ventas → Planes / Bonos.
    Se guardan en bot_config.plan_templates. */
@@ -6808,6 +6971,7 @@ async function boot(){
   loadSvcCats()
   loadCommCfg()
   loadPlanTpls()
+  loadSmartPricing()
   render()
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
