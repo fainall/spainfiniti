@@ -1401,7 +1401,7 @@ label.chk input{width:auto;margin:0}
           <button class="adm-box-head" onclick="document.getElementById('admAdvanced').classList.toggle('hide')">Opciones avanzadas <span>▾</span></button>
           <div id="admAdvanced">
             <button class="adm-nav" data-sec="comisiones" onclick="admSec('comisiones')">💰 Comisiones</button>
-            <button class="adm-nav" onclick="switchView('planes')">🎟 Planes / bonos</button>
+            <button class="adm-nav" data-sec="planes" onclick="admSec('planes')">🎟 Planes</button>
             <button class="adm-nav" onclick="switchView('encuestas')">📊 Encuestas</button>
             <button class="adm-nav" onclick="switchView('asistente')">💬 WhatsApp / Asistente</button>
             <button class="adm-nav" onclick="switchView('recordatorios')">🔔 Recordatorios</button>
@@ -1489,6 +1489,54 @@ label.chk input{width:auto;margin:0}
         <button class="btn-danger" id="proDelBtn" onclick="deletePro()" style="display:none">Eliminar</button>
         <button class="btn-ghost" onclick="closeModal('proModal')">Cerrar</button>
         <button class="btn-primary" onclick="savePro()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: plantilla de plan -->
+  <div class="modal-ov" id="planTplModal">
+    <div class="modal" style="width:820px;max-width:94vw">
+      <h2 id="ptTitle">Nuevo plan</h2>
+      <input type="hidden" id="ptId" />
+      <div class="fbox">
+        <label>Nombre <span style="color:var(--red)">*</span></label>
+        <input type="text" id="ptName" placeholder="Nombre del plan" />
+        <div class="row2" style="margin-top:14px">
+          <div><label>Precio <span style="color:var(--red)">*</span></label><input type="number" id="ptPrice" min="0" step="1000" value="0" /></div>
+          <div><label>Comisión de venta</label>
+            <div style="display:flex;gap:8px">
+              <input type="number" id="ptComm" min="0" value="0" style="flex:1" />
+              <select id="ptCommType" style="width:110px"><option value="pct">%</option><option value="clp">$ fijo</option></select>
+            </div>
+          </div>
+        </div>
+        <label class="chk" style="margin-top:12px"><input type="checkbox" id="ptIva" /> <span>Incluye IVA</span></label>
+      </div>
+      <div class="fbox">
+        <h3 style="font-size:.95rem;font-weight:600">Configuración</h3>
+        <p class="rem-note" style="margin:4px 0 10px">Selecciona el tipo de plan: estándar (servicios definidos) o de libre elección (el cliente usa las sesiones en cualquier servicio de la lista).</p>
+        <select id="ptType" onchange="renderPtServices()">
+          <option value="std">Estándar</option>
+          <option value="free">Libre elección</option>
+        </select>
+      </div>
+      <div class="fbox">
+        <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Establecer servicios</h3>
+        <div id="ptServices"></div>
+        <button class="btn-g" style="margin-top:10px;background:#2e9e63;color:#fff;border-color:#2e9e63" onclick="addPtService()">+ Servicio</button>
+      </div>
+      <div class="fbox">
+        <h3 style="font-size:.95rem;font-weight:600">Vencimiento del plan</h3>
+        <p class="rem-note" style="margin:4px 0 10px">Establece la duración general del plan desde la fecha de compra.</p>
+        <select id="ptExpiry">
+          <option value="30">1 mes</option><option value="60">2 meses</option><option value="90" selected>3 meses</option>
+          <option value="180">6 meses</option><option value="365">1 año</option><option value="0">Sin vencimiento</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="ptDelBtn" onclick="deletePlanTpl()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('planTplModal')">Cancelar</button>
+        <button class="btn-primary" onclick="savePlanTpl()">Guardar</button>
       </div>
     </div>
   </div>
@@ -3813,6 +3861,7 @@ function renderAdmin(){
   if(admCurrent==='locales') el.innerHTML=admLocales()
   else if(admCurrent==='profesionales') el.innerHTML=admProfesionales()
   else if(admCurrent==='comisiones'){ el.innerHTML=admComisiones(); renderLiquidacion() }
+  else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else el.innerHTML=admServicios()
 }
 function admLocales(){
@@ -3827,6 +3876,112 @@ function admLocales(){
       <button class="mini-btn" onclick="openLocalModal()">✎ Editar</button>
     </div>`
 }
+/* ── ADMINISTRACIÓN · PLANES (catálogo de membresías) ──
+   Son las plantillas que luego se venden a un cliente en Ventas → Planes / Bonos.
+   Se guardan en bot_config.plan_templates. */
+let planTpls=[], ptItems=[]
+function loadPlanTpls(){
+  try{ const l=JSON.parse(localStorage.getItem('spa_plan_tpls')||'null'); if(l) planTpls=l }catch(e){}
+  if(botCfg && botCfg.plan_templates) planTpls=botCfg.plan_templates
+}
+async function persistPlanTpls(){
+  localStorage.setItem('spa_plan_tpls',JSON.stringify(planTpls))
+  try{ await supabase.update('bot_config','1',{plan_templates:planTpls}); botCfg.plan_templates=planTpls; return true }
+  catch(e){ return false }
+}
+function planTplSessions(t){ return (t.items||[]).reduce((a,i)=>a+Number(i.qty||0),0) }
+function admPlanes(){
+  const q=(document.getElementById('ptSearch')||{}).value||''
+  const list=planTpls.filter(t=>!q || t.name.toLowerCase().includes(q.toLowerCase()))
+  const rows=list.map(t=>`<div class="adm-row">
+      <span class="ar-name">${esc(t.name)}</span>
+      <span class="ar-meta">${t.type==='free'?'Libre elección':'Estándar'} · ${planTplSessions(t)} sesiones</span>
+      <span class="ar-meta">${(t.items||[]).map(i=>esc(i.name)+' ×'+i.qty).join(' · ')||'sin servicios'}</span>
+      <span class="ar-meta">${t.expiry?('Vence en '+t.expiry+' días'):'Sin vencimiento'}</span>
+      <strong>${fmtMoney(t.price)}</strong>
+      <button class="mini-btn" onclick="sellPlanTpl('${t.id}')">Vender</button>
+      <button class="mini-btn" onclick="openPlanTplModal('${t.id}')">✎ Editar</button>
+    </div>`).join('')
+  return `<div class="mtabs" style="margin-bottom:14px"><button class="on">Planes</button></div>
+    <div class="adm-head">
+      <input type="text" id="ptSearch" placeholder="🔍 Búsqueda rápida" oninput="renderAdmin()" value="${esc(q)}"
+        style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:.85rem;min-width:240px" />
+      <button class="btn-primary" style="background:#2e9e63;border-color:#2e9e63" onclick="openPlanTplModal()">Nuevo plan</button>
+    </div>
+    <div class="inv-notice">⭐ Los planes son paquetes de sesiones que le vendes a un cliente (ej: 10 masajes en 3 meses). Créalos aquí y luego véndelos desde <strong>Ventas → Planes / Bonos</strong>; ahí se descuentan las sesiones usadas.</div>
+    ${rows || '<div class="empty-state"><div style="font-size:2.4rem;margin-bottom:6px">🔍</div>No hay membresías para mostrar.</div>'}`
+}
+function renderPtServices(){
+  const box=document.getElementById('ptServices'); if(!box) return
+  const free=document.getElementById('ptType').value==='free'
+  if(!ptItems.length){ box.innerHTML='<p class="rem-note" style="margin:0">Agrega al menos un servicio al plan.</p>'; return }
+  box.innerHTML=ptItems.map((it,i)=>`<div class="sale-item" style="gap:8px;align-items:center">
+    <select style="flex:1;padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-size:.82rem" onchange="ptItems[${i}].name=this.value">
+      ${state.services.map(s=>`<option ${s.name===it.name?'selected':''}>${esc(s.name)}</option>`).join('')}
+    </select>
+    <input type="number" min="1" value="${it.qty}" style="width:70px;padding:7px" oninput="ptItems[${i}].qty=parseInt(this.value)||1" />
+    <span style="font-size:.78rem;color:var(--mid);white-space:nowrap">sesiones máx.${free?' (canjeables en cualquier servicio)':''}</span>
+    <button class="si-del" onclick="ptItems.splice(${i},1);renderPtServices()">✕</button>
+  </div>`).join('')
+}
+function addPtService(){
+  if(!state.services.length){ toast('Primero crea servicios','error'); return }
+  ptItems.push({name:state.services[0].name, qty:1}); renderPtServices()
+}
+function openPlanTplModal(id){
+  const t=id?planTpls.find(x=>x.id===id):null
+  document.getElementById('ptTitle').textContent=t?'Editando '+t.name:'Nuevo plan'
+  document.getElementById('ptId').value=t?t.id:''
+  document.getElementById('ptName').value=t?t.name:''
+  document.getElementById('ptPrice').value=t?t.price:0
+  document.getElementById('ptComm').value=t?(t.comm||0):0
+  document.getElementById('ptCommType').value=t?(t.commType||'pct'):'pct'
+  document.getElementById('ptIva').checked=!!(t&&t.iva)
+  document.getElementById('ptType').value=t?(t.type||'std'):'std'
+  document.getElementById('ptExpiry').value=t?String(t.expiry||0):'90'
+  ptItems=t?(t.items||[]).map(i=>({...i})):[]
+  renderPtServices()
+  document.getElementById('ptDelBtn').style.display=t?'block':'none'
+  openModal('planTplModal')
+}
+async function savePlanTpl(){
+  const name=document.getElementById('ptName').value.trim()
+  if(!name){ toast('Falta el nombre del plan','error'); return }
+  if(!ptItems.length){ toast('Agrega al menos un servicio','error'); return }
+  const obj={ id:document.getElementById('ptId').value||('plan-'+slugify(name)), name,
+    price:parseInt(document.getElementById('ptPrice').value)||0,
+    comm:parseInt(document.getElementById('ptComm').value)||0,
+    commType:document.getElementById('ptCommType').value,
+    iva:document.getElementById('ptIva').checked,
+    type:document.getElementById('ptType').value,
+    expiry:parseInt(document.getElementById('ptExpiry').value)||0,
+    items:ptItems.map(i=>({...i})) }
+  const i=planTpls.findIndex(x=>x.id===obj.id)
+  if(i>=0) planTpls[i]=obj; else planTpls.push(obj)
+  const ok=await persistPlanTpls()
+  closeModal('planTplModal'); renderAdmin()
+  toast(ok?'Plan guardado':'Guardado solo en este navegador','success')
+}
+async function deletePlanTpl(){
+  const id=document.getElementById('ptId').value
+  if(!id||!confirm('¿Eliminar este plan del catálogo? Los bonos ya vendidos no se tocan.')) return
+  planTpls=planTpls.filter(t=>t.id!==id)
+  await persistPlanTpls(); closeModal('planTplModal'); renderAdmin(); toast('Plan eliminado','success')
+}
+/* vender: abre el modal de bonos ya con los datos del plan */
+function sellPlanTpl(id){
+  const t=planTpls.find(x=>x.id===id); if(!t) return
+  switchView('planes')
+  setTimeout(()=>{
+    openPlanModal()
+    const set=(el,v)=>{ const e=document.getElementById(el); if(e) e.value=v }
+    set('planName',t.name); set('planPrice',t.price); set('planTotal',planTplSessions(t))
+    if(t.items[0]) set('planService',t.items[0].name)
+    if(t.expiry){ const d=addDays(new Date(),t.expiry); set('planExpiry',isoDate(d)) }
+    toast('Completa el cliente y guarda la venta del plan','success')
+  },80)
+}
+
 /* ── ADMINISTRACIÓN · COMISIONES ──
    Config: bot_config.comm_cfg = { default:{profId:pct}, services:{profId:{nombre:pct}},
    plans:{profId:{nombre:pct}}, products:{profId:{nombre:pct}} }
@@ -6652,6 +6807,7 @@ async function boot(){
   loadSvcExtras()
   loadSvcCats()
   loadCommCfg()
+  loadPlanTpls()
   render()
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
