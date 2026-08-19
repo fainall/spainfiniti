@@ -1400,7 +1400,7 @@ label.chk input{width:auto;margin:0}
         <div class="adm-box">
           <button class="adm-box-head" onclick="document.getElementById('admAdvanced').classList.toggle('hide')">Opciones avanzadas <span>▾</span></button>
           <div id="admAdvanced">
-            <button class="adm-nav" onclick="switchView('comisiones')">💰 Comisiones</button>
+            <button class="adm-nav" data-sec="comisiones" onclick="admSec('comisiones')">💰 Comisiones</button>
             <button class="adm-nav" onclick="switchView('planes')">🎟 Planes / bonos</button>
             <button class="adm-nav" onclick="switchView('encuestas')">📊 Encuestas</button>
             <button class="adm-nav" onclick="switchView('asistente')">💬 WhatsApp / Asistente</button>
@@ -1489,6 +1489,30 @@ label.chk input{width:auto;margin:0}
         <button class="btn-danger" id="proDelBtn" onclick="deletePro()" style="display:none">Eliminar</button>
         <button class="btn-ghost" onclick="closeModal('proModal')">Cerrar</button>
         <button class="btn-primary" onclick="savePro()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: comisiones de un profesional -->
+  <div class="modal-ov" id="commModal">
+    <div class="modal" style="width:680px;max-width:94vw">
+      <h2 id="cmTitle">Comisiones</h2>
+      <input type="hidden" id="cmProf" /><input type="hidden" id="cmKind" />
+      <div class="fbox" id="cmDefaultBox">
+        <label>Comisión por defecto (%)</label>
+        <input type="number" id="cmDefault" min="0" max="100" value="0" />
+        <p class="rem-note" style="margin-top:6px">Se aplica a todo lo que no tenga una comisión propia definida abajo.</p>
+      </div>
+      <div class="fbox">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h3 style="font-size:.95rem;font-weight:600" id="cmListTitle">Comisión por servicio</h3>
+          <button class="mini-link" onclick="cmApplyAll()">Aplicar la comisión por defecto a todos</button>
+        </div>
+        <div id="cmList" style="max-height:340px;overflow:auto"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('commModal')">Cerrar</button>
+        <button class="btn-primary" onclick="saveCommCfg()">Guardar</button>
       </div>
     </div>
   </div>
@@ -3788,6 +3812,7 @@ function renderAdmin(){
   const el=document.getElementById('admMain'); if(!el) return
   if(admCurrent==='locales') el.innerHTML=admLocales()
   else if(admCurrent==='profesionales') el.innerHTML=admProfesionales()
+  else if(admCurrent==='comisiones'){ el.innerHTML=admComisiones(); renderLiquidacion() }
   else el.innerHTML=admServicios()
 }
 function admLocales(){
@@ -3802,6 +3827,198 @@ function admLocales(){
       <button class="mini-btn" onclick="openLocalModal()">✎ Editar</button>
     </div>`
 }
+/* ── ADMINISTRACIÓN · COMISIONES ──
+   Config: bot_config.comm_cfg = { default:{profId:pct}, services:{profId:{nombre:pct}},
+   plans:{profId:{nombre:pct}}, products:{profId:{nombre:pct}} }
+   Abajo, la liquidación por profesional: qué hizo y cuánto ganó, con export. */
+let commCfg={default:{},services:{},plans:{},products:{}}, admCommTab='servicios', liqGroup='dia'
+function loadCommCfg(){
+  try{ const l=JSON.parse(localStorage.getItem('spa_comm_cfg')||'null'); if(l) commCfg=Object.assign(commCfg,l) }catch(e){}
+  if(botCfg && botCfg.comm_cfg) commCfg=Object.assign(commCfg, botCfg.comm_cfg)
+}
+async function persistCommCfg(){
+  localStorage.setItem('spa_comm_cfg',JSON.stringify(commCfg))
+  try{ await supabase.update('bot_config','1',{comm_cfg:commCfg}); botCfg.comm_cfg=commCfg; return true }
+  catch(e){ return false }
+}
+function commDefaultOf(profId){
+  if(commCfg.default[profId]!==undefined) return Number(commCfg.default[profId])
+  const p=state.professionals.find(x=>x.id===profId)
+  return Number((p&&p.commission_pct)||0)
+}
+/* % que se le paga a un profesional por un ítem concreto */
+function commPctFor(profId,itemName,kind){
+  const map=(commCfg[kind||'services']||{})[profId]||{}
+  if(map[itemName]!==undefined) return Number(map[itemName])
+  return commDefaultOf(profId)
+}
+function admCommSetTab(t){ admCommTab=t; renderAdmin() }
+function admComisiones(){
+  const kinds=[['servicios','Servicios'],['planes','Planes'],['productos','Productos']]
+  const tabs=`<div class="mtabs" style="margin-bottom:14px">${kinds.map(([k,l])=>
+    `<button class="${admCommTab===k?'on':''}" onclick="admCommSetTab('${k}')">${l}</button>`).join('')}</div>`
+  const kind=admCommTab==='planes'?'plans':admCommTab==='productos'?'products':'services'
+  const items=kind==='services'?state.services.map(s=>s.name)
+    : kind==='plans'?[...new Set((state.plans||[]).map(p=>p.name))]
+    : state.products.map(p=>p.name)
+  const sel=document.getElementById('commProfSel')
+  const cards=state.professionals.map(p=>{
+    const map=(commCfg[kind]||{})[p.id]||{}
+    const propias=Object.keys(map).length
+    return `<div class="adm-row">
+      <span class="ar-name" style="color:var(--gold-d)">${esc(p.name)}</span>
+      <span class="ar-meta">${items.length} ${admCommTab} · ${propias} con comisión propia</span>
+      <span class="ar-meta">Por defecto: <strong>${commDefaultOf(p.id)}%</strong></span>
+      <button class="mini-btn" onclick="openCommModal('${p.id}','${kind}',false)">✎ Editar</button>
+      <button class="mini-btn" style="background:#2e9e63;color:#fff;border-color:#2e9e63" onclick="openCommModal('${p.id}','${kind}',true)">⚙ Editar por defecto</button>
+    </div>`}).join('') || '<div class="empty-state">Aún no hay profesionales.</div>'
+
+  return tabs+`<div class="inv-notice">⭐ Define cuánto gana cada profesional. Puedes fijar una <strong>comisión por defecto</strong> y, si lo necesitas, una comisión distinta por cada ${admCommTab==='servicios'?'servicio':admCommTab==='planes'?'plan':'producto'}.</div>
+    ${cards}
+    <h3 style="font-family:'Playfair Display',serif;font-size:1.2rem;margin:26px 0 10px">Detalle de trabajos y ganancias</h3>
+    <div class="rr-filters" style="border-radius:12px">
+      <div><label>Profesional</label><select id="liqProf" onchange="renderLiquidacion()"></select></div>
+      <div><label>Desde</label><input type="date" id="liqFrom" onchange="renderLiquidacion()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit" /></div>
+      <div><label>Hasta</label><input type="date" id="liqTo" onchange="renderLiquidacion()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit" /></div>
+      <div><label>Agrupar por</label><select id="liqGroup" onchange="liqGroup=this.value;renderLiquidacion()">
+        <option value="dia">Día</option><option value="semana">Semana</option><option value="mes">Mes</option><option value="hora">Hora del día</option><option value="servicio">Servicio</option>
+      </select></div>
+      <div class="rr-fbtns"><button class="btn-download" onclick="exportLiquidacion()">⬇ Exportar ganancias</button></div>
+    </div>
+    <div id="liqBody" style="margin-top:16px"></div>`
+}
+function openCommModal(profId,kind,onlyDefault){
+  const p=state.professionals.find(x=>x.id===profId)
+  const label={services:'servicio',plans:'plan',products:'producto'}[kind]
+  document.getElementById('cmTitle').textContent=(onlyDefault?'Comisión por defecto · ':'Comisiones por '+label+' · ')+(p?p.name:'')
+  document.getElementById('cmProf').value=profId
+  document.getElementById('cmKind').value=kind
+  document.getElementById('cmDefault').value=commDefaultOf(profId)
+  document.getElementById('cmListTitle').textContent='Comisión por '+label
+  const items = kind==='services'?state.services.map(s=>s.name)
+    : kind==='plans'?[...new Set((state.plans||[]).map(x=>x.name))]
+    : state.products.map(x=>x.name)
+  const map=(commCfg[kind]||{})[profId]||{}
+  document.getElementById('cmList').innerHTML = items.length ? items.map(n=>`
+    <div class="rs-line"><span class="rl-n">${esc(n)}</span>
+      <input type="number" min="0" max="100" data-cm="${esc(n)}" value="${map[n]!==undefined?map[n]:''}"
+        placeholder="${commDefaultOf(profId)}" style="width:92px;padding:6px 8px;border:1px solid var(--border);border-radius:6px" />
+      <span style="color:var(--light);font-size:.8rem">%</span></div>`).join('')
+    : `<p class="rem-note" style="margin:0">Aún no hay ${label}s cargados.</p>`
+  document.getElementById('cmList').parentElement.style.display = onlyDefault?'none':'block'
+  openModal('commModal')
+}
+function cmApplyAll(){
+  const v=document.getElementById('cmDefault').value
+  document.querySelectorAll('#cmList input[data-cm]').forEach(i=>i.value=v)
+}
+async function saveCommCfg(){
+  const profId=document.getElementById('cmProf').value, kind=document.getElementById('cmKind').value
+  commCfg.default[profId]=parseInt(document.getElementById('cmDefault').value)||0
+  const map={}
+  document.querySelectorAll('#cmList input[data-cm]').forEach(i=>{
+    if(i.value!=='') map[i.dataset.cm]=parseInt(i.value)||0
+  })
+  commCfg[kind]=commCfg[kind]||{}
+  commCfg[kind][profId]=map
+  const ok=await persistCommCfg()
+  // la comisión por defecto también se guarda en la ficha del profesional
+  try{ await supabase.update('professionals',profId,{commission_pct:commCfg.default[profId]}); await loadProfessionals() }catch(e){}
+  closeModal('commModal'); renderAdmin()
+  toast(ok?'Comisiones guardadas':'Guardadas solo en este navegador','success')
+}
+/* ── liquidación: qué hizo y cuánto ganó ── */
+function liqData(){
+  const ps=document.getElementById('liqProf')
+  if(ps && !ps.options.length){
+    ps.innerHTML=state.professionals.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+  }
+  const f=document.getElementById('liqFrom'), t=document.getElementById('liqTo')
+  if(f && !f.value) f.value=isoDate(addDays(new Date(),-29))
+  if(t && !t.value) t.value=isoDate(new Date())
+  const profId=ps?ps.value:''
+  const rows=[]
+  state.sales.filter(s=>s.status!=='deleted' && s.professional_id===profId && inRange(s.sale_date,f.value,t.value)).forEach(s=>{
+    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+    items.forEach(it=>{
+      const monto=Number(it.qty||1)*Number(it.price||0)
+      const kind = state.products.some(p=>p.name===it.name) ? 'products'
+        : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
+      const pct=commPctFor(profId,it.name,kind)
+      rows.push({ date:s.sale_date, hora:(s.created_at||'').slice(11,16)||'—', client:s.client_name||'',
+        item:it.name, qty:Number(it.qty||1), monto, pct, comm:Math.round(monto*pct/100), tip:0 })
+    })
+    if(Number(s.tip||0)) rows.push({date:s.sale_date, hora:'—', client:s.client_name||'', item:'Propina', qty:1,
+      monto:0, pct:100, comm:Number(s.tip), tip:Number(s.tip)})
+  })
+  // citas atendidas sin venta registrada (trabajo realizado)
+  const citas=state.appointments.filter(a=>a.professional_id===profId && a.status==='attending' && inRange(a.appt_date,f.value,t.value))
+  return {rows, citas, profId, from:f.value, to:t.value}
+}
+function liqKey(r){
+  if(liqGroup==='hora') return (r.hora||'—').slice(0,2)+':00'
+  if(liqGroup==='servicio') return r.item
+  const d=new Date(r.date+'T00:00:00')
+  if(liqGroup==='semana'){ const ws=weekStart(d); return 'Semana del '+isoDate(ws).slice(8)+'/'+isoDate(ws).slice(5,7) }
+  if(liqGroup==='mes') return MONTHS[d.getMonth()]+' '+d.getFullYear()
+  return r.date.slice(8)+'/'+r.date.slice(5,7)
+}
+function renderLiquidacion(){
+  const el=document.getElementById('liqBody'); if(!el) return
+  const {rows,citas}=liqData()
+  const total=rows.reduce((a,r)=>a+r.monto,0)
+  const comm=rows.reduce((a,r)=>a+r.comm,0)
+  const tips=rows.reduce((a,r)=>a+r.tip,0)
+  const kpi=(l,v,s)=>`<div class="rr-kpi"><h5>${l}</h5><div class="k-num">${v}</div><div class="k-sub">${s}</div></div>`
+  if(!rows.length && !citas.length){
+    el.innerHTML=`<div class="rr-panel"><div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🔍</div>
+      Sin trabajos registrados para este profesional en el período.</div></div>`
+    return
+  }
+  const groups={}
+  rows.forEach(r=>{ const k=liqKey(r)
+    const g=groups[k]=groups[k]||{n:0,monto:0,comm:0}
+    g.n+=r.qty; g.monto+=r.monto; g.comm+=r.comm })
+  const gLabel={dia:'Día',semana:'Semana',mes:'Mes',hora:'Hora',servicio:'Servicio'}[liqGroup]
+  el.innerHTML=`
+    <div class="rr-kpis" style="grid-template-columns:repeat(4,1fr)">
+      ${kpi('Trabajos realizados', rows.filter(r=>!r.tip).length, `${citas.length} citas marcadas como asistidas`)}
+      ${kpi('Ventas generadas', fmtMoney(total), 'Total facturado por su trabajo')}
+      ${kpi('Comisión ganada', fmtMoney(comm-tips), 'Según el % de cada ítem')}
+      ${kpi('Propinas', fmtMoney(tips), 'Se pagan íntegras al profesional')}
+    </div>
+    <div class="rr-panel" style="margin-bottom:18px">
+      <h5>Resumen por ${gLabel.toLowerCase()}</h5>
+      <table class="ctbl"><thead><tr><th>${gLabel}</th><th style="text-align:center">Ítems</th>
+        <th style="text-align:right">Ventas</th><th style="text-align:right">Comisión</th></tr></thead>
+      <tbody>${Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,g])=>`<tr>
+        <td class="cname">${esc(k)}</td><td style="text-align:center">${g.n}</td>
+        <td style="text-align:right">${fmtMoney(g.monto)}</td>
+        <td style="text-align:right;font-weight:700">${fmtMoney(g.comm)}</td></tr>`).join('')}</tbody></table>
+    </div>
+    <div class="rr-panel">
+      <h5>Detalle de cada trabajo</h5>
+      <table class="ctbl"><thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio o producto</th>
+        <th style="text-align:center">Cant.</th><th style="text-align:right">Monto</th><th style="text-align:center">%</th><th style="text-align:right">Comisión</th></tr></thead>
+      <tbody>${rows.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr>
+        <td>${r.date.slice(8)}/${r.date.slice(5,7)}</td><td>${esc(r.hora)}</td>
+        <td class="cname">${esc(r.client||'—')}</td><td>${esc(r.item)}</td>
+        <td style="text-align:center">${r.qty}</td><td style="text-align:right">${fmtMoney(r.monto)}</td>
+        <td style="text-align:center">${r.pct}%</td>
+        <td style="text-align:right;font-weight:700">${fmtMoney(r.comm)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="7" style="text-align:right;font-weight:700;padding:12px 16px">Total a pagar</td>
+        <td style="text-align:right;font-weight:700;padding:12px 16px">${fmtMoney(comm)}</td></tr></tfoot></table>
+    </div>`
+}
+function exportLiquidacion(){
+  const {rows,profId,from,to}=liqData()
+  if(!rows.length){ toast('No hay trabajos en el período','error'); return }
+  const name=((state.professionals.find(p=>p.id===profId)||{}).name||'profesional').toLowerCase().replace(/\s+/g,'-')
+  downloadCSV(`ganancias-${name}-${from}_${to}.csv`,
+    ['Fecha','Hora','Cliente','Servicio o producto','Cantidad','Monto','% Comisión','Comisión'],
+    rows.map(r=>[r.date, r.hora, r.client, r.item, r.qty, r.monto, r.pct, r.comm]))
+}
+
 /* ── ADMINISTRACIÓN · PROFESIONALES ──
    Los campos que la tabla professionals no tiene (nombre público, email, servicios,
    descansos, bio, foto) se guardan en bot_config.prof_meta; si la columna no existe,
@@ -6434,6 +6651,7 @@ async function boot(){
   loadProfMeta()
   loadSvcExtras()
   loadSvcCats()
+  loadCommCfg()
   render()
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
