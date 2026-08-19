@@ -482,6 +482,7 @@ label.chk input{width:auto;margin:0}
 .side .field{margin-bottom:20px}
 .side select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--white)}
 .prof-list{display:flex;flex-direction:column;gap:4px}
+.prof-group-label{font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--light);font-weight:700;margin:14px 0 6px}
 .prof-chip{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:.82rem;cursor:pointer;border:1px solid transparent}
 .prof-chip:hover{background:var(--cream-2)}
 .prof-chip.on{background:var(--gold-pale);border-color:var(--gold)}
@@ -2843,6 +2844,16 @@ function weekStart(d){ const off=(d.getDay()+6)%7; return addDays(d,-off) } // M
 function isoWeekday(d){ return ((d.getDay()+6)%7)+1 } // 1=Mon..7=Sun
 function parseDur(str){ if(!str) return 60; const m=String(str).match(/\d+/); return m?parseInt(m[0]):60 }
 
+/* el filtro de la agenda acepta 'all', el id de un profesional, o 'g:idDelGrupo' */
+function profInFilter(profId){
+  const f = state.profId
+  if(f === 'all') return true
+  if(typeof f === 'string' && f.startsWith('g:')){
+    const g = (typeof profGroups !== 'undefined') ? profGroups.find(x => 'g:' + x.id === f) : null
+    return !!g && g.members.includes(profId)
+  }
+  return profId === f
+}
 /* ── DATA ── */
 async function loadProfessionals(){
   try{ state.professionals = await supabase.fetch('professionals',{order:'sort_order.asc,name.asc'}) || [] }
@@ -2877,7 +2888,7 @@ function visibleRange(){
 }
 function activeProfs(){
   const list = state.professionals.filter(p=>p.active!==false)
-  return state.profId==='all' ? list : list.filter(p=>p.id===state.profId)
+  return list.filter(p=>profInFilter(p.id))
 }
 function hourBounds(){
   // Rango base amplio para que se pueda ver y agendar en todo el día
@@ -2946,6 +2957,17 @@ function renderSidebar(){
       <span class="prof-dot" style="background:${p.color||'#C5A467'}"></span>
       <span class="nm">${esc(p.name)}</span></div>`
   })
+  // grupos personalizados (Administración → Profesionales → Grupos)
+  if(typeof profGroups!=='undefined' && profGroups.length){
+    html+='<div class="prof-group-label">Grupos</div>'
+    profGroups.forEach(g=>{
+      const cols=g.members.map(id=>(state.professionals.find(p=>p.id===id)||{}).color||'#C5A467').slice(0,3)
+      const bg=cols.length>1?`linear-gradient(135deg,${cols.join(',')})`:(cols[0]||'#C5A467')
+      html+=`<div class="prof-chip ${state.profId==='g:'+g.id?'on':''}" onclick="selectProf('g:${g.id}')">
+        <span class="prof-dot" style="background:${bg}"></span>
+        <span class="nm">${esc(g.name)} <span style="color:var(--light);font-size:.7rem">(${g.members.length})</span></span></div>`
+    })
+  }
   el.innerHTML=html
 }
 function selectProf(id){ state.profId=id; render() }
@@ -2986,7 +3008,7 @@ function renderCalendar(){
       lines+=`<div class="hr-line ${isHour?'':'half'}" style="top:${i*SP}px"></div>`
     }
     // appointments for this day
-    const dayAppts=state.appointments.filter(a=>a.appt_date===isoDate(dd) && (state.profId==='all'||a.professional_id===state.profId))
+    const dayAppts=state.appointments.filter(a=>a.appt_date===isoDate(dd) && profInFilter(a.professional_id))
     const blocks=layoutDay(dayAppts).map(a=>{
       const p=state.professionals.find(x=>x.id===a.professional_id)
       const top=(toMin(a.start_time)-minM)/slotMin*SP
@@ -3139,6 +3161,8 @@ async function apptMouseUp(){
   if(!canEditAppt(a)){ toast('Esa hora es de otro profesional','error'); render(); return }
   if(!d.moved){ if(a.status==='block') openBlockModal(null,a); else openApptQuickView(d.id); return }
   if(a.appt_date===d.targetDate && a.start_time.slice(0,5)===d.targetStart){ render(); return }
+  const _m=checkServiceRules({serviceName:a.service_name, date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id})
+  if(_m){ toast(_m,'error'); render(); return }
   const newEnd=toHHMM(toMin(d.targetStart)+d.dur)
   a.appt_date=d.targetDate; a.start_time=d.targetStart; a.end_time=newEnd  // optimista
   render()
@@ -3153,6 +3177,63 @@ function setView(v){ state.view=v; document.querySelectorAll('#viewSeg button').
 function navDate(dir){ state.anchor=addDays(state.anchor, state.view==='day'?dir:dir*7); state.miniMonth=new Date(state.anchor); loadAndRender() }
 function goToday(){ state.anchor=new Date(); state.miniMonth=new Date(); loadAndRender() }
 async function loadAndRender(){ await loadAppointments(); render() }
+
+/* ══════════════════════════════════════════════════════════════
+   REGLAS DEL SERVICIO AL AGENDAR
+   Valida, antes de guardar una cita, lo que se configuró en
+   Administración → Servicios → Opciones avanzadas:
+     · horario especial (rango u horas puntuales)
+     · cuántos clientes caben a la misma hora
+     · recursos (box, camilla, equipo) que no pueden estar en dos citas a la vez
+   Devuelve null si todo está bien, o el motivo del bloqueo.
+   ══════════════════════════════════════════════════════════════ */
+function svcIdByName(name){
+  const s = state.services.find(x => x.name === name)
+  return s ? s.id : null
+}
+function checkServiceRules({ serviceName, date, start, dur, apptId }){
+  if(!serviceName) return null
+  const sid = svcIdByName(serviceName)
+  const m = sid ? svcMetaOf(sid) : {}
+  if(!m || !Object.keys(m).length) return null
+  const startM = toMin(start), endM = startM + (dur || 60)
+
+  /* 1. horario especial */
+  if(m.hourMode === 'range' && m.from && m.to){
+    if(start < m.from || toHHMM(endM) > m.to)
+      return `“${serviceName}” solo se realiza entre las ${m.from} y las ${m.to}.`
+  }
+  if(m.hourMode === 'hours' && (m.hours || []).length){
+    if(!m.hours.includes(start))
+      return `“${serviceName}” solo se realiza a las ${m.hours.join(' o ')} hrs.`
+  }
+
+  /* citas del mismo día que se cruzan con este bloque */
+  const solapan = state.appointments.filter(a =>
+    a.id !== apptId && a.appt_date === date && a.status !== 'block' && a.status !== 'cancelled' &&
+    toMin(a.start_time.slice(0,5)) < endM && toMin((a.end_time||a.start_time).slice(0,5)) > startM)
+
+  /* 2. cuántos clientes a la vez */
+  if(m.cap && m.cap > 1){
+    const mismos = solapan.filter(a => a.service_name === serviceName).length
+    if(mismos >= m.cap)
+      return `“${serviceName}” admite ${m.cap} cliente${m.cap>1?'s':''} a la vez y esa hora ya está completa.`
+  }
+
+  /* 3. recursos ocupados */
+  if((m.resources || []).length){
+    for(const rec of m.resources){
+      const ocupado = solapan.find(a => {
+        const otro = svcIdByName(a.service_name)
+        const om = otro ? svcMetaOf(otro) : {}
+        return (om.resources || []).includes(rec)
+      })
+      if(ocupado)
+        return `El recurso “${rec}” está ocupado a esa hora por ${ocupado.client_name || 'otra cita'} (${ocupado.start_time.slice(0,5)}).`
+    }
+  }
+  return null
+}
 
 /* ── APPOINTMENT MODAL ── */
 function fillServiceSelect(){
@@ -3402,7 +3483,7 @@ function openApptModal(id,prefill){
   } else {
     document.getElementById('apptTitle').textContent='Nueva reserva'
     document.getElementById('apptId').value=''
-    if(state.profId!=='all') document.getElementById('apptProf').value=state.profId
+    if(state.profId!=='all' && !String(state.profId).startsWith('g:')) document.getElementById('apptProf').value=state.profId
     document.getElementById('apptService').value=''
     document.getElementById('apptServiceName').value=''
     document.getElementById('apptServiceSearch').value=''
@@ -3432,6 +3513,9 @@ async function saveAppt(){
   if(!profId){ toast('Selecciona un profesional','error'); return }
   if(!client){ toast('Falta el nombre del cliente','error'); return }
   if(!date||!start){ toast('Falta fecha u hora','error'); return }
+  const svcName0=(document.getElementById('apptServiceName').value||'').trim()
+  const _motivo=checkServiceRules({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
+  if(_motivo){ toast(_motivo,'error'); return }
   const svcId=document.getElementById('apptService').value||null
   const svc=state.services.find(s=>s.id===svcId)
   const end=toHHMM(toMin(start)+dur)
@@ -4082,8 +4166,10 @@ async function renderReportes(){
   ventas.forEach(s=>{ byMethod[s.payment_method||'—']=(byMethod[s.payment_method||'—']||0)+Number(s.total||0) })
   // 4/5. recordatorios
   const remin=appts.filter(a=>a.reminded_at)
-  const conTel=remin.filter(a=>waPhone(a.client_phone)).length
-  const conMail=remin.filter(a=>{ const c=state.clients.find(x=>x.id===a.client_id); return c&&c.email }).length
+  // canal real cuando está registrado; si es una cita antigua, se estima por el contacto
+  const conTel=remin.filter(a=> a.reminded_channel ? a.reminded_channel==='whatsapp' : !!waPhone(a.client_phone)).length
+  const conMail=remin.filter(a=>{ if(a.reminded_channel) return a.reminded_channel==='email'
+    const c=state.clients.find(x=>x.id===a.client_id); return !!(c&&c.email) }).length
   const confirmadas=remin.filter(a=>a.status==='confirmed'||a.status==='attending').length
   // 7. cumpleaños de hoy
   const md=new Date().toISOString().slice(5,10)
@@ -7062,7 +7148,9 @@ function renderRecordatorios(){
         <td>${a.start_time.slice(0,5)}</td>
         <td class="cname">${esc(a.client_name||'—')}${a.client_phone?`<div style="font-size:.7rem;color:var(--light)">${esc(a.client_phone)}</div>`:''}</td>
         <td>${esc(a.service_name||'—')}</td>
-        <td>${a.reminded_at?'<span class="badge paid">Enviado</span>':'<span class="badge" style="background:#eee;color:#888">Pendiente</span>'}</td>
+        <td>${a.reminded_at
+          ? '<span class="badge paid">Enviado'+(a.reminded_channel==='whatsapp'?' · WhatsApp':a.reminded_channel==='email'?' · Email':'')+'</span>'
+          : '<span class="badge" style="background:#eee;color:#888">Pendiente</span>'}</td>
         <td class="cacts" style="text-align:right;white-space:nowrap">
           ${phone?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="sendReminder('${a.id}')">WhatsApp</button>`:''}
           ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}')">Email</button>`:''}
@@ -7076,8 +7164,8 @@ async function sendReminder(id){
   const msg=encodeURIComponent(buildReminderMsg(a))
   window.open(`https://wa.me/${phone}?text=${msg}`, '_blank')
   try{
-    await supabase.update('appointments', id, { reminded_at: new Date().toISOString() })
-    a.reminded_at=new Date().toISOString(); renderRecordatorios()
+    await supabase.update('appointments', id, { reminded_at: new Date().toISOString(), reminded_channel: 'whatsapp' })
+    a.reminded_at=new Date().toISOString(); a.reminded_channel='whatsapp'; renderRecordatorios()
   }catch(e){ console.warn('No se pudo marcar como enviado:', e) }
 }
 async function sendReminderEmail(id){
@@ -7089,8 +7177,8 @@ async function sendReminderEmail(id){
     const res=await fetch('/api/send-reminder.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email, name:a.client_name, message:buildReminderMsg(a)})})
     const j=await res.json().catch(()=>({}))
     if(res.ok && j.success){
-      await supabase.update('appointments', id, { reminded_at: new Date().toISOString() })
-      a.reminded_at=new Date().toISOString(); renderRecordatorios()
+      await supabase.update('appointments', id, { reminded_at: new Date().toISOString(), reminded_channel: 'email' })
+      a.reminded_at=new Date().toISOString(); a.reminded_channel='email'; renderRecordatorios()
       toast('Email enviado','success')
     } else { toast(j.error||'No se pudo enviar el email','error') }
   }catch(e){ console.error(e); toast('Error al enviar el email','error') }
@@ -7138,7 +7226,7 @@ function openBlockModal(prefill, existing){
     del.style.display='block'
   } else {
     document.getElementById('blkId').value=''
-    if(state.profId!=='all') document.getElementById('blkProf').value=state.profId
+    if(state.profId!=='all' && !String(state.profId).startsWith('g:')) document.getElementById('blkProf').value=state.profId
     const d=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
     const st=(prefill&&prefill.start)||'10:00'
     document.getElementById('blkDate').value=d

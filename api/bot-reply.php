@@ -103,6 +103,71 @@ SERVICIOS:
 $svcText$smartText
 ".($faq ? "\nPREGUNTAS FRECUENTES:$faq" : '');
 
+
+/* ── Reglas del servicio (horario especial, cupos y recursos) ── */
+$svcMeta = $bot['svc_meta'] ?? [];
+if (is_string($svcMeta)) $svcMeta = json_decode($svcMeta, true);
+if (!is_array($svcMeta)) $svcMeta = [];
+
+/* id del servicio a partir de su nombre */
+function svc_id_by_name($name) {
+    global $services;
+    foreach ($services as $s) if (mb_strtolower($s['name']) === mb_strtolower(trim($name))) return $s['id'] ?? null;
+    return null;
+}
+/* devuelve null si se puede agendar, o el motivo del bloqueo */
+function service_rule_block($serviceName, $date, $time, $dur) {
+    global $svcMeta;
+    if (!$serviceName) return null;
+    $sid = svc_id_by_name($serviceName);
+    if (!$sid || empty($svcMeta[$sid])) return null;
+    $m = $svcMeta[$sid];
+    $startM = (int)substr($time,0,2)*60 + (int)substr($time,3,2);
+    $endM = $startM + ($dur ?: 60);
+    $hhmm = substr($time,0,5);
+    $endHHMM = sprintf('%02d:%02d', intdiv($endM,60), $endM%60);
+
+    // horario especial
+    if (($m['hourMode'] ?? 'none') === 'range' && !empty($m['from']) && !empty($m['to'])) {
+        if ($hhmm < $m['from'] || $endHHMM > $m['to'])
+            return 'ese servicio solo se realiza entre las '.$m['from'].' y las '.$m['to'];
+    }
+    if (($m['hourMode'] ?? 'none') === 'hours' && !empty($m['hours'])) {
+        if (!in_array($hhmm, $m['hours']))
+            return 'ese servicio solo se realiza a las '.implode(' o las ', $m['hours']).' hrs';
+    }
+
+    // citas que se cruzan con ese bloque
+    $appts = supa('GET', 'appointments?select=service_name,start_time,end_time,status&appt_date=eq.'.$date) ?: [];
+    $solapan = [];
+    foreach ($appts as $a) {
+        if (in_array($a['status'] ?? '', ['block','cancelled'])) continue;
+        $as = (int)substr($a['start_time'],0,2)*60 + (int)substr($a['start_time'],3,2);
+        $ae = (int)substr($a['end_time'] ?: $a['start_time'],0,2)*60 + (int)substr($a['end_time'] ?: $a['start_time'],3,2);
+        if ($as < $endM && $ae > $startM) $solapan[] = $a;
+    }
+
+    // cupos simultáneos
+    if (!empty($m['cap']) && $m['cap'] > 1) {
+        $mismos = 0;
+        foreach ($solapan as $a) if (($a['service_name'] ?? '') === $serviceName) $mismos++;
+        if ($mismos >= $m['cap']) return 'ese servicio ya tiene todos sus cupos tomados a esa hora';
+    }
+
+    // recursos ocupados
+    if (!empty($m['resources'])) {
+        foreach ($m['resources'] as $rec) {
+            foreach ($solapan as $a) {
+                $otro = svc_id_by_name($a['service_name'] ?? '');
+                $om = ($otro && !empty($svcMeta[$otro])) ? $svcMeta[$otro] : [];
+                if (!empty($om['resources']) && in_array($rec, $om['resources']))
+                    return 'a esa hora no está disponible el recurso necesario ('.$rec.')';
+            }
+        }
+    }
+    return null;
+}
+
 /* ── Funciones (tools OpenAI) ── */
 $tools = [
   ['type'=>'function','function'=>['name'=>'check_availability','description'=>'Verifica disponibilidad para una fecha y hora. Devuelve profesionales libres.',
@@ -145,6 +210,11 @@ function do_check($args) {
         if (!$busy) $free[]=['id'=>$p['id'],'name'=>$p['name']];
     }
     $out = ['available'=>count($free)>0,'professionals'=>$free];
+    // reglas propias del servicio (horario especial, cupos, recursos)
+    if (!empty($args['service_name'])) {
+        $bloqueo = service_rule_block($args['service_name'], $date, $time, $dur);
+        if ($bloqueo) { $out['available'] = false; $out['motivo'] = $bloqueo; }
+    }
     // precio rebajado si esa hora cae en una franja con precio inteligente
     if (!empty($args['service_name'])) {
         global $services;
@@ -166,7 +236,7 @@ function do_check($args) {
 function do_book($args) {
     global $phone;
     $chk=do_check($args);
-    if (!$chk['available']) return ['ok'=>false,'reason'=>'no_disponible'];
+    if (!$chk['available']) return ['ok'=>false,'reason'=>$chk['motivo'] ?? 'no_disponible'];
     $prof=$chk['professionals'][0];
     $time=substr($args['time'],0,5); $dur=$args['duration']??60;
     $endM=(int)substr($time,0,2)*60+(int)substr($time,3,2)+$dur;

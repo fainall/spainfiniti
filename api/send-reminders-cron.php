@@ -53,7 +53,7 @@ foreach ($appts as $a) {
         if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $body = '<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto"><div style="background:linear-gradient(135deg,#c5a467,#8a7344);color:#fff;padding:22px;border-radius:8px 8px 0 0;text-align:center"><h2 style="margin:0;font-family:Georgia,serif">Spa Infinity</h2><p style="margin:6px 0 0;font-size:12px;letter-spacing:2px;text-transform:uppercase">Recordatorio de tu cita</p></div><div style="background:#fff;border:1px solid #e0e0e0;border-top:none;padding:22px;border-radius:0 0 8px 8px;font-size:15px;line-height:1.6">'.nl2br(htmlspecialchars($msg)).'</div></div>';
             $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nFrom: Spa Infinity <noreply@spainfinity.cl>\r\nReply-To: reservainfinity@spainfinity.cl\r\n";
-            if (@mail($email, '=?UTF-8?B?'.base64_encode('Recordatorio de tu cita — Spa Infinity').'?=', $body, $headers)) { $sentEmail++; $doneAny=true; }
+            $usedEmail=false; if (@mail($email, '=?UTF-8?B?'.base64_encode('Recordatorio de tu cita — Spa Infinity').'?=', $body, $headers)) { $sentEmail++; $doneAny=true; $usedEmail=true; }
         }
     }
     // WhatsApp (si la API de Meta está configurada)
@@ -63,9 +63,12 @@ foreach ($appts as $a) {
             $ch=curl_init('https://graph.facebook.com/v20.0/'.$cfg['waPhoneId'].'/messages');
             curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>15,CURLOPT_POST=>true,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$cfg['waToken'],'Content-Type: application/json'],CURLOPT_POSTFIELDS=>json_encode(['messaging_product'=>'whatsapp','to'=>$wp,'type'=>'text','text'=>['body'=>$msg]])]);
             $r=curl_exec($ch); $code=curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
-            if ($code>=200 && $code<300) { $sentWa++; $doneAny=true; }
+            if ($code>=200 && $code<300) { $sentWa++; $doneAny=true; $usedWa=true; }
         }
     }
-    if ($doneAny) supa('PATCH','appointments?id=eq.'.$a['id'], ['reminded_at'=>date('c')]);
+    if ($doneAny) {
+        $canal = (!empty($usedWa) && !empty($usedEmail)) ? 'ambos' : (!empty($usedWa) ? 'whatsapp' : 'email');
+        supa('PATCH','appointments?id=eq.'.$a['id'], ['reminded_at'=>date('c'), 'reminded_channel'=>$canal]);
+    }
 }
 echo json_encode(['ok'=>true,'revisadas'=>$checked,'emails'=>$sentEmail,'whatsapp'=>$sentWa,'ventana_horas'=>$hours,'canal'=>$channel]);
