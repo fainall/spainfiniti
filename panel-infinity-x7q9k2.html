@@ -154,7 +154,8 @@ input,select,textarea{font-family:inherit}
 .inv-count{text-align:right;font-size:.75rem;color:var(--mid);margin-bottom:10px}
 @media(max-width:820px){.inv-filters{grid-template-columns:1fr 1fr}}
 /* administración */
-.adm-wrap{display:grid;grid-template-columns:230px 1fr;gap:20px;align-items:start;padding:24px 28px;max-width:1300px;margin:0 auto}
+.adm-wrap{display:grid;grid-template-columns:230px 1fr;gap:20px;align-items:start;padding:24px 28px;max-width:1300px;margin:0 auto;flex:1;min-height:0;overflow-y:auto;width:100%}
+.adm-side{position:sticky;top:0}
 .adm-box{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px}
 .adm-box h4{font-size:.82rem;font-weight:700;margin-bottom:10px}
 .adm-box-head{width:100%;display:flex;justify-content:space-between;align-items:center;background:none;border:none;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;margin-bottom:6px;color:var(--dark)}
