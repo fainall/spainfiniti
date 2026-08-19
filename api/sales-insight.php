@@ -27,6 +27,8 @@ $datos = "Período analizado: {$in['periodo']}\n"
   . "Período anterior ({$in['anterior']}): " . $money($prev['total'] ?? 0) . " en " . ($prev['n'] ?? 0) . " ventas (promedio " . $money($prev['avg'] ?? 0) . ")\n"
   . "Por tipo de ítem período anterior: " . $lista($prev['tipos'] ?? []);
 
+if (!empty($in['debug'])) { echo json_encode(['datos'=>$datos], JSON_UNESCAPED_UNICODE); exit; }
+
 $system = "Eres el analista de negocio de Spa Infinity, un centro podológico y spa en Santiago Centro, Chile. "
   . "Analiza los datos de ventas y responde en español de Chile, tuteando, en 4 a 6 líneas cortas separadas por saltos de línea. "
   . "Cada línea: un hallazgo concreto con el número que lo respalda, o una recomendación accionable para el spa. "
