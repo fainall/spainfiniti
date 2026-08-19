@@ -2634,9 +2634,11 @@ async function loadAppointments(){
   try{ state.appointments = await supabase.fetch('appointments',{filters,order:'start_time.asc'}) || [] }
   catch(e){ state.appointments=[]; console.warn(e) }
 }
+/* data.js declara CATEGORIES con const: no queda en window, hay que leerlo del scope global */
+function CATS(){ return (typeof CATEGORIES!=="undefined" && Array.isArray(CATEGORIES)) ? CATEGORIES : (window.CATEGORIES||[]) }
 function flattenServices(){
   const out=[]
-  ;(window.CATEGORIES||[]).forEach(c => (c.services||[]).forEach(s => out.push({
+  ;(CATS()).forEach(c => (c.services||[]).forEach(s => out.push({
     id:s.id, name:s.name, duration:parseDur(s.duration), price:s.price, cat:c.name
   })))
   state.services = out
@@ -2962,7 +2964,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('#apptServiceWrap'))
 /* crear servicio rápido */
 function openSvcCreate(){
   const sel=document.getElementById('scCat')
-  sel.innerHTML=(window.CATEGORIES||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
+  sel.innerHTML=(CATS()).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
   document.getElementById('scName').value=document.getElementById('apptServiceSearch').value.trim()
   document.getElementById('scPrice').value=0
   document.getElementById('scDur').value=60
@@ -2980,7 +2982,7 @@ async function createService(){
   const row={ id:slug, cat_id:catId, name, tag:'', price:price?fmtMoney(price):'', duration:dur+' min', short_desc:'', long_desc:'', img:'', link:'', includes:[], process_steps:[] }
   try{
     await supabase.insert('services', row)
-    const cat=(window.CATEGORIES||[]).find(c=>c.id===catId)
+    const cat=(CATS()).find(c=>c.id===catId)
     if(cat){ cat.services=cat.services||[]; cat.services.push({id:slug, catId, name, price:row.price, duration:dur+' min', shortDesc:'', tag:''}) }
     flattenServices()
     closeModal('svcCreateModal'); toast('Servicio creado','success')
@@ -4618,7 +4620,7 @@ async function removeResource(name){
 }
 async function loadSvcCats(){
   try{ svcCats = await supabase.fetch('categories',{order:'sort_order.asc'}) || [] }
-  catch(e){ svcCats = (window.CATEGORIES||[]).map(c=>({id:c.id,name:c.name})) }
+  catch(e){ svcCats = (CATS()).map(c=>({id:c.id,name:c.name})) }
 }
 function catName(id){ return (svcCats.find(c=>c.id===id)||{}).name || 'Otros' }
 function admSvcSetTab(t){ admSvcTab=t; renderAdmin() }
