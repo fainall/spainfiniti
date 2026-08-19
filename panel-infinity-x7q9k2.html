@@ -106,6 +106,30 @@ input,select,textarea{font-family:inherit}
 .sv-qrow .q-bar{flex:1;height:8px;background:var(--cream-2);border-radius:5px;overflow:hidden;display:block;min-width:60px}
 .sv-qrow .q-fill{display:block;height:8px;background:var(--gold);border-radius:5px}
 .sv-qrow .q-val{width:46px;text-align:right;font-weight:700}
+/* recordatorios */
+.rem-banner{background:var(--dark);color:#fff;border-radius:12px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.rem-banner h3{font-size:1rem;margin-bottom:6px}
+.rem-banner-meta{font-size:.82rem;opacity:.8}
+.rem-period{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:18px;max-width:320px}
+.rem-period label{display:block;font-size:.78rem;font-weight:600;color:var(--dark);margin-bottom:5px}
+.rem-period select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem;font-family:inherit;background:#fff}
+.rem-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+.rem-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px}
+.rem-card.alert{background:#fdeff0;border-color:#f6cdd1}
+.rem-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.rem-num{font-size:1.7rem;font-weight:700;line-height:1}
+.rem-num.purple{color:#6B4FD8} .rem-num.blue{color:#3FA9F5} .rem-num.red{color:#E9573F}
+.rem-card-lbl{font-size:.8rem;color:var(--dark);margin-top:4px;line-height:1.35}
+.rem-ic{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.rem-ic.purple{background:#efe9fd} .rem-ic.blue{background:#e6f2fd} .rem-ic.red{background:#E9573F;color:#fff}
+.rem-pct{font-size:.78rem;color:var(--mid);padding-top:12px;border-top:1px solid var(--border);margin-bottom:10px}
+.rem-row{display:flex;align-items:center;gap:10px;font-size:.82rem;padding:5px 0}
+.rem-row .rr-n{width:110px;color:var(--dark)}
+.rem-row .rr-b{flex:1;height:7px;background:#eceff3;border-radius:5px;overflow:hidden;display:block;min-width:40px}
+.rem-row .rr-f{display:block;height:7px;border-radius:5px;background:var(--gold)}
+.rem-row .rr-v{width:28px;text-align:right;font-weight:700}
+.rem-note{font-size:.7rem;color:var(--light);margin-top:10px;line-height:1.45}
+@media(max-width:900px){.rem-kpis{grid-template-columns:1fr}}
 /* inventario (productos) */
 .inv-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:20px;flex-wrap:wrap}
 .inv-head h2{font-family:'Playfair Display',serif;font-size:1.7rem;margin-bottom:4px}
@@ -493,6 +517,7 @@ input,select,textarea{font-family:inherit}
         <div class="topnav-dd-menu">
           <button onclick="switchView('clientes')">Base de Clientes</button>
           <button onclick="switchView('encuestas')">Reportes de encuestas</button>
+          <button onclick="switchView('recordatorios')">Recordatorios</button>
         </div>
       </div>
       <button data-view="productos" onclick="switchView('productos')">Productos</button>
@@ -621,40 +646,6 @@ input,select,textarea{font-family:inherit}
             <div class="tx-pager" id="cliPager"></div>
           </div>
 
-      <!-- Acordeón: Recordatorios de WhatsApp -->
-      <div class="acc" id="remAcc">
-        <button class="acc-head" onclick="toggleAcc('remAcc')">📲 Recordatorios de WhatsApp <span class="chev">▼</span></button>
-        <div class="acc-body">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-            <span style="font-size:.82rem;color:var(--mid)">Envía recordatorios a las próximas citas.</span>
-            <select id="remRange" onchange="renderRecordatorios()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px">
-              <option value="0">Hoy</option>
-              <option value="1" selected>Hoy y mañana</option>
-              <option value="3">Próximos 3 días</option>
-              <option value="7">Próximos 7 días</option>
-            </select>
-          </div>
-          <div class="rep-block">
-            <h3>⚡ Recordatorios automáticos</h3>
-            <label class="bot-switch"><input type="checkbox" id="remAuto" /> <span>Enviar solos antes de cada cita</span></label>
-            <div class="row2" style="margin-top:10px">
-              <div><label style="font-size:.72rem;font-weight:600;color:var(--mid)">Horas antes</label><input type="number" id="remHours" min="1" value="24" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px" /></div>
-              <div><label style="font-size:.72rem;font-weight:600;color:var(--mid)">Canal</label><select id="remChannel" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px"><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="both">Ambos</option></select></div>
-            </div>
-            <div style="text-align:right;margin-top:10px"><button class="btn-primary" onclick="saveRemAuto()">Guardar automatización</button></div>
-          </div>
-          <div class="rep-block">
-            <h3>Mensaje del recordatorio</h3>
-            <textarea id="remTpl" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></textarea>
-            <div style="font-size:.75rem;color:var(--mid);margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <span>Variables: <code>{cliente}</code> <code>{fecha}</code> <code>{hora}</code> <code>{servicio}</code></span>
-              <button class="mini-btn" onclick="saveRemTpl()">Guardar mensaje</button>
-            </div>
-          </div>
-          <div id="remTable"></div>
-        </div>
-      </div>
-
       <!-- Acordeón: Email Marketing -->
       <div class="acc" id="campAcc">
         <button class="acc-head" onclick="toggleAcc('campAcc');renderCampaigns()">✉️ Email Marketing <span class="chev">▼</span></button>
@@ -693,6 +684,61 @@ input,select,textarea{font-family:inherit}
       </div>
         </div><!-- /cli-main -->
       </div><!-- /cli-layout -->
+    </div>
+  </div>
+
+  <!-- VISTA: RECORDATORIOS -->
+  <div class="view" id="view-recordatorios">
+    <div class="view-inner" style="max-width:1200px">
+      <div class="view-head"><h2>Recordatorios</h2></div>
+      <div class="inv-notice">ℹ Tus clientes reciben el recordatorio de su cita por <strong>email</strong> (automático) o por <strong>WhatsApp</strong> (con un clic). Aquí ves cuántos se enviaron y cuáles quedan pendientes. Si la cita ya fue confirmada, no se vuelve a enviar.</div>
+      <div class="rem-banner">
+        <div>
+          <h3>Recordatorios automáticos</h3>
+          <div class="rem-banner-meta" id="remBannerMeta">—</div>
+        </div>
+        <button class="btn-primary" onclick="toggleAcc('remConfigAcc');document.getElementById('remConfigAcc').scrollIntoView({behavior:'smooth'})">Configurar recordatorios</button>
+      </div>
+      <div class="rem-period">
+        <div><label>Período de tiempo</label>
+          <select id="remRange" onchange="renderRecordatorios()">
+            <option value="0">Hoy</option>
+            <option value="1" selected>Hoy y mañana</option>
+            <option value="3">Próximos 3 días</option>
+            <option value="7">Próximos 7 días</option>
+            <option value="30">Próximos 30 días</option>
+          </select>
+        </div>
+      </div>
+      <div class="rem-kpis" id="remKpis"></div>
+      <div class="acc" id="remConfigAcc">
+        <button class="acc-head" onclick="toggleAcc('remConfigAcc')">⚙ Configuración de recordatorios <span class="chev">▼</span></button>
+        <div class="acc-body">
+          <div class="rep-block">
+            <h3>⚡ Recordatorios automáticos</h3>
+            <label class="bot-switch"><input type="checkbox" id="remAuto" /> <span>Enviar solos antes de cada cita</span></label>
+            <div class="row2" style="margin-top:10px">
+              <div><label style="font-size:.72rem;font-weight:600;color:var(--mid)">Horas antes</label><input type="number" id="remHours" min="1" value="24" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px" /></div>
+              <div><label style="font-size:.72rem;font-weight:600;color:var(--mid)">Canal</label><select id="remChannel" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px"><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="both">Ambos</option></select></div>
+            </div>
+            <div style="text-align:right;margin-top:10px"><button class="btn-primary" onclick="saveRemAuto()">Guardar automatización</button></div>
+          </div>
+          <div class="rep-block">
+            <h3>Mensaje del recordatorio</h3>
+            <textarea id="remTpl" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></textarea>
+            <div style="font-size:.75rem;color:var(--mid);margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span>Variables: <code>{cliente}</code> <code>{fecha}</code> <code>{hora}</code> <code>{servicio}</code></span>
+              <button class="mini-btn" onclick="saveRemTpl()">Guardar mensaje</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sales-table-card" style="margin-top:18px">
+        <h3 style="font-size:1rem;margin-bottom:4px">Reservas y sus recordatorios</h3>
+        <p style="font-size:.82rem;color:var(--mid);margin-bottom:14px">Detalle de las próximas citas y el estado de su recordatorio.</p>
+        <div class="caja-tabs" id="remTabs" style="border-radius:8px 8px 0 0"></div>
+        <div id="remTable"></div>
+      </div>
     </div>
   </div>
 
@@ -2308,7 +2354,7 @@ async function doImport(){
 
 /* ── VIEW SWITCHING ── */
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
-const CLIENTES_GROUP=['clientes','encuestas']
+const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : v
@@ -3701,12 +3747,19 @@ function buildReminderMsg(a){
     .replace(/{hora}/g, a.start_time.slice(0,5))
     .replace(/{servicio}/g, a.service_name||'tu servicio')
 }
+let remTab='pendientes'
 function renderRecordatorios(){
   const el=document.getElementById('remTable'); if(!el) return
   document.getElementById('remTpl').value=getRemTpl()
   document.getElementById('remAuto').checked=!!botCfg.rem_auto
   document.getElementById('remHours').value=botCfg.rem_hours||24
   document.getElementById('remChannel').value=botCfg.rem_channel||'email'
+  // banner de estado
+  const bm=document.getElementById('remBannerMeta')
+  if(bm){ bm.innerHTML = botCfg.rem_auto
+    ? `✅ Activos · se envían <strong>${botCfg.rem_hours||24} h antes</strong> por <strong>${({email:'Email',whatsapp:'WhatsApp',both:'Email y WhatsApp'})[botCfg.rem_channel||'email']}</strong>`
+    : '⏸ Desactivados · los recordatorios se envían manualmente desde esta pantalla' }
+
   const range=parseInt(document.getElementById('remRange').value)
   const today=new Date(); today.setHours(0,0,0,0)
   const to=addDays(today,range)
@@ -3714,27 +3767,83 @@ function renderRecordatorios(){
     if(a.status==='block') return false
     const d=new Date(a.appt_date+'T00:00:00'); return d>=today && d<=to
   }).sort((a,b)=>(a.appt_date+a.start_time).localeCompare(b.appt_date+b.start_time))
-  if(!list.length){ el.innerHTML='<div class="empty-state">No hay citas en este período.</div>'; return }
+
+  const emailOf=a=>{ const c=state.clients.find(x=>x.id===a.client_id); return (c&&c.email)||'' }
+  const enviados=list.filter(a=>a.reminded_at)
+  const conEmail=list.filter(a=>emailOf(a))
+  const conWa=list.filter(a=>waPhone(a.client_phone))
+  const sinContacto=list.filter(a=>!emailOf(a)&&!waPhone(a.client_phone))
+  const confirmadas=list.filter(a=>a.status==='confirmed'||a.status==='attending')
+  const ingresos=list.reduce((s,a)=>s+parseMoney(a.price),0)
+  const ingresosConf=confirmadas.reduce((s,a)=>s+parseMoney(a.price),0)
+  const pct=(n,d)=>d?Math.round(n/d*100):0
+  const bar=(n,d,color)=>`<span class="rr-b"><span class="rr-f" style="width:${pct(n,d)}%${color?';background:'+color:''}"></span></span>`
+
+  document.getElementById('remKpis').innerHTML=`
+    <div class="rem-card">
+      <div class="rem-card-top">
+        <div><div class="rem-num purple">${fmtMoney(ingresosConf)}</div>
+          <div class="rem-card-lbl">Ingresos de reservas confirmadas</div></div>
+        <div class="rem-ic purple">📅</div>
+      </div>
+      <div class="rem-pct">${pct(confirmadas.length,list.length)}% de reservas confirmadas</div>
+      <div class="rem-row"><span class="rr-n">Reservadas</span>${bar(list.length,list.length)}<span class="rr-v">${list.length}</span></div>
+      <div class="rem-row"><span class="rr-n">Confirmadas</span>${bar(confirmadas.length,list.length)}<span class="rr-v">${confirmadas.length}</span></div>
+      <div class="rem-row"><span class="rr-n">Asistidas</span>${bar(list.filter(a=>a.status==='attending').length,list.length)}<span class="rr-v">${list.filter(a=>a.status==='attending').length}</span></div>
+      <div class="rem-note">Si el cliente no tiene email ni teléfono registrado, el recordatorio no se programa.</div>
+    </div>
+    <div class="rem-card">
+      <div class="rem-card-top">
+        <div><div class="rem-num blue">${enviados.length}</div>
+          <div class="rem-card-lbl">Recordatorios enviados</div></div>
+        <div class="rem-ic blue">✉</div>
+      </div>
+      <div class="rem-pct">${pct(enviados.length,list.length)}% de las reservas del período</div>
+      <div class="rem-row"><span class="rr-n">Enviados</span>${bar(enviados.length,list.length,'#3FA9F5')}<span class="rr-v">${enviados.length}</span></div>
+      <div class="rem-row"><span class="rr-n">Pendientes</span>${bar(list.length-enviados.length,list.length,'#3FA9F5')}<span class="rr-v">${list.length-enviados.length}</span></div>
+      <div class="rem-row"><span class="rr-n">Con email</span>${bar(conEmail.length,list.length,'#3FA9F5')}<span class="rr-v">${conEmail.length}</span></div>
+      <div class="rem-note">Si la cita fue confirmada manualmente o el cliente no tiene correo, no se le envía el email.</div>
+    </div>
+    <div class="rem-card ${sinContacto.length?'alert':''}">
+      <div class="rem-card-top">
+        <div><div class="rem-num ${sinContacto.length?'red':''}">${fmtMoney(sinContacto.reduce((s,a)=>s+parseMoney(a.price),0))}</div>
+          <div class="rem-card-lbl">Ingresos en riesgo: citas sin forma de avisar</div></div>
+        <div class="rem-ic ${sinContacto.length?'red':'blue'}">${sinContacto.length?'⚠':'✓'}</div>
+      </div>
+      <div class="rem-pct">${pct(sinContacto.length,list.length)}% de las reservas sin contacto</div>
+      <div class="rem-row"><span class="rr-n">Sin contacto</span>${bar(sinContacto.length,list.length,'#E9573F')}<span class="rr-v">${sinContacto.length}</span></div>
+      <div class="rem-row"><span class="rr-n">Con WhatsApp</span>${bar(conWa.length,list.length,'#25D366')}<span class="rr-v">${conWa.length}</span></div>
+      <div class="rem-note">${sinContacto.length?'Agrega email o teléfono a estos clientes para poder recordarles su cita.':'¡Genial! Todas las reservas tienen forma de contacto.'}</div>
+    </div>`
+
+  // pestañas
+  const pend=list.filter(a=>!a.reminded_at)
+  const tabs=[['pendientes','Pendientes',pend.length],['enviados','Enviados',enviados.length],['sincontacto','Sin contacto',sinContacto.length]]
+  document.getElementById('remTabs').innerHTML=tabs.map(([k,l,n])=>
+    `<button class="${k===remTab?'on':''}" onclick="remTab='${k}';renderRecordatorios()">${l}${n?` (${n})`:''}</button>`).join('')
+
+  const shown = remTab==='enviados'?enviados : remTab==='sincontacto'?sinContacto : pend
+  if(!shown.length){
+    el.innerHTML=`<div class="empty-state"><div style="font-size:2.4rem;margin-bottom:8px">🚀</div>
+      <strong>¡Genial!</strong><br>${remTab==='pendientes'?'Todos los recordatorios se han enviado exitosamente':'No hay reservas en esta pestaña'}</div>`
+    return
+  }
   el.innerHTML=`<table class="ctbl">
-    <thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Recordatorio</th><th></th></tr></thead>
-    <tbody>${list.map(a=>{
+    <thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Recordatorio</th><th style="text-align:right">Acciones</th></tr></thead>
+    <tbody>${shown.map(a=>{
       const [y,m,d]=a.appt_date.split('-')
-      const phone=waPhone(a.client_phone)
-      const email=(state.clients.find(c=>c.id===a.client_id)||{}).email||''
-      const sent=!!a.reminded_at
+      const phone=waPhone(a.client_phone), email=emailOf(a)
       return `<tr>
         <td>${d}/${m}</td>
         <td>${a.start_time.slice(0,5)}</td>
         <td class="cname">${esc(a.client_name||'—')}${a.client_phone?`<div style="font-size:.7rem;color:var(--light)">${esc(a.client_phone)}</div>`:''}</td>
         <td>${esc(a.service_name||'—')}</td>
-        <td>${sent?'<span class="badge paid">Enviado</span>':'<span class="badge" style="background:#eee;color:#888">Pendiente</span>'}</td>
-        <td class="cacts">
+        <td>${a.reminded_at?'<span class="badge paid">Enviado</span>':'<span class="badge" style="background:#eee;color:#888">Pendiente</span>'}</td>
+        <td class="cacts" style="text-align:right;white-space:nowrap">
           ${phone?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="sendReminder('${a.id}')">WhatsApp</button>`:''}
           ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}')">Email</button>`:''}
           ${(!phone&&!email)?'<span style="font-size:.72rem;color:var(--light)">Sin contacto</span>':''}
-        </td>
-      </tr>`}).join('')}</tbody></table>
-    <p style="color:var(--mid);font-size:.78rem;margin-top:12px">Al pulsar “WhatsApp” se abre el chat con el mensaje ya escrito; solo pulsa enviar. La cita queda marcada como “Enviado”.</p>`
+        </td></tr>`}).join('')}</tbody></table>`
 }
 async function sendReminder(id){
   const a=findAppt(id); if(!a) return
