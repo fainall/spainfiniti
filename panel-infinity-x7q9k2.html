@@ -153,6 +153,29 @@ input,select,textarea{font-family:inherit}
 .inv-notice{background:#e6f4fa;color:#256b81;padding:12px 16px;border-radius:8px;font-size:.8rem;margin-bottom:14px;line-height:1.5}
 .inv-count{text-align:right;font-size:.75rem;color:var(--mid);margin-bottom:10px}
 @media(max-width:820px){.inv-filters{grid-template-columns:1fr 1fr}}
+/* reportes — resumen */
+.rs-kpis{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:8px}
+.rs-dark{background:var(--dark);color:#fff;border-radius:12px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.rs-dark .rs-lbl{font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;opacity:.85}
+.rs-num{font-size:2.2rem;font-weight:700;margin:10px 0 8px}
+.rs-link{background:none;border:none;color:#fff;text-decoration:underline;font-family:inherit;font-size:.8rem;cursor:pointer}
+.rs-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
+.rs-big{font-size:1.7rem;font-weight:700}
+.rs-cap{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--mid);margin-top:6px}
+.rs-delta{font-size:.78rem;font-weight:700;margin-top:8px}
+.rs-delta.up{color:#2e9e63}.rs-delta.down{color:#c0392b}.rs-delta.flat{color:var(--light)}
+.rs-vs{font-size:.7rem;color:var(--light);margin-top:4px}
+.rs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px}
+.rs-tile{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px}
+.rs-tile h4{font-size:.95rem;font-weight:600;margin:10px 0 8px;text-align:center}
+.rs-tile .rs-ico{font-size:2rem;text-align:center;display:block}
+.rs-tile .rs-ph{font-size:.75rem;color:var(--mid);line-height:1.5;text-align:center}
+.rs-line{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.82rem;padding:7px 0;border-bottom:1px solid var(--border)}
+.rs-line:last-child{border-bottom:none}
+.rs-line .rl-n{color:var(--mid);flex:1}
+.rs-line .rl-v{font-weight:700}
+@media(max-width:1000px){.rs-kpis{grid-template-columns:1fr 1fr}.rs-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.rs-kpis,.rs-grid{grid-template-columns:1fr}}
 /* venta de productos */
 .vp-filters{grid-template-columns:1.4fr 1fr 1fr}
 .vp-range{display:flex;align-items:center;gap:8px}
@@ -858,9 +881,34 @@ input,select,textarea{font-family:inherit}
 
   <!-- VISTA: REPORTES -->
   <div class="view" id="view-reportes">
-    <div class="view-inner">
-      <div class="view-head"><h2>Reportes</h2><span class="view-sub" id="repRange"></span></div>
-      <div id="reportBody"></div>
+    <div class="view-inner" style="max-width:1100px">
+      <div class="inv-filters" style="grid-template-columns:280px">
+        <div>
+          <label>Periodo de tiempo</label>
+          <select id="repPeriod" onchange="renderReportes()">
+            <option value="today">Hoy</option>
+            <option value="week" selected>Esta semana</option>
+            <option value="month">Este mes</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="prevmonth">Mes pasado</option>
+          </select>
+        </div>
+      </div>
+      <div class="rs-kpis">
+        <div class="rs-dark">
+          <div class="rs-lbl">Total de reservas</div>
+          <div class="rs-num" id="rsTotal">0</div>
+          <button class="rs-link" onclick="toggleAcc('rsTodayAcc');document.getElementById('rsTodayAcc').scrollIntoView({behavior:'smooth',block:'center'})">Ver detalles</button>
+        </div>
+        <div class="rs-card"><div class="rs-big" id="rsOcc">0%</div><div class="rs-cap">Factor de ocupación</div><div class="rs-delta" id="rsOccD"></div><div class="rs-vs">Con respecto al período anterior</div></div>
+        <div class="rs-card"><div class="rs-big" id="rsNew">0</div><div class="rs-cap">Nuevos clientes</div><div class="rs-delta" id="rsNewD"></div><div class="rs-vs">Con respecto al período anterior</div></div>
+        <div class="rs-card"><div class="rs-big" id="rsBilled">0</div><div class="rs-cap">Ventas facturadas</div><div class="rs-delta" id="rsBilledD"></div><div class="rs-vs">Con respecto al período anterior</div></div>
+      </div>
+      <div class="acc" id="rsTodayAcc">
+        <button class="acc-head" onclick="toggleAcc('rsTodayAcc')"><span>Ver detalle de reservas de hoy</span><span class="acc-arrow">▾</span></button>
+        <div class="acc-body"><div id="rsToday"></div></div>
+      </div>
+      <div class="rs-grid" id="rsGrid"></div>
     </div>
   </div>
 
@@ -2975,36 +3023,145 @@ function exportSurveys(){
 }
 
 /* ── REPORTES (semana visible) ── */
-function renderReportes(){
-  const cont=document.getElementById('reportBody'); if(!cont) return
-  const [wf,wt]=visibleRange()
-  document.getElementById('repRange').textContent=`Semana ${wf.getDate()}/${pad(wf.getMonth()+1)} – ${wt.getDate()}/${pad(wt.getMonth()+1)}`
-  const appts=state.appointments.filter(a=>a.status!=='block')
-  const total=appts.length
-  const confirmed=appts.filter(a=>a.status==='confirmed').length
-  const attended=appts.filter(a=>a.status==='attending').length
-  const noShow=appts.filter(a=>a.status==='no_show').length
-  // por profesional
-  const byProf={}
-  appts.forEach(a=>{ byProf[a.professional_id]=(byProf[a.professional_id]||0)+1 })
-  const maxProf=Math.max(1,...Object.values(byProf))
-  const profRows=state.professionals.map(p=>({name:p.name,n:byProf[p.id]||0,color:p.color}))
-    .sort((a,b)=>b.n-a.n)
-  cont.innerHTML=`
-    <div class="rep-cards">
-      <div class="rep-card"><div class="rc-num">${total}</div><div class="rc-lbl">Reservas</div></div>
-      <div class="rep-card"><div class="rc-num">${confirmed}</div><div class="rc-lbl">Confirmadas</div></div>
-      <div class="rep-card"><div class="rc-num">${attended}</div><div class="rc-lbl">Asistió</div></div>
-      <div class="rep-card"><div class="rc-num">${noShow}</div><div class="rc-lbl">No asistió</div></div>
-    </div>
-    <div class="rep-block">
-      <h3>Reservas por profesional</h3>
-      ${profRows.length ? profRows.map(r=>`<div class="rep-row">
-        <span class="rr-name">${esc(r.name)}</span>
-        <span class="rr-bar"><span class="rr-fill" style="width:${r.n/maxProf*100}%;background:${r.color||'#C5A467'}"></span></span>
-        <span class="rr-n">${r.n}</span></div>`).join('') : '<p style="color:var(--mid);font-size:.84rem">Sin profesionales.</p>'}
-    </div>
-    <p style="color:var(--mid);font-size:.78rem">Datos de la semana mostrada en la agenda. Cambia de semana con el mini-calendario para ver otros períodos.</p>`
+/* ── REPORTES / RESUMEN ── */
+let repCampaigns=null
+function repRange(){
+  const v=document.getElementById('repPeriod').value
+  const t=new Date(); t.setHours(0,0,0,0)
+  if(v==='today') return [t,t]
+  if(v==='week'){ const ws=weekStart(t); return [ws,addDays(ws,6)] }
+  if(v==='month') return [new Date(t.getFullYear(),t.getMonth(),1), new Date(t.getFullYear(),t.getMonth()+1,0)]
+  if(v==='prevmonth') return [new Date(t.getFullYear(),t.getMonth()-1,1), new Date(t.getFullYear(),t.getMonth(),0)]
+  return [addDays(t,-29), t]
+}
+function prevRange([f,t]){
+  const days=Math.round((t-f)/86400000)+1
+  return [addDays(f,-days), addDays(f,-1)]
+}
+async function fetchAppts(f,t){
+  try{ return await supabase.fetch('appointments',{filters:`appt_date=gte.${isoDate(f)}&appt_date=lte.${isoDate(t)}`,order:'start_time.asc'}) || [] }
+  catch(e){ return [] }
+}
+/* capacidad = horas trabajables de todos los profesionales en el período */
+function capacityMinutes(f,t){
+  let min=0
+  for(let d=new Date(f); d<=t; d=addDays(d,1)){
+    const wd=d.getDay()
+    state.professionals.forEach(p=>{
+      const days=Array.isArray(p.work_days)?p.work_days:JSON.parse(p.work_days||'[1,2,3,4,5,6]')
+      if(!days.includes(wd)) return
+      const s=p.work_start||'09:00', e=p.work_end||'19:00'
+      min += (parseInt(e.slice(0,2))*60+parseInt(e.slice(3,5))) - (parseInt(s.slice(0,2))*60+parseInt(s.slice(3,5)))
+    })
+  }
+  return min
+}
+function bookedMinutes(appts){
+  return appts.filter(a=>a.status!=='block'&&a.status!=='cancelled').reduce((n,a)=>{
+    const s=parseInt(a.start_time.slice(0,2))*60+parseInt(a.start_time.slice(3,5))
+    const e=parseInt((a.end_time||a.start_time).slice(0,2))*60+parseInt((a.end_time||a.start_time).slice(3,5))
+    return n+Math.max(0,e-s) },0)
+}
+function setDelta(id,cur,prev){
+  const el=document.getElementById(id); if(!el) return
+  let cls='flat', txt='— 0%'
+  if(!prev && cur){ cls='up'; txt='↑ nuevo' }
+  else if(prev){ const p=Math.round((cur-prev)/prev*100)
+    cls = p>0?'up':p<0?'down':'flat'; txt = (p>0?'↑ ':p<0?'↓ ':'— ')+Math.abs(p)+'%' }
+  el.className='rs-delta '+cls; el.textContent=txt
+}
+async function renderReportes(){
+  const grid=document.getElementById('rsGrid'); if(!grid) return
+  const [f,t]=repRange(), [pf,pt]=prevRange([f,t])
+  const [cur,prev]=[await fetchAppts(f,t), await fetchAppts(pf,pt)]
+  const appts=cur.filter(a=>a.status!=='block'), pAppts=prev.filter(a=>a.status!=='block')
+  const inR=(d,a,b)=>d && d.slice(0,10)>=isoDate(a) && d.slice(0,10)<=isoDate(b)
+
+  // KPIs
+  document.getElementById('rsTotal').textContent=appts.length
+  const cap=capacityMinutes(f,t), occ=cap?Math.round(bookedMinutes(cur)/cap*100):0
+  const pcap=capacityMinutes(pf,pt), pocc=pcap?Math.round(bookedMinutes(prev)/pcap*100):0
+  document.getElementById('rsOcc').textContent=occ+'%'
+  setDelta('rsOccD',occ,pocc)
+  const nuevos=state.clients.filter(c=>inR(c.created_at,f,t)).length
+  const pNuevos=state.clients.filter(c=>inR(c.created_at,pf,pt)).length
+  document.getElementById('rsNew').textContent=nuevos
+  setDelta('rsNewD',nuevos,pNuevos)
+  const ventas=state.sales.filter(s=>s.status==='paid' && inRange(s.sale_date,isoDate(f),isoDate(t)))
+  const pVentas=state.sales.filter(s=>s.status==='paid' && inRange(s.sale_date,isoDate(pf),isoDate(pt)))
+  const monto=ventas.reduce((a,s)=>a+Number(s.total||0),0), pMonto=pVentas.reduce((a,s)=>a+Number(s.total||0),0)
+  document.getElementById('rsBilled').textContent=fmtMoney(monto)
+  setDelta('rsBilledD',monto,pMonto)
+
+  // detalle de hoy
+  const hoy=isoDate(new Date())
+  const today=cur.filter(a=>a.appt_date===hoy && a.status!=='block').sort((a,b)=>a.start_time.localeCompare(b.start_time))
+  document.getElementById('rsToday').innerHTML=today.length?`<table class="ctbl">
+    <thead><tr><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Profesional</th><th>Estado</th></tr></thead>
+    <tbody>${today.map(a=>`<tr><td>${a.start_time.slice(0,5)}</td><td class="cname">${esc(a.client_name||'—')}</td>
+      <td>${esc(a.service_name||'—')}</td><td>${esc((state.professionals.find(p=>p.id===a.professional_id)||{}).name||'—')}</td>
+      <td><span class="badge" style="background:${STATUS_COLORS[a.status]||'#eee'};color:#fff">${STATUS_LABEL[a.status]||a.status}</span></td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty-state" style="padding:20px 0">No hay reservas para hoy.</div>'
+
+  // tarjetas
+  const ph=txt=>`<p class="rs-ph">${txt}</p>`
+  const lines=arr=>arr.map(([n,v])=>`<div class="rs-line"><span class="rl-n">${esc(n)}</span><span class="rl-v">${v}</span></div>`).join('')
+  const tile=(ico,title,body)=>`<div class="rs-tile"><span class="rs-ico">${ico}</span><h4>${title}</h4>${body}</div>`
+
+  // 1. factor de ocupación por profesional
+  const occProf=state.professionals.map(p=>{
+    const mine=cur.filter(a=>a.professional_id===p.id)
+    let capP=0
+    for(let d=new Date(f); d<=t; d=addDays(d,1)){
+      const days=Array.isArray(p.work_days)?p.work_days:JSON.parse(p.work_days||'[1,2,3,4,5,6]')
+      if(!days.includes(d.getDay())) continue
+      const s=p.work_start||'09:00', e=p.work_end||'19:00'
+      capP+=(parseInt(e.slice(0,2))*60+parseInt(e.slice(3,5)))-(parseInt(s.slice(0,2))*60+parseInt(s.slice(3,5)))
+    }
+    return [p.name, capP?Math.round(bookedMinutes(mine)/capP*100)+'%':'—']
+  })
+  // 2. origen de las reservas
+  const bot=appts.filter(a=>/asistente de whatsapp/i.test(a.notes||'')).length
+  const origen=[['Asistente de WhatsApp',bot],['Panel / mostrador',appts.length-bot]]
+  // 3. ventas facturadas por método
+  const byMethod={}
+  ventas.forEach(s=>{ byMethod[s.payment_method||'—']=(byMethod[s.payment_method||'—']||0)+Number(s.total||0) })
+  // 4/5. recordatorios
+  const remin=appts.filter(a=>a.reminded_at)
+  const conTel=remin.filter(a=>waPhone(a.client_phone)).length
+  const conMail=remin.filter(a=>{ const c=state.clients.find(x=>x.id===a.client_id); return c&&c.email }).length
+  const confirmadas=remin.filter(a=>a.status==='confirmed'||a.status==='attending').length
+  // 7. cumpleaños de hoy
+  const md=new Date().toISOString().slice(5,10)
+  const cumples=state.clients.filter(c=>c.birthday && c.birthday.slice(5,10)===md)
+
+  grid.innerHTML=[
+    tile('📈','Factor de ocupación', appts.length&&state.professionals.length
+      ? lines(occProf) : ph('Comenzaremos a mostrarte los datos una vez que los profesionales cuenten con reservas agendadas en el período de tiempo seleccionado.')),
+    tile('📅','Origen de las reservas', appts.length
+      ? lines(origen.map(([n,v])=>[n, `${v} (${Math.round(v/appts.length*100)}%)`])) : ph('Comenzaremos a mostrarte los datos cuando tengas reservas agendadas en el período de tiempo seleccionado.')),
+    tile('🧾','Ventas facturadas', ventas.length
+      ? lines([...Object.entries(byMethod).map(([k,v])=>[k,fmtMoney(v)]), ['Total',fmtMoney(monto)]]) : ph('Comenzaremos a mostrarte los datos una vez que registres una venta en el período de tiempo seleccionado.')),
+    tile('💬','Recordatorios por WhatsApp', conTel
+      ? lines([['Enviados',conTel],['Confirmaron su cita',confirmadas],['Sin teléfono',appts.filter(a=>!waPhone(a.client_phone)).length]])
+      : ph('Comenzaremos a mostrarte los datos una vez que se envíen mensajes de WhatsApp en el período de tiempo seleccionado.')),
+    tile('✉️','Recordatorios por email', conMail
+      ? lines([['Enviados',conMail],['Confirmaron su cita',confirmadas],['Sin correo',appts.filter(a=>{const c=state.clients.find(x=>x.id===a.client_id); return !(c&&c.email)}).length]])
+      : ph('Comenzaremos a mostrarte los datos una vez enviado un correo de recordatorio en el período de tiempo seleccionado.')),
+    tile('📣','Métricas campañas email marketing', '<div id="rsCamp">'+ph('Cargando…')+'</div>'),
+    tile('🎂','Cumpleaños de hoy', cumples.length
+      ? lines(cumples.map(c=>[c.name, c.phone||c.email||''])) : ph('Hoy no hay clientes de cumpleaños.'))
+  ].join('')
+
+  // campañas (tabla propia)
+  try{
+    if(repCampaigns===null) repCampaigns=await supabase.fetch('campaigns',{order:'created_at.desc'}) || []
+  }catch(e){ repCampaigns=[] }
+  const camps=(repCampaigns||[]).filter(c=>inR(c.created_at,f,t))
+  const box=document.getElementById('rsCamp')
+  if(box) box.innerHTML = camps.length
+    ? lines([['Campañas enviadas',camps.length],['Correos enviados',camps.reduce((a,c)=>a+Number(c.sent_count||0),0)],['Última',esc(camps[0].subject||'—')]])
+    : ph('Comenzaremos a mostrarte los datos una vez enviada una campaña en el período de tiempo seleccionado.')
 }
 
 /* ── VENTAS ── */
