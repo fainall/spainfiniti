@@ -172,8 +172,22 @@ input,select,textarea{font-family:inherit}
 .adm-cat{font-size:.82rem;font-weight:700;color:var(--mid);margin:18px 0 8px}
 .lc-hours td{padding:8px 6px}
 .lc-hours .sw{display:inline-block;width:42px;height:23px;flex:none;margin:0;vertical-align:middle}
+.pro-photo{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.pro-drop{width:150px;height:150px;border:2px dashed var(--border);border-radius:50%;display:grid;place-items:center;text-align:center;color:var(--light);cursor:pointer;overflow:hidden;font-size:1.6rem;line-height:1.5}
+.pro-drop:hover{border-color:var(--gold)}
+.pro-drop img{width:100%;height:100%;object-fit:cover}
+.svc-cat{border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.svc-cat > label.chk{font-weight:700}
+.svc-cat .svc-items{margin:8px 0 0 24px;display:none}
+.svc-cat.open .svc-items{display:block}
+.svc-cat .svc-items label.chk{padding:4px 0}
+.svc-cat .cat-toggle{background:none;border:none;cursor:pointer;color:var(--mid);font-size:.8rem;margin-left:auto}
+.svc-cat .cat-head{display:flex;align-items:center;gap:8px}
+.brk-row{display:flex;gap:6px;align-items:center;margin-top:4px}
+.brk-row select{padding:4px 6px}
+.brk-row button{background:none;border:none;color:var(--red);cursor:pointer}
 .lc-hours select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.82rem}
-label.chk{display:flex;align-items:center;gap:8px;font-size:.83rem;font-weight:500;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--dark)}
+.modal label.chk, label.chk{display:flex;align-items:center;gap:8px;font-size:.83rem;font-weight:500;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--dark);margin:0}
 label.chk input{width:auto;margin:0}
 @media(max-width:860px){.adm-wrap{grid-template-columns:1fr;padding:16px}}
 /* reporte de reservas */
@@ -1395,6 +1409,106 @@ label.chk input{width:auto;margin:0}
         </div>
       </aside>
       <div class="adm-main" id="admMain"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: profesional (Administración) -->
+  <div class="modal-ov" id="proModal">
+    <div class="modal" style="width:820px;max-width:94vw">
+      <h2 id="proTitle">Nuevo profesional</h2>
+      <input type="hidden" id="proId" />
+      <div class="mtabs" id="proTabs">
+        <button class="on" onclick="proTab('basicos',this)">Datos básicos</button>
+        <button onclick="proTab('horario',this)">Horario</button>
+        <button onclick="proTab('perfil',this)">Perfil</button>
+      </div>
+
+      <div class="mtab-pane on" id="prtab-basicos">
+        <div class="fbox">
+          <label>Nombre <span style="color:var(--red)">*</span></label>
+          <input type="text" id="proName" placeholder="Nombre del profesional" />
+          <label style="margin-top:12px">Nombre público</label>
+          <input type="text" id="proPublic" placeholder="Cómo aparece en el sitio web (opcional)" />
+          <div class="sw-row" style="margin-top:16px">
+            <label class="sw"><input type="checkbox" id="proOnline" checked /><i></i></label>
+            <div class="sw-txt"><strong>Este profesional acepta reservas en línea</strong><span>Aparece como opción cuando tus clientes agendan desde el sitio web.</span></div>
+          </div>
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="proUser" onchange="document.getElementById('proEmailBox').style.display=this.checked?'block':'none'" /><i></i></label>
+            <div class="sw-txt"><strong>Crear un usuario a este profesional</strong><span>Ingresa el email para que el profesional pueda ver su propia agenda.</span></div>
+          </div>
+          <div id="proEmailBox" style="display:none"><input type="text" id="proEmail" placeholder="Ingresa el email del profesional" /></div>
+        </div>
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Selecciona los servicios que realiza el profesional</h3>
+          <label class="chk" style="font-weight:700"><input type="checkbox" id="proAllSvc" onchange="proToggleAllSvc(this.checked)" /> <span>Seleccionar todo</span></label>
+          <div id="proSvcTree" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="mtab-pane" id="prtab-horario">
+        <div class="fbox">
+          <table class="ctbl lc-hours">
+            <thead><tr><th>Día</th><th>Estado</th><th>Inicio de la jornada</th><th>Fin de la jornada</th><th>Descanso</th><th></th></tr></thead>
+            <tbody id="proHours"></tbody>
+          </table>
+          <p class="rem-note" style="margin-top:10px">Los días en que el local está cerrado no se pueden activar. Cámbialos en Administración → Locales.</p>
+        </div>
+      </div>
+
+      <div class="mtab-pane" id="prtab-perfil">
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600">Biografía</h3>
+          <p class="rem-note" style="margin:2px 0 8px">Será visible en el sitio web. Máximo 600 caracteres.</p>
+          <textarea id="proBio" rows="4" maxlength="600" placeholder="Incluye una breve biografía del profesional"></textarea>
+          <h3 style="font-size:.95rem;font-weight:600;margin-top:18px">Foto del profesional</h3>
+          <p class="rem-note" style="margin:2px 0 10px">Te recomendamos un tamaño mínimo de 100x100px. La imagen se reduce automáticamente.</p>
+          <div class="pro-photo">
+            <div class="pro-drop" id="proPhotoBox" onclick="document.getElementById('proPhotoFile').click()">
+              <span id="proPhotoPh">🖼<br><span style="font-size:.74rem">Arrastra o selecciona la imagen</span></span>
+              <img id="proPhotoImg" style="display:none" alt="" />
+            </div>
+            <div>
+              <button class="btn-g" onclick="document.getElementById('proPhotoFile').click()">⬆ Subir imagen</button>
+              <button class="mini-link" style="display:block;margin-top:8px" onclick="clearProPhoto()">Quitar foto</button>
+              <input type="file" id="proPhotoFile" accept="image/*" style="display:none" onchange="onProPhoto(this)" />
+            </div>
+          </div>
+        </div>
+        <div class="fbox">
+          <label>Color en la agenda</label>
+          <div class="swatches" id="proSwatches"></div>
+          <div class="row2" style="margin-top:14px">
+            <div><label>Comisión sobre ventas (%)</label><input type="number" id="proComm" min="0" max="100" value="0" /></div>
+            <div><label>Estado</label><select id="proActive"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-danger" id="proDelBtn" onclick="deletePro()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('proModal')">Cerrar</button>
+        <button class="btn-primary" onclick="savePro()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: grupo de profesionales -->
+  <div class="modal-ov" id="groupModal">
+    <div class="modal" style="width:520px">
+      <h2 id="grpTitle">Crea un nuevo grupo</h2>
+      <input type="hidden" id="grpId" />
+      <div class="fbox">
+        <label>Nombre del grupo <span style="color:var(--red)">*</span></label>
+        <input type="text" id="grpName" placeholder="Escribe aquí el nombre del grupo" />
+        <label style="margin-top:14px">Profesionales del grupo</label>
+        <div id="grpMembers"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="grpDelBtn" onclick="deleteGroup()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('groupModal')">Cancelar</button>
+        <button class="btn-primary" onclick="saveGroup()">Guardar</button>
+      </div>
     </div>
   </div>
 
@@ -3428,22 +3542,236 @@ function admLocales(){
       <button class="mini-btn" onclick="openLocalModal()">✎ Editar</button>
     </div>`
 }
+/* ── ADMINISTRACIÓN · PROFESIONALES ──
+   Los campos que la tabla professionals no tiene (nombre público, email, servicios,
+   descansos, bio, foto) se guardan en bot_config.prof_meta; si la columna no existe,
+   quedan en este navegador. */
+let profMeta={}, profGroups=[], admProfTab='profesionales'
+const PRO_COLORS=['#C5A467','#3FC7EB','#EC6FBF','#9CCC65','#F5A623','#7E8CE0','#F4A29B','#4DB6AC']
+function loadProfMeta(){
+  try{ const l=JSON.parse(localStorage.getItem('spa_prof_meta')||'null'); if(l) profMeta=l }catch(e){}
+  try{ const g=JSON.parse(localStorage.getItem('spa_prof_groups')||'null'); if(g) profGroups=g }catch(e){}
+  if(botCfg && botCfg.prof_meta) profMeta=botCfg.prof_meta
+  if(botCfg && botCfg.prof_groups) profGroups=botCfg.prof_groups
+}
+async function persistProfMeta(){
+  localStorage.setItem('spa_prof_meta',JSON.stringify(profMeta))
+  localStorage.setItem('spa_prof_groups',JSON.stringify(profGroups))
+  try{ await supabase.update('bot_config','1',{prof_meta:profMeta, prof_groups:profGroups})
+    botCfg.prof_meta=profMeta; botCfg.prof_groups=profGroups; return true }
+  catch(e){ return false }
+}
+function metaOf(id){ return profMeta[id] || {} }
+function admProfSetTab(t){ admProfTab=t; renderAdmin() }
 function admProfesionales(){
+  const tabs=`<div class="mtabs" style="margin-bottom:14px">
+    <button class="${admProfTab==='profesionales'?'on':''}" onclick="admProfSetTab('profesionales')">Profesionales</button>
+    <button class="${admProfTab==='grupos'?'on':''}" onclick="admProfSetTab('grupos')">Grupos Personalizados</button></div>`
+  if(admProfTab==='grupos'){
+    const rows=profGroups.map(g=>`<div class="adm-row">
+      <span class="ar-name">${esc(g.name)}</span>
+      <span class="ar-meta">${g.members.map(id=>esc((state.professionals.find(p=>p.id===id)||{}).name||'')).filter(Boolean).join(' · ')||'sin profesionales'}</span>
+      <button class="mini-btn" onclick="openGroupModal('${g.id}')">✎ Editar</button></div>`).join('')
+    return tabs+`<div class="inv-notice">⭐ En esta sección puedes crear grupos de profesionales para luego filtrarlos en la agenda.</div>
+      <div class="adm-head"><span></span><button class="btn-primary" onclick="openGroupModal()">+ Nuevo grupo</button></div>
+      ${rows || '<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🔍</div>No hay resultados para mostrar</div>'}`
+  }
   const rows=state.professionals.map(p=>{
+    const m=metaOf(p.id)
     const days=Array.isArray(p.work_days)?p.work_days:JSON.parse(p.work_days||'[]')
     const dn=days.map(d=>DOW_ADM[(d+6)%7].slice(0,3)).join(' · ')
-    return `<div class="adm-row">
-      <span style="width:30px;height:30px;border-radius:50%;background:${p.color||'#C5A467'};color:#fff;display:grid;place-items:center;font-size:.72rem;font-weight:700">${esc((p.name||'?').slice(0,2).toUpperCase())}</span>
+    const av=m.photo?`<img src="${m.photo}" style="width:32px;height:32px;border-radius:50%;object-fit:cover" alt="">`
+      :`<span style="width:32px;height:32px;border-radius:50%;background:${p.color||'#C5A467'};color:#fff;display:grid;place-items:center;font-size:.72rem;font-weight:700">${esc((p.name||'?').slice(0,2).toUpperCase())}</span>`
+    return `<div class="adm-row">${av}
       <span class="ar-name">${esc(p.name)}</span>
       <span class="ar-meta">${(p.work_start||'').slice(0,5)} – ${(p.work_end||'').slice(0,5)} · ${dn||'sin días'}</span>
-      <span class="ar-meta">Comisión ${p.commission||0}%</span>
-      <span class="adm-dot">● Activo</span>
-      <button class="mini-btn" onclick="openProfManager()">✎ Editar</button>
-    </div>`}).join('')
-  return `<div class="inv-notice">⭐ <strong>Edita a tu equipo de trabajo.</strong> Puedes cambiar sus horarios, su color en la agenda y su comisión sobre ventas.</div>
-    <div class="adm-head"><span></span><button class="btn-primary" onclick="openProfManager()">+ Nuevo profesional</button></div>
+      <span class="ar-meta">Comisión ${p.commission_pct||0}%</span>
+      <span class="adm-dot ${p.active===false?'off':''}">● ${p.active===false?'Inactivo':'Activo'}</span>
+      <button class="mini-btn" onclick="openProModal('${p.id}')">✎ Editar</button></div>`}).join('')
+  return tabs+`<div class="inv-notice">⭐ <strong>Edita a tu equipo de trabajo.</strong> Puedes cambiar sus horarios, qué servicios realizan, su color en la agenda y su comisión.</div>
+    <div class="adm-head"><span></span><button class="btn-primary" onclick="openProModal()">+ Nuevo profesional</button></div>
     ${rows || '<div class="empty-state">Aún no hay profesionales.</div>'}`
 }
+function proTab(name,btn){
+  ;['basicos','horario','perfil'].forEach(n=>document.getElementById('prtab-'+n).classList.toggle('on',n===name))
+  const btns=[...document.querySelectorAll('#proTabs button')]
+  btns.forEach(b=>b.classList.remove('on'))
+  ;(btn||btns[['basicos','horario','perfil'].indexOf(name)]).classList.add('on')
+}
+function proToggleAllSvc(on){ document.querySelectorAll('#proSvcTree input[type=checkbox]').forEach(c=>c.checked=on) }
+function proSvcTree(selected){
+  const byCat={}
+  state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
+  const all = !selected || selected==='all'
+  return Object.entries(byCat).map(([cat,list],i)=>`<div class="svc-cat open" id="svccat${i}">
+    <div class="cat-head">
+      <label class="chk"><input type="checkbox" data-cat="${i}" onchange="document.querySelectorAll('#svccat${i} .svc-items input').forEach(c=>c.checked=this.checked)"
+        ${all||list.every(s=>selected.includes(s.name))?'checked':''} /> <span>${esc(cat)}</span></label>
+      <button class="cat-toggle" onclick="document.getElementById('svccat${i}').classList.toggle('open')">(${list.length}) ▾</button>
+    </div>
+    <div class="svc-items">${list.map(s=>`<label class="chk"><input type="checkbox" value="${esc(s.name)}" ${all||selected.includes(s.name)?'checked':''} /> <span>${esc(s.name)}</span></label>`).join('')}</div>
+  </div>`).join('') || '<p class="rem-note" style="margin:0">Aún no hay servicios cargados.</p>'
+}
+function proHoursRows(p,m){
+  const days=Array.isArray(p&&p.work_days)?p.work_days:(p?JSON.parse(p.work_days||'[]'):[1,2,3,4,5,6])
+  const st=(p&&p.work_start||'09:00').slice(0,5), en=(p&&p.work_end||'19:00').slice(0,5)
+  const breaks=(m&&m.breaks)||{}
+  return [1,2,3,4,5,6,0].map(d=>{
+    const localOpen = (localInfo.hours[d]||[])[2]
+    const on = localOpen && days.includes(d)
+    if(!localOpen) return `<tr><td style="font-weight:600">${DOW_ADM[(d+6)%7]}</td>
+      <td><label class="sw"><input type="checkbox" data-prd="${d}" disabled /><i></i></label></td>
+      <td colspan="4" style="color:var(--light);font-size:.8rem">Local cerrado</td></tr>`
+    return `<tr>
+      <td style="font-weight:600">${DOW_ADM[(d+6)%7]}</td>
+      <td><label class="sw"><input type="checkbox" data-prd="${d}" ${on?'checked':''} /><i></i></label></td>
+      <td><select data-prs="${d}">${hourOpts(st)}</select></td>
+      <td><select data-pre="${d}">${hourOpts(en)}</select></td>
+      <td><div id="brk${d}">${(breaks[d]||[]).map(b=>brkRow(d,b[0],b[1])).join('')}</div>
+        <button class="mini-link" onclick="addBreak(${d})">+ Descanso</button></td>
+      <td>${d===1?'<button class="mini-link" onclick="copyProHours()">Copiar en todos</button>':''}</td></tr>`
+  }).join('')
+}
+function brkRow(d,s,e){
+  return `<div class="brk-row"><select data-brs="${d}">${hourOpts(s||'13:00')}</select><span>–</span>
+    <select data-bre="${d}">${hourOpts(e||'14:00')}</select>
+    <button onclick="this.parentElement.remove()">✕</button></div>`
+}
+function addBreak(d){ document.getElementById('brk'+d).insertAdjacentHTML('beforeend', brkRow(d,'13:00','14:00')) }
+function copyProHours(){
+  const s=document.querySelector('[data-prs="1"]'), e=document.querySelector('[data-pre="1"]')
+  if(!s) return
+  ;[2,3,4,5,6,0].forEach(d=>{
+    const ds=document.querySelector(`[data-prs="${d}"]`), de=document.querySelector(`[data-pre="${d}"]`)
+    if(ds) ds.value=s.value; if(de) de.value=e.value
+  })
+  toast('Horario copiado a todos los días','success')
+}
+function onProPhoto(input){
+  const f=input.files&&input.files[0]; if(!f) return
+  const r=new FileReader()
+  r.onload=ev=>{
+    const img=new Image()
+    img.onload=()=>{
+      const c=document.createElement('canvas'); const size=240
+      c.width=size; c.height=size
+      const ctx=c.getContext('2d')
+      const min=Math.min(img.width,img.height)
+      ctx.drawImage(img,(img.width-min)/2,(img.height-min)/2,min,min,0,0,size,size)
+      const data=c.toDataURL('image/jpeg',0.82)
+      document.getElementById('proPhotoImg').src=data
+      document.getElementById('proPhotoImg').style.display='block'
+      document.getElementById('proPhotoPh').style.display='none'
+    }
+    img.src=ev.target.result
+  }
+  r.readAsDataURL(f)
+}
+function clearProPhoto(){
+  document.getElementById('proPhotoImg').src=''
+  document.getElementById('proPhotoImg').style.display='none'
+  document.getElementById('proPhotoPh').style.display='block'
+}
+function openProModal(id){
+  const p=id?state.professionals.find(x=>x.id===id):null
+  const m=id?metaOf(id):{}
+  document.getElementById('proTitle').textContent=p?'Editando '+p.name:'Nuevo profesional'
+  document.getElementById('proId').value=p?p.id:''
+  document.getElementById('proName').value=p?p.name:''
+  document.getElementById('proPublic').value=m.publicName||''
+  document.getElementById('proOnline').checked=m.online!==false
+  document.getElementById('proUser').checked=!!m.email
+  document.getElementById('proEmailBox').style.display=m.email?'block':'none'
+  document.getElementById('proEmail').value=m.email||''
+  document.getElementById('proSvcTree').innerHTML=proSvcTree(m.services||'all')
+  document.getElementById('proAllSvc').checked=!m.services || m.services==='all'
+  document.getElementById('proHours').innerHTML=proHoursRows(p,m)
+  document.getElementById('proBio').value=m.bio||''
+  const img=document.getElementById('proPhotoImg')
+  if(m.photo){ img.src=m.photo; img.style.display='block'; document.getElementById('proPhotoPh').style.display='none' }
+  else clearProPhoto()
+  const color=(p&&p.color)||PRO_COLORS[0]
+  document.getElementById('proSwatches').innerHTML=PRO_COLORS.map(c=>
+    `<button class="swatch${c===color?' on':''}" style="background:${c}" data-color="${c}" onclick="document.querySelectorAll('#proSwatches .swatch').forEach(b=>b.classList.remove('on'));this.classList.add('on')"></button>`).join('')
+  document.getElementById('proComm').value=(p&&p.commission_pct)||0
+  document.getElementById('proActive').value=p&&p.active===false?'0':'1'
+  document.getElementById('proDelBtn').style.display=p?'block':'none'
+  proTab('basicos')
+  openModal('proModal')
+}
+async function savePro(){
+  const name=document.getElementById('proName').value.trim()
+  if(!name){ proTab('basicos'); toast('Falta el nombre','error'); return }
+  const days=[], starts=[], ends=[], breaks={}
+  ;[1,2,3,4,5,6,0].forEach(d=>{
+    const chk=document.querySelector(`[data-prd="${d}"]`)
+    if(chk && chk.checked && !chk.disabled){
+      days.push(d)
+      const s=document.querySelector(`[data-prs="${d}"]`), e=document.querySelector(`[data-pre="${d}"]`)
+      if(s) starts.push(s.value); if(e) ends.push(e.value)
+      const box=document.getElementById('brk'+d)
+      if(box){ const list=[...box.querySelectorAll('.brk-row')].map(r=>[r.querySelector('[data-brs]').value, r.querySelector('[data-bre]').value])
+        if(list.length) breaks[d]=list }
+    }
+  })
+  const row={ name, color:(document.querySelector('#proSwatches .swatch.on')||{}).dataset?.color || PRO_COLORS[0],
+    work_days: days.length?days:[1,2,3,4,5],
+    work_start: starts.length?starts.sort()[0]:'09:00', work_end: ends.length?ends.sort().pop():'19:00',
+    commission_pct: parseInt(document.getElementById('proComm').value)||0,
+    active: document.getElementById('proActive').value==='1' }
+  const all=document.getElementById('proAllSvc').checked
+  const services = all ? 'all' : [...document.querySelectorAll('#proSvcTree .svc-items input:checked')].map(c=>c.value)
+  const id=document.getElementById('proId').value
+  try{
+    let pid=id
+    if(id) await supabase.update('professionals',id,row)
+    else { const res=await supabase.insert('professionals',row); pid=(Array.isArray(res)?res[0]:res).id }
+    profMeta[pid]={ publicName:document.getElementById('proPublic').value.trim(),
+      online:document.getElementById('proOnline').checked,
+      email:document.getElementById('proUser').checked?document.getElementById('proEmail').value.trim():'',
+      services, breaks, bio:document.getElementById('proBio').value.trim(),
+      photo:document.getElementById('proPhotoImg').src||'' }
+    const ok=await persistProfMeta()
+    await loadProfessionals(); closeModal('proModal'); renderAdmin(); render()
+    toast(ok?'Profesional guardado':'Guardado (los datos extra quedaron en este navegador)','success')
+  }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+async function deletePro(){
+  const id=document.getElementById('proId').value
+  if(!id||!confirm('¿Eliminar este profesional? Sus reservas quedarán sin profesional asignado.')) return
+  try{ await supabase.delete('professionals',id); delete profMeta[id]; await persistProfMeta()
+    await loadProfessionals(); closeModal('proModal'); renderAdmin(); render(); toast('Profesional eliminado','success') }
+  catch(e){ toast('Error al eliminar','error') }
+}
+function openGroupModal(id){
+  const g=id?profGroups.find(x=>x.id===id):null
+  document.getElementById('grpTitle').textContent=g?'Editando '+g.name:'Crea un nuevo grupo'
+  document.getElementById('grpId').value=g?g.id:''
+  document.getElementById('grpName').value=g?g.name:''
+  document.getElementById('grpMembers').innerHTML=state.professionals.map(p=>
+    `<label class="chk" style="padding:5px 0"><input type="checkbox" value="${p.id}" ${g&&g.members.includes(p.id)?'checked':''} /> <span>${esc(p.name)}</span></label>`).join('')
+    || '<p class="rem-note" style="margin:0">Aún no hay profesionales.</p>'
+  document.getElementById('grpDelBtn').style.display=g?'block':'none'
+  openModal('groupModal')
+}
+async function saveGroup(){
+  const name=document.getElementById('grpName').value.trim()
+  if(!name){ toast('Escribe el nombre del grupo','error'); return }
+  const members=[...document.querySelectorAll('#grpMembers input:checked')].map(c=>c.value)
+  const id=document.getElementById('grpId').value
+  if(id){ const g=profGroups.find(x=>x.id===id); g.name=name; g.members=members }
+  else profGroups.push({ id:'g'+(profGroups.length+1)+'-'+name.toLowerCase().replace(/\s+/g,'-'), name, members })
+  const ok=await persistProfMeta()
+  closeModal('groupModal'); renderAdmin()
+  toast(ok?'Grupo guardado':'Guardado solo en este navegador','success')
+}
+async function deleteGroup(){
+  const id=document.getElementById('grpId').value
+  if(!id||!confirm('¿Eliminar este grupo?')) return
+  profGroups=profGroups.filter(g=>g.id!==id)
+  await persistProfMeta(); closeModal('groupModal'); renderAdmin(); toast('Grupo eliminado','success')
+}
+
 function admServicios(){
   const byCat={}
   state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
@@ -5451,6 +5779,7 @@ async function boot(){
   await loadBotConfig()
   loadInvSettings()
   loadLocalInfo()
+  loadProfMeta()
   render()
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
