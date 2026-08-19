@@ -38,7 +38,7 @@ $payload = json_encode([
   'model' => $cfg['model'] ?? 'gpt-4o-mini',
   'messages' => [
     ['role'=>'system','content'=>$system],
-    ['role'=>'user','content'=>$datos],
+    ['role'=>'user','content'=>"Estos son los datos reales de ventas del negocio. Analízalos:\n\n" . $datos],
   ],
   'temperature' => 0.4,
   'max_tokens' => 400,
