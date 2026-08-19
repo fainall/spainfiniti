@@ -28,6 +28,9 @@ input,select,textarea{font-family:inherit}
 .login-box input:focus{outline:none;border-color:var(--gold)}
 .login-box button{width:100%;padding:13px;background:var(--gold);color:#fff;border:none;border-radius:8px;font-weight:600;letter-spacing:.05em}
 .login-box button:hover{background:var(--dark)}
+.user-chip{background:var(--gold-pale);color:var(--gold-d);font-size:.74rem;font-weight:700;padding:6px 12px;border-radius:20px;margin-right:10px;cursor:pointer;white-space:nowrap}
+.user-chip:hover{background:var(--gold);color:#fff}
+.login-link{background:none!important;border:none!important;color:var(--mid)!important;font-size:.78rem;text-decoration:underline;cursor:pointer;margin-top:10px;padding:0!important;width:auto!important}
 .login-err{color:var(--red);font-size:.8rem;margin-top:10px;display:none}
 
 /* ── LAYOUT ── */
@@ -633,11 +636,13 @@ label.chk input{width:auto;margin:0}
 <!-- LOGIN -->
 <div id="loginScreen" class="login-screen">
   <div class="login-box">
-    <h1>Agenda Spa Infinity</h1>
-    <p class="sub">Ingresa la clave de administrador</p>
-    <input type="password" id="loginPass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()" />
-    <button onclick="doLogin()">Entrar</button>
-    <div class="login-err" id="loginErr">Contraseña incorrecta</div>
+    <h1>Spa Infinity</h1>
+    <p class="sub">Ingresa con tu cuenta</p>
+    <input type="email" id="loginEmail" placeholder="Correo" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()" />
+    <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button onclick="doLogin()" id="loginBtn">Entrar</button>
+    <div class="login-err" id="loginErr">Correo o contraseña incorrectos</div>
+    <button class="login-link" onclick="forgotPassword()">Olvidé mi contraseña</button>
   </div>
 </div>
 
@@ -1388,6 +1393,38 @@ label.chk input{width:auto;margin:0}
     </div>
   </div>
 
+
+  <!-- VISTA: MIS INGRESOS (profesional) -->
+  <div class="view" id="view-misingresos">
+    <div class="view-inner" style="max-width:1100px">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem">Mis ingresos</h2>
+      <p class="inv-sub" style="margin-top:4px">Tus horas agendadas, lo que has generado y tu comisión.</p>
+      <div class="rr-filters" style="border-radius:12px;margin-top:14px">
+        <div><label>Desde</label><input type="date" id="miFrom" onchange="renderMisIngresos()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit" /></div>
+        <div><label>Hasta</label><input type="date" id="miTo" onchange="renderMisIngresos()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit" /></div>
+        <div class="rr-fbtns"><button class="btn-download" onclick="exportMisIngresos()">⬇ Exportar mis ganancias</button></div>
+      </div>
+      <div id="miBody" style="margin-top:16px"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: cambiar contraseña -->
+  <div class="modal-ov" id="passModal">
+    <div class="modal" style="width:440px">
+      <h2>Cambiar mi contraseña</h2>
+      <div class="fbox">
+        <label>Nueva contraseña</label>
+        <input type="password" id="pw1" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+        <label style="margin-top:12px">Repítela</label>
+        <input type="password" id="pw2" autocomplete="new-password" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('passModal')">Cancelar</button>
+        <button class="btn-primary" onclick="savePassword()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- VISTA: ADMINISTRACIÓN -->
   <div class="view" id="view-admin">
     <div class="adm-wrap">
@@ -1397,6 +1434,7 @@ label.chk input{width:auto;margin:0}
           <button class="adm-nav on" data-sec="locales" onclick="admSec('locales')">🏠 Locales</button>
           <button class="adm-nav" data-sec="profesionales" onclick="admSec('profesionales')">👤 Profesionales</button>
           <button class="adm-nav" data-sec="servicios" onclick="admSec('servicios')">🧾 Servicios</button>
+          <button class="adm-nav" data-sec="usuarios" onclick="admSec('usuarios')">🔐 Usuarios y accesos</button>
         </div>
         <div class="adm-box">
           <button class="adm-box-head" onclick="document.getElementById('admAdvanced').classList.toggle('hide')">Opciones avanzadas <span>▾</span></button>
@@ -1571,6 +1609,37 @@ label.chk input{width:auto;margin:0}
         <button class="btn-danger" id="ptDelBtn" onclick="deletePlanTpl()" style="display:none">Eliminar</button>
         <button class="btn-ghost" onclick="closeModal('planTplModal')">Cancelar</button>
         <button class="btn-primary" onclick="savePlanTpl()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: cuenta de acceso -->
+  <div class="modal-ov" id="userModal">
+    <div class="modal" style="width:560px">
+      <h2 id="usTitle">Nueva cuenta</h2>
+      <input type="hidden" id="usId" />
+      <div class="fbox">
+        <label>Nombre <span style="color:var(--red)">*</span></label>
+        <input type="text" id="usName" placeholder="Nombre de la persona" />
+        <label style="margin-top:12px">Correo <span style="color:var(--red)">*</span></label>
+        <input type="email" id="usEmail" placeholder="correo@ejemplo.cl" autocomplete="off" />
+        <div id="usPassBox" style="margin-top:12px">
+          <label>Contraseña inicial</label>
+          <input type="password" id="usPass" placeholder="Mínimo 8 caracteres" autocomplete="new-password" />
+          <p class="rem-note" style="margin-top:6px">Entrégasela a la persona; podrá cambiarla al entrar.</p>
+        </div>
+        <div class="row2" style="margin-top:12px">
+          <div><label>Rol</label><select id="usRole"><option value="pro">Profesional</option><option value="admin">Administrador</option></select></div>
+          <div><label>Estado</label><select id="usActive"><option value="1">Activo</option><option value="0">Desactivado</option></select></div>
+        </div>
+        <label style="margin-top:12px">Ficha de profesional que verá</label>
+        <select id="usProf"></select>
+        <p class="rem-note" style="margin-top:6px">Es la agenda cuyas horas e ingresos podrá ver y gestionar.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('userModal')">Cancelar</button>
+        <button class="btn-primary" onclick="saveUser()">Guardar</button>
       </div>
     </div>
   </div>
@@ -2601,12 +2670,168 @@ let state = {
 const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
 /* ── LOGIN ── */
-function doLogin(){
-  if(document.getElementById('loginPass').value === ADMIN_PASS){
-    localStorage.setItem('spa_admin_auth','true'); boot()
-  } else { document.getElementById('loginErr').style.display='block' }
+/* ══════════════════════════════════════════════
+   SESIÓN Y PERFILES (Supabase Auth)
+   Cada persona entra con su correo y contraseña.
+   Rol 'admin' ve todo; rol 'pro' ve solo lo suyo.
+   ══════════════════════════════════════════════ */
+let me = null   // { id, email, name, role, professional_id }
+const isAdmin = () => !me || me.role === 'admin'
+const isPro   = () => !!me && me.role === 'pro'
+const myProfId = () => (me && me.professional_id) || null
+
+async function doLogin(){
+  const email=(document.getElementById('loginEmail').value||'').trim()
+  const pass=document.getElementById('loginPass').value
+  const err=document.getElementById('loginErr'), btn=document.getElementById('loginBtn')
+  err.style.display='none'
+  // compatibilidad: clave maestra mientras no existan cuentas
+  if(!email && pass===ADMIN_PASS){ localStorage.setItem('spa_admin_auth','true'); boot(); return }
+  if(!email || !pass){ err.textContent='Escribe tu correo y contraseña'; err.style.display='block'; return }
+  btn.disabled=true; btn.textContent='Entrando…'
+  try{
+    await supaAuth.signIn(email, pass)
+    localStorage.setItem('spa_admin_auth','true')
+    await boot()
+  }catch(e){
+    err.textContent = /Invalid login/i.test(e.message) ? 'Correo o contraseña incorrectos' : e.message
+    err.style.display='block'
+  }finally{ btn.disabled=false; btn.textContent='Entrar' }
 }
-function doLogout(){ localStorage.removeItem('spa_admin_auth'); location.reload() }
+async function forgotPassword(){
+  const email=(document.getElementById('loginEmail').value||'').trim()
+  if(!email){ toast('Escribe tu correo primero','error'); return }
+  try{ await supaAuth.resetPassword(email, location.origin+location.pathname)
+    toast('Te enviamos un correo para crear una nueva contraseña','success')
+  }catch(e){ toast(e.message,'error') }
+}
+function doLogout(){ supaAuth.signOut(); localStorage.removeItem('spa_admin_auth'); location.reload() }
+
+/* carga el perfil de quien inició sesión */
+async function loadMe(){
+  const s=supaAuth.session()
+  if(!s || !s.user){ me=null; return }
+  try{
+    const rows=await supabase.fetch('panel_users',{filters:'id=eq.'+s.user.id})
+    me = rows && rows[0] ? rows[0] : { id:s.user.id, email:s.user.email, name:s.user.email, role:'pro', professional_id:null }
+  }catch(e){ me=null }
+}
+/* adapta la interfaz al rol */
+function applyRole(){
+  const nav=document.querySelector('.topnav-tabs')
+  const old=document.getElementById('userChip'); if(old) old.remove()
+  if(isAdmin()){
+    ;[...nav.children].forEach(el=>{ if(!el.classList.contains('pro-only')) el.style.display='' })
+    nav.querySelectorAll('.pro-only').forEach(el=>el.remove())
+  } else {
+    ;[...nav.children].forEach(el=>{ el.style.display='none' })
+    const agenda=nav.querySelector('[data-view="agenda"]')
+    if(agenda) agenda.style.display=''
+    if(!nav.querySelector('.pro-only')){
+      const b=document.createElement('button')
+      b.className='pro-only'; b.dataset.view='misingresos'
+      b.textContent='Mis ingresos'
+      b.onclick=()=>switchView('misingresos')
+      nav.appendChild(b)
+    }
+    nav.querySelector('.pro-only').style.display=''
+    if(myProfId()) state.profId=myProfId()
+  }
+  if(me){
+    const right=document.querySelector('.topnav-right')
+    const span=document.createElement('span')
+    span.id='userChip'; span.className='user-chip'
+    span.textContent=(me.name||me.email)+(isPro()?' · profesional':'')
+    span.title='Cambiar mi contraseña'
+    span.onclick=openPassModal
+    right.insertBefore(span, right.firstChild)
+  }
+}
+/* el profesional solo puede tocar sus propias citas */
+function canEditAppt(a){
+  if(isAdmin()) return true
+  return !!a && a.professional_id === myProfId()
+}
+
+/* ── VISTA: MIS INGRESOS ── */
+function renderMisIngresos(){
+  const el=document.getElementById('miBody'); if(!el) return
+  const pid=myProfId()
+  if(!pid){ el.innerHTML='<div class="empty-state">Tu cuenta todavía no está vinculada a una ficha de profesional. Pídeselo al administrador.</div>'; return }
+  const f=document.getElementById('miFrom'), t=document.getElementById('miTo')
+  if(f && !f.value) f.value=isoDate(addDays(new Date(),-29))
+  if(t && !t.value) t.value=isoDate(new Date())
+  const desde=f.value, hasta=t.value
+  const rows=[]
+  state.sales.filter(s=>s.status!=='deleted' && s.professional_id===pid && inRange(s.sale_date,desde,hasta)).forEach(s=>{
+    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+    items.forEach(it=>{
+      const monto=Number(it.qty||1)*Number(it.price||0)
+      const kind = state.products.some(p=>p.name===it.name) ? 'products'
+        : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
+      const pct=commPctFor(pid,it.name,kind)
+      rows.push({date:s.sale_date, client:s.client_name||'', item:it.name, monto, pct, comm:Math.round(monto*pct/100), tip:0})
+    })
+    if(Number(s.tip||0)) rows.push({date:s.sale_date, client:s.client_name||'', item:'Propina', monto:0, pct:100, comm:Number(s.tip), tip:Number(s.tip)})
+  })
+  const citas=state.appointments.filter(a=>a.professional_id===pid && a.status!=='block' && inRange(a.appt_date,desde,hasta))
+  const atendidas=citas.filter(a=>a.status==='attending').length
+  const ventas=rows.reduce((a,r)=>a+r.monto,0)
+  const tips=rows.reduce((a,r)=>a+r.tip,0)
+  const comm=rows.reduce((a,r)=>a+r.comm,0)
+  const kpi=(l,v,s)=>`<div class="rr-kpi"><h5>${l}</h5><div class="k-num">${v}</div><div class="k-sub">${s}</div></div>`
+  const hoy=isoDate(new Date())
+  const prox=citas.filter(a=>a.appt_date>=hoy).sort((a,b)=>(a.appt_date+a.start_time).localeCompare(b.appt_date+b.start_time)).slice(0,10)
+  const proxHtml = prox.length
+    ? `<table class="ctbl"><thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Estado</th></tr></thead>
+       <tbody>${prox.map(a=>`<tr><td>${a.appt_date.slice(8)}/${a.appt_date.slice(5,7)}</td><td>${a.start_time.slice(0,5)}</td>
+         <td class="cname">${esc(a.client_name||'—')}</td><td>${esc(a.service_name||'—')}</td>
+         <td><span class="badge" style="background:${STATUS_COLORS[a.status]||'#eee'};color:#fff">${STATUS_LABEL[a.status]||a.status}</span></td></tr>`).join('')}</tbody></table>`
+    : '<p class="rem-note" style="margin:0">No tienes horas agendadas por delante en este período.</p>'
+  const detalle = rows.length
+    ? `<table class="ctbl"><thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio o producto</th>
+         <th style="text-align:right">Monto</th><th style="text-align:center">%</th><th style="text-align:right">Tu comisión</th></tr></thead>
+       <tbody>${rows.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr>
+         <td>${r.date.slice(8)}/${r.date.slice(5,7)}</td><td class="cname">${esc(r.client||'—')}</td><td>${esc(r.item)}</td>
+         <td style="text-align:right">${fmtMoney(r.monto)}</td><td style="text-align:center">${r.pct}%</td>
+         <td style="text-align:right;font-weight:700">${fmtMoney(r.comm)}</td></tr>`).join('')}</tbody>
+       <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700;padding:12px 16px">Total</td>
+         <td style="text-align:right;font-weight:700;padding:12px 16px">${fmtMoney(comm)}</td></tr></tfoot></table>`
+    : '<div class="empty-state">Todavía no hay ventas registradas a tu nombre en este período.</div>'
+  el.innerHTML = `<div class="rr-kpis" style="grid-template-columns:repeat(4,1fr)">
+      ${kpi('Citas en el período', citas.length, atendidas+' marcadas como asistidas')}
+      ${kpi('Ventas generadas', fmtMoney(ventas), 'Lo facturado por tu trabajo')}
+      ${kpi('Tu comisión', fmtMoney(comm-tips), 'Según el % de cada servicio')}
+      ${kpi('Propinas', fmtMoney(tips), 'Se pagan íntegras')}
+    </div>
+    <div class="rr-panel" style="margin-bottom:18px"><h5>Tus próximas horas</h5>${proxHtml}</div>
+    <div class="rr-panel"><h5>Detalle de tus ganancias</h5>${detalle}</div>`
+}
+function exportMisIngresos(){
+  const pid=myProfId(); if(!pid) return
+  const desde=document.getElementById('miFrom').value, hasta=document.getElementById('miTo').value
+  const rows=[]
+  state.sales.filter(s=>s.status!=='deleted' && s.professional_id===pid && inRange(s.sale_date,desde,hasta)).forEach(s=>{
+    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+    items.forEach(it=>{ const monto=Number(it.qty||1)*Number(it.price||0)
+      const kind = state.products.some(p=>p.name===it.name) ? 'products'
+        : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
+      const pct=commPctFor(pid,it.name,kind)
+      rows.push([s.sale_date, s.client_name||'', it.name, monto, pct, Math.round(monto*pct/100)]) })
+  })
+  if(!rows.length){ toast('No hay ganancias en el período','error'); return }
+  downloadCSV('mis-ganancias.csv',['Fecha','Cliente','Servicio o producto','Monto','% Comisión','Comisión'],rows)
+}
+
+/* ── cambiar mi contraseña ── */
+function openPassModal(){ document.getElementById('pw1').value=''; document.getElementById('pw2').value=''; openModal('passModal') }
+async function savePassword(){
+  const a=document.getElementById('pw1').value, b=document.getElementById('pw2').value
+  if(a.length<8){ toast('La contraseña debe tener al menos 8 caracteres','error'); return }
+  if(a!==b){ toast('Las contraseñas no coinciden','error'); return }
+  try{ await supaAuth.changePassword(a); closeModal('passModal'); toast('Contraseña actualizada','success') }
+  catch(e){ toast(e.message,'error') }
+}
 
 /* ── TIME HELPERS ── */
 const pad = n => String(n).padStart(2,'0')
@@ -2706,6 +2931,13 @@ function renderRangeLabel(){
 }
 function renderSidebar(){
   const el=document.getElementById('profList')
+  if(isPro()){ // el profesional solo se ve a sí mismo
+    const mio=state.professionals.find(p=>p.id===myProfId())
+    state.profId=myProfId()||'all'
+    el.innerHTML = mio ? `<div class="prof-chip on"><span class="prof-dot" style="background:${mio.color||'#C5A467'}"></span><span class="nm">${esc(mio.name)}</span></div>` : ''
+    const g=document.getElementById('profManageLink'); if(g) g.style.display='none'
+    return
+  }
   let html=`<div class="prof-chip ${state.profId==='all'?'on':''}" onclick="selectProf('all')">
     <span class="prof-dot" style="background:linear-gradient(135deg,#C5A467,#C27B8A)"></span>
     <span class="nm">Todos</span></div>`
@@ -2904,6 +3136,7 @@ async function apptMouseUp(){
   if(d.ghost) d.ghost.remove()
   clearDropHint()
   const a=findAppt(d.id); if(!a) return
+  if(!canEditAppt(a)){ toast('Esa hora es de otro profesional','error'); render(); return }
   if(!d.moved){ if(a.status==='block') openBlockModal(null,a); else openApptQuickView(d.id); return }
   if(a.appt_date===d.targetDate && a.start_time.slice(0,5)===d.targetStart){ render(); return }
   const newEnd=toHHMM(toMin(d.targetStart)+d.dur)
@@ -3144,6 +3377,8 @@ async function saveFicha(clientId){
   catch(e){ toast('Error al guardar','error') }
 }
 function openApptModal(id,prefill){
+  if(id && isPro()){ const _a=state.appointments.find(x=>x.id===id)
+    if(_a && !canEditAppt(_a)){ toast('Esa reserva es de otro profesional','error'); return } }
   fillProfSelect()
   const del=document.getElementById('apptDelBtn')
   if(id){
@@ -3188,7 +3423,8 @@ function openApptModal(id,prefill){
   openModal('apptModal')
 }
 async function saveAppt(){
-  const profId=document.getElementById('apptProf').value
+  let profId=document.getElementById('apptProf').value
+  if(isPro()){ if(profId && profId!==myProfId()){ toast('Solo puedes agendar en tu propia agenda','error'); return } profId=myProfId() }
   const client=document.getElementById('apptClientSearch').value.trim()
   const date=document.getElementById('apptDate').value
   const start=document.getElementById('apptStart').value
@@ -3219,6 +3455,9 @@ async function saveAppt(){
   }catch(e){ console.error(e); toast('Error al guardar','error') }
 }
 async function deleteAppt(){
+  { const _id=document.getElementById('apptId').value
+    const _a=state.appointments.find(x=>x.id===_id)
+    if(_a && !canEditAppt(_a)){ toast('No puedes borrar la reserva de otro profesional','error'); return } }
   const id=document.getElementById('apptId').value
   if(!id||!confirm('¿Eliminar esta reserva definitivamente?')) return
   try{ await supabase.delete('appointments',id); closeModal('apptModal'); toast('Reserva eliminada','success'); loadAndRender() }
@@ -3369,7 +3608,9 @@ const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propin
 const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
 const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
 const REPORTES_GROUP=['reportes','represervas','repventas']
+const PRO_VIEWS=['agenda','misingresos']
 function switchView(v){
+  if(typeof isPro==='function' && isPro() && !PRO_VIEWS.includes(v)) v='agenda'   // el profesional solo entra a lo suyo
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : PRODUCTOS_GROUP.includes(v) ? 'productos' : REPORTES_GROUP.includes(v) ? 'reportes' : v
   document.querySelectorAll('.topnav-tabs [data-view]').forEach(b=>b.classList.toggle('on', b.dataset.view===hi))
@@ -3389,6 +3630,7 @@ function switchView(v){
   if(v==='represervas') renderRepReservas()
   if(v==='repventas') renderRepVentas()
   if(v==='admin') renderAdmin()
+  if(v==='misingresos') renderMisIngresos()
   if(v==='asistente') renderAsistente()
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
@@ -3897,6 +4139,7 @@ function renderAdmin(){
   if(admCurrent==='locales') el.innerHTML=admLocales()
   else if(admCurrent==='profesionales') el.innerHTML=admProfesionales()
   else if(admCurrent==='comisiones'){ el.innerHTML=admComisiones(); renderLiquidacion() }
+  else if(admCurrent==='usuarios'){ el.innerHTML=admUsuarios(); loadPanelUsers().then(()=>{ if(admCurrent==='usuarios') el.innerHTML=admUsuarios() }) }
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else if(admCurrent==='precios') el.innerHTML=admPrecios()
   else el.innerHTML=admServicios()
@@ -4338,6 +4581,82 @@ function exportLiquidacion(){
   downloadCSV(`ganancias-${name}-${from}_${to}.csv`,
     ['Fecha','Hora','Cliente','Servicio o producto','Cantidad','Monto','% Comisión','Comisión'],
     rows.map(r=>[r.date, r.hora, r.client, r.item, r.qty, r.monto, r.pct, r.comm]))
+}
+
+/* ── ADMINISTRACIÓN · USUARIOS DEL PANEL ──
+   El administrador crea la cuenta de cada profesional (correo + contraseña inicial)
+   y la vincula con su ficha. Cada uno puede cambiar su clave al entrar. */
+let panelUsers = []
+async function loadPanelUsers(){
+  try{ panelUsers = await supabase.fetch('panel_users',{order:'name.asc'}) || [] }
+  catch(e){ panelUsers = [] }
+}
+function admUsuarios(){
+  const rows=panelUsers.map(u=>{
+    const prof=state.professionals.find(p=>p.id===u.professional_id)
+    return `<div class="adm-row">
+      <span class="ar-name">${esc(u.name||u.email)}</span>
+      <span class="ar-meta">${esc(u.email||'')}</span>
+      <span class="ar-meta">${u.role==='admin'?'Administrador':'Profesional'}${prof?' · '+esc(prof.name):''}</span>
+      <span class="adm-dot ${u.active===false?'off':''}">● ${u.active===false?'Desactivado':'Activo'}</span>
+      <button class="mini-btn" onclick="openUserModal('${u.id}')">✎ Editar</button>
+      <button class="mini-btn" onclick="sendUserReset('${esc(u.email)}')">Enviar clave nueva</button>
+    </div>`}).join('')
+  return `<div class="inv-notice">⭐ <strong>Cuentas de acceso.</strong> Cada profesional entra con su propio correo y contraseña, ve solo su agenda y sus ingresos, y puede cambiar su clave cuando quiera.</div>
+    <div class="adm-head"><span></span><button class="btn-primary" onclick="openUserModal()">+ Nueva cuenta</button></div>
+    ${rows || '<div class="empty-state">Aún no hay cuentas creadas.</div>'}
+    <p class="rem-note" style="margin-top:14px">La contraseña queda encriptada en Supabase: ni tú ni yo podemos verla. Si alguien la olvida, usa “Enviar clave nueva” y le llega un correo para crearla de nuevo.</p>`
+}
+function openUserModal(id){
+  const u=id?panelUsers.find(x=>x.id===id):null
+  document.getElementById('usTitle').textContent=u?('Editando '+(u.name||u.email)):'Nueva cuenta'
+  document.getElementById('usId').value=u?u.id:''
+  document.getElementById('usName').value=u?(u.name||''):''
+  document.getElementById('usEmail').value=u?(u.email||''):''
+  document.getElementById('usEmail').disabled=!!u
+  document.getElementById('usRole').value=u?u.role:'pro'
+  document.getElementById('usActive').value=(u&&u.active===false)?'0':'1'
+  const ps=document.getElementById('usProf')
+  ps.innerHTML='<option value="">— Sin vincular —</option>'+state.professionals.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+  ps.value=u?(u.professional_id||''):''
+  document.getElementById('usPassBox').style.display=u?'none':'block'
+  document.getElementById('usPass').value=''
+  openModal('userModal')
+}
+async function saveUser(){
+  const id=document.getElementById('usId').value
+  const name=document.getElementById('usName').value.trim()
+  const email=document.getElementById('usEmail').value.trim()
+  const role=document.getElementById('usRole').value
+  const profId=document.getElementById('usProf').value || null
+  const active=document.getElementById('usActive').value==='1'
+  if(!name||!email){ toast('Falta el nombre o el correo','error'); return }
+  try{
+    if(id){
+      await supabase.update('panel_users',id,{name,role,professional_id:profId,active})
+      toast('Cuenta actualizada','success')
+    } else {
+      const pass=document.getElementById('usPass').value
+      if(pass.length<8){ toast('La contraseña inicial debe tener al menos 8 caracteres','error'); return }
+      // crear el usuario en Supabase Auth
+      const res=await fetch(SUPABASE_URL+'/auth/v1/signup',{method:'POST',
+        headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({email,password:pass})})
+      const j=await res.json()
+      if(!res.ok) throw new Error(j.msg||j.error_description||'No pudimos crear la cuenta')
+      const uid=(j.user&&j.user.id)||j.id
+      if(!uid) throw new Error('Supabase no devolvió el usuario; revisa que el registro por correo esté habilitado')
+      await supabase.insert('panel_users',{id:uid,email,name,role,professional_id:profId,active:true})
+      toast('Cuenta creada — entrégale la contraseña al profesional para que la cambie','success')
+    }
+    await loadPanelUsers(); closeModal('userModal'); renderAdmin()
+  }catch(e){ console.error(e); toast(e.message,'error') }
+}
+async function sendUserReset(email){
+  if(!email){ toast('Esa cuenta no tiene correo','error'); return }
+  try{ await supaAuth.resetPassword(email, location.origin+location.pathname)
+    toast('Le enviamos un correo para crear una contraseña nueva','success') }
+  catch(e){ toast(e.message,'error') }
 }
 
 /* ── ADMINISTRACIÓN · PROFESIONALES ──
@@ -6954,6 +7273,10 @@ function toast(msg,type){ const t=document.getElementById('toast'); t.textConten
 
 /* ── BOOT ── */
 async function boot(){
+  // sesión: si hay cuenta, refrescar token y cargar perfil
+  const _sess = supaAuth.session()
+  if(_sess){ const ok = await supaAuth.ensureFresh(); if(!ok){ doLogout(); return } await loadMe() }
+  else { me = null }
   document.getElementById('loginScreen').style.display='none'
   document.getElementById('app').style.display='flex'
   if(typeof initSupabaseData==='function'){ try{ await initSupabaseData() }catch(e){} }
@@ -6975,7 +7298,9 @@ async function boot(){
   loadCommCfg()
   loadPlanTpls()
   loadSmartPricing()
+  applyRole()
   render()
+  if(isPro()) switchView('agenda')
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
 }

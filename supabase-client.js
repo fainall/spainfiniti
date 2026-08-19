@@ -6,6 +6,11 @@ const SUPABASE_URL = 'https://bxwamppamqxtncvfdycy.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA'
 
 /* ── Lightweight Supabase REST wrapper ──── */
+/* Token de sesión (Supabase Auth). Si no hay sesión se usa la clave anónima. */
+let SUPA_TOKEN = null
+try { const sess = JSON.parse(localStorage.getItem('spa_session') || 'null'); if (sess && sess.access_token) SUPA_TOKEN = sess.access_token } catch (e) {}
+function supaAuthHeader() { return 'Bearer ' + (SUPA_TOKEN || SUPABASE_ANON_KEY) }
+
 const supabase = {
   async fetch(table, { select = '*', filters = '', order = '' } = {}) {
     let url = `${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}`
@@ -14,7 +19,7 @@ const supabase = {
     const res = await fetch(url, {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': supaAuthHeader(),
         'Content-Type': 'application/json'
       }
     })
@@ -27,7 +32,7 @@ const supabase = {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': supaAuthHeader(),
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       },
@@ -45,7 +50,7 @@ const supabase = {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': supaAuthHeader(),
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       },
@@ -63,7 +68,7 @@ const supabase = {
       method: 'DELETE',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Authorization': supaAuthHeader(),
         'Content-Type': 'application/json'
       }
     })
@@ -242,4 +247,78 @@ async function savePageContent(pageId, content) {
     // If row doesn't exist, insert
     return await supabase.insert('page_content', { id: pageId, ...data })
   }
+}
+
+/* ═══════════════════════════════════════════
+   Autenticación (Supabase Auth) — usada por el panel
+   ═══════════════════════════════════════════ */
+const supaAuth = {
+  async signIn(email, password) {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+    const j = await res.json()
+    if (!res.ok) throw new Error(j.error_description || j.msg || 'No pudimos iniciar sesión')
+    this.setSession(j)
+    return j
+  },
+
+  setSession(j) {
+    SUPA_TOKEN = j.access_token
+    localStorage.setItem('spa_session', JSON.stringify({
+      access_token: j.access_token,
+      refresh_token: j.refresh_token,
+      expires_at: Date.now() + (j.expires_in || 3600) * 1000,
+      user: j.user || null
+    }))
+  },
+
+  session() {
+    try { return JSON.parse(localStorage.getItem('spa_session') || 'null') } catch (e) { return null }
+  },
+
+  /* renueva el token si está por vencer; devuelve false si la sesión ya no sirve */
+  async ensureFresh() {
+    const s = this.session()
+    if (!s) return false
+    if (s.expires_at && s.expires_at - Date.now() > 120000) { SUPA_TOKEN = s.access_token; return true }
+    try {
+      const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token })
+      })
+      const j = await res.json()
+      if (!res.ok) { this.signOut(); return false }
+      this.setSession(j)
+      return true
+    } catch (e) { return false }
+  },
+
+  async changePassword(newPassword) {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': supaAuthHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: newPassword })
+    })
+    const j = await res.json()
+    if (!res.ok) throw new Error(j.msg || j.error_description || 'No pudimos cambiar la contraseña')
+    return j
+  },
+
+  async resetPassword(email, redirectTo) {
+    const body = { email, gotrue_meta_security: {} }
+    if (redirectTo) body.redirect_to = redirectTo
+    const res = await fetch(SUPABASE_URL + '/auth/v1/recover', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    if (!res.ok) { const j = await res.json().catch(function () { return {} }); throw new Error(j.msg || 'No pudimos enviar el correo') }
+    return true
+  },
+
+  signOut() { SUPA_TOKEN = null; localStorage.removeItem('spa_session') }
 }
