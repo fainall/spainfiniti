@@ -339,6 +339,7 @@
 <script src="/supabase-client.js?v=8"></script>
 <script src="/data.js?v=5"></script>
 <script src="/common.js?v=16"></script>
+<script src="/smart-pricing.js?v=1"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
 document.getElementById('footerContainer').innerHTML = renderFooter()
@@ -407,6 +408,19 @@ const catId = catPathMatch ? catPathMatch[1] : new URLSearchParams(location.sear
       <a href="/servicio/${svc.id}" class="btn-para" onclick="event.stopPropagation()">Ver detalles</a>
     </article>
   `).join('')
+
+  /* Precios inteligentes: chip de descuento en cada tarjeta */
+  SmartPricing.styles()
+  SmartPricing.load().then(() => {
+    document.querySelectorAll('.card-meta-item').forEach(el => {
+      const lbl = el.querySelector('.card-meta-label')
+      if (!lbl || lbl.textContent.trim() !== 'Precio') return
+      const card = el.closest('article, .service-card, .card')
+      const title = card && card.querySelector('h3, .card-title, .svc-title')
+      const chip = SmartPricing.chip(title ? title.textContent.trim() : '')
+      if (chip) el.insertAdjacentHTML('beforeend', chip)
+    })
+  })
 
   /* Reveal animations */
   setTimeout(() => {

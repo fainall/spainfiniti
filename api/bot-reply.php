@@ -40,6 +40,45 @@ $svcLines = [];
 foreach ($services as $s) $svcLines[] = '- '.$s['name'].' ('.($s['price']?:'consultar').', '.($s['duration']?:'').')';
 $svcText = implode("\n", array_slice($svcLines, 0, 80));
 
+/* ── Precios inteligentes: descuentos por franja horaria ── */
+$smart = $bot['smart_pricing'] ?? null;
+if (is_string($smart)) $smart = json_decode($smart, true);
+$smartRules = (is_array($smart) && !empty($smart['on'])) ? ($smart['rules'] ?? []) : [];
+$smartRules = array_values(array_filter($smartRules, function($r){ return !empty($r['active']); }));
+
+$DOW_ES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function money_int($p){ return (int)preg_replace('/[^0-9]/', '', (string)$p); }
+function money_fmt($n){ return '$'.number_format($n, 0, ',', '.'); }
+
+/* devuelve ['price'=>int,'pct'=>int,'rule'=>string] para una fecha/hora/servicio */
+function smart_price($date, $time, $serviceName, $basePrice) {
+    global $smartRules;
+    $base = money_int($basePrice);
+    $w = (int)date('w', strtotime($date));          // 0=domingo
+    $hhmm = substr($time, 0, 5);
+    foreach ($smartRules as $r) {
+        $days = $r['days'] ?? [];
+        if (!in_array($w, $days)) continue;
+        if ($hhmm < ($r['from'] ?? '00:00') || $hhmm >= ($r['to'] ?? '23:59')) continue;
+        $svcs = $r['services'] ?? 'all';
+        if ($svcs !== 'all' && is_array($svcs) && !in_array($serviceName, $svcs)) continue;
+        $pct = (int)($r['pct'] ?? 0);
+        return ['price'=>(int)round($base * (100 - $pct) / 100), 'pct'=>$pct, 'rule'=>$r['name'] ?? ''];
+    }
+    return ['price'=>$base, 'pct'=>0, 'rule'=>''];
+}
+
+$smartText = '';
+if ($smartRules) {
+    $lines = [];
+    foreach ($smartRules as $r) {
+        $dias = implode(', ', array_map(function($d) use ($DOW_ES){ return $DOW_ES[$d]; }, $r['days'] ?? []));
+        $svcs = ($r['services'] ?? 'all') === 'all' ? 'todos los servicios' : implode(', ', $r['services']);
+        $lines[] = '- '.($r['name'] ?? 'Descuento').': '.$r['pct'].'% menos los '.$dias.' entre '.$r['from'].' y '.$r['to'].' en '.$svcs.'.';
+    }
+    $smartText = "\n\nPRECIOS REBAJADOS EN HORARIOS DE BAJA DEMANDA (menciónalos cuando el cliente pregunte precios o dude de la hora; son una oportunidad real de ahorro):\n".implode("\n", $lines)."\nCuando propongas una hora dentro de estas franjas, di el precio rebajado y cuánto ahorra.";
+}
+
 $faq = '';
 if (!empty($bot['faq'])) {
     $f = is_string($bot['faq']) ? json_decode($bot['faq'], true) : $bot['faq'];
@@ -60,7 +99,7 @@ TONO/INSTRUCCIONES DEL NEGOCIO:
 ".(!empty($bot['welcome']) ? "\nBienvenida sugerida: ".$bot['welcome'] : '')."
 
 SERVICIOS:
-$svcText
+$svcText$smartText
 ".($faq ? "\nPREGUNTAS FRECUENTES:$faq" : '');
 
 /* ── Funciones (tools OpenAI) ── */
@@ -69,7 +108,8 @@ $tools = [
     'parameters'=>['type'=>'object','properties'=>[
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD'],
       'time'=>['type'=>'string','description'=>'Hora HH:MM (24h)'],
-      'duration'=>['type'=>'integer','description'=>'Minutos (default 60)']
+      'duration'=>['type'=>'integer','description'=>'Minutos (default 60)'],
+      'service_name'=>['type'=>'string','description'=>'Servicio consultado; con él se devuelve el precio de esa hora, ya con descuento si corresponde']
     ],'required'=>['date','time']]]],
   ['type'=>'function','function'=>['name'=>'create_booking','description'=>'Crea la reserva cuando el cliente confirma los datos.',
     'parameters'=>['type'=>'object','properties'=>[
@@ -103,7 +143,24 @@ function do_check($args) {
             if ($startM<$ae && $endM>$as) { $busy=true; break; } }
         if (!$busy) $free[]=['id'=>$p['id'],'name'=>$p['name']];
     }
-    return ['available'=>count($free)>0,'professionals'=>$free];
+    $out = ['available'=>count($free)>0,'professionals'=>$free];
+    // precio rebajado si esa hora cae en una franja con precio inteligente
+    if (!empty($args['service_name'])) {
+        global $services;
+        $base = '';
+        foreach ($services as $s) if ($s['name'] === $args['service_name']) { $base = $s['price']; break; }
+        if ($base !== '') {
+            $sp = smart_price($date, $time, $args['service_name'], $base);
+            $out['precio_normal'] = money_fmt(money_int($base));
+            if ($sp['pct'] > 0) {
+                $out['precio_en_esta_hora'] = money_fmt($sp['price']);
+                $out['descuento_pct'] = $sp['pct'];
+                $out['motivo_descuento'] = $sp['rule'];
+                $out['ahorro'] = money_fmt(money_int($base) - $sp['price']);
+            }
+        }
+    }
+    return $out;
 }
 function do_book($args) {
     global $phone;

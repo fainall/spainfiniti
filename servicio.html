@@ -539,6 +539,7 @@
 <script src="/supabase-client.js?v=8"></script>
 <script src="/data.js?v=5"></script>
 <script src="/common.js?v=16"></script>
+<script src="/smart-pricing.js?v=1"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
 document.getElementById('footerContainer').innerHTML = renderFooter()
@@ -631,6 +632,17 @@ if (!result) {
       </td>
     </tr>
   `
+
+  /* Precios inteligentes: descuento por franja horaria */
+  SmartPricing.styles()
+  SmartPricing.load().then(() => {
+    const html = SmartPricing.banner(svc.name, svc.price)
+    if (!html) return
+    const box = document.createElement('div')
+    box.innerHTML = html
+    const table = document.getElementById('priceBody').closest('table')
+    table.parentNode.insertBefore(box.firstElementChild, table.nextSibling)
+  })
 
   /* Promo banner — shows when discount has custom text */
   const promo = getActivePromoForService(svc.id)
