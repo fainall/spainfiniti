@@ -153,6 +153,33 @@ input,select,textarea{font-family:inherit}
 .inv-notice{background:#e6f4fa;color:#256b81;padding:12px 16px;border-radius:8px;font-size:.8rem;margin-bottom:14px;line-height:1.5}
 .inv-count{text-align:right;font-size:.75rem;color:var(--mid);margin-bottom:10px}
 @media(max-width:820px){.inv-filters{grid-template-columns:1fr 1fr}}
+/* reporte de reservas */
+.rr-filters{background:#fff;border:1px solid var(--border);border-radius:12px 12px 0 0;padding:16px 18px;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.rr-filters label{display:block;font-size:.78rem;font-weight:600;margin-bottom:5px}
+.rr-filters select{min-width:190px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;background:#fff;font-family:inherit}
+.rr-fbtns{margin-left:auto;display:flex;gap:8px}
+.rr-showing{background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:10px 18px;font-size:.76rem;color:var(--mid)}
+.rr-showing strong{color:var(--dark)}
+.rr-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+.rr-kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px}
+.rr-kpi h5{font-size:.82rem;font-weight:600;color:var(--mid);margin-bottom:8px}
+.rr-kpi .k-num{font-size:1.9rem;font-weight:700}
+.rr-kpi .k-sub{font-size:.74rem;color:var(--light);margin-top:6px;line-height:1.4}
+.rr-panels{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;margin-bottom:18px}
+.rr-panels.b{grid-template-columns:1fr 1.6fr}
+.rr-panels.c{grid-template-columns:1fr 1fr}
+.rr-panel{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px}
+.rr-panel h5{font-size:.86rem;font-weight:600;margin-bottom:14px}
+.rr-ph{text-align:center;color:var(--mid);font-size:.76rem;padding:26px 10px;line-height:1.5}
+.rr-ph .rp-ico{font-size:2rem;display:block;margin-bottom:8px}
+.rr-ph strong{display:block;font-size:.92rem;color:var(--dark);margin-bottom:6px}
+.bars{display:flex;align-items:flex-end;gap:5px;height:150px;padding-top:6px}
+.bars > div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%}
+.bars .bar{width:100%;background:var(--gold);border-radius:4px 4px 0 0;min-height:2px}
+.bars .bar.alt{background:#3FC7EB}
+.bars .bl{font-size:.62rem;color:var(--light);white-space:nowrap}
+.bars .bv{font-size:.66rem;font-weight:700}
+@media(max-width:900px){.rr-kpis,.rr-panels,.rr-panels.b,.rr-panels.c{grid-template-columns:1fr}}
 /* reportes — resumen */
 .rs-kpis{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:8px}
 .rs-dark{background:var(--dark);color:#fff;border-radius:12px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
@@ -610,7 +637,13 @@ input,select,textarea{font-family:inherit}
           <button onclick="switchView('movstock')">Movimientos de stock</button>
         </div>
       </div>
-      <button data-view="reportes" onclick="switchView('reportes')">Reportes</button>
+      <div class="topnav-dd">
+        <button data-view="reportes" onclick="switchView('reportes')">Reportes ▾</button>
+        <div class="topnav-dd-menu">
+          <button onclick="switchView('reportes')">Resumen</button>
+          <button onclick="switchView('represervas')">Reporte de reservas</button>
+        </div>
+      </div>
       <button data-view="asistente" onclick="switchView('asistente')">Asistente</button>
       <a class="topnav-link" href="/admin" target="_blank">Administración</a>
     </nav>
@@ -1313,6 +1346,50 @@ input,select,textarea{font-family:inherit}
         </div>
         <div id="vpTable"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- VISTA: REPORTE DE RESERVAS -->
+  <div class="view" id="view-represervas">
+    <div class="view-inner" style="max-width:1100px">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:14px">Reporte de reservas</h2>
+      <div class="mtabs" id="rrTabs" style="margin-bottom:16px">
+        <button class="on" onclick="rrSetTab('general',this)">General</button>
+        <button onclick="rrSetTab('historial',this)">Historial</button>
+        <button onclick="rrSetTab('rendimiento',this)">Rendimiento</button>
+      </div>
+      <div class="rr-filters">
+        <div><label>Periodo</label><select id="rrPeriod" onchange="renderRepReservas()">
+          <option value="7">Últimos 7 días</option>
+          <option value="30" selected>Últimos 30 días</option>
+          <option value="month">Este mes</option>
+          <option value="prevmonth">Mes pasado</option>
+          <option value="90">Últimos 90 días</option>
+        </select></div>
+        <div id="rrCompareBox"><label>Comparar con</label><select id="rrCompare" onchange="renderRepReservas()">
+          <option value="prev">Período anterior</option>
+          <option value="none">Sin comparación</option>
+        </select></div>
+        <div id="rrViewByBox" style="display:none"><label>Ver por</label><select id="rrViewBy" onchange="renderRepReservas()">
+          <option value="prof">Profesionales</option>
+          <option value="service">Servicios</option>
+        </select></div>
+        <div class="rr-fbtns">
+          <button class="btn-g" onclick="toggleAcc('rrMoreAcc');renderRepReservas()">☰ Más filtros</button>
+          <button class="btn-download" id="rrExport" onclick="exportRepReservas()" style="display:none">⬇ Exportar</button>
+        </div>
+      </div>
+      <div class="rr-showing" id="rrShowing"></div>
+      <div class="acc" id="rrMoreAcc" style="margin-top:10px">
+        <div class="acc-body">
+          <div class="inv-filters" style="margin:0;border:none;padding:0;background:none;grid-template-columns:repeat(3,1fr)">
+            <div><label>Estado de la reserva</label><select id="rrStatus" onchange="renderRepReservas()"><option value="">Todos</option></select></div>
+            <div><label>Profesional</label><select id="rrProf" onchange="renderRepReservas()"><option value="">Todos</option></select></div>
+            <div><label>Servicio</label><select id="rrService" onchange="renderRepReservas()"><option value="">Todos</option></select></div>
+          </div>
+        </div>
+      </div>
+      <div id="rrBody" style="margin-top:18px"></div>
     </div>
   </div>
 
@@ -2660,9 +2737,10 @@ async function doImport(){
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
 const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
 const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
+const REPORTES_GROUP=['reportes','represervas']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
-  const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : PRODUCTOS_GROUP.includes(v) ? 'productos' : v
+  const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : PRODUCTOS_GROUP.includes(v) ? 'productos' : REPORTES_GROUP.includes(v) ? 'reportes' : v
   document.querySelectorAll('.topnav-tabs [data-view]').forEach(b=>b.classList.toggle('on', b.dataset.view===hi))
   if(v==='clientes'){ renderClientList(); renderRecordatorios() }
   if(v==='reportes') renderReportes()
@@ -2677,6 +2755,7 @@ function switchView(v){
   if(v==='productos') renderProducts()
   if(v==='ventaprod') renderVentaProd()
   if(v==='movstock') renderMovStock()
+  if(v==='represervas') renderRepReservas()
   if(v==='asistente') renderAsistente()
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
@@ -3075,7 +3154,7 @@ async function renderReportes(){
   const [f,t]=repRange(), [pf,pt]=prevRange([f,t])
   const [cur,prev]=[await fetchAppts(f,t), await fetchAppts(pf,pt)]
   const appts=cur.filter(a=>a.status!=='block'), pAppts=prev.filter(a=>a.status!=='block')
-  const inR=(d,a,b)=>d && d.slice(0,10)>=isoDate(a) && d.slice(0,10)<=isoDate(b)
+  const inR=(d,a,b)=>{ if(!d) return false; const day=isoDate(new Date(d)); return day>=isoDate(a) && day<=isoDate(b) }
 
   // KPIs
   document.getElementById('rsTotal').textContent=appts.length
@@ -3162,6 +3241,205 @@ async function renderReportes(){
   if(box) box.innerHTML = camps.length
     ? lines([['Campañas enviadas',camps.length],['Correos enviados',camps.reduce((a,c)=>a+Number(c.sent_count||0),0)],['Última',esc(camps[0].subject||'—')]])
     : ph('Comenzaremos a mostrarte los datos una vez enviada una campaña en el período de tiempo seleccionado.')
+}
+
+/* ── REPORTE DE RESERVAS (General · Historial · Rendimiento) ── */
+let rrTab='general', rrPage=1, rrPerPage=25, rrCache={key:'',cur:[],prev:[]}
+const MONTHS_SHORT=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+function rrSetTab(t,btn){
+  rrTab=t; rrPage=1
+  ;[...document.querySelectorAll('#rrTabs button')].forEach(b=>b.classList.remove('on'))
+  ;(btn||document.querySelectorAll('#rrTabs button')[['general','historial','rendimiento'].indexOf(t)]).classList.add('on')
+  document.getElementById('rrCompareBox').style.display = t==='historial'?'none':''
+  document.getElementById('rrViewByBox').style.display = t==='rendimiento'?'':'none'
+  document.getElementById('rrExport').style.display = t==='general'?'none':''
+  renderRepReservas()
+}
+function rrRange(){
+  const v=document.getElementById('rrPeriod').value
+  const t=new Date(); t.setHours(0,0,0,0)
+  if(v==='month') return [new Date(t.getFullYear(),t.getMonth(),1), new Date(t.getFullYear(),t.getMonth()+1,0)]
+  if(v==='prevmonth') return [new Date(t.getFullYear(),t.getMonth()-1,1), new Date(t.getFullYear(),t.getMonth(),0)]
+  return [addDays(t,-(parseInt(v)-1)), t]
+}
+function fmtShort(d){ return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}` }
+function rrFillFilters(){
+  const st=document.getElementById('rrStatus')
+  if(st && st.options.length<2){
+    st.innerHTML='<option value="">Todos</option>'+Object.keys(STATUS_LABEL).filter(k=>k!=='active')
+      .map(k=>`<option value="${k}">${STATUS_LABEL[k]}</option>`).join('')
+  }
+  const pr=document.getElementById('rrProf'); const cp=pr.value
+  pr.innerHTML='<option value="">Todos</option>'+state.professionals.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''); pr.value=cp
+  const sv=document.getElementById('rrService'); const cs=sv.value
+  const names=[...new Set(state.services.map(s=>s.name))].sort()
+  sv.innerHTML='<option value="">Todos</option>'+names.map(n=>`<option>${esc(n)}</option>`).join(''); sv.value=cs
+}
+function rrFilter(list){
+  const st=document.getElementById('rrStatus').value, pr=document.getElementById('rrProf').value, sv=document.getElementById('rrService').value
+  return list.filter(a=>a.status!=='block')
+    .filter(a=>!st||a.status===st).filter(a=>!pr||a.professional_id===pr).filter(a=>!sv||a.service_name===sv)
+}
+async function renderRepReservas(){
+  const body=document.getElementById('rrBody'); if(!body) return
+  rrFillFilters()
+  const [f,t]=rrRange()
+  const compare=document.getElementById('rrCompare').value==='prev' && rrTab!=='historial'
+  const [pf,pt]=prevRange([f,t])
+  const key=isoDate(f)+isoDate(t)
+  if(rrCache.key!==key){ rrCache={key, cur:await fetchAppts(f,t), prev:await fetchAppts(pf,pt)} }
+  const cur=rrFilter(rrCache.cur), prev=rrFilter(rrCache.prev)
+  document.getElementById('rrShowing').innerHTML=`📅 Mostrando <strong>${fmtShort(f)} – ${fmtShort(t)}</strong>`+
+    (compare?` · comparado con <strong>${fmtShort(pf)} – ${fmtShort(pt)}</strong>`:'')
+  if(rrTab==='general') body.innerHTML=rrGeneral(cur,prev,f,t,compare)
+  else if(rrTab==='historial') body.innerHTML=rrHistorial(cur)
+  else body.innerHTML=rrRendimiento(cur,f,t)
+}
+function rrPh(ico,title,txt){ return `<div class="rr-ph"><span class="rp-ico">${ico}</span><strong>${title}</strong>${txt}</div>` }
+function rrDelta(cur,prev,compare){
+  if(!compare) return ''
+  if(!prev) return cur?'<span class="rs-delta up">↑ nuevo</span>':''
+  const p=Math.round((cur-prev)/prev*100)
+  return `<span class="rs-delta ${p>0?'up':p<0?'down':'flat'}">${p>0?'↑':p<0?'↓':'—'} ${Math.abs(p)}%</span>`
+}
+function rrGeneral(cur,prev,f,t,compare){
+  const occ=(list,a,b)=>{ const cap=capacityMinutes(a,b); return cap?Math.round(bookedMinutes(list)/cap*100):0 }
+  const noShow=l=>l.length?Math.round(l.filter(a=>a.status==='no_show').length/l.length*100):0
+  const kpi=(title,val,sub,delta)=>`<div class="rr-kpi"><h5>${title}</h5><div class="k-num">${val}</div>
+    ${delta||''}<div class="k-sub">${sub}</div></div>`
+  // reservas por hora
+  const byHour={}; cur.forEach(a=>{ const h=a.start_time.slice(0,2); byHour[h]=(byHour[h]||0)+1 })
+  const hours=Object.keys(byHour).sort()
+  const maxH=Math.max(1,...Object.values(byHour))
+  const hourBars=`<div class="bars">${hours.map(h=>`<div><span class="bv">${byHour[h]}</span>
+    <span class="bar" style="height:${byHour[h]/maxH*100}%"></span><span class="bl">${h}h</span></div>`).join('')}</div>`
+  // origen
+  const bot=cur.filter(a=>/asistente de whatsapp/i.test(a.notes||'')).length
+  const origen=[['Asistente de WhatsApp',bot],['Panel / mostrador',cur.length-bot]]
+  const line=(n,v,extra)=>`<div class="rs-line"><span class="rl-n">${esc(n)}</span><span class="rl-v">${v}${extra||''}</span></div>`
+  // estados
+  const byStatus={}; cur.forEach(a=>{ byStatus[a.status]=(byStatus[a.status]||0)+1 })
+  // evolución diaria (reservas + ingresos)
+  const days=[]; for(let d=new Date(f); d<=t; d=addDays(d,1)) days.push(isoDate(d))
+  const step=Math.ceil(days.length/14)
+  const evo=days.filter((_,i)=>i%step===0).map(d=>{
+    const n=cur.filter(a=>a.appt_date===d).length
+    const inc=state.sales.filter(s=>s.status==='paid'&&s.sale_date===d).reduce((x,s)=>x+Number(s.total||0),0)
+    return {d,n,inc} })
+  const maxN=Math.max(1,...evo.map(e=>e.n)), maxI=Math.max(1,...evo.map(e=>e.inc))
+  const evoBars=`<div class="bars">${evo.map(e=>`<div title="${e.d}">
+    <span class="bar" style="height:${e.n/maxN*70}%"></span>
+    <span class="bar alt" style="height:${e.inc/maxI*30}%"></span>
+    <span class="bl">${e.d.slice(8)}/${e.d.slice(5,7)}</span></div>`).join('')}</div>
+    <p class="rem-note" style="margin-top:8px">Barra dorada: reservas · barra celeste: ingresos facturados del día.</p>`
+  // top servicios / clientes
+  const bySvc={}; cur.forEach(a=>{ const k=a.service_name||'—'; bySvc[k]=(bySvc[k]||0)+1 })
+  const topSvc=Object.entries(bySvc).sort((a,b)=>b[1]-a[1]).slice(0,3)
+  const byCli={}; cur.forEach(a=>{ const k=a.client_name||'—'; byCli[k]=(byCli[k]||0)+1 })
+  const topCli=Object.entries(byCli).sort((a,b)=>b[1]-a[1]).slice(0,5)
+
+  return `<div class="rr-kpis">
+      ${kpi('Reservas totales', cur.length, cur.length?'Reservas registradas en el período.':'Aún no hay reservas en el período seleccionado.', rrDelta(cur.length,prev.length,compare))}
+      ${kpi('Ocupación', occ(cur,f,t)+'%', cur.length?'Horas reservadas sobre las horas de trabajo.':'Aún no hay reservas para calcular la ocupación.', rrDelta(occ(cur,f,t),occ(prev,...prevRange([f,t])),compare))}
+      ${kpi('Tasa de inasistencias', noShow(cur)+'%', cur.filter(a=>a.status==='no_show').length?'Reservas marcadas como “No asistió”.':'Aún no hay inasistencias registradas en este período.', rrDelta(noShow(cur),noShow(prev),compare))}
+    </div>
+    <div class="rr-panels">
+      <div class="rr-panel"><h5>Reservas por hora</h5>${cur.length?hourBars:rrPh('🕐','Reservas por hora','Te mostraremos la distribución por hora cuando haya reservas en este período.')}</div>
+      <div class="rr-panel"><h5>Origen de las reservas</h5>${cur.length?origen.map(([n,v])=>line(n,v,` (${Math.round(v/cur.length*100)}%)`)).join(''):rrPh('🏪','Origen de las reservas','Te mostraremos de dónde provienen las reservas cuando se registren en este período.')}</div>
+    </div>
+    <div class="rr-panels b">
+      <div class="rr-panel"><h5>Reservas por estado</h5>${cur.length?Object.entries(byStatus).sort((a,b)=>b[1]-a[1]).map(([k,v])=>line(STATUS_LABEL[k]||k,v,` (${Math.round(v/cur.length*100)}%)`)).join(''):rrPh('🗓','Reservas por estado','Te mostraremos los datos por estado cuando haya reservas en este período.')}</div>
+      <div class="rr-panel"><h5>Evolución de reservas e ingresos</h5>${cur.length?evoBars:rrPh('📈','Evolución de reservas e ingresos','Te mostraremos la evolución cuando haya reservas en este período.')}</div>
+    </div>
+    <div class="rr-panels c">
+      <div class="rr-panel"><h5>Top 3 servicios</h5>${topSvc.length?topSvc.map(([n,v])=>line(n,v+' reservas')).join(''):rrPh('⭐','Top 3 servicios','Te mostraremos los datos cuando haya reservas en este período.')}</div>
+      <div class="rr-panel"><h5>Clientes más activos</h5>${topCli.length?topCli.map(([n,v])=>line(n,v+' reservas')).join(''):rrPh('👥','Clientes más activos','Te mostraremos los datos cuando haya reservas en este período.')}</div>
+    </div>`
+}
+function rrHistorial(cur){
+  const list=cur.slice().sort((a,b)=>(b.appt_date+b.start_time).localeCompare(a.appt_date+a.start_time))
+  if(!list.length) return `<div class="rr-panel"><div class="empty-state"><div style="font-size:2.4rem;margin-bottom:6px">🔍</div>No hay resultados</div></div>`
+  const pages=Math.max(1,Math.ceil(list.length/rrPerPage))
+  if(rrPage>pages) rrPage=pages
+  const slice=list.slice((rrPage-1)*rrPerPage, rrPage*rrPerPage)
+  const pagado=a=>{ const s=state.sales.find(s=>s.status!=='deleted' && s.client_id===a.client_id && s.sale_date===a.appt_date)
+    return s ? (s.status==='paid'?'<span class="badge paid">Pagada</span>':'<span class="badge" style="background:#fdf3e0;color:#9a6b12">Parcial</span>')
+             : '<span class="badge" style="background:#eee;color:#888">Sin venta</span>' }
+  return `<div class="rr-panel">
+    <table class="ctbl">
+      <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Estado de la reserva</th><th>Estado de pago</th><th>Origen</th></tr></thead>
+      <tbody>${slice.map(a=>{ const [y,m,d]=a.appt_date.split('-')
+        return `<tr><td>${d}/${m}/${y} · ${a.start_time.slice(0,5)}</td>
+        <td class="cname">${esc(a.client_name||'—')}</td><td>${esc(a.service_name||'—')}</td>
+        <td><span class="badge" style="background:${STATUS_COLORS[a.status]||'#eee'};color:#fff">${STATUS_LABEL[a.status]||a.status}</span></td>
+        <td>${pagado(a)}</td>
+        <td>${/asistente de whatsapp/i.test(a.notes||'')?'Asistente WhatsApp':'Panel / mostrador'}</td></tr>`}).join('')}</tbody>
+    </table>
+    <div class="tx-pager">
+      <button onclick="rrPage--;renderRepReservas()" ${rrPage<=1?'disabled':''}>‹ Anterior</button>
+      <span class="tx-cur">${rrPage}</span><span>de ${pages}</span>
+      <button onclick="rrPage++;renderRepReservas()" ${rrPage>=pages?'disabled':''}>Siguiente ›</button>
+      <select onchange="rrPerPage=parseInt(this.value);rrPage=1;renderRepReservas()">
+        ${[25,50,100].map(n=>`<option value="${n}" ${n===rrPerPage?'selected':''}>${n} por página</option>`).join('')}
+      </select>
+    </div></div>`
+}
+function rrRendimiento(cur,f,t){
+  const by=document.getElementById('rrViewBy').value
+  const rows={}
+  cur.forEach(a=>{
+    const k = by==='prof' ? (a.professional_id||'—') : (a.service_name||'—')
+    const nm = by==='prof' ? ((state.professionals.find(p=>p.id===a.professional_id)||{}).name||'Sin profesional') : (a.service_name||'—')
+    const r = rows[k] = rows[k] || {name:nm, n:0, min:0, monto:0, clientes:new Set()}
+    r.n++; r.min+=bookedMinutes([a]); r.monto+=parseMoney(a.price)
+    if(a.client_id) r.clientes.add(a.client_id)
+  })
+  const arr=Object.entries(rows).map(([k,r])=>{
+    let cap=0
+    if(by==='prof'){ const p=state.professionals.find(x=>x.id===k)
+      if(p) for(let d=new Date(f); d<=t; d=addDays(d,1)){
+        const days=Array.isArray(p.work_days)?p.work_days:JSON.parse(p.work_days||'[1,2,3,4,5,6]')
+        if(!days.includes(d.getDay())) continue
+        const s=p.work_start||'09:00', e=p.work_end||'19:00'
+        cap+=(parseInt(e.slice(0,2))*60+parseInt(e.slice(3,5)))-(parseInt(s.slice(0,2))*60+parseInt(s.slice(3,5)))
+      } }
+    // nuevos vs recurrentes: primer registro del cliente dentro del período
+    let nuevos=0
+    r.clientes.forEach(id=>{ const c=state.clients.find(x=>x.id===id)
+      const day=c&&c.created_at?isoDate(new Date(c.created_at)):''
+      if(day && day>=isoDate(f) && day<=isoDate(t)) nuevos++ })
+    return {...r, occ: cap?Math.round(r.min/cap*100):null, nuevos, recurrentes:r.clientes.size-nuevos}
+  }).sort((a,b)=>b.n-a.n)
+  const maxOcc=Math.max(1,...arr.map(r=>r.occ||0))
+  const tabla = arr.length ? `<table class="ctbl">
+      <thead><tr><th>${by==='prof'?'Profesional':'Servicio'}</th><th style="text-align:center">Reservas</th><th style="text-align:center">Ocupación</th>
+      <th style="text-align:right">Recaudación estimada</th><th style="text-align:center">Clientes nuevos</th><th style="text-align:center">Clientes recurrentes</th></tr></thead>
+      <tbody>${arr.map(r=>`<tr><td class="cname">${esc(r.name)}</td><td style="text-align:center"><strong>${r.n}</strong></td>
+        <td style="text-align:center">${r.occ===null?'—':r.occ+'%'}</td>
+        <td style="text-align:right;font-weight:700">${fmtMoney(r.monto)}</td>
+        <td style="text-align:center">${r.nuevos}</td><td style="text-align:center">${r.recurrentes}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="empty-state"><div style="font-size:2.4rem;margin-bottom:6px">🔍</div>No hay resultados</div>`
+  const chart = arr.length && by==='prof'
+    ? `<div class="bars">${arr.map(r=>`<div><span class="bv">${r.occ===null?'—':r.occ+'%'}</span>
+        <span class="bar" style="height:${(r.occ||0)/maxOcc*100}%"></span><span class="bl">${esc(r.name.split(' ')[0])}</span></div>`).join('')}</div>`
+    : rrPh('🕐','Ocupación','Te mostraremos la distribución por profesional cuando haya reservas en este período.')
+  return `<div class="rr-panel">${tabla}</div>
+    <div class="rr-panel" style="margin-top:18px"><h5>Ocupación</h5>${chart}</div>`
+}
+function exportRepReservas(){
+  const cur=rrFilter(rrCache.cur)
+  if(!cur.length){ toast('No hay reservas en el período','error'); return }
+  if(rrTab==='historial'){
+    downloadCSV('reservas-historial.csv', ['Fecha','Hora','Cliente','Servicio','Estado','Origen','Profesional'],
+      cur.map(a=>[a.appt_date, a.start_time.slice(0,5), a.client_name||'', a.service_name||'', STATUS_LABEL[a.status]||a.status,
+        /asistente de whatsapp/i.test(a.notes||'')?'Asistente WhatsApp':'Panel / mostrador',
+        (state.professionals.find(p=>p.id===a.professional_id)||{}).name||'']))
+  } else {
+    const [f,t]=rrRange(), by=document.getElementById('rrViewBy').value
+    const tmp=document.createElement('div'); tmp.innerHTML=rrRendimiento(cur,f,t)
+    const rows=[...tmp.querySelectorAll('tbody tr')].map(tr=>[...tr.children].map(td=>td.textContent.trim()))
+    downloadCSV('reservas-rendimiento.csv', [by==='prof'?'Profesional':'Servicio','Reservas','Ocupación','Recaudación','Nuevos','Recurrentes'], rows)
+  }
 }
 
 /* ── VENTAS ── */
