@@ -642,6 +642,7 @@ input,select,textarea{font-family:inherit}
         <div class="topnav-dd-menu">
           <button onclick="switchView('reportes')">Resumen</button>
           <button onclick="switchView('represervas')">Reporte de reservas</button>
+          <button onclick="switchView('repventas')">Reporte de ventas</button>
         </div>
       </div>
       <button data-view="asistente" onclick="switchView('asistente')">Asistente</button>
@@ -1345,6 +1346,56 @@ input,select,textarea{font-family:inherit}
           <button class="btn-download" onclick="exportVentaProd()">⬇ Descargar reporte</button>
         </div>
         <div id="vpTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA: REPORTE DE VENTAS -->
+  <div class="view" id="view-repventas">
+    <div class="view-inner" style="max-width:1100px">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem">Reporte de ventas</h2>
+      <p class="inv-sub" style="margin-top:4px">Analiza el desempeño de tus ventas y compáralo con períodos anteriores para detectar tendencias y descubrir qué impulsa tu negocio.</p>
+      <div class="acc" id="rvHelpAcc" style="margin:10px 0 18px;border:none">
+        <button class="acc-head" style="background:none;padding:0;font-size:.82rem;text-decoration:underline" onclick="toggleAcc('rvHelpAcc')">¿No encuentras lo que buscas? <span class="chev">▾</span></button>
+        <div class="acc-body" style="padding:12px 0 0">
+          <p class="rem-note" style="margin:0">Para el detalle boleta por boleta usa <button class="mini-link" onclick="switchView('ventas')">Ventas → Detalle de ventas</button>.
+          Para caja diaria, <button class="mini-link" onclick="switchView('caja')">Caja de Ventas</button>. Para stock y márgenes de productos, <button class="mini-link" onclick="switchView('ventaprod')">Venta de productos</button>.</p>
+        </div>
+      </div>
+      <div class="rr-filters" style="border-radius:12px">
+        <div><label>Período</label><select id="rvPeriod" onchange="renderRepVentas()">
+          <option value="7">Últimos 7 días</option>
+          <option value="28" selected>Últimas 4 semanas</option>
+          <option value="month">Este mes</option>
+          <option value="prevmonth">Mes pasado</option>
+          <option value="90">Últimos 90 días</option>
+        </select></div>
+        <div><label>Comparar contra</label><select id="rvCompare" onchange="renderRepVentas()">
+          <option value="prev">Período anterior</option>
+          <option value="none">Sin comparación</option>
+        </select></div>
+      </div>
+      <div class="rr-panels c" style="margin-top:18px">
+        <div class="rr-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <h5 style="margin:0">Resumen</h5>
+            <button class="mini-link" onclick="switchView('ventas')">Ver ventas</button>
+          </div>
+          <div id="rvSummary"></div>
+        </div>
+        <div class="rr-panel"><h5>Ventas por tipo de ítem</h5><div id="rvTypes"></div></div>
+      </div>
+      <div class="rr-panel" style="margin-bottom:18px"><h5>Ventas por período</h5><div id="rvChart"></div></div>
+      <div class="acc open" id="rvIaAcc" style="margin:0 0 18px">
+        <button class="acc-head" onclick="toggleAcc('rvIaAcc')"><span>✨ Análisis del asistente</span><span class="chev">▾</span></button>
+        <div class="acc-body">
+          <div id="rvIa"><p class="rem-note" style="margin:0">Pulsa “Analizar” y el asistente revisará tus ventas del período.</p>
+          <button class="btn-primary" style="margin-top:12px" onclick="runSalesInsight()">Analizar mis ventas</button></div>
+        </div>
+      </div>
+      <div class="rr-panels c">
+        <div class="rr-panel"><h5>Ventas por categoría</h5><div id="rvCats"></div></div>
+        <div class="rr-panel"><h5>Ventas por servicio</h5><div id="rvSvcs"></div></div>
       </div>
     </div>
   </div>
@@ -2737,7 +2788,7 @@ async function doImport(){
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
 const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
 const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
-const REPORTES_GROUP=['reportes','represervas']
+const REPORTES_GROUP=['reportes','represervas','repventas']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : PRODUCTOS_GROUP.includes(v) ? 'productos' : REPORTES_GROUP.includes(v) ? 'reportes' : v
@@ -2756,6 +2807,7 @@ function switchView(v){
   if(v==='ventaprod') renderVentaProd()
   if(v==='movstock') renderMovStock()
   if(v==='represervas') renderRepReservas()
+  if(v==='repventas') renderRepVentas()
   if(v==='asistente') renderAsistente()
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
@@ -3241,6 +3293,116 @@ async function renderReportes(){
   if(box) box.innerHTML = camps.length
     ? lines([['Campañas enviadas',camps.length],['Correos enviados',camps.reduce((a,c)=>a+Number(c.sent_count||0),0)],['Última',esc(camps[0].subject||'—')]])
     : ph('Comenzaremos a mostrarte los datos una vez enviada una campaña en el período de tiempo seleccionado.')
+}
+
+/* ── REPORTE DE VENTAS ── */
+function rvRange(){
+  const v=document.getElementById('rvPeriod').value
+  const t=new Date(); t.setHours(0,0,0,0)
+  if(v==='month') return [new Date(t.getFullYear(),t.getMonth(),1), new Date(t.getFullYear(),t.getMonth()+1,0)]
+  if(v==='prevmonth') return [new Date(t.getFullYear(),t.getMonth()-1,1), new Date(t.getFullYear(),t.getMonth(),0)]
+  return [addDays(t,-(parseInt(v)-1)), t]
+}
+/* clasifica cada ítem de una venta: producto, bono, gift card o servicio */
+function rvItemType(it){
+  const n=String(it.name||'').toLowerCase()
+  if(it.productId || state.products.some(p=>(p.name||'').toLowerCase()===n)) return 'Productos'
+  if(/gift\s*card/.test(n)) return 'Gift cards'
+  if((state.plans||[]).some(p=>(p.name||'').toLowerCase()===n) || /bono|pack/.test(n)) return 'Planes / bonos'
+  return 'Servicios'
+}
+function rvSales(f,t){
+  return state.sales.filter(s=>s.status!=='deleted' && inRange(s.sale_date,isoDate(f),isoDate(t)))
+}
+function rvAgg(sales){
+  const total=sales.reduce((a,s)=>a+Number(s.total||0),0)
+  const tipos={}, cats={}, svcs={}
+  sales.forEach(s=>{
+    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+    items.forEach(it=>{
+      const monto=Number(it.qty||1)*Number(it.price||0)
+      const tipo=rvItemType(it)
+      tipos[tipo]=(tipos[tipo]||0)+monto
+      const svc=state.services.find(x=>x.name===it.name)
+      const cat = tipo==='Servicios' ? (svc? svc.cat : 'Otros servicios')
+        : tipo==='Productos' ? ((state.products.find(p=>p.name===it.name)||{}).category || 'Productos') : tipo
+      cats[cat]=(cats[cat]||0)+monto
+      if(tipo==='Servicios') svcs[it.name]=(svcs[it.name]||0)+monto
+    })
+  })
+  return {total, n:sales.length, avg: sales.length?Math.round(total/sales.length):0, tipos, cats, svcs}
+}
+function rvDelta(cur,prev,compare){
+  if(!compare) return '<span style="color:var(--light)">-</span>'
+  if(!prev) return cur?'<span class="rs-delta up">↑ nuevo</span>':'<span style="color:var(--light)">-</span>'
+  const p=Math.round((cur-prev)/prev*100)
+  return `<span class="rs-delta ${p>0?'up':p<0?'down':'flat'}">${p>0?'↑':p<0?'↓':'—'} ${Math.abs(p)}%</span>`
+}
+function renderRepVentas(){
+  const box=document.getElementById('rvSummary'); if(!box) return
+  const [f,t]=rvRange(), [pf,pt]=prevRange([f,t])
+  const compare=document.getElementById('rvCompare').value==='prev'
+  const cur=rvAgg(rvSales(f,t)), prev=rvAgg(rvSales(pf,pt))
+  const row=(lbl,val,d)=>`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+    <div style="font-size:.74rem;color:var(--mid)">${lbl}</div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+      <span style="font-size:1.4rem;font-weight:700">${val}</span>${d}</div></div>`
+  box.innerHTML = row('Total', fmtMoney(cur.total), rvDelta(cur.total,prev.total,compare))
+    + row('Cantidad de ventas', cur.n, rvDelta(cur.n,prev.n,compare))
+    + row('Venta promedio', fmtMoney(cur.avg), rvDelta(cur.avg,prev.avg,compare))
+
+  const tipos=Object.entries(cur.tipos).sort((a,b)=>b[1]-a[1])
+  document.getElementById('rvTypes').innerHTML = tipos.length
+    ? tipos.map(([k,v])=>`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:.74rem;color:var(--mid)">${esc(k)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+          <span style="font-size:1.3rem;font-weight:700">${fmtMoney(v)}</span>${rvDelta(v,prev.tipos[k]||0,compare)}</div></div>`).join('')
+    : rrPh('🔍','Ventas por tipo de ítem','No se registran ventas en el período de tiempo seleccionado')
+
+  // gráfico por período (día o semana según largo)
+  const days=[]; for(let d=new Date(f); d<=t; d=addDays(d,1)) days.push(isoDate(d))
+  const weekly=days.length>35
+  const buckets={}
+  rvSales(f,t).forEach(s=>{
+    let k=s.sale_date
+    if(weekly){ const d=new Date(s.sale_date+'T00:00:00'); k=isoDate(weekStart(d)) }
+    buckets[k]=(buckets[k]||0)+Number(s.total||0)
+  })
+  const keys=Object.keys(buckets).sort()
+  const max=Math.max(1,...Object.values(buckets))
+  document.getElementById('rvChart').innerHTML = keys.length
+    ? `<div class="bars" style="height:180px">${keys.map(k=>`<div title="${fmtMoney(buckets[k])}">
+        <span class="bv">${Math.round(buckets[k]/1000)}k</span>
+        <span class="bar" style="height:${buckets[k]/max*100}%"></span>
+        <span class="bl">${k.slice(8)}/${k.slice(5,7)}</span></div>`).join('')}</div>
+        ${weekly?'<p class="rem-note" style="margin-top:8px">Agrupado por semana.</p>':''}`
+    : rrPh('🔍','Ventas por período','No se registran ventas en el período de tiempo seleccionado')
+
+  const listOf=obj=>{ const arr=Object.entries(obj).sort((a,b)=>b[1]-a[1])
+    const tot=arr.reduce((a,[,v])=>a+v,0)
+    return arr.map(([k,v])=>`<div class="rs-line"><span class="rl-n">${esc(k)}</span>
+      <span class="rl-v">${fmtMoney(v)} <span style="color:var(--light);font-weight:400">(${tot?Math.round(v/tot*100):0}%)</span></span></div>`).join('') }
+  document.getElementById('rvCats').innerHTML = Object.keys(cur.cats).length ? listOf(cur.cats)
+    : rrPh('🔍','Ventas por categoría','No se registran ventas en el período de tiempo seleccionado')
+  document.getElementById('rvSvcs').innerHTML = Object.keys(cur.svcs).length ? listOf(cur.svcs)
+    : rrPh('🔍','Ventas por servicio','No se registran ventas en el período de tiempo seleccionado')
+}
+async function runSalesInsight(){
+  const box=document.getElementById('rvIa')
+  const [f,t]=rvRange(), [pf,pt]=prevRange([f,t])
+  const cur=rvAgg(rvSales(f,t)), prev=rvAgg(rvSales(pf,pt))
+  if(!cur.n){ box.innerHTML='<p class="rem-note" style="margin:0">Aún no hay ventas en este período para analizar.</p>'; return }
+  box.innerHTML='<p class="rem-note" style="margin:0">Analizando tus ventas…</p>'
+  try{
+    const res=await fetch('/api/sales-insight.php',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ periodo:`${isoDate(f)} a ${isoDate(t)}`, anterior:`${isoDate(pf)} a ${isoDate(pt)}`, actual:cur, previo:prev })})
+    const j=await res.json()
+    if(j.text){
+      box.innerHTML=`<div style="font-size:.86rem;line-height:1.65">${j.text.split('\n').filter(Boolean).map(l=>`<p style="margin-bottom:8px">${esc(l)}</p>`).join('')}</div>
+        <button class="mini-link" onclick="runSalesInsight()">Volver a analizar</button>`
+    } else { box.innerHTML=`<p class="rem-note" style="margin:0">${esc(j.error||'No se pudo generar el análisis.')}</p>
+      <button class="btn-primary" style="margin-top:12px" onclick="runSalesInsight()">Reintentar</button>` }
+  }catch(e){ box.innerHTML='<p class="rem-note" style="margin:0">No se pudo conectar con el asistente.</p><button class="btn-primary" style="margin-top:12px" onclick="runSalesInsight()">Reintentar</button>' }
 }
 
 /* ── REPORTE DE RESERVAS (General · Historial · Rendimiento) ── */
