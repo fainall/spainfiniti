@@ -153,6 +153,43 @@ input,select,textarea{font-family:inherit}
 .inv-notice{background:#e6f4fa;color:#256b81;padding:12px 16px;border-radius:8px;font-size:.8rem;margin-bottom:14px;line-height:1.5}
 .inv-count{text-align:right;font-size:.75rem;color:var(--mid);margin-bottom:10px}
 @media(max-width:820px){.inv-filters{grid-template-columns:1fr 1fr}}
+/* menú "+ Nuevo" del inventario */
+.inv-new{position:relative}
+.inv-new-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.14);width:308px;z-index:60;overflow:hidden}
+.inv-new-menu.open{display:block}
+.inv-new-menu button{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border);padding:12px 16px;font-family:inherit;cursor:pointer}
+.inv-new-menu button:last-child{border-bottom:none}
+.inv-new-menu button:hover{background:var(--cream)}
+.inv-new-menu strong{display:block;font-size:.84rem;font-weight:600;color:var(--dark);margin-bottom:2px}
+.inv-new-menu span{font-size:.74rem;color:var(--mid);line-height:1.4}
+/* modal con pestañas */
+.mtabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:2px 0 18px}
+.mtabs button{background:none;border:none;border-bottom:2px solid transparent;padding:10px 16px;font-family:inherit;font-size:.83rem;font-weight:600;color:var(--mid);cursor:pointer;border-radius:6px 6px 0 0}
+.mtabs button:hover{color:var(--dark)}
+.mtabs button.on{color:var(--gold-d);border-bottom-color:var(--gold);background:#faf7f0}
+.mtab-pane{display:none}
+.mtab-pane.on{display:block}
+.fbox{border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.fbox .row2{margin-bottom:0}
+.mini-link{display:inline-block;font-size:.74rem;font-weight:600;color:var(--gold-d);text-decoration:underline;background:none;border:none;padding:0;margin-top:5px;cursor:pointer;font-family:inherit}
+.hint-blue{background:#e6f4fa;color:#256b81;padding:12px 15px;border-radius:8px;font-size:.78rem;line-height:1.45}
+.hint-blue button{background:none;border:none;color:#1b8bb0;font-weight:700;text-decoration:underline;cursor:pointer;font-family:inherit;font-size:.78rem;padding:0}
+/* toggles + listas de catálogo */
+.sw-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+.sw{position:relative;flex:0 0 42px;height:23px;margin-top:2px}
+.sw input{opacity:0;width:0;height:0;position:absolute}
+.sw i{position:absolute;inset:0;background:#d5d8dd;border-radius:20px;transition:.2s;cursor:pointer}
+.sw i:before{content:'';position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked + i{background:var(--gold)}
+.sw input:checked + i:before{transform:translateX(19px)}
+.sw-txt strong{display:block;font-size:.84rem;font-weight:600;margin-bottom:2px}
+.sw-txt span{font-size:.74rem;color:var(--mid);line-height:1.45}
+.cat-add{display:flex;gap:10px;align-items:flex-end}
+.cat-add > div{flex:1}
+.cat-list{list-style:none;margin-top:14px;border-top:1px solid var(--border);max-height:210px;overflow:auto}
+.cat-list li{display:flex;justify-content:space-between;align-items:center;padding:9px 2px;border-bottom:1px solid var(--border);font-size:.84rem}
+.cat-list li button{background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem}
+.cat-empty{font-size:.78rem;color:var(--light);padding:14px 2px}
 /* bloqueo de horas */
 .blk-datetime{display:flex;gap:8px;align-items:center}
 .blk-datetime input[type=date]{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit}
@@ -1132,7 +1169,15 @@ input,select,textarea{font-family:inherit}
         <div class="inv-actions">
           <div class="inv-search"><span>🔍</span><input id="prodSearch" placeholder="Busca por nombre, marca..." oninput="renderProducts()" /></div>
           <button class="btn-g inv-import" onclick="openProductImport()">⬆ Carga masiva</button>
-          <button class="btn-primary" onclick="openProductModal()">+ Nuevo</button>
+          <div class="inv-new">
+            <button class="btn-primary" onclick="toggleInvNew(event)">+ Nuevo</button>
+            <div class="inv-new-menu" id="invNewMenu">
+              <button onclick="closeInvNew();openProductModal()"><strong>Nuevo Producto</strong><span>Agrega un producto nuevo a tu inventario</span></button>
+              <button onclick="closeInvNew();openCatalog('categories')"><strong>Nueva Categoría</strong><span>Crea categorías de productos para filtrarlos más rápido</span></button>
+              <button onclick="closeInvNew();openCatalog('brands')"><strong>Nueva Marca</strong><span>Incorpora una marca de los productos que comercializas</span></button>
+              <button onclick="closeInvNew();openCatalog('formats')"><strong>Nuevo Formato/Presentación</strong><span>Agrega los ml, gr o unidades estándar de tus productos</span></button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="inv-filters">
@@ -1444,33 +1489,129 @@ input,select,textarea{font-family:inherit}
 
 <!-- MODAL: Producto -->
 <div class="modal-ov" id="productModal">
-  <div class="modal" style="width:500px">
+  <div class="modal" style="width:820px;max-width:94vw">
     <h2 id="prodTitle">Nuevo producto</h2>
     <input type="hidden" id="prodId" />
-    <label>Nombre</label>
-    <input type="text" id="prodName" placeholder="Ej: Crema hidratante 200ml" />
-    <div class="row2">
-      <div><label>Categoría</label><input type="text" id="prodCat" placeholder="Ej: Cosmética" /></div>
-      <div><label>SKU / código</label><input type="text" id="prodSku" placeholder="Opcional" /></div>
+    <div class="mtabs" id="prodTabs">
+      <button class="on" onclick="prodTab('basicos',this)">Datos básicos</button>
+      <button onclick="prodTab('avanzadas',this)">Opciones avanzadas</button>
+      <button onclick="prodTab('alarmas',this)">Alarmas de stock</button>
     </div>
-    <div class="row2">
-      <div><label>Marca</label><input type="text" id="prodBrand" placeholder="Ej: L'Oréal" /></div>
-      <div><label>Formato / Presentación</label><input type="text" id="prodFormat" placeholder="Ej: 250 ml, unidad, pack x3" /></div>
+
+    <div class="mtab-pane on" id="ptab-basicos">
+      <div class="fbox">
+        <div class="row2">
+          <div><label>Nombre <span style="color:var(--red)">*</span></label><input type="text" id="prodName" placeholder="Indica el nombre del producto" /></div>
+          <div><label>Código de barras</label><input type="text" id="prodSku" placeholder="Indica el código del producto" /></div>
+        </div>
+        <div class="row2" style="margin-top:14px">
+          <div>
+            <label>Marca</label>
+            <select id="prodBrand"><option value="">Selecciona una marca</option></select>
+            <button class="mini-link" onclick="openCatalog('brands')">+ Nueva marca</button>
+          </div>
+          <div>
+            <label>Categoría</label>
+            <select id="prodCat"><option value="">Selecciona una categoría</option></select>
+            <button class="mini-link" onclick="openCatalog('categories')">+ Nueva categoría</button>
+          </div>
+        </div>
+        <div class="row2" style="margin-top:14px">
+          <div>
+            <label>Formato/Presentación</label>
+            <select id="prodFormat"><option value="">Selecciona un formato</option></select>
+            <button class="mini-link" onclick="openCatalog('formats')">+ Nuevo formato</button>
+          </div>
+          <div><label>Precio de venta al público</label><input type="number" id="prodPrice" min="0" step="500" value="0" /></div>
+        </div>
+      </div>
+      <div class="fbox">
+        <label>Cantidad en stock</label>
+        <input type="number" id="prodStock" min="0" value="0" />
+      </div>
+      <div class="hint-blue">🔔 Activa alarmas de stock del producto <button onclick="prodTab('alarmas')">haciendo click aquí</button></div>
     </div>
-    <div class="row2">
-      <div><label>Precio de venta</label><input type="number" id="prodPrice" min="0" step="500" value="0" /></div>
-      <div><label>Costo (opcional)</label><input type="number" id="prodCost" min="0" step="500" value="0" /></div>
+
+    <div class="mtab-pane" id="ptab-avanzadas">
+      <div class="fbox">
+        <div class="row2">
+          <div><label>Costo de compra</label><input type="number" id="prodCost" min="0" step="500" value="0" /></div>
+          <div><label>Estado del producto</label><select id="prodActive"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
+        </div>
+        <label style="margin-top:14px">Notas internas</label>
+        <textarea id="prodNotes" rows="3" placeholder="Proveedor, observaciones, uso interno…"></textarea>
+      </div>
+      <div class="hint-blue">ℹ El costo se usa para calcular el margen del producto en tus reportes. Un producto inactivo deja de aparecer en la caja de ventas.</div>
     </div>
-    <div class="row2">
-      <div><label>Stock actual</label><input type="number" id="prodStock" min="0" value="0" /></div>
-      <div><label>Alerta bajo stock</label><input type="number" id="prodMin" min="0" value="0" /></div>
+
+    <div class="mtab-pane" id="ptab-alarmas">
+      <div class="fbox">
+        <div class="sw-row">
+          <label class="sw"><input type="checkbox" id="prodAlarmOn" onchange="document.getElementById('prodMin').disabled=!this.checked" /><i></i></label>
+          <div class="sw-txt"><strong>Activar alarma de stock del producto</strong><span>Te avisamos cuando el stock quede por debajo del límite que definas aquí.</span></div>
+        </div>
+        <label>Stock límite</label>
+        <input type="number" id="prodMin" min="0" value="0" disabled />
+        <p class="rem-note" style="margin-top:8px">Si no activas esta alarma, el producto usa el límite general definido en “Alarmas de local”.</p>
+      </div>
     </div>
-    <label>Notas</label>
-    <textarea id="prodNotes" rows="2" placeholder="Opcional"></textarea>
+
     <div class="modal-actions">
       <button class="btn-danger" id="prodDelBtn" onclick="deleteProduct()" style="display:none">Eliminar</button>
       <button class="btn-ghost" onclick="closeModal('productModal')">Cancelar</button>
-      <button class="btn-primary" onclick="saveProduct()">Guardar</button>
+      <button class="btn-primary" id="prodSaveBtn" onclick="saveProduct()">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: catálogo (categoría / marca / formato) -->
+<div class="modal-ov" id="catalogModal">
+  <div class="modal" style="width:470px">
+    <h2 id="catTitle">Nueva categoría</h2>
+    <input type="hidden" id="catKind" />
+    <div class="fbox">
+      <div class="cat-add">
+        <div><label>Nombre</label><input type="text" id="catName" placeholder="Ingrese el nombre" onkeydown="if(event.key==='Enter')addCatalogItem()" /></div>
+        <button class="btn-g" onclick="addCatalogItem()">✓ Agregar</button>
+      </div>
+      <ul class="cat-list" id="catList"></ul>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('catalogModal')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: alarmas de local -->
+<div class="modal-ov" id="alarmsModal">
+  <div class="modal" style="width:820px;max-width:94vw">
+    <h2>Alarmas de local</h2>
+    <div class="hint-blue" style="margin-bottom:16px">ℹ Activa alarma de stock para todos los productos de tu local en las siguientes opciones. Recuerda que puedes configurar alarmas particulares para cada producto desde la pestaña “Alarmas de stock” al editarlo.</div>
+    <div class="fbox">
+      <div class="sw-row">
+        <label class="sw"><input type="checkbox" id="alLimitOn" /><i></i></label>
+        <div class="sw-txt"><strong>Activar stock límite general</strong><span>Activa esta opción para establecer un límite de stock general de todos los productos.</span></div>
+      </div>
+      <label>Stock límite</label>
+      <input type="number" id="alLimit" min="0" value="0" />
+      <p class="rem-note" style="margin-top:6px">Establece el límite (número) de stock general. La alarma se activará si el stock está bajo este límite.</p>
+    </div>
+    <div class="fbox">
+      <div class="sw-row">
+        <label class="sw"><input type="checkbox" id="alNoticeOn" /><i></i></label>
+        <div class="sw-txt"><strong>Activar avisos periódicos</strong><span>Recibe por correo un resumen de los productos que están bajo el stock límite.</span></div>
+      </div>
+      <label>Email</label>
+      <input type="text" id="alEmails" placeholder="mail1@email.com, mail2@email.com" />
+      <p class="rem-note" style="margin:6px 0 14px">Registra los correos a los que se enviarán las notificaciones. Puedes ingresar varios correos separados por coma.</p>
+      <div class="row2">
+        <div><label>Frecuencia</label><select id="alFreq"><option>Mensual</option><option>Semanal</option><option>Diaria</option></select></div>
+        <div><label>Día del mes</label><select id="alDay"></select></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('alarmsModal')">Cerrar</button>
+      <button class="btn-primary" onclick="saveStockAlarms()">Guardar</button>
     </div>
   </div>
 </div>
@@ -3622,14 +3763,18 @@ async function loadProducts(){
   try{ state.products = await supabase.fetch('products',{order:'name.asc'}) || [] }
   catch(e){ state.products=[]; console.warn(e) }
 }
-function isLowStock(p){ return (p.stock||0)===0 || ((p.min_stock||0)>0 && (p.stock||0)<=(p.min_stock||0)) }
+function stockLimitOf(p){
+  if((p.min_stock||0)>0) return p.min_stock            // alarma propia del producto
+  if(invAlarms.limitOn) return invAlarms.limit||0      // límite general del local
+  return 0
+}
+function isLowStock(p){ const lim=stockLimitOf(p); return (p.stock||0)===0 || (lim>0 && (p.stock||0)<=lim) }
 function fillProductFilters(){
-  const uniq=(k)=>[...new Set(state.products.filter(p=>p.active!==false).map(p=>(p[k]||'').trim()).filter(Boolean))].sort()
   const opts=(sel,arr,ph)=>{ const cur=sel.value; sel.innerHTML=`<option value="">${ph}</option>`+arr.map(v=>`<option>${esc(v)}</option>`).join(''); if(arr.includes(cur)) sel.value=cur }
   const c=document.getElementById('pfCategory'), b=document.getElementById('pfBrand'), f=document.getElementById('pfFormat')
-  if(c) opts(c, uniq('category'), 'Todos')
-  if(b) opts(b, uniq('brand'), 'Selecciona una opción')
-  if(f) opts(f, uniq('format'), 'Selecciona una opción')
+  if(c) opts(c, catValues('categories'), 'Todos')
+  if(b) opts(b, catValues('brands'), 'Selecciona una opción')
+  if(f) opts(f, catValues('formats'), 'Selecciona una opción')
 }
 function renderProducts(){
   const cont=document.getElementById('prodTable'); if(!cont) return
@@ -3649,7 +3794,7 @@ function renderProducts(){
   if(q) list=list.filter(p=>((p.name||'')+' '+(p.category||'')+' '+(p.brand||'')+' '+(p.sku||'')).toLowerCase().includes(q))
   document.getElementById('prodCount').textContent=`Mostrando ${list.length} de ${all.length} productos`
   if(!state.products.length){ cont.innerHTML='<div class="empty-state">Aún no hay productos. Crea el primero con “+ Nuevo”.</div>'; return }
-  if(!list.length){ cont.innerHTML='<div class="empty-state">No hay resultados</div>'; return }
+  if(!list.length){ cont.innerHTML='<div class="empty-state"><div style="font-size:2.6rem;margin-bottom:6px">🔍</div>No hay resultados</div>'; return }
   cont.innerHTML=`<table class="ctbl">
     <thead><tr><th>Producto</th><th>Categoría</th><th>Marca</th><th>Formato</th><th style="text-align:right">Precio</th><th style="text-align:center">Stock</th><th></th></tr></thead>
     <tbody>${list.map(p=>`<tr>
@@ -3662,10 +3807,104 @@ function renderProducts(){
       <td class="cacts"><button class="mini-btn" onclick="openProductModal('${p.id}')">Editar</button></td>
     </tr>`).join('')}</tbody></table>`
 }
+/* catálogos de inventario (categorías, marcas, formatos) + alarmas de local.
+   Se guardan en bot_config si existen las columnas inv_catalog / inv_alarms;
+   si no, quedan en este navegador (localStorage) y avisamos al guardar. */
+let invCatalog={categories:[],brands:[],formats:[]}
+let invAlarms={limitOn:false,limit:0,noticeOn:false,emails:'',freq:'Mensual',day:1}
+let invLocalOnly=false
+const CAT_META={categories:['Nueva categoría','Ingrese el nombre de la categoría'],
+  brands:['Nueva marca','Ingrese el nombre de marca'],
+  formats:['Nuevo formato/presentación','Ej: 100ml, 80gr, Unidad']}
+function loadInvSettings(){
+  try{ const l=JSON.parse(localStorage.getItem('spa_inv_catalog')||'null'); if(l) invCatalog=Object.assign(invCatalog,l) }catch(e){}
+  try{ const l=JSON.parse(localStorage.getItem('spa_inv_alarms')||'null'); if(l) invAlarms=Object.assign(invAlarms,l) }catch(e){}
+  if(botCfg && botCfg.inv_catalog) invCatalog=Object.assign(invCatalog, botCfg.inv_catalog)
+  if(botCfg && botCfg.inv_alarms) invAlarms=Object.assign(invAlarms, botCfg.inv_alarms)
+}
+async function persistInv(field,value){
+  localStorage.setItem(field==='inv_catalog'?'spa_inv_catalog':'spa_inv_alarms', JSON.stringify(value))
+  try{ await supabase.update('bot_config','1',{[field]:value}); botCfg[field]=value; invLocalOnly=false; return true }
+  catch(e){ invLocalOnly=true; return false }
+}
+/* lista completa = lo guardado + lo que ya usan los productos */
+function catValues(kind){
+  const key={categories:'category',brands:'brand',formats:'format'}[kind]
+  const used=state.products.map(p=>(p[key]||'').trim()).filter(Boolean)
+  return [...new Set([...(invCatalog[kind]||[]),...used])].sort((a,b)=>a.localeCompare(b,'es'))
+}
+function toggleInvNew(e){ if(e) e.stopPropagation(); document.getElementById('invNewMenu').classList.toggle('open') }
+function closeInvNew(){ const m=document.getElementById('invNewMenu'); if(m) m.classList.remove('open') }
+document.addEventListener('click',e=>{ const m=document.getElementById('invNewMenu'); if(m&&m.classList.contains('open')&&!e.target.closest('.inv-new')) m.classList.remove('open') })
+
+function openCatalog(kind){
+  document.getElementById('catKind').value=kind
+  document.getElementById('catTitle').textContent=CAT_META[kind][0]
+  const inp=document.getElementById('catName'); inp.value=''; inp.placeholder=CAT_META[kind][1]
+  renderCatalogList()
+  openModal('catalogModal')
+  setTimeout(()=>inp.focus(),60)
+}
+function renderCatalogList(){
+  const kind=document.getElementById('catKind').value
+  const own=invCatalog[kind]||[], used=catValues(kind)
+  const ul=document.getElementById('catList')
+  if(!used.length){ ul.innerHTML='<li class="cat-empty">Aún no has creado ninguno.</li>'; return }
+  ul.innerHTML=used.map(v=>`<li><span>${esc(v)}</span>${own.includes(v)?`<button onclick="removeCatalogItem('${esc(v).replace(/'/g,"\\'")}')">Borrar</button>`:'<span style="font-size:.7rem;color:var(--light)">en uso</span>'}</li>`).join('')
+}
+async function addCatalogItem(){
+  const kind=document.getElementById('catKind').value
+  const v=document.getElementById('catName').value.trim()
+  if(!v){ toast('Escribe un nombre','error'); return }
+  if(catValues(kind).some(x=>x.toLowerCase()===v.toLowerCase())){ toast('Ya existe','error'); return }
+  invCatalog[kind]=[...(invCatalog[kind]||[]),v]
+  const ok=await persistInv('inv_catalog',invCatalog)
+  document.getElementById('catName').value=''
+  renderCatalogList(); fillProductFilters(); fillProductSelects()
+  toast(ok?'Guardado':'Guardado solo en este navegador','success')
+}
+async function removeCatalogItem(v){
+  const kind=document.getElementById('catKind').value
+  invCatalog[kind]=(invCatalog[kind]||[]).filter(x=>x!==v)
+  await persistInv('inv_catalog',invCatalog)
+  renderCatalogList(); fillProductFilters(); fillProductSelects()
+}
+function fillProductSelects(){
+  const set=(id,kind,ph,cur)=>{ const s=document.getElementById(id); if(!s) return
+    const v=cur!==undefined?cur:s.value
+    s.innerHTML=`<option value="">${ph}</option>`+catValues(kind).map(x=>`<option>${esc(x)}</option>`).join('')
+    if(v && !catValues(kind).includes(v)) s.innerHTML+=`<option>${esc(v)}</option>`
+    s.value=v||'' }
+  set('prodBrand','brands','Selecciona una marca')
+  set('prodCat','categories','Selecciona una categoría')
+  set('prodFormat','formats','Selecciona un formato')
+}
+function prodTab(name,btn){
+  ;['basicos','avanzadas','alarmas'].forEach(n=>document.getElementById('ptab-'+n).classList.toggle('on',n===name))
+  const btns=[...document.querySelectorAll('#prodTabs button')]
+  btns.forEach(b=>b.classList.remove('on'))
+  ;(btn||btns[['basicos','avanzadas','alarmas'].indexOf(name)]).classList.add('on')
+}
 function openStockAlarms(){
-  const low=state.products.filter(p=>p.active!==false && isLowStock(p))
-  if(!low.length){ toast('No hay productos bajo stock 🎉','success'); return }
-  alert('Productos bajo stock:\n\n'+low.map(p=>`• ${p.name}: ${p.stock||0} (alerta: ${p.min_stock||0})`).join('\n'))
+  document.getElementById('alLimitOn').checked=!!invAlarms.limitOn
+  document.getElementById('alLimit').value=invAlarms.limit||0
+  document.getElementById('alNoticeOn').checked=!!invAlarms.noticeOn
+  document.getElementById('alEmails').value=invAlarms.emails||''
+  document.getElementById('alFreq').value=invAlarms.freq||'Mensual'
+  const d=document.getElementById('alDay')
+  d.innerHTML=Array.from({length:28},(_,i)=>`<option>${i+1}</option>`).join('')
+  d.value=invAlarms.day||1
+  openModal('alarmsModal')
+}
+async function saveStockAlarms(){
+  invAlarms={ limitOn:document.getElementById('alLimitOn').checked,
+    limit:parseInt(document.getElementById('alLimit').value)||0,
+    noticeOn:document.getElementById('alNoticeOn').checked,
+    emails:document.getElementById('alEmails').value.trim(),
+    freq:document.getElementById('alFreq').value, day:parseInt(document.getElementById('alDay').value)||1 }
+  const ok=await persistInv('inv_alarms',invAlarms)
+  closeModal('alarmsModal'); renderProducts()
+  toast(ok?'Alarmas guardadas':'Guardado solo en este navegador','success')
 }
 function openProductImport(){
   toast('Carga masiva: próximamente. Por ahora usa "+ Nuevo" para agregar.','error')
@@ -3673,29 +3912,39 @@ function openProductImport(){
 function openProductModal(id){
   const p=id?state.products.find(x=>x.id===id):null
   document.getElementById('prodTitle').textContent=p?'Editar producto':'Nuevo producto'
+  document.getElementById('prodSaveBtn').textContent=p?'Guardar':'Agregar'
   document.getElementById('prodId').value=p?p.id:''
   document.getElementById('prodName').value=p?p.name:''
-  document.getElementById('prodCat').value=p?(p.category||''):''
   document.getElementById('prodSku').value=p?(p.sku||''):''
-  document.getElementById('prodBrand').value=p?(p.brand||''):''
-  document.getElementById('prodFormat').value=p?(p.format||''):''
   document.getElementById('prodPrice').value=p?(p.price||0):0
   document.getElementById('prodCost').value=p?(p.cost||0):0
   document.getElementById('prodStock').value=p?(p.stock||0):0
-  document.getElementById('prodMin').value=p?(p.min_stock||0):0
+  document.getElementById('prodActive').value=p&&p.active===false?'0':'1'
   document.getElementById('prodNotes').value=p?(p.notes||''):''
+  const min=p?(p.min_stock||0):0
+  document.getElementById('prodAlarmOn').checked=min>0
+  document.getElementById('prodMin').value=min
+  document.getElementById('prodMin').disabled=!(min>0)
+  fillProductSelects()
+  document.getElementById('prodBrand').value=p?(p.brand||''):''
+  document.getElementById('prodCat').value=p?(p.category||''):''
+  document.getElementById('prodFormat').value=p?(p.format||''):''
+  fillProductSelects()
   document.getElementById('prodDelBtn').style.display=p?'block':'none'
+  prodTab('basicos')
   openModal('productModal')
 }
 async function saveProduct(){
   const name=document.getElementById('prodName').value.trim()
-  if(!name){ toast('Falta el nombre','error'); return }
+  if(!name){ prodTab('basicos'); toast('Falta el nombre','error'); return }
+  const alarmOn=document.getElementById('prodAlarmOn').checked
   const row={
     name, category:document.getElementById('prodCat').value.trim(), sku:document.getElementById('prodSku').value.trim(),
     brand:document.getElementById('prodBrand').value.trim(), format:document.getElementById('prodFormat').value.trim(),
     price:parseInt(document.getElementById('prodPrice').value)||0, cost:parseInt(document.getElementById('prodCost').value)||0,
-    stock:parseInt(document.getElementById('prodStock').value)||0, min_stock:parseInt(document.getElementById('prodMin').value)||0,
-    active:true, notes:document.getElementById('prodNotes').value.trim()
+    stock:parseInt(document.getElementById('prodStock').value)||0,
+    min_stock: alarmOn ? (parseInt(document.getElementById('prodMin').value)||0) : 0,
+    active:document.getElementById('prodActive').value==='1', notes:document.getElementById('prodNotes').value.trim()
   }
   const id=document.getElementById('prodId').value
   try{
@@ -4061,6 +4310,7 @@ async function boot(){
   await loadProducts()
   await loadCash()
   await loadBotConfig()
+  loadInvSettings()
   render()
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
