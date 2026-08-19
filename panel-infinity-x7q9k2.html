@@ -1538,6 +1538,70 @@ label.chk input{width:auto;margin:0}
       </div>
       <div class="mtab-pane" id="svtab-avanzadas">
         <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600;margin-bottom:12px">Modalidad del servicio</h3>
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="svcVideo" /><i></i></label>
+            <div class="sw-txt"><strong>Este servicio se realiza por videoconferencia</strong><span>Al agendar se envía un enlace de reunión al cliente.</span></div>
+          </div>
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="svcHome" /><i></i></label>
+            <div class="sw-txt"><strong>Este servicio se realiza a domicilio</strong><span>Se solicita la dirección del cliente al agendar.</span></div>
+          </div>
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="svcMulti" onchange="document.getElementById('svcMultiN').style.display=this.checked?'block':'none'" /><i></i></label>
+            <div class="sw-txt"><strong>Permite que 2 o más clientes agenden este servicio de manera simultánea</strong><span>Útil para atenciones en pareja o grupales.</span></div>
+          </div>
+          <div id="svcMultiN" style="display:none"><input type="number" id="svcCap" min="2" placeholder="Ingresa la cantidad de clientes" /></div>
+        </div>
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600;margin-bottom:12px">Otros</h3>
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="svcIva" /><i></i></label>
+            <div class="sw-txt"><strong>El precio incluye IVA en el comprobante de caja</strong></div>
+          </div>
+          <label>Comisión para el profesional que realiza el servicio</label>
+          <div style="display:flex;gap:8px">
+            <input type="number" id="svcComm" min="0" value="0" style="flex:1" />
+            <select id="svcCommType" style="width:110px"><option value="pct">%</option><option value="clp">$ fijo</option></select>
+          </div>
+          <p class="rem-note" style="margin-top:6px">Si lo dejas en 0 se usa la comisión general del profesional.</p>
+        </div>
+        <div class="acc" id="svcResAcc" style="margin:0 0 14px">
+          <button class="acc-head" onclick="toggleAcc('svcResAcc')">
+            <span>Se necesita un recurso para realizar el servicio<br><span style="font-weight:400;font-size:.76rem;color:var(--mid)">Si el servicio necesita un recurso (box, camilla, equipo), selecciónalo abajo.</span></span>
+            <span class="chev">▾</span></button>
+          <div class="acc-body">
+            <div class="hint-blue" style="margin-bottom:12px">ℹ Un recurso es un instrumento o espacio necesario para realizar un servicio. Ej: el servicio "Consulta básica" requiere el "Box 1".</div>
+            <div id="svcResList"></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <input type="text" id="svcResNew" placeholder="Ej: Box 1, Camilla 2, Equipo láser" style="flex:1" />
+              <button class="btn-g" onclick="addResource()">+ Crear recurso</button>
+            </div>
+          </div>
+        </div>
+        <div class="acc" id="svcHourAcc" style="margin:0">
+          <button class="acc-head" onclick="toggleAcc('svcHourAcc')">
+            <span>El servicio se realiza en un horario especial<br><span style="font-weight:400;font-size:.76rem;color:var(--mid)">Puedes definir un horario especial para realizar este servicio.</span></span>
+            <span class="chev">▾</span></button>
+          <div class="acc-body">
+            <div class="hint-blue" style="margin-bottom:12px">ℹ Ej: solo se realizan masajes en la mañana y no quieres que agenden otro horario. Estas restricciones son independientes del horario de los profesionales.</div>
+            <h3 style="font-size:.88rem;font-weight:600;margin-bottom:8px">Selecciona el tipo de configuración</h3>
+            <label class="chk"><input type="radio" name="svcHourMode" value="none" checked onchange="svcHourMode()" /> <span>Sin restricción de tiempo</span></label>
+            <label class="chk" style="margin-top:6px"><input type="radio" name="svcHourMode" value="range" onchange="svcHourMode()" /> <span>Rango de tiempo (ej. mañana o tarde)</span></label>
+            <label class="chk" style="margin-top:6px"><input type="radio" name="svcHourMode" value="hours" onchange="svcHourMode()" /> <span>Horas específicas (ej. solo a las 14:30 y 18:30 hrs.)</span></label>
+            <div id="svcHourRange" style="display:none;margin-top:12px">
+              <div class="row2">
+                <div><label>Desde</label><select id="svcFrom"></select></div>
+                <div><label>Hasta</label><select id="svcTo"></select></div>
+              </div>
+            </div>
+            <div id="svcHourList" style="display:none;margin-top:12px">
+              <label>Horas permitidas (separadas por coma)</label>
+              <input type="text" id="svcHours" placeholder="14:30, 18:30" />
+            </div>
+          </div>
+        </div>
+        <div class="fbox" style="margin-top:14px">
           <div class="sw-row">
             <label class="sw"><input type="checkbox" id="svcHigh" /><i></i></label>
             <div class="sw-txt"><strong>Servicio destacado</strong><span>Se muestra primero en su categoría dentro del sitio web.</span></div>
@@ -3971,19 +4035,51 @@ async function deleteGroup(){
 /* ── ADMINISTRACIÓN · SERVICIOS · CLASES · PAQUETES ──
    Servicios y categorías viven en las tablas services / categories (las mismas que usa
    el sitio web). Clases y paquetes se guardan en bot_config (svc_classes / svc_packages). */
-let admSvcTab='servicios', svcClasses=[], svcPackages=[], svcCats=[]
+let admSvcTab='servicios', svcClasses=[], svcPackages=[], svcCats=[], svcMeta={}, resources=[]
 function loadSvcExtras(){
   try{ const c=JSON.parse(localStorage.getItem('spa_svc_classes')||'null'); if(c) svcClasses=c }catch(e){}
   try{ const p=JSON.parse(localStorage.getItem('spa_svc_packages')||'null'); if(p) svcPackages=p }catch(e){}
+  try{ const m=JSON.parse(localStorage.getItem('spa_svc_meta')||'null'); if(m) svcMeta=m }catch(e){}
+  try{ const r=JSON.parse(localStorage.getItem('spa_resources')||'null'); if(r) resources=r }catch(e){}
   if(botCfg && botCfg.svc_classes) svcClasses=botCfg.svc_classes
   if(botCfg && botCfg.svc_packages) svcPackages=botCfg.svc_packages
+  if(botCfg && botCfg.svc_meta) svcMeta=botCfg.svc_meta
+  if(botCfg && botCfg.resources) resources=botCfg.resources
 }
 async function persistSvcExtras(){
   localStorage.setItem('spa_svc_classes',JSON.stringify(svcClasses))
   localStorage.setItem('spa_svc_packages',JSON.stringify(svcPackages))
-  try{ await supabase.update('bot_config','1',{svc_classes:svcClasses, svc_packages:svcPackages})
-    botCfg.svc_classes=svcClasses; botCfg.svc_packages=svcPackages; return true }
+  localStorage.setItem('spa_svc_meta',JSON.stringify(svcMeta))
+  localStorage.setItem('spa_resources',JSON.stringify(resources))
+  try{ await supabase.update('bot_config','1',{svc_classes:svcClasses, svc_packages:svcPackages, svc_meta:svcMeta, resources})
+    botCfg.svc_classes=svcClasses; botCfg.svc_packages=svcPackages; botCfg.svc_meta=svcMeta; botCfg.resources=resources; return true }
   catch(e){ return false }
+}
+function svcMetaOf(id){ return svcMeta[id] || {} }
+function svcHourMode(){
+  const v=(document.querySelector('input[name=svcHourMode]:checked')||{}).value||'none'
+  document.getElementById('svcHourRange').style.display = v==='range'?'block':'none'
+  document.getElementById('svcHourList').style.display = v==='hours'?'block':'none'
+}
+function renderResources(sel){
+  const box=document.getElementById('svcResList'); if(!box) return
+  box.innerHTML = resources.length
+    ? resources.map(r=>`<label class="chk" style="padding:4px 0"><input type="checkbox" value="${esc(r)}" ${(sel||[]).includes(r)?'checked':''} /> <span>${esc(r)}</span>
+        <button class="mini-link" style="margin-left:auto;color:var(--red)" onclick="event.preventDefault();removeResource('${esc(r).replace(/'/g,"\\'")}')">Borrar</button></label>`).join('')
+    : `<div class="rr-ph" style="padding:14px"><span class="rp-ico">🔍</span>No hay recursos creados.<br>Crea uno abajo para asignarlo a este servicio.</div>`
+}
+async function addResource(){
+  const v=document.getElementById('svcResNew').value.trim()
+  if(!v){ toast('Escribe el nombre del recurso','error'); return }
+  if(resources.includes(v)){ toast('Ya existe','error'); return }
+  resources.push(v); document.getElementById('svcResNew').value=''
+  const sel=[...document.querySelectorAll('#svcResList input:checked')].map(c=>c.value)
+  await persistSvcExtras(); renderResources([...sel,v])
+  toast('Recurso creado','success')
+}
+async function removeResource(name){
+  resources=resources.filter(r=>r!==name)
+  await persistSvcExtras(); renderResources()
 }
 async function loadSvcCats(){
   try{ svcCats = await supabase.fetch('categories',{order:'sort_order.asc'}) || [] }
@@ -4080,6 +4176,23 @@ function openSvcModal(id){
     `<label class="chk" style="padding:4px 0"><input type="checkbox" value="${p.id}" ${doesIt(p)?'checked':''} /> <span>${esc(p.name)}</span></label>`).join('')
     || '<p class="rem-note" style="margin:0">Aún no hay profesionales.</p>'
   document.getElementById('svcAllProf').checked=state.professionals.every(doesIt)
+  // opciones avanzadas guardadas en svc_meta
+  const m=id?svcMetaOf(id):{}
+  document.getElementById('svcVideo').checked=!!m.video
+  document.getElementById('svcHome').checked=!!m.home
+  document.getElementById('svcMulti').checked=!!m.cap
+  document.getElementById('svcMultiN').style.display=m.cap?'block':'none'
+  document.getElementById('svcCap').value=m.cap||''
+  document.getElementById('svcIva').checked=!!m.iva
+  document.getElementById('svcComm').value=m.comm||0
+  document.getElementById('svcCommType').value=m.commType||'pct'
+  renderResources(m.resources||[])
+  const mode=m.hourMode||'none'
+  document.querySelectorAll('input[name=svcHourMode]').forEach(r=>r.checked=(r.value===mode))
+  document.getElementById('svcFrom').innerHTML=hourOpts(m.from||'09:00')
+  document.getElementById('svcTo').innerHTML=hourOpts(m.to||'14:00')
+  document.getElementById('svcHours').value=(m.hours||[]).join(', ')
+  svcHourMode()
   document.getElementById('svcDelBtn').style.display=s?'block':'none'
   svcTab('basicos')
   openModal('svcModal')
@@ -4102,9 +4215,23 @@ async function saveSvc(){
     discount_label:document.getElementById('svcDiscLbl').value.trim(),
     includes:document.getElementById('svcIncludes').value.split('\n').map(x=>x.trim()).filter(Boolean) }
   const oldName=(state.services.find(x=>x.id===id)||{}).name
+  const meta={ video:document.getElementById('svcVideo').checked,
+    home:document.getElementById('svcHome').checked,
+    cap:document.getElementById('svcMulti').checked?(parseInt(document.getElementById('svcCap').value)||2):0,
+    iva:document.getElementById('svcIva').checked,
+    comm:parseInt(document.getElementById('svcComm').value)||0,
+    commType:document.getElementById('svcCommType').value,
+    resources:[...document.querySelectorAll('#svcResList input:checked')].map(c=>c.value),
+    hourMode:(document.querySelector('input[name=svcHourMode]:checked')||{}).value||'none',
+    from:document.getElementById('svcFrom').value, to:document.getElementById('svcTo').value,
+    hours:document.getElementById('svcHours').value.split(',').map(h=>h.trim()).filter(Boolean) }
   try{
+    let sid=id
     if(id) await supabase.update('services',id,row)
-    else await supabase.insert('services',{ ...row, id:slugify(name)+'-'+Date.now().toString(36).slice(-4), sort_order:999 })
+    else { sid=slugify(name)+'-'+Date.now().toString(36).slice(-4)
+      await supabase.insert('services',{ ...row, id:sid, sort_order:999 }) }
+    svcMeta[sid]=meta
+    await persistSvcExtras()
     await reloadServices()
     await saveSvcProfs(name, oldName)
     closeModal('svcModal'); renderAdmin()
