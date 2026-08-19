@@ -1493,6 +1493,197 @@ label.chk input{width:auto;margin:0}
     </div>
   </div>
 
+  <!-- MODAL: servicio (Administración) -->
+  <div class="modal-ov" id="svcModal">
+    <div class="modal" style="width:820px;max-width:94vw">
+      <h2 id="svcTitle">Nuevo servicio</h2>
+      <input type="hidden" id="svcId" />
+      <div class="mtabs" id="svcTabs">
+        <button class="on" onclick="svcTab('basicos',this)">Datos básicos</button>
+        <button onclick="svcTab('web',this)">🌐 Sitio Web</button>
+        <button onclick="svcTab('avanzadas',this)">Opciones avanzadas</button>
+      </div>
+      <div class="mtab-pane on" id="svtab-basicos">
+        <div class="fbox">
+          <label>Nombre del servicio <span style="color:var(--red)">*</span></label>
+          <input type="text" id="svcName" placeholder="El nombre aparecerá en el sitio web" />
+          <div class="row2" style="margin-top:14px">
+            <div><label>Precio <span style="color:var(--red)">*</span></label><input type="text" id="svcPrice" placeholder="$15.000" /></div>
+            <div><label>Duración (min) <span style="color:var(--red)">*</span></label><input type="number" id="svcDur" min="5" step="5" value="60" /></div>
+          </div>
+          <label style="margin-top:14px">Categoría <span style="color:var(--red)">*</span></label>
+          <select id="svcCat"></select>
+          <button class="mini-link" onclick="openSvcCatModal()">+ Nueva categoría</button>
+        </div>
+      </div>
+      <div class="mtab-pane" id="svtab-web">
+        <div class="fbox">
+          <div class="hint-blue" style="margin-bottom:14px">🌐 Esta información es la que ven tus clientes en spainfinity.cl.</div>
+          <label>Descripción corta</label>
+          <textarea id="svcShort" rows="2" placeholder="Aparece en la tarjeta del servicio"></textarea>
+          <label style="margin-top:12px">Descripción larga</label>
+          <textarea id="svcLong" rows="3" placeholder="Aparece en la página del servicio"></textarea>
+          <div class="row2" style="margin-top:12px">
+            <div><label>Imagen (ruta o URL)</label><input type="text" id="svcImg" placeholder="/images/categoria/foto.jpeg" /></div>
+            <div><label>Etiqueta</label><input type="text" id="svcTag" placeholder="Ej: Salud y Bienestar" /></div>
+          </div>
+          <label style="margin-top:12px">Link de reserva</label>
+          <input type="text" id="svcLink" placeholder="https://…" />
+        </div>
+      </div>
+      <div class="mtab-pane" id="svtab-avanzadas">
+        <div class="fbox">
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="svcHigh" /><i></i></label>
+            <div class="sw-txt"><strong>Servicio destacado</strong><span>Se muestra primero en su categoría dentro del sitio web.</span></div>
+          </div>
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="svcDisc" onchange="document.getElementById('svcDiscBox').style.display=this.checked?'block':'none'" /><i></i></label>
+            <div class="sw-txt"><strong>Mostrar descuento</strong><span>Muestra el precio anterior tachado junto al actual.</span></div>
+          </div>
+          <div id="svcDiscBox" style="display:none">
+            <div class="row2">
+              <div><label>Precio anterior</label><input type="text" id="svcOrig" placeholder="$30.000" /></div>
+              <div><label>Etiqueta del descuento</label><input type="text" id="svcDiscLbl" placeholder="-20%" /></div>
+            </div>
+          </div>
+          <label style="margin-top:14px">Incluye (una línea por ítem)</label>
+          <textarea id="svcIncludes" rows="3" placeholder="Evaluación podológica&#10;Corte y limado&#10;Hidratación"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="svcDelBtn" onclick="deleteSvc()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('svcModal')">Cerrar</button>
+        <button class="btn-primary" onclick="saveSvc()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: categoría de servicios -->
+  <div class="modal-ov" id="svcCatModal">
+    <div class="modal" style="width:520px">
+      <h2>Nueva categoría</h2>
+      <div class="fbox">
+        <label>Nombre <span style="color:var(--red)">*</span></label>
+        <input type="text" id="scName" placeholder="Ej: Masajes" />
+        <label style="margin-top:12px">Bajada</label>
+        <input type="text" id="scTagline" placeholder="Ej: Relajación profunda" />
+        <label style="margin-top:12px">Descripción</label>
+        <textarea id="scDesc" rows="2"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('svcCatModal')">Cancelar</button>
+        <button class="btn-primary" onclick="saveSvcCat()">Agregar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: clase -->
+  <div class="modal-ov" id="classModal">
+    <div class="modal" style="width:760px;max-width:94vw">
+      <h2 id="clsTitle">Nueva clase</h2>
+      <input type="hidden" id="clsId" />
+      <div class="mtabs" id="clsTabs">
+        <button class="on" onclick="clsTab('basicos',this)">Datos básicos</button>
+        <button onclick="clsTab('horario',this)">Horario de la clase</button>
+        <button onclick="clsTab('web',this)">🌐 Sitio Web</button>
+        <button onclick="clsTab('avanzadas',this)">Opciones avanzadas</button>
+      </div>
+      <div class="mtab-pane on" id="cltab-basicos">
+        <div class="fbox">
+          <label>Nombre del servicio <span style="color:var(--red)">*</span></label>
+          <input type="text" id="clsName" placeholder="El nombre aparecerá en el sitio web" />
+          <div class="row3" style="margin-top:14px">
+            <div><label>Precio <span style="color:var(--red)">*</span></label><input type="text" id="clsPrice" placeholder="$12.000" /></div>
+            <div><label>Duración (min) <span style="color:var(--red)">*</span></label><input type="number" id="clsDur" min="15" step="15" value="60" /></div>
+            <div><label>Capacidad <span style="color:var(--red)">*</span></label><input type="number" id="clsCap" min="2" value="6" /></div>
+          </div>
+          <label style="margin-top:14px">Categoría</label>
+          <select id="clsCat"></select>
+        </div>
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Selecciona qué profesionales realizarán la clase</h3>
+          <label class="chk" style="font-weight:700"><input type="checkbox" id="clsAllProf" onchange="document.querySelectorAll('#clsProfs input').forEach(c=>c.checked=this.checked)" /> <span>Seleccionar todo</span></label>
+          <div id="clsProfs" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <div class="mtab-pane" id="cltab-horario">
+        <div class="hint-blue" style="margin-bottom:14px">⭐ Configura los horarios en que se dará la clase. Así es como se mostrarán en tu sitio web.</div>
+        <div id="clsSchedBox"></div>
+      </div>
+      <div class="mtab-pane" id="cltab-web">
+        <div class="fbox">
+          <div class="hint-blue" style="margin-bottom:14px">🌐 Configura las opciones para que tus clientes agenden en línea desde el sitio web. <a href="https://spainfinity.cl" target="_blank" style="color:#1b8bb0;font-weight:700">Visualiza tu sitio web aquí</a></div>
+          <label class="chk"><input type="checkbox" id="clsOnline" checked /> <span>Permitir que esta clase se agende en línea</span></label>
+          <label class="chk" style="margin-top:10px"><input type="checkbox" id="clsShowDur" checked /> <span>Mostrar la duración de la clase en el sitio web</span></label>
+          <label style="margin-top:14px">Descripción de la clase</label>
+          <textarea id="clsDesc" rows="3" placeholder="Esta descripción aparecerá en tu sitio web."></textarea>
+          <label style="margin-top:12px">Imagen (ruta o URL)</label>
+          <input type="text" id="clsImg" placeholder="/images/clases/taller.jpeg" />
+        </div>
+      </div>
+      <div class="mtab-pane" id="cltab-avanzadas">
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Modalidad</h3>
+          <label class="chk"><input type="checkbox" id="clsHome" /> <span>Esta clase se realiza a domicilio</span></label>
+        </div>
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Otros</h3>
+          <label class="chk"><input type="checkbox" id="clsIva" /> <span>El precio incluye IVA en el comprobante de caja</span></label>
+          <label style="margin-top:14px">Comisión para el profesional que realiza la clase (%)</label>
+          <input type="number" id="clsComm" min="0" max="100" value="0" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="clsDelBtn" onclick="deleteClass()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('classModal')">Cerrar</button>
+        <button class="btn-primary" onclick="saveClass()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: paquete -->
+  <div class="modal-ov" id="packModal">
+    <div class="modal" style="width:640px">
+      <h2 id="pkTitle">Nuevo paquete</h2>
+      <input type="hidden" id="pkId" />
+      <div class="mtabs" id="pkTabs">
+        <button class="on" onclick="pkTab('basicos',this)">Datos básicos</button>
+        <button onclick="pkTab('web',this)">🌐 Sitio Web</button>
+      </div>
+      <div class="mtab-pane on" id="pktab-basicos">
+      <div class="fbox">
+        <label>Nombre del paquete <span style="color:var(--red)">*</span></label>
+        <input type="text" id="pkName" placeholder="Paquete de servicios completo" />
+        <label style="margin-top:12px">Categoría</label>
+        <select id="pkCat"></select>
+      </div>
+      <div class="fbox">
+        <h3 style="font-size:.95rem;font-weight:600">Selecciona los servicios que tendrá el paquete</h3>
+        <div class="hint-blue" style="margin:8px 0 12px">ℹ Ingresa el precio de cada servicio dentro del paquete: <strong>la suma será el precio final</strong>, así puedes asignar un precio distinto al original.</div>
+        <div id="pkItems"></div>
+        <button class="mini-link" onclick="addPackItem()">+ Agregar servicio</button>
+        <div class="sale-total-row" style="margin-top:12px">Precio del paquete <strong id="pkTotal">$0</strong></div>
+      </div>
+      </div>
+      <div class="mtab-pane" id="pktab-web">
+        <div class="fbox">
+          <div class="hint-blue" style="margin-bottom:14px">🌐 Así se muestra el paquete en tu sitio web.</div>
+          <label class="chk"><input type="checkbox" id="pkOnline" checked /> <span>Permitir que este paquete se agende en línea</span></label>
+          <label style="margin-top:14px">Descripción del paquete</label>
+          <textarea id="pkDesc" rows="3" placeholder="Ej: Consulta podológica + tratamiento hidratante, en una sola sesión."></textarea>
+          <label style="margin-top:12px">Imagen (ruta o URL)</label>
+          <input type="text" id="pkImg" placeholder="/images/paquetes/pack.jpeg" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="pkDelBtn" onclick="deletePack()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('packModal')">Cerrar</button>
+        <button class="btn-primary" onclick="savePack()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: grupo de profesionales -->
   <div class="modal-ov" id="groupModal">
     <div class="modal" style="width:520px">
@@ -3772,21 +3963,325 @@ async function deleteGroup(){
   await persistProfMeta(); closeModal('groupModal'); renderAdmin(); toast('Grupo eliminado','success')
 }
 
+/* ── ADMINISTRACIÓN · SERVICIOS · CLASES · PAQUETES ──
+   Servicios y categorías viven en las tablas services / categories (las mismas que usa
+   el sitio web). Clases y paquetes se guardan en bot_config (svc_classes / svc_packages). */
+let admSvcTab='servicios', svcClasses=[], svcPackages=[], svcCats=[]
+function loadSvcExtras(){
+  try{ const c=JSON.parse(localStorage.getItem('spa_svc_classes')||'null'); if(c) svcClasses=c }catch(e){}
+  try{ const p=JSON.parse(localStorage.getItem('spa_svc_packages')||'null'); if(p) svcPackages=p }catch(e){}
+  if(botCfg && botCfg.svc_classes) svcClasses=botCfg.svc_classes
+  if(botCfg && botCfg.svc_packages) svcPackages=botCfg.svc_packages
+}
+async function persistSvcExtras(){
+  localStorage.setItem('spa_svc_classes',JSON.stringify(svcClasses))
+  localStorage.setItem('spa_svc_packages',JSON.stringify(svcPackages))
+  try{ await supabase.update('bot_config','1',{svc_classes:svcClasses, svc_packages:svcPackages})
+    botCfg.svc_classes=svcClasses; botCfg.svc_packages=svcPackages; return true }
+  catch(e){ return false }
+}
+async function loadSvcCats(){
+  try{ svcCats = await supabase.fetch('categories',{order:'sort_order.asc'}) || [] }
+  catch(e){ svcCats = (window.CATEGORIES||[]).map(c=>({id:c.id,name:c.name})) }
+}
+function catName(id){ return (svcCats.find(c=>c.id===id)||{}).name || 'Otros' }
+function admSvcSetTab(t){ admSvcTab=t; renderAdmin() }
 function admServicios(){
+  const tabs=`<div class="mtabs" style="margin-bottom:14px">
+    ${[['servicios','Servicios'],['clases','Clases'],['paquetes','Paquetes']].map(([k,l])=>
+      `<button class="${admSvcTab===k?'on':''}" onclick="admSvcSetTab('${k}')">${l}</button>`).join('')}</div>`
+  if(admSvcTab==='clases'){
+    const byCat={}
+    svcClasses.forEach(c=>{ (byCat[c.cat||'Otros']=byCat[c.cat||'Otros']||[]).push(c) })
+    const body=Object.keys(byCat).length
+      ? Object.entries(byCat).map(([cat,list])=>`<div class="adm-cat">${esc(cat)}</div>`+list.map(c=>`<div class="adm-row">
+          <span class="ar-name">${esc(c.name)}</span>
+          <span class="ar-meta">${c.dur} min · ${esc(c.price||'—')}</span>
+          <span class="ar-meta">👥 ${c.cap} cupos</span>
+          <span class="ar-meta">${c.time} · ${(c.days||[]).map(d=>DOW_ADM[(d+6)%7].slice(0,3)).join(' ')||'sin días'}</span>
+          <span class="adm-dot">● Activo</span>
+          <button class="mini-btn" onclick="openClassModal('${c.id}')">✎ Editar</button></div>`).join('')).join('')
+      : '<div class="adm-cat">Otros</div><p class="rem-note" style="margin:0">Sin clases</p>'
+    return tabs+`<div class="inv-notice">⭐ <strong>¡Crea tu primera clase!</strong> Este tipo de servicio tiene un horario fijo y permite que más de una persona agende en el mismo bloque. Ej: taller grupal.</div>
+      <div class="adm-head"><span></span><button class="btn-primary" onclick="openClassModal()">+ Nuevo</button></div>${body}`
+  }
+  if(admSvcTab==='paquetes'){
+    const body=svcPackages.length
+      ? svcPackages.map(p=>`<div class="adm-row">
+          <span class="ar-name">${esc(p.name)}</span>
+          <span class="ar-meta">${p.items.map(i=>esc(i.name)).join(' + ')}</span>
+          <span class="ar-meta">${esc(p.cat||'Otros')}</span>
+          <strong>${fmtMoney(p.items.reduce((a,i)=>a+Number(i.price||0),0))}</strong>
+          <button class="mini-btn" onclick="openPackModal('${p.id}')">✎ Editar</button></div>`).join('')
+      : '<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🔍</div>No hay resultados para mostrar</div>'
+    return tabs+`<div class="inv-notice">⭐ <strong>¡Crea grupos de servicios!</strong> Úsalo si quieres agrupar servicios a la misma hora o uno tras otro, y también para promociones. Ej: Pack consulta + tratamiento.</div>
+      <div class="adm-head"><span></span><button class="btn-primary" onclick="openPackModal()">+ Nuevo</button></div>${body}`
+  }
   const byCat={}
   state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
-  const cats=Object.entries(byCat).map(([cat,list])=>`<div class="adm-cat">${esc(cat)}</div>`+
-    list.map(s=>`<div class="adm-row">
+  const body=Object.keys(byCat).length ? Object.entries(byCat).map(([cat,list])=>
+    `<div class="adm-cat">${esc(cat)}</div>`+list.map(s=>`<div class="adm-row">
       <span class="ar-name">${esc(s.name)}</span>
       <span class="ar-meta">${s.duration} min</span>
       <span class="ar-meta">${esc(s.price||'')}</span>
       <span class="adm-dot">● Activo</span>
-    </div>`).join('')).join('')
-  return `<div class="inv-notice">⭐ <strong>Tus servicios, precios y duraciones.</strong> Se editan en el administrador del sitio web, donde también se cargan las fotos y el orden en que aparecen.</div>
+      <button class="mini-btn" onclick="openSvcModal('${s.id}')">✎ Editar</button></div>`).join('')).join('')
+    : '<div class="empty-state">Aún no hay servicios.</div>'
+  return tabs+`<div class="inv-notice">⭐ <strong>Configura tus servicios:</strong> precio, duración, descripción e imágenes. Puedes organizarlos en distintas categorías; los cambios se reflejan en el sitio web.</div>
     <div class="adm-head"><span class="ar-meta">${state.services.length} servicios en ${Object.keys(byCat).length} categorías</span>
-      <a class="btn-primary" href="/admin" target="_blank" style="text-decoration:none;display:inline-block">Editar servicios ↗</a></div>
-    ${cats || '<div class="empty-state">Aún no hay servicios.</div>'}`
+      <span style="display:flex;gap:8px"><button class="btn-g" onclick="openSvcCatModal()">+ Nueva categoría</button>
+      <button class="btn-download" onclick="exportServicios()">⬇ Descargar</button>
+      <button class="btn-primary" onclick="openSvcModal()">+ Nuevo</button></span></div>${body}`
 }
+function svcTab(name,btn){
+  ;['basicos','web','avanzadas'].forEach(n=>document.getElementById('svtab-'+n).classList.toggle('on',n===name))
+  const btns=[...document.querySelectorAll('#svcTabs button')]
+  btns.forEach(b=>b.classList.remove('on'))
+  ;(btn||btns[['basicos','web','avanzadas'].indexOf(name)]).classList.add('on')
+}
+function slugify(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,60) }
+function fillSvcCatSelect(sel,cur){
+  const el=document.getElementById(sel); if(!el) return
+  el.innerHTML=svcCats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
+  if(cur) el.value=cur
+}
+function openSvcModal(id){
+  const raw=id?(window.__svcRows||[]).find(s=>s.id===id):null
+  const s=id?state.services.find(x=>x.id===id):null
+  document.getElementById('svcTitle').textContent=s?'Editando '+s.name:'Nuevo servicio'
+  document.getElementById('svcId').value=id||''
+  document.getElementById('svcName').value=s?s.name:''
+  document.getElementById('svcPrice').value=s?(s.price||''):''
+  document.getElementById('svcDur').value=s?s.duration:60
+  fillSvcCatSelect('svcCat', raw?raw.cat_id:(svcCats[0]||{}).id)
+  document.getElementById('svcShort').value=raw?(raw.short_desc||''):''
+  document.getElementById('svcLong').value=raw?(raw.long_desc||''):''
+  document.getElementById('svcImg').value=raw?(raw.img||''):''
+  document.getElementById('svcTag').value=raw?(raw.tag||''):''
+  document.getElementById('svcLink').value=raw?(raw.link||''):''
+  document.getElementById('svcHigh').checked=!!(raw&&raw.highlighted)
+  document.getElementById('svcDisc').checked=!!(raw&&raw.has_discount)
+  document.getElementById('svcDiscBox').style.display=(raw&&raw.has_discount)?'block':'none'
+  document.getElementById('svcOrig').value=raw?(raw.original_price||''):''
+  document.getElementById('svcDiscLbl').value=raw?(raw.discount_label||''):''
+  let inc=[]
+  try{ inc=raw? (Array.isArray(raw.includes)?raw.includes:JSON.parse(raw.includes||'[]')) : [] }catch(e){}
+  document.getElementById('svcIncludes').value=inc.join('\n')
+  document.getElementById('svcDelBtn').style.display=s?'block':'none'
+  svcTab('basicos')
+  openModal('svcModal')
+}
+async function saveSvc(){
+  const name=document.getElementById('svcName').value.trim()
+  if(!name){ svcTab('basicos'); toast('Falta el nombre','error'); return }
+  const id=document.getElementById('svcId').value
+  const row={ name, cat_id:document.getElementById('svcCat').value,
+    price:document.getElementById('svcPrice').value.trim(),
+    duration:(parseInt(document.getElementById('svcDur').value)||60)+' min',
+    short_desc:document.getElementById('svcShort').value.trim(),
+    long_desc:document.getElementById('svcLong').value.trim(),
+    img:document.getElementById('svcImg').value.trim(),
+    tag:document.getElementById('svcTag').value.trim(),
+    link:document.getElementById('svcLink').value.trim(),
+    highlighted:document.getElementById('svcHigh').checked,
+    has_discount:document.getElementById('svcDisc').checked,
+    original_price:document.getElementById('svcOrig').value.trim(),
+    discount_label:document.getElementById('svcDiscLbl').value.trim(),
+    includes:document.getElementById('svcIncludes').value.split('\n').map(x=>x.trim()).filter(Boolean) }
+  try{
+    if(id) await supabase.update('services',id,row)
+    else await supabase.insert('services',{ ...row, id:slugify(name)+'-'+Date.now().toString(36).slice(-4), sort_order:999 })
+    await reloadServices(); closeModal('svcModal'); renderAdmin()
+    toast('Servicio guardado · ya se ve en el sitio web','success')
+  }catch(e){ console.error(e); toast('Error al guardar el servicio','error') }
+}
+async function deleteSvc(){
+  const id=document.getElementById('svcId').value
+  if(!id||!confirm('¿Eliminar este servicio? También desaparece del sitio web.')) return
+  try{ await supabase.delete('services',id); await reloadServices(); closeModal('svcModal'); renderAdmin(); toast('Servicio eliminado','success') }
+  catch(e){ toast('Error al eliminar','error') }
+}
+/* recarga servicios desde Supabase y rearma state.services */
+async function reloadServices(){
+  try{
+    const rows=await supabase.fetch('services',{order:'sort_order.asc'}) || []
+    window.__svcRows=rows
+    await loadSvcCats()
+    state.services=rows.map(r=>({ id:r.id, name:r.name, duration:parseDur(r.duration), price:r.price, cat:catName(r.cat_id) }))
+  }catch(e){ console.warn('No se pudieron recargar los servicios',e) }
+}
+function openSvcCatModal(){
+  document.getElementById('scName').value=''
+  document.getElementById('scTagline').value=''
+  document.getElementById('scDesc').value=''
+  openModal('svcCatModal')
+}
+async function saveSvcCat(){
+  const name=document.getElementById('scName').value.trim()
+  if(!name){ toast('Escribe el nombre','error'); return }
+  try{
+    await supabase.insert('categories',{ id:slugify(name), name, tagline:document.getElementById('scTagline').value.trim(),
+      short_desc:document.getElementById('scDesc').value.trim(), sort_order:(svcCats.length||0)+1 })
+    await loadSvcCats(); fillSvcCatSelect('svcCat'); closeModal('svcCatModal'); renderAdmin(); toast('Categoría creada','success')
+  }catch(e){ console.error(e); toast('Error al crear la categoría','error') }
+}
+function exportServicios(){
+  if(!state.services.length){ toast('No hay servicios','error'); return }
+  downloadCSV('servicios.csv',['Servicio','Categoría','Duración (min)','Precio'],
+    state.services.map(s=>[s.name, s.cat, s.duration, s.price||'']))
+}
+/* ── clases ── */
+function clsTab(name,btn){
+  ;['basicos','horario','web','avanzadas'].forEach(n=>document.getElementById('cltab-'+n).classList.toggle('on',n===name))
+  const btns=[...document.querySelectorAll('#clsTabs button')]
+  btns.forEach(b=>b.classList.remove('on'))
+  ;(btn||btns[['basicos','horario','web','avanzadas'].indexOf(name)]).classList.add('on')
+  if(name==='horario') renderClsSched()
+}
+/* el horario solo se puede configurar cuando hay nombre y duración */
+function renderClsSched(){
+  const box=document.getElementById('clsSchedBox')
+  const name=document.getElementById('clsName').value.trim()
+  const dur=parseInt(document.getElementById('clsDur').value)||0
+  if(!name || !dur){
+    box.innerHTML=`<div class="rr-panel"><div class="rr-ph"><span class="rp-ico">🗒</span>
+      Para configurar el horario fijo de la clase debes <strong>completar primero los datos básicos</strong></div></div>`
+    return
+  }
+  const days=(window.__clsDays)||[]
+  box.innerHTML=`<div class="fbox">
+    <label>Días en que se dicta</label>
+    <div class="wd-picker" id="clsDays">${[1,2,3,4,5,6,0].map(d=>
+      `<button type="button" class="wd${days.includes(d)?' on':''}" data-cd="${d}" onclick="this.classList.toggle('on')">${DOW_ADM[(d+6)%7].slice(0,3)}</button>`).join('')}</div>
+    <div class="row2" style="margin-top:14px">
+      <div><label>Hora de inicio</label><input type="time" id="clsTime" step="900" value="${window.__clsTime||'18:00'}" /></div>
+      <div><label>Duración</label><input type="text" value="${dur} min" disabled /></div>
+    </div>
+    <p class="rem-note" style="margin-top:10px">La clase se repite todas las semanas en los días marcados, a la misma hora, con ${document.getElementById('clsCap').value||0} cupos.</p>
+  </div>`
+}
+function openClassModal(id){
+  const c=id?svcClasses.find(x=>x.id===id):null
+  document.getElementById('clsTitle').textContent=c?'Editando '+c.name:'Nueva clase'
+  document.getElementById('clsId').value=c?c.id:''
+  document.getElementById('clsName').value=c?c.name:''
+  document.getElementById('clsPrice').value=c?(c.price||''):''
+  document.getElementById('clsCap').value=c?c.cap:6
+  document.getElementById('clsDur').value=c?c.dur:60
+  const cats=['Otros',...new Set(state.services.map(s=>s.cat))]
+  document.getElementById('clsCat').innerHTML=cats.map(x=>`<option ${c&&c.cat===x?'selected':''}>${esc(x)}</option>`).join('')
+  const profs=(c&&c.profs)||[]
+  document.getElementById('clsProfs').innerHTML=state.professionals.map(p=>
+    `<label class="chk" style="padding:4px 0"><input type="checkbox" value="${p.id}" ${!c||profs.includes(p.id)?'checked':''} /> <span>${esc(p.name)}</span></label>`).join('')
+    || '<p class="rem-note" style="margin:0">Aún no hay profesionales.</p>'
+  document.getElementById('clsAllProf').checked=!c||profs.length===state.professionals.length
+  window.__clsDays=(c&&c.days)||[]; window.__clsTime=(c&&c.time)||'18:00'
+  document.getElementById('clsOnline').checked=!c||c.online!==false
+  document.getElementById('clsShowDur').checked=!c||c.showDur!==false
+  document.getElementById('clsDesc').value=(c&&c.desc)||''
+  document.getElementById('clsImg').value=(c&&c.img)||''
+  document.getElementById('clsHome').checked=!!(c&&c.home)
+  document.getElementById('clsIva').checked=!!(c&&c.iva)
+  document.getElementById('clsComm').value=(c&&c.comm)||0
+  document.getElementById('clsDelBtn').style.display=c?'block':'none'
+  clsTab('basicos')
+  openModal('classModal')
+}
+async function saveClass(){
+  const name=document.getElementById('clsName').value.trim()
+  if(!name){ clsTab('basicos'); toast('Falta el nombre','error'); return }
+  const days=[...document.querySelectorAll('#clsDays .wd.on')].map(b=>parseInt(b.dataset.cd))
+  const time=(document.getElementById('clsTime')||{}).value || window.__clsTime || '18:00'
+  const obj={ id:document.getElementById('clsId').value||('cls-'+slugify(name)),
+    name, price:document.getElementById('clsPrice').value.trim(),
+    cap:parseInt(document.getElementById('clsCap').value)||2,
+    dur:parseInt(document.getElementById('clsDur').value)||60,
+    time, days: days.length?days:(window.__clsDays||[]),
+    cat:document.getElementById('clsCat').value,
+    profs:[...document.querySelectorAll('#clsProfs input:checked')].map(c=>c.value),
+    online:document.getElementById('clsOnline').checked,
+    showDur:document.getElementById('clsShowDur').checked,
+    desc:document.getElementById('clsDesc').value.trim(),
+    img:document.getElementById('clsImg').value.trim(),
+    home:document.getElementById('clsHome').checked,
+    iva:document.getElementById('clsIva').checked,
+    comm:parseInt(document.getElementById('clsComm').value)||0 }
+  const i=svcClasses.findIndex(x=>x.id===obj.id)
+  if(i>=0) svcClasses[i]=obj; else svcClasses.push(obj)
+  const ok=await persistSvcExtras()
+  closeModal('classModal'); renderAdmin()
+  toast(ok?'Clase guardada':'Guardada solo en este navegador','success')
+}
+async function deleteClass(){
+  const id=document.getElementById('clsId').value
+  if(!id||!confirm('¿Eliminar esta clase?')) return
+  svcClasses=svcClasses.filter(c=>c.id!==id)
+  await persistSvcExtras(); closeModal('classModal'); renderAdmin(); toast('Clase eliminada','success')
+}
+/* ── paquetes ── */
+let packItems=[]
+function pkTab(name,btn){
+  ;['basicos','web'].forEach(n=>document.getElementById('pktab-'+n).classList.toggle('on',n===name))
+  const btns=[...document.querySelectorAll('#pkTabs button')]
+  btns.forEach(b=>b.classList.remove('on'))
+  ;(btn||btns[['basicos','web'].indexOf(name)]).classList.add('on')
+}
+function openPackModal(id){
+  const p=id?svcPackages.find(x=>x.id===id):null
+  document.getElementById('pkTitle').textContent=p?'Editando '+p.name:'Nuevo paquete'
+  document.getElementById('pkId').value=p?p.id:''
+  document.getElementById('pkName').value=p?p.name:''
+  const cats=[...new Set(state.services.map(s=>s.cat))]
+  document.getElementById('pkCat').innerHTML=['Otros',...cats].map(c=>`<option ${p&&p.cat===c?'selected':''}>${esc(c)}</option>`).join('')
+  packItems=p?p.items.map(i=>({...i})):[]
+  renderPackItems()
+  document.getElementById('pkOnline').checked=!p||p.online!==false
+  document.getElementById('pkDesc').value=(p&&p.desc)||''
+  document.getElementById('pkImg').value=(p&&p.img)||''
+  document.getElementById('pkDelBtn').style.display=p?'block':'none'
+  pkTab('basicos')
+  openModal('packModal')
+}
+function renderPackItems(){
+  const box=document.getElementById('pkItems')
+  box.innerHTML=packItems.map((it,i)=>`<div class="sale-item">
+    <select style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem" onchange="packItems[${i}].name=this.value">
+      ${state.services.map(s=>`<option ${s.name===it.name?'selected':''}>${esc(s.name)}</option>`).join('')}
+    </select>
+    <input class="si-price" type="number" min="0" step="500" value="${it.price}" oninput="packItems[${i}].price=parseInt(this.value)||0;packTotal()" />
+    <button class="si-del" onclick="packItems.splice(${i},1);renderPackItems()">✕</button></div>`).join('')
+    || '<p class="rem-note" style="margin:0">Agrega al menos un servicio.</p>'
+  packTotal()
+}
+function packTotal(){ document.getElementById('pkTotal').textContent=fmtMoney(packItems.reduce((a,i)=>a+Number(i.price||0),0)) }
+function addPackItem(){
+  if(!state.services.length){ toast('Primero crea servicios','error'); return }
+  const s=state.services[0]
+  packItems.push({name:s.name, price:parseMoney(s.price)})
+  renderPackItems()
+}
+async function savePack(){
+  const name=document.getElementById('pkName').value.trim()
+  if(!name){ toast('Falta el nombre','error'); return }
+  if(!packItems.length){ toast('Agrega al menos un servicio','error'); return }
+  const obj={ id:document.getElementById('pkId').value||('pk-'+slugify(name)), name,
+    cat:document.getElementById('pkCat').value, items:packItems.map(i=>({...i})),
+    online:document.getElementById('pkOnline').checked,
+    desc:document.getElementById('pkDesc').value.trim(),
+    img:document.getElementById('pkImg').value.trim() }
+  const i=svcPackages.findIndex(x=>x.id===obj.id)
+  if(i>=0) svcPackages[i]=obj; else svcPackages.push(obj)
+  const ok=await persistSvcExtras()
+  closeModal('packModal'); renderAdmin()
+  toast(ok?'Paquete guardado':'Guardado solo en este navegador','success')
+}
+async function deletePack(){
+  const id=document.getElementById('pkId').value
+  if(!id||!confirm('¿Eliminar este paquete?')) return
+  svcPackages=svcPackages.filter(p=>p.id!==id)
+  await persistSvcExtras(); closeModal('packModal'); renderAdmin(); toast('Paquete eliminado','success')
+}
+
 function localTab(name,btn){
   ;['basicos','web'].forEach(n=>document.getElementById('ltab-'+n).classList.toggle('on',n===name))
   const btns=[...document.querySelectorAll('#localTabs button')]
@@ -5780,6 +6275,8 @@ async function boot(){
   loadInvSettings()
   loadLocalInfo()
   loadProfMeta()
+  loadSvcExtras()
+  loadSvcCats()
   render()
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
