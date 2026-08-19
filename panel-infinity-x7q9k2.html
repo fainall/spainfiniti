@@ -584,6 +584,7 @@ input,select,textarea{font-family:inherit}
         <div class="topnav-dd-menu">
           <button onclick="switchView('productos')">Inventario</button>
           <button onclick="switchView('ventaprod')">Venta de productos</button>
+          <button onclick="switchView('movstock')">Movimientos de stock</button>
         </div>
       </div>
       <button data-view="reportes" onclick="switchView('reportes')">Reportes</button>
@@ -1263,6 +1264,54 @@ input,select,textarea{font-family:inherit}
           <button class="btn-download" onclick="exportVentaProd()">⬇ Descargar reporte</button>
         </div>
         <div id="vpTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA: MOVIMIENTOS DE STOCK -->
+  <div class="view" id="view-movstock">
+    <div class="view-inner" style="max-width:1200px">
+      <div class="inv-filters">
+        <div>
+          <label>Periodo de tiempo</label>
+          <div class="vp-range">
+            <input type="date" id="msFrom" onchange="renderMovStock()" />
+            <span>—</span>
+            <input type="date" id="msTo" onchange="renderMovStock()" />
+          </div>
+        </div>
+        <div><label>Estado del producto</label><select id="msStatus" onchange="renderMovStock()"><option value="active">Activo</option><option value="inactive">Inactivo</option><option value="all">Todos</option></select></div>
+        <div><label>Categoría</label><select id="msCategory" onchange="renderMovStock()"><option value="">Todos</option></select></div>
+        <div><label>Productos</label><select id="msProduct" onchange="renderMovStock()"><option value="">Todos</option></select></div>
+      </div>
+      <div class="inv-local">
+        <div class="inv-local-head">
+          <h3>Movimientos de stock</h3>
+          <button class="btn-download" onclick="exportMovStock()">⬇ Descargar</button>
+        </div>
+        <div id="msTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ajustar stock -->
+  <div class="modal-ov" id="stockModal">
+    <div class="modal" style="width:460px">
+      <h2>Ajustar stock</h2>
+      <input type="hidden" id="stkProdId" />
+      <div class="fbox">
+        <div id="stkProdName" style="font-weight:600;margin-bottom:4px"></div>
+        <div class="rem-note" style="margin:0 0 14px" id="stkCurrent"></div>
+        <div class="row2">
+          <div><label>Movimiento</label><select id="stkType"><option value="in">Ingreso (+)</option><option value="out">Salida (−)</option><option value="adjust">Ajuste (fijar stock)</option></select></div>
+          <div><label>Cantidad</label><input type="number" id="stkQty" min="0" value="1" /></div>
+        </div>
+        <label style="margin-top:12px">Motivo</label>
+        <input type="text" id="stkNote" placeholder="Ej: compra a proveedor, merma, conteo físico" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('stockModal')">Cancelar</button>
+        <button class="btn-primary" onclick="saveStockMove()">Guardar</button>
       </div>
     </div>
   </div>
@@ -2562,7 +2611,7 @@ async function doImport(){
 /* ── VIEW SWITCHING ── */
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
 const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
-const PRODUCTOS_GROUP=['productos','ventaprod']
+const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : PRODUCTOS_GROUP.includes(v) ? 'productos' : v
@@ -2579,6 +2628,7 @@ function switchView(v){
   if(v==='planes') renderPlanes()
   if(v==='productos') renderProducts()
   if(v==='ventaprod') renderVentaProd()
+  if(v==='movstock') renderMovStock()
   if(v==='asistente') renderAsistente()
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
@@ -3872,7 +3922,7 @@ function renderProducts(){
       <td>${esc(p.format||'—')}</td>
       <td style="text-align:right">${fmtMoney(Number(p.price||0))}</td>
       <td style="text-align:center">${isLowStock(p)?`<span class="badge" style="background:#fdecea;color:#c0392b">${p.stock||0}</span>`:`<strong>${p.stock||0}</strong>`}</td>
-      <td class="cacts"><button class="mini-btn" onclick="openProductModal('${p.id}')">Editar</button></td>
+      <td class="cacts" style="white-space:nowrap"><button class="mini-btn" onclick="openStockMove('${p.id}')">Ajustar stock</button> <button class="mini-btn" onclick="openProductModal('${p.id}')">Editar</button></td>
     </tr>`).join('')}</tbody></table>`
 }
 /* catálogos de inventario (categorías, marcas, formatos) + alarmas de local.
@@ -4116,6 +4166,107 @@ function renderVentaProd(){
         <td style="text-align:right">${total?Math.round(s.total/total*100):0}%</td></tr>`).join('')}</tbody></table>`:empty
   }
 }
+/* ── MOVIMIENTOS DE STOCK ──
+   Las salidas por venta se derivan de las boletas; los ingresos/ajustes manuales
+   se guardan en la tabla stock_movements (si no existe, quedan en este navegador). */
+state.stockMoves=[]
+const MOVE_LABEL={sale:'Venta',in:'Ingreso',out:'Salida',adjust:'Ajuste'}
+async function loadStockMoves(){
+  try{ state.stockMoves = await supabase.fetch('stock_movements',{order:'move_date.desc'}) || [] }
+  catch(e){ try{ state.stockMoves=JSON.parse(localStorage.getItem('spa_stock_moves')||'[]') }catch(_){ state.stockMoves=[] } }
+}
+async function logStockMove(row){
+  try{ await supabase.insert('stock_movements',row); await loadStockMoves(); return true }
+  catch(e){
+    let l=[]; try{ l=JSON.parse(localStorage.getItem('spa_stock_moves')||'[]') }catch(_){}
+    l.unshift({...row, id:'local-'+l.length+'-'+row.move_date})
+    localStorage.setItem('spa_stock_moves',JSON.stringify(l)); state.stockMoves=l; return false
+  }
+}
+function openStockMove(id){
+  const p=state.products.find(x=>x.id===id); if(!p) return
+  document.getElementById('stkProdId').value=p.id
+  document.getElementById('stkProdName').textContent=p.name
+  document.getElementById('stkCurrent').textContent=`Stock actual: ${p.stock||0} · ${p.category||'sin categoría'}`
+  document.getElementById('stkType').value='in'
+  document.getElementById('stkQty').value=1
+  document.getElementById('stkNote').value=''
+  openModal('stockModal')
+}
+async function saveStockMove(){
+  const p=state.products.find(x=>x.id===document.getElementById('stkProdId').value); if(!p) return
+  const type=document.getElementById('stkType').value
+  const qty=parseInt(document.getElementById('stkQty').value)||0
+  const note=document.getElementById('stkNote').value.trim()
+  if(type!=='adjust' && qty<=0){ toast('Ingresa una cantidad','error'); return }
+  const before=p.stock||0
+  const after = type==='in' ? before+qty : type==='out' ? Math.max(0,before-qty) : qty
+  try{ await supabase.update('products',p.id,{stock:after}); p.stock=after }
+  catch(e){ toast('No se pudo actualizar el stock','error'); return }
+  const ok=await logStockMove({ product_id:p.id, product_name:p.name, type, qty: type==='adjust'?(after-before):(type==='out'?-qty:qty),
+    note, move_date:isoDate(new Date()) })
+  closeModal('stockModal'); renderProducts(); renderMovStock()
+  toast(ok?'Movimiento registrado':'Stock actualizado (movimiento guardado solo en este navegador)','success')
+}
+/* une los movimientos manuales con las salidas por venta */
+function msRows(){
+  const f=document.getElementById('msFrom'), t=document.getElementById('msTo')
+  if(f && !f.value) f.value=isoDate(addDays(new Date(),-30))
+  if(t && !t.value) t.value=isoDate(new Date())
+  const from=f.value, to=t.value
+  const st=document.getElementById('msStatus').value
+  const cat=document.getElementById('msCategory').value
+  const only=document.getElementById('msProduct').value
+  const byId={}, byName={}
+  state.products.forEach(p=>{ byId[p.id]=p; byName[(p.name||'').toLowerCase()]=p })
+  const rows=[]
+  state.sales.filter(s=>s.status!=='deleted' && inRange(s.sale_date,from,to)).forEach(s=>{
+    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+    items.forEach(it=>{
+      const p=(it.productId && byId[it.productId]) || byName[String(it.name||'').toLowerCase()]
+      if(!p) return
+      rows.push({date:s.sale_date, product:p, type:'sale', qty:-(Number(it.qty||1)), note:`Venta a ${s.client_name||'cliente'}`})
+    })
+  })
+  ;(state.stockMoves||[]).filter(m=>inRange(m.move_date,from,to)).forEach(m=>{
+    const p=byId[m.product_id]||{id:m.product_id,name:m.product_name,category:'',active:true}
+    rows.push({date:m.move_date, product:p, type:m.type, qty:Number(m.qty||0), note:m.note||''})
+  })
+  return rows.filter(r=>{
+    if(st==='active' && r.product.active===false) return false
+    if(st==='inactive' && r.product.active!==false) return false
+    if(cat && (r.product.category||'')!==cat) return false
+    if(only && r.product.id!==only) return false
+    return true
+  }).sort((a,b)=>String(b.date).localeCompare(String(a.date)))
+}
+function renderMovStock(){
+  const el=document.getElementById('msTable'); if(!el) return
+  const cs=document.getElementById('msCategory'), ps=document.getElementById('msProduct')
+  const cc=cs.value; cs.innerHTML='<option value="">Todos</option>'+catValues('categories').map(v=>`<option>${esc(v)}</option>`).join(''); cs.value=cc
+  const pc=ps.value; ps.innerHTML='<option value="">Todos</option>'+state.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''); ps.value=pc
+  const rows=msRows()
+  if(!rows.length){ el.innerHTML='<div class="empty-state"><div style="font-size:2.4rem;margin-bottom:6px">🔍</div>No hay resultados</div>'; return }
+  const fecha=s=>{ const [y,m,d]=String(s).slice(0,10).split('-'); return `${d}/${m}/${y}` }
+  const badge=t=>{ const c={sale:'#fdecea|#c0392b',out:'#fdecea|#c0392b',in:'#e4f7ec|#2e9e63',adjust:'#eef1f6|#4a5568'}[t].split('|')
+    return `<span class="badge" style="background:${c[0]};color:${c[1]}">${MOVE_LABEL[t]}</span>` }
+  el.innerHTML=`<table class="ctbl">
+    <thead><tr><th>Fecha</th><th>Producto</th><th>Categoría</th><th>Movimiento</th><th style="text-align:center">Cantidad</th><th>Detalle</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td>${fecha(r.date)}</td>
+      <td class="cname">${esc(r.product.name||'—')}</td>
+      <td>${esc(r.product.category||'—')}</td>
+      <td>${badge(r.type)}</td>
+      <td style="text-align:center;font-weight:700;color:${r.qty<0?'#c0392b':'#2e9e63'}">${r.qty>0?'+':''}${r.qty}</td>
+      <td>${esc(r.note||'—')}</td></tr>`).join('')}</tbody></table>`
+}
+function exportMovStock(){
+  const rows=msRows()
+  if(!rows.length){ toast('No hay movimientos en el período','error'); return }
+  downloadCSV('movimientos-stock.csv', ['Fecha','Producto','Categoría','Movimiento','Cantidad','Detalle'],
+    rows.map(r=>[r.date, r.product.name||'', r.product.category||'', MOVE_LABEL[r.type], r.qty, r.note||'']))
+}
+
 function exportVentaProd(){
   const lines=vpLines()
   if(!lines.length){ toast('No hay ventas de productos en el período','error'); return }
@@ -4467,6 +4618,7 @@ async function boot(){
   await loadSales()
   await loadPlans()
   await loadProducts()
+  await loadStockMoves()
   await loadCash()
   await loadBotConfig()
   loadInvSettings()
