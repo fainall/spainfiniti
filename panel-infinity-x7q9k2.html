@@ -153,6 +153,28 @@ input,select,textarea{font-family:inherit}
 .inv-notice{background:#e6f4fa;color:#256b81;padding:12px 16px;border-radius:8px;font-size:.8rem;margin-bottom:14px;line-height:1.5}
 .inv-count{text-align:right;font-size:.75rem;color:var(--mid);margin-bottom:10px}
 @media(max-width:820px){.inv-filters{grid-template-columns:1fr 1fr}}
+/* venta de productos */
+.vp-filters{grid-template-columns:1.4fr 1fr 1fr}
+.vp-range{display:flex;align-items:center;gap:8px}
+.vp-range input{flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit}
+.vp-range span{color:var(--light)}
+.vp-kpis{display:grid;grid-template-columns:1fr 1fr 1.5fr 1.5fr;gap:16px;margin-bottom:20px}
+.vp-dark{background:var(--dark);color:#fff;border-radius:12px;padding:26px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px}
+.vp-num{font-size:2.1rem;font-weight:700;line-height:1}
+.vp-lbl{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;margin-top:10px;opacity:.85;text-align:center}
+.vp-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;min-height:160px}
+.vp-card-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px}
+.vp-card-head h4{font-size:.92rem;font-weight:600}
+.vp-ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:.8rem;font-weight:700}
+.vp-ic.up{background:#e4f7ec;color:#2e9e63}
+.vp-ic.down{background:#fdecea;color:#c0392b}
+.vp-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;font-size:.84rem;border-bottom:1px solid var(--border)}
+.vp-item:last-child{border-bottom:none}
+.vp-item .vi-n{color:var(--mid);font-weight:600;flex:1}
+.vp-item .vi-v{font-weight:700}
+.vp-tabs-row{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--border);margin-bottom:14px;flex-wrap:wrap}
+@media(max-width:1000px){.vp-kpis{grid-template-columns:1fr 1fr}.vp-filters{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.vp-kpis{grid-template-columns:1fr}}
 /* menú "+ Nuevo" del inventario */
 .inv-new{position:relative}
 .inv-new-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.14);width:308px;z-index:60;overflow:hidden}
@@ -557,7 +579,13 @@ input,select,textarea{font-family:inherit}
           <button onclick="switchView('recordatorios')">Recordatorios</button>
         </div>
       </div>
-      <button data-view="productos" onclick="switchView('productos')">Productos</button>
+      <div class="topnav-dd">
+        <button data-view="productos" onclick="switchView('productos')">Productos ▾</button>
+        <div class="topnav-dd-menu">
+          <button onclick="switchView('productos')">Inventario</button>
+          <button onclick="switchView('ventaprod')">Venta de productos</button>
+        </div>
+      </div>
       <button data-view="reportes" onclick="switchView('reportes')">Reportes</button>
       <button data-view="asistente" onclick="switchView('asistente')">Asistente</button>
       <a class="topnav-link" href="/admin" target="_blank">Administración</a>
@@ -1197,6 +1225,44 @@ input,select,textarea{font-family:inherit}
         <div class="inv-notice">ℹ Al vender un producto en la Caja o de forma interna a tu equipo, el stock se descuenta automáticamente de tu inventario. Aquí puedes ajustarlo manualmente cuando lo necesites.</div>
         <div class="inv-count" id="prodCount">Mostrando 0 de 0 productos</div>
         <div id="prodTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA: VENTA DE PRODUCTOS -->
+  <div class="view" id="view-ventaprod">
+    <div class="view-inner" style="max-width:1200px">
+      <div class="inv-filters vp-filters">
+        <div>
+          <label>Periodo de tiempo</label>
+          <div class="vp-range">
+            <input type="date" id="vpFrom" onchange="renderVentaProd()" />
+            <span>—</span>
+            <input type="date" id="vpTo" onchange="renderVentaProd()" />
+          </div>
+        </div>
+        <div><label>Estado del producto</label><select id="vpStatus" onchange="renderVentaProd()"><option value="active">Activo</option><option value="inactive">Inactivo</option><option value="all">Todos</option></select></div>
+        <div><label>Productos</label><select id="vpProduct" onchange="renderVentaProd()"><option value="">Todos</option></select></div>
+      </div>
+      <div class="vp-kpis">
+        <div class="vp-dark"><div class="vp-num" id="vpTotal">$0</div><div class="vp-lbl">Recaudación total</div></div>
+        <div class="vp-dark"><div class="vp-num" id="vpUnits">0</div><div class="vp-lbl">Unidades vendidas</div></div>
+        <div class="vp-card">
+          <div class="vp-card-head"><h4>Mayor ingreso</h4><span class="vp-ic up">↑</span></div>
+          <div id="vpTop"></div>
+        </div>
+        <div class="vp-card">
+          <div class="vp-card-head"><h4>Menor ingreso</h4><span class="vp-ic down">↓</span></div>
+          <div id="vpBottom"></div>
+        </div>
+      </div>
+      <div class="inv-local">
+        <h3 style="font-size:1.05rem;font-weight:600;margin-bottom:12px">Detalle de la venta</h3>
+        <div class="vp-tabs-row">
+          <div class="caja-tabs" id="vpTabs" style="border-radius:0;padding:0;flex:1"></div>
+          <button class="btn-download" onclick="exportVentaProd()">⬇ Descargar reporte</button>
+        </div>
+        <div id="vpTable"></div>
       </div>
     </div>
   </div>
@@ -2496,9 +2562,10 @@ async function doImport(){
 /* ── VIEW SWITCHING ── */
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
 const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
+const PRODUCTOS_GROUP=['productos','ventaprod']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
-  const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : v
+  const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : PRODUCTOS_GROUP.includes(v) ? 'productos' : v
   document.querySelectorAll('.topnav-tabs [data-view]').forEach(b=>b.classList.toggle('on', b.dataset.view===hi))
   if(v==='clientes'){ renderClientList(); renderRecordatorios() }
   if(v==='reportes') renderReportes()
@@ -2511,6 +2578,7 @@ function switchView(v){
   if(v==='comisiones') renderComisiones()
   if(v==='planes') renderPlanes()
   if(v==='productos') renderProducts()
+  if(v==='ventaprod') renderVentaProd()
   if(v==='asistente') renderAsistente()
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
@@ -3963,6 +4031,97 @@ function exportProducts(){
   if(!list.length){ toast('No hay productos para exportar','error'); return }
   const rows=list.map(p=>[p.name, p.category||'', p.brand||'', p.format||'', p.sku||'', Number(p.price||0), Number(p.cost||0), p.stock||0, p.min_stock||0])
   downloadCSV('productos.csv', ['Producto','Categoría','Marca','Formato','SKU','Precio','Costo','Stock','Alerta stock'], rows)
+}
+
+/* ── VENTA DE PRODUCTOS ── */
+let vpTab='productos'
+function vpDefaults(){
+  const f=document.getElementById('vpFrom'), t=document.getElementById('vpTo')
+  if(f && !f.value) f.value=isoDate(addDays(new Date(),-30))
+  if(t && !t.value) t.value=isoDate(new Date())
+}
+/* devuelve las líneas de venta que corresponden a productos del inventario */
+function vpLines(){
+  vpDefaults()
+  const from=document.getElementById('vpFrom').value, to=document.getElementById('vpTo').value
+  const st=document.getElementById('vpStatus').value
+  const only=document.getElementById('vpProduct').value
+  const byId={}, byName={}
+  state.products.forEach(p=>{ byId[p.id]=p; byName[(p.name||'').toLowerCase()]=p })
+  const lines=[]
+  state.sales.filter(s=>s.status!=='deleted' && inRange(s.sale_date,from,to)).forEach(s=>{
+    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+    items.forEach(it=>{
+      const p = (it.productId && byId[it.productId]) || byName[String(it.name||'').toLowerCase()]
+      if(!p) return
+      if(st==='active' && p.active===false) return
+      if(st==='inactive' && p.active!==false) return
+      if(only && p.id!==only) return
+      const qty=Number(it.qty||1), price=Number(it.price||0)
+      lines.push({ product:p, qty, total:qty*price, sale:s, seller:s.professional_id||'' })
+    })
+  })
+  return lines
+}
+function fillVpProducts(){
+  const sel=document.getElementById('vpProduct'); if(!sel) return
+  const cur=sel.value
+  sel.innerHTML='<option value="">Todos</option>'+state.products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+  sel.value=cur
+}
+function renderVentaProd(){
+  const el=document.getElementById('vpTable'); if(!el) return
+  fillVpProducts()
+  const lines=vpLines()
+  const total=lines.reduce((a,l)=>a+l.total,0), units=lines.reduce((a,l)=>a+l.qty,0)
+  document.getElementById('vpTotal').textContent=fmtMoney(total)
+  document.getElementById('vpUnits').textContent=units
+
+  // agrupado por producto
+  const byProd={}
+  lines.forEach(l=>{ const k=l.product.id
+    ;(byProd[k]=byProd[k]||{name:l.product.name, brand:l.product.brand||'', qty:0, total:0}).qty+=l.qty
+    byProd[k].total+=l.total })
+  const prods=Object.values(byProd).sort((a,b)=>b.total-a.total)
+
+  const empty='<div class="empty-state" style="padding:26px 0"><div style="font-size:2rem;margin-bottom:4px">🔍</div>No hay resultados</div>'
+  const listHtml=arr=>arr.length?arr.map(p=>`<div class="vp-item"><span class="vi-n">${esc(p.name)}</span><span class="vi-v">${fmtMoney(p.total)}</span></div>`).join(''):empty
+  document.getElementById('vpTop').innerHTML=listHtml(prods.slice(0,4))
+  document.getElementById('vpBottom').innerHTML=listHtml(prods.slice().reverse().slice(0,4))
+
+  // agrupado por vendedor
+  const bySeller={}
+  lines.forEach(l=>{ const k=l.seller||'—'
+    const nm=(state.professionals.find(p=>p.id===l.seller)||{}).name||'Sin vendedor'
+    ;(bySeller[k]=bySeller[k]||{name:nm, qty:0, total:0}).qty+=l.qty
+    bySeller[k].total+=l.total })
+  const sellers=Object.values(bySeller).sort((a,b)=>b.total-a.total)
+
+  document.getElementById('vpTabs').innerHTML=[['productos','Por productos',prods.length],['vendedor','Por vendedor',sellers.length]]
+    .map(([k,l,n])=>`<button class="${k===vpTab?'on':''}" onclick="vpTab='${k}';renderVentaProd()">${l}${n?` (${n})`:''}</button>`).join('')
+
+  if(vpTab==='productos'){
+    el.innerHTML=prods.length?`<table class="ctbl">
+      <thead><tr><th>Producto</th><th>Marca</th><th style="text-align:center">Unidades</th><th style="text-align:right">Recaudación</th><th style="text-align:right">% del total</th></tr></thead>
+      <tbody>${prods.map(p=>`<tr><td class="cname">${esc(p.name)}</td><td>${esc(p.brand||'—')}</td>
+        <td style="text-align:center"><strong>${p.qty}</strong></td>
+        <td style="text-align:right;font-weight:700">${fmtMoney(p.total)}</td>
+        <td style="text-align:right">${total?Math.round(p.total/total*100):0}%</td></tr>`).join('')}</tbody></table>`:empty
+  } else {
+    el.innerHTML=sellers.length?`<table class="ctbl">
+      <thead><tr><th>Vendedor</th><th style="text-align:center">Unidades</th><th style="text-align:right">Recaudación</th><th style="text-align:right">% del total</th></tr></thead>
+      <tbody>${sellers.map(s=>`<tr><td class="cname">${esc(s.name)}</td>
+        <td style="text-align:center"><strong>${s.qty}</strong></td>
+        <td style="text-align:right;font-weight:700">${fmtMoney(s.total)}</td>
+        <td style="text-align:right">${total?Math.round(s.total/total*100):0}%</td></tr>`).join('')}</tbody></table>`:empty
+  }
+}
+function exportVentaProd(){
+  const lines=vpLines()
+  if(!lines.length){ toast('No hay ventas de productos en el período','error'); return }
+  const rows=lines.map(l=>[l.sale.sale_date, l.product.name, l.product.brand||'', l.qty, l.total,
+    (state.professionals.find(p=>p.id===l.seller)||{}).name||'', l.sale.client_name||''])
+  downloadCSV('venta-productos.csv', ['Fecha','Producto','Marca','Unidades','Total','Vendedor','Cliente'], rows)
 }
 
 /* ── RECORDATORIOS (WhatsApp semi-automático) ── */
