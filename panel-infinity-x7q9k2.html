@@ -85,6 +85,27 @@ input,select,textarea{font-family:inherit}
 .icon-act:hover{border-color:var(--gold)}
 .icon-act.del{color:var(--red)}
 .icon-act.del:hover{border-color:var(--red);background:#fdecea}
+/* encuestas */
+.sv-qlist{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.sv-q{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--cream-2);border-radius:8px;cursor:pointer;font-size:.85rem;color:var(--dark)}
+.sv-q:hover{background:var(--gold-pale)}
+.sv-q input{width:16px;height:16px;margin:0;cursor:pointer}
+.sv-empty{background:#fff;border:1px solid var(--border);border-radius:12px;padding:60px 24px;text-align:center}
+.sv-empty .sv-face{font-size:3rem;margin-bottom:12px}
+.sv-empty h3{font-size:1.15rem;margin-bottom:8px}
+.sv-empty p{color:var(--mid);font-size:.86rem;margin-bottom:16px}
+.sv-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.sv-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px;flex-wrap:wrap}
+.sv-card-head h3{font-size:1.05rem}
+.sv-link{font-size:.74rem;color:var(--gold-d);font-family:monospace;word-break:break-all}
+.sv-score{display:flex;align-items:baseline;gap:8px}
+.sv-score .big{font-family:'Playfair Display',serif;font-size:2.2rem;color:var(--gold-d);line-height:1}
+.sv-score .of{font-size:.8rem;color:var(--mid)}
+.sv-qrow{display:flex;align-items:center;gap:12px;padding:7px 0;font-size:.84rem}
+.sv-qrow .q-name{width:170px;color:var(--dark)}
+.sv-qrow .q-bar{flex:1;height:8px;background:var(--cream-2);border-radius:5px;overflow:hidden;display:block;min-width:60px}
+.sv-qrow .q-fill{display:block;height:8px;background:var(--gold);border-radius:5px}
+.sv-qrow .q-val{width:46px;text-align:right;font-weight:700}
 /* inventario (productos) */
 .inv-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:20px;flex-wrap:wrap}
 .inv-head h2{font-family:'Playfair Display',serif;font-size:1.7rem;margin-bottom:4px}
@@ -467,7 +488,13 @@ input,select,textarea{font-family:inherit}
           <button onclick="switchView('comisiones')">Comisiones</button>
         </div>
       </div>
-      <button data-view="clientes" onclick="switchView('clientes')">Clientes</button>
+      <div class="topnav-dd">
+        <button data-view="clientes" onclick="switchView('clientes')">Clientes ▾</button>
+        <div class="topnav-dd-menu">
+          <button onclick="switchView('clientes')">Base de Clientes</button>
+          <button onclick="switchView('encuestas')">Reportes de encuestas</button>
+        </div>
+      </div>
       <button data-view="productos" onclick="switchView('productos')">Productos</button>
       <button data-view="reportes" onclick="switchView('reportes')">Reportes</button>
       <button data-view="asistente" onclick="switchView('asistente')">Asistente</button>
@@ -666,6 +693,54 @@ input,select,textarea{font-family:inherit}
       </div>
         </div><!-- /cli-main -->
       </div><!-- /cli-layout -->
+    </div>
+  </div>
+
+  <!-- VISTA: REPORTES DE ENCUESTAS -->
+  <div class="view" id="view-encuestas">
+    <div class="view-inner" style="max-width:1100px">
+      <div class="view-head">
+        <div><h2>Reportes de encuestas</h2><span class="view-sub">Conoce la opinión de tus clientes luego de cada atención.</span></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-g" onclick="exportSurveys()">⬇ Exportar</button>
+          <button class="btn-primary" onclick="openSurveyModal()">+ Crear encuesta</button>
+        </div>
+      </div>
+      <div class="sales-panel">
+        <div class="comm-filters" style="grid-template-columns:repeat(3,minmax(180px,1fr))">
+          <div><label>Encuesta</label><select id="svFilter" onchange="renderSurveys()"><option value="">Todos</option></select></div>
+          <div><label>Periodo</label>
+            <select id="svPeriod" onchange="renderSurveys()">
+              <option value="all">Todos</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option>
+            </select>
+          </div>
+          <div><label>Servicios</label><select id="svService" onchange="renderSurveys()"><option value="">Todos</option></select></div>
+        </div>
+      </div>
+      <div id="surveyBody"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: Crear encuesta -->
+  <div class="modal-ov" id="surveyModal">
+    <div class="modal" style="width:560px">
+      <h2 id="svTitle">Crear encuesta</h2>
+      <input type="hidden" id="svId" />
+      <label>Nombre de la encuesta</label>
+      <input type="text" id="svName" placeholder="Ej: Satisfacción post-atención" />
+      <label>Seleccione los servicios (opcional)</label>
+      <select id="svServices" multiple size="4" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></select>
+      <p style="font-size:.7rem;color:var(--light);margin-top:4px">Deja vacío para aplicar a todos los servicios. Ctrl/Cmd para elegir varios.</p>
+      <label>Seleccione las preguntas</label>
+      <div id="svQuestions" class="sv-qlist"></div>
+      <label style="display:flex;align-items:center;gap:9px;margin-top:14px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--dark);font-size:.85rem;cursor:pointer">
+        <input type="checkbox" id="svActive" checked style="width:16px;height:16px" /> Encuesta activa
+      </label>
+      <div class="modal-actions">
+        <button class="btn-danger" id="svDelBtn" onclick="deleteSurvey()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('surveyModal')">Cancelar</button>
+        <button class="btn-primary" onclick="saveSurvey()">Guardar</button>
+      </div>
     </div>
   </div>
 
@@ -2233,15 +2308,17 @@ async function doImport(){
 
 /* ── VIEW SWITCHING ── */
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
+const CLIENTES_GROUP=['clientes','encuestas']
 function switchView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
-  const hi = VENTAS_GROUP.includes(v) ? 'ventas' : v
+  const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : v
   document.querySelectorAll('.topnav-tabs [data-view]').forEach(b=>b.classList.toggle('on', b.dataset.view===hi))
   if(v==='clientes'){ renderClientList(); renderRecordatorios() }
   if(v==='reportes') renderReportes()
   if(v==='ventas') renderSales()
   if(v==='transacciones') renderTransacciones()
   if(v==='giftcards') loadGiftCards()
+  if(v==='encuestas') loadSurveys()
   if(v==='caja') renderCaja()
   if(v==='propinas') renderPropinas()
   if(v==='comisiones') renderComisiones()
@@ -2469,6 +2546,127 @@ function resetClientFilters(){
   ;['clfProf','clfService','clfApptStatus','clfGender','clfBirthFrom','clfBirthTo','clfCreatedFrom','clfCreatedTo','clfReserved','clientListSearch']
     .forEach(id=>{ const el=document.getElementById(id); if(el) el.value='' })
   cliPage=1; renderClientList()
+}
+
+/* ── ENCUESTAS ── */
+const SURVEY_QUESTIONS=['Precio','Calidad','Puntualidad','Limpieza y Orden','Recomendabilidad','Retornabilidad','Agendamiento','Atención del Personal']
+state.surveys=[]; state.svResponses=[]
+async function loadSurveys(){
+  try{ state.surveys = await supabase.fetch('surveys',{order:'created_at.desc'}) || [] }catch(e){ state.surveys=[] }
+  try{ state.svResponses = await supabase.fetch('survey_responses',{order:'created_at.desc'}) || [] }catch(e){ state.svResponses=[] }
+  renderSurveys()
+}
+function svQuestionsOf(s){ return Array.isArray(s.questions)?s.questions:(typeof s.questions==='string'?JSON.parse(s.questions||'[]'):[]) }
+function renderSurveys(){
+  const el=document.getElementById('surveyBody'); if(!el) return
+  // poblar filtros
+  const sf=document.getElementById('svFilter'); const cur=sf.value
+  sf.innerHTML='<option value="">Todos</option>'+state.surveys.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')
+  sf.value=cur
+  const ss=document.getElementById('svService'); const curS=ss.value
+  const svcNames=[...new Set(state.svResponses.map(r=>r.service_name).filter(Boolean))].sort()
+  ss.innerHTML='<option value="">Todos</option>'+svcNames.map(n=>`<option>${esc(n)}</option>`).join('')
+  ss.value=curS
+
+  if(!state.surveys.length){
+    el.innerHTML=`<div class="sv-empty">
+      <div class="sv-face">🙂</div>
+      <h3>No hay encuestas creadas</h3>
+      <p>Crea encuestas para conocer la opinión de tus clientes luego de cada atención.</p>
+      <button class="btn-primary" onclick="openSurveyModal()">Ir a crear encuestas</button>
+    </div>`
+    return
+  }
+  const period=document.getElementById('svPeriod').value
+  const svcF=ss.value, onlyId=sf.value
+  const lim=period==='all'?null:(()=>{const d=new Date();d.setDate(d.getDate()-parseInt(period));return d})()
+
+  el.innerHTML=state.surveys.filter(s=>!onlyId||s.id===onlyId).map(s=>{
+    let resp=state.svResponses.filter(r=>r.survey_id===s.id)
+    if(lim) resp=resp.filter(r=>new Date(r.created_at)>=lim)
+    if(svcF) resp=resp.filter(r=>r.service_name===svcF)
+    const qs=svQuestionsOf(s)
+    const avgOf=q=>{ const vals=resp.map(r=>{ const a=typeof r.answers==='string'?JSON.parse(r.answers||'{}'):(r.answers||{}); return Number(a[q]||0) }).filter(v=>v>0)
+      return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0 }
+    const all=qs.map(avgOf).filter(v=>v>0)
+    const general=all.length?(all.reduce((a,b)=>a+b,0)/all.length):0
+    const link=location.origin+'/encuesta.html?s='+s.id
+    return `<div class="sv-card">
+      <div class="sv-card-head">
+        <div>
+          <h3>${esc(s.name)} ${s.active===false?'<span class="badge" style="background:#eee;color:#888">Inactiva</span>':'<span class="badge paid">Activa</span>'}</h3>
+          <div style="font-size:.78rem;color:var(--mid);margin-top:4px">${resp.length} respuesta${resp.length===1?'':'s'}</div>
+          <div class="sv-link">${esc(link)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="sv-score"><span class="big">${general?general.toFixed(1):'—'}</span><span class="of">/ 5</span></div>
+          <button class="mini-btn" onclick="copySurveyLink('${s.id}')">Copiar link</button>
+          <button class="mini-btn" onclick="openSurveyModal('${s.id}')">Editar</button>
+        </div>
+      </div>
+      ${resp.length? qs.map(q=>{ const v=avgOf(q)
+        return `<div class="sv-qrow"><span class="q-name">${esc(q)}</span>
+          <span class="q-bar"><span class="q-fill" style="width:${v/5*100}%"></span></span>
+          <span class="q-val">${v?v.toFixed(1):'—'}</span></div>`}).join('')
+        : '<div style="color:var(--light);font-size:.85rem;text-align:center;padding:14px">Aún no hay respuestas. Comparte el link con tus clientes.</div>'}
+      ${resp.filter(r=>r.comment).length?`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:.78rem;font-weight:600;color:var(--mid);margin-bottom:8px">COMENTARIOS</div>
+        ${resp.filter(r=>r.comment).slice(0,5).map(r=>`<div style="font-size:.83rem;padding:6px 0;border-bottom:1px solid var(--cream-2)">
+          “${esc(r.comment)}” <span style="color:var(--light);font-size:.74rem">— ${esc(r.client_name||'Anónimo')}</span></div>`).join('')}
+      </div>`:''}
+    </div>`
+  }).join('')
+}
+function copySurveyLink(id){
+  const link=location.origin+'/encuesta.html?s='+id
+  navigator.clipboard?.writeText(link).then(()=>toast('Link copiado','success')).catch(()=>toast(link,'success'))
+}
+function openSurveyModal(id){
+  const s=id?state.surveys.find(x=>x.id===id):null
+  document.getElementById('svTitle').textContent=s?'Editar encuesta':'Crear encuesta'
+  document.getElementById('svId').value=s?s.id:''
+  document.getElementById('svName').value=s?s.name:''
+  document.getElementById('svActive').checked=s?s.active!==false:true
+  document.getElementById('svDelBtn').style.display=s?'block':'none'
+  // servicios
+  const sel=document.getElementById('svServices')
+  const chosen=s?(Array.isArray(s.services)?s.services:JSON.parse(s.services||'[]')):[]
+  sel.innerHTML=state.services.map(x=>`<option value="${esc(x.name)}" ${chosen.includes(x.name)?'selected':''}>${esc(x.name)}</option>`).join('')
+  // preguntas
+  const qs=s?svQuestionsOf(s):SURVEY_QUESTIONS
+  document.getElementById('svQuestions').innerHTML=SURVEY_QUESTIONS.map(q=>
+    `<label class="sv-q"><input type="checkbox" value="${esc(q)}" ${qs.includes(q)?'checked':''} /> ${esc(q)}</label>`).join('')
+  openModal('surveyModal')
+}
+async function saveSurvey(){
+  const name=document.getElementById('svName').value.trim()
+  if(!name){ toast('Falta el nombre de la encuesta','error'); return }
+  const qs=[...document.querySelectorAll('#svQuestions input:checked')].map(i=>i.value)
+  if(!qs.length){ toast('Selecciona al menos una pregunta','error'); return }
+  const services=[...document.getElementById('svServices').selectedOptions].map(o=>o.value)
+  const row={ name, questions:qs, services, active:document.getElementById('svActive').checked }
+  const id=document.getElementById('svId').value
+  try{
+    if(id) await supabase.update('surveys',id,row); else await supabase.insert('surveys',row)
+    await loadSurveys(); closeModal('surveyModal'); toast('Encuesta guardada','success')
+  }catch(e){ console.error(e); toast('Error al guardar (¿falta crear la tabla surveys?)','error') }
+}
+async function deleteSurvey(){
+  const id=document.getElementById('svId').value
+  if(!id||!confirm('¿Eliminar esta encuesta y sus respuestas?')) return
+  try{ await supabase.delete('surveys',id); await loadSurveys(); closeModal('surveyModal'); toast('Encuesta eliminada','success') }
+  catch(e){ toast('Error al eliminar','error') }
+}
+function exportSurveys(){
+  if(!state.svResponses.length){ toast('No hay respuestas para exportar','error'); return }
+  const rows=state.svResponses.map(r=>{
+    const a=typeof r.answers==='string'?JSON.parse(r.answers||'{}'):(r.answers||{})
+    const sv=state.surveys.find(s=>s.id===r.survey_id)
+    const vals=Object.values(a).map(Number).filter(v=>v>0)
+    return [new Date(r.created_at).toLocaleDateString('es-CL'), sv?sv.name:'', r.client_name||'', r.service_name||'',
+      vals.length?(vals.reduce((x,y)=>x+y,0)/vals.length).toFixed(1):'', JSON.stringify(a), r.comment||'']
+  })
+  downloadCSV('encuestas.csv', ['Fecha','Encuesta','Cliente','Servicio','Promedio','Respuestas','Comentario'], rows)
 }
 
 /* ── REPORTES (semana visible) ── */

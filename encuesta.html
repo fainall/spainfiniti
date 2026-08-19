@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Tu opinión — Spa Infinity</title>
+<link rel="icon" href="/logo.webp">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#C5A467;--gold-d:#A8883F;--dark:#1A2436;--mid:#6B7280;--light:#9CA3AF;--border:#E5E7EB;--cream:#FCFBF9}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Montserrat',sans-serif;background:#F5F2EC;color:var(--dark);padding:20px;min-height:100vh}
+.wrap{max-width:520px;margin:0 auto}
+.card{background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.08);overflow:hidden}
+.head{background:linear-gradient(135deg,#C5A467,#8A7344);color:#fff;padding:28px 24px;text-align:center}
+.head h1{font-family:'Playfair Display',serif;font-size:1.5rem;margin-bottom:4px}
+.head p{font-size:.8rem;opacity:.9;letter-spacing:2px;text-transform:uppercase}
+.body{padding:24px}
+.intro{font-size:.9rem;color:var(--mid);text-align:center;margin-bottom:22px;line-height:1.6}
+.q{margin-bottom:20px}
+.q-label{font-size:.9rem;font-weight:600;margin-bottom:10px}
+.stars{display:flex;gap:8px}
+.star{font-size:1.9rem;cursor:pointer;color:#ddd;transition:.15s;line-height:1;user-select:none}
+.star.on{color:var(--gold)}
+.star:hover{transform:scale(1.12)}
+label.f{display:block;font-size:.78rem;font-weight:600;color:var(--mid);margin:16px 0 6px;text-transform:uppercase;letter-spacing:.05em}
+input,textarea{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:9px;font-family:inherit;font-size:.9rem}
+input:focus,textarea:focus{outline:none;border-color:var(--gold)}
+button.send{width:100%;margin-top:22px;padding:14px;background:var(--gold);color:#fff;border:none;border-radius:30px;font-family:inherit;font-size:.9rem;font-weight:700;letter-spacing:.05em;cursor:pointer}
+button.send:hover{background:var(--gold-d)}
+button.send:disabled{opacity:.5;cursor:default}
+.done{text-align:center;padding:50px 24px}
+.done .em{font-size:3.4rem;margin-bottom:14px}
+.done h2{font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:10px}
+.done p{color:var(--mid);font-size:.9rem;line-height:1.6}
+.foot{text-align:center;font-size:.72rem;color:var(--light);margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="head">
+      <h1>Spa Infinity</h1>
+      <p>Tu opinión</p>
+    </div>
+    <div class="body" id="body">
+      <p class="intro">Cargando encuesta…</p>
+    </div>
+  </div>
+  <p class="foot">Centro Podológico &amp; Spa · Santo Domingo 1083, Santiago Centro</p>
+</div>
+
+<script src="/supabase-client.js?v=8"></script>
+<script>
+const params=new URLSearchParams(location.search)
+const surveyId=params.get('s')
+const svcParam=params.get('svc')||''
+const nameParam=params.get('n')||''
+let survey=null, answers={}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
+
+async function init(){
+  const body=document.getElementById('body')
+  if(!surveyId){ body.innerHTML='<p class="intro">Enlace inválido.</p>'; return }
+  try{
+    const rows=await supabase.fetch('surveys',{filters:'id=eq.'+surveyId})
+    survey=rows && rows[0]
+  }catch(e){ survey=null }
+  if(!survey || survey.active===false){
+    body.innerHTML='<p class="intro">Esta encuesta no está disponible.</p>'; return
+  }
+  const qs=Array.isArray(survey.questions)?survey.questions:JSON.parse(survey.questions||'[]')
+  body.innerHTML=`
+    <p class="intro">¡Gracias por visitarnos! Cuéntanos cómo estuvo tu experiencia. Solo toma un minuto 💛</p>
+    ${qs.map((q,i)=>`<div class="q">
+      <div class="q-label">${esc(q)}</div>
+      <div class="stars" data-q="${esc(q)}">
+        ${[1,2,3,4,5].map(n=>`<span class="star" data-n="${n}" onclick="rate('${esc(q)}',${n},this)">★</span>`).join('')}
+      </div></div>`).join('')}
+    <label class="f">Tu nombre (opcional)</label>
+    <input type="text" id="cname" value="${esc(nameParam)}" placeholder="Cómo te llamas" />
+    <label class="f">¿Algo que quieras contarnos?</label>
+    <textarea id="comment" rows="3" placeholder="Tu comentario nos ayuda a mejorar"></textarea>
+    <button class="send" id="sendBtn" onclick="send()">Enviar mi opinión</button>`
+}
+function rate(q,n,el){
+  answers[q]=n
+  const row=el.parentElement
+  ;[...row.children].forEach((s,i)=>s.classList.toggle('on', i<n))
+}
+async function send(){
+  const qs=Array.isArray(survey.questions)?survey.questions:JSON.parse(survey.questions||'[]')
+  if(Object.keys(answers).length<qs.length){ alert('Por favor califica todas las preguntas 🙏'); return }
+  const btn=document.getElementById('sendBtn'); btn.disabled=true; btn.textContent='Enviando…'
+  try{
+    await supabase.insert('survey_responses',{
+      survey_id:surveyId, answers, service_name:svcParam,
+      client_name:document.getElementById('cname').value.trim(),
+      comment:document.getElementById('comment').value.trim()
+    })
+    document.getElementById('body').innerHTML=`<div class="done">
+      <div class="em">💛</div><h2>¡Gracias por tu opinión!</h2>
+      <p>Nos ayuda muchísimo a seguir mejorando.<br>Te esperamos pronto en Spa Infinity.</p>
+    </div>`
+  }catch(e){ console.error(e); btn.disabled=false; btn.textContent='Enviar mi opinión'; alert('No pudimos enviar tu respuesta. Intenta de nuevo.') }
+}
+init()
+</script>
+</body>
+</html>
