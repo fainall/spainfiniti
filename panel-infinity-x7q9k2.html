@@ -2426,6 +2426,23 @@ label.chk input{width:auto;margin:0}
   </div>
 </div>
 
+<!-- MODAL: carga masiva -->
+<div class="modal-ov" id="bulkModal">
+  <div class="modal" style="width:760px;max-width:94vw">
+    <h2 id="bulkTitle">Carga masiva</h2>
+    <div class="fbox">
+      <div class="hint-blue" id="bulkHelp" style="margin-bottom:12px"></div>
+      <label>Pega aquí las filas copiadas desde Excel</label>
+      <textarea id="bulkText" rows="7" placeholder="Copia las filas en Excel (Ctrl+C) y pégalas aquí (Ctrl+V)" oninput="parseBulk()"></textarea>
+    </div>
+    <div class="fbox"><div id="bulkPreview"></div></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('bulkModal')">Cancelar</button>
+      <button class="btn-primary" id="bulkSaveBtn" onclick="saveBulk()" disabled>Guardar todo</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Producto -->
 <div class="modal-ov" id="productModal">
   <div class="modal" style="width:820px;max-width:94vw">
@@ -2842,7 +2859,16 @@ const isoDate = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate(
 const addDays = (d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x }
 function weekStart(d){ const off=(d.getDay()+6)%7; return addDays(d,-off) } // Monday
 function isoWeekday(d){ return ((d.getDay()+6)%7)+1 } // 1=Mon..7=Sun
-function parseDur(str){ if(!str) return 60; const m=String(str).match(/\d+/); return m?parseInt(m[0]):60 }
+/* entiende "60 min", "1 hr 30 min", "1hr30min", "1 hora", "90" */
+function parseDur(str){
+  if(!str) return 60
+  const t = String(str).toLowerCase()
+  const h = t.match(/(\d+)\s*(h|hr|hrs|hora|horas)/)
+  const m = t.match(/(\d+)\s*(m|min|mins|minuto|minutos)/)
+  if(h || m) return ((h ? parseInt(h[1])*60 : 0) + (m ? parseInt(m[1]) : 0)) || 60
+  const n = t.match(/\d+/)
+  return n ? parseInt(n[0]) : 60
+}
 
 /* el filtro de la agenda acepta 'all', el id de un profesional, o 'g:idDelGrupo' */
 function profInFilter(profId){
@@ -3244,11 +3270,38 @@ function fillServiceSelect(){
   Object.entries(byCat).forEach(([cat,arr])=>{
     html+=`<optgroup label="${esc(cat)}">`+arr.map(s=>`<option value="${s.id}" data-dur="${s.duration}" data-price="${esc(s.price||'')}" data-name="${esc(s.name)}">${esc(s.name)}</option>`).join('')+`</optgroup>`
   })
+  // clases (varios clientes en el mismo bloque)
+  if(typeof svcClasses!=='undefined' && svcClasses.length){
+    html+='<optgroup label="Clases">'+svcClasses.map(c=>
+      `<option value="cls:${c.id}" data-dur="${c.dur}" data-price="${esc(c.price||'')}" data-name="${esc(c.name)}">${esc(c.name)} · ${c.cap} cupos</option>`).join('')+'</optgroup>'
+  }
+  // paquetes (varios servicios seguidos)
+  if(typeof svcPackages!=='undefined' && svcPackages.length){
+    html+='<optgroup label="Paquetes">'+svcPackages.map(pk=>{
+      const total=pk.items.reduce((a,i)=>a+Number(i.price||0),0)
+      const dur=pk.items.reduce((a,i)=>{ const sv=state.services.find(x=>x.name===i.name); return a+(sv?sv.duration:60) },0)
+      return `<option value="pk:${pk.id}" data-dur="${dur}" data-price="${fmtMoney(total)}" data-name="${esc(pk.name)}">${esc(pk.name)} · ${dur} min</option>`
+    }).join('')+'</optgroup>'
+  }
   sel.innerHTML=html
+}
+/* ¿cuántos cupos tiene esta clase y cuántos van tomados? */
+function classInfo(name, date, start){
+  const c = (typeof svcClasses!=='undefined') ? svcClasses.find(x=>x.name===name) : null
+  if(!c) return null
+  const tomados = state.appointments.filter(a=>a.service_name===name && a.appt_date===date
+    && a.start_time.slice(0,5)===start && a.status!=='block' && a.status!=='cancelled').length
+  return { clase:c, tomados, libres: Math.max(0, c.cap - tomados) }
 }
 function fillProfSelect(){
   document.getElementById('apptProf').innerHTML = state.professionals.filter(p=>p.active!==false)
     .map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+}
+function classHintOnPick(name){
+  const d=document.getElementById('apptDate').value, st=document.getElementById('apptStart').value
+  const ci=classInfo(name,d,st)
+  const box=document.getElementById('classHint')
+  if(box) box.innerHTML = ci ? `<div class="hint-blue" style="margin-top:10px">👥 Clase: ${ci.tomados} de ${ci.clase.cap} cupos tomados a las ${ci.clase.time}. Quedan <strong>${ci.libres}</strong>.</div>` : ''
 }
 function onServicePick(){
   const opt=document.getElementById('apptService').selectedOptions[0]
@@ -3516,6 +3569,18 @@ async function saveAppt(){
   const svcName0=(document.getElementById('apptServiceName').value||'').trim()
   const _motivo=checkServiceRules({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
   if(_motivo){ toast(_motivo,'error'); return }
+  // reglas propias de las clases
+  const _ci=classInfo(svcName0, date, start)
+  if(_ci){
+    const dow=new Date(date+'T00:00:00').getDay()
+    if((_ci.clase.days||[]).length && !_ci.clase.days.includes(dow)){
+      toast('“'+svcName0+'” no se dicta ese día de la semana','error'); return }
+    if(_ci.clase.time && _ci.clase.time!==start){
+      toast('“'+svcName0+'” empieza a las '+_ci.clase.time,'error'); return }
+    const editando=document.getElementById('apptId').value
+    if(!editando && _ci.libres<=0){
+      toast('“'+svcName0+'” ya tiene sus '+_ci.clase.cap+' cupos tomados a esa hora','error'); return }
+  }
   const svcId=document.getElementById('apptService').value||null
   const svc=state.services.find(s=>s.id===svcId)
   const end=toHHMM(toMin(start)+dur)
@@ -5074,6 +5139,7 @@ function admServicios(){
   return tabs+`<div class="inv-notice">⭐ <strong>Configura tus servicios:</strong> precio, duración, descripción e imágenes. Puedes organizarlos en distintas categorías; los cambios se reflejan en el sitio web.</div>
     <div class="adm-head"><span class="ar-meta">${state.services.length} servicios en ${Object.keys(byCat).length} categorías</span>
       <span style="display:flex;gap:8px"><button class="btn-g" onclick="openSvcCatModal()">+ Nueva categoría</button>
+      <button class="btn-g" onclick="openBulk('prices')">⬆ Carga masiva de precios</button>
       <button class="btn-download" onclick="exportServicios()">⬇ Descargar</button>
       <button class="btn-primary" onclick="openSvcModal()">+ Nuevo</button></span></div>${body}`
 }
@@ -6775,9 +6841,7 @@ async function saveStockAlarms(){
   closeModal('alarmsModal'); renderProducts()
   toast(ok?'Alarmas guardadas':'Guardado solo en este navegador','success')
 }
-function openProductImport(){
-  toast('Carga masiva: próximamente. Por ahora usa "+ Nuevo" para agregar.','error')
-}
+function openProductImport(){ openBulk('products') }
 function openProductModal(id){
   const p=id?state.products.find(x=>x.id===id):null
   document.getElementById('prodTitle').textContent=p?'Editar producto':'Nuevo producto'
@@ -6832,6 +6896,84 @@ function exportProducts(){
   if(!list.length){ toast('No hay productos para exportar','error'); return }
   const rows=list.map(p=>[p.name, p.category||'', p.brand||'', p.format||'', p.sku||'', Number(p.price||0), Number(p.cost||0), p.stock||0, p.min_stock||0])
   downloadCSV('productos.csv', ['Producto','Categoría','Marca','Formato','SKU','Precio','Costo','Stock','Alerta stock'], rows)
+}
+
+/* ── CARGA MASIVA ──
+   Pegar desde Excel (una fila por ítem, columnas separadas por tabulación o punto y coma)
+   y revisar la vista previa antes de guardar. */
+let bulkMode = 'products'   // 'products' | 'prices'
+let bulkRows = []
+
+function openBulk(mode){
+  bulkMode = mode
+  document.getElementById('bulkTitle').textContent = mode==='products' ? 'Carga masiva de productos' : 'Carga masiva de precios'
+  document.getElementById('bulkHelp').innerHTML = mode==='products'
+    ? 'Una línea por producto, en este orden:<br><code>Nombre · Categoría · Marca · Formato · Precio · Stock · Código de barras</code>'
+    : 'Una línea por servicio, en este orden:<br><code>Nombre exacto del servicio · Precio nuevo · Duración en minutos (opcional)</code>'
+  document.getElementById('bulkText').value = ''
+  document.getElementById('bulkPreview').innerHTML = ''
+  document.getElementById('bulkSaveBtn').disabled = true
+  openModal('bulkModal')
+}
+function parseBulk(){
+  const txt = document.getElementById('bulkText').value.trim()
+  bulkRows = []
+  if(!txt){ document.getElementById('bulkPreview').innerHTML=''; document.getElementById('bulkSaveBtn').disabled=true; return }
+  const lineas = txt.split('\n').map(l=>l.trim()).filter(Boolean)
+  const sep = l => l.includes('\t') ? l.split('\t') : (l.includes(';') ? l.split(';') : l.split(','))
+  const errores = []
+
+  lineas.forEach((l,i)=>{
+    const c = sep(l).map(x=>x.trim())
+    if(bulkMode==='products'){
+      if(!c[0]) { errores.push(`Línea ${i+1}: falta el nombre`); return }
+      bulkRows.push({ name:c[0], category:c[1]||'', brand:c[2]||'', format:c[3]||'',
+        price:parseMoney(c[4]||'0'), stock:parseInt(c[5])||0, sku:c[6]||'' })
+    } else {
+      if(!c[0]) { errores.push(`Línea ${i+1}: falta el servicio`); return }
+      const svc = state.services.find(s=>s.name.toLowerCase()===c[0].toLowerCase())
+      if(!svc){ errores.push(`Línea ${i+1}: no existe el servicio “${c[0]}”`); return }
+      bulkRows.push({ id:svc.id, name:svc.name, price:fmtMoney(parseMoney(c[1]||'0')),
+        duration: c[2] ? (parseInt(c[2])||svc.duration)+' min' : null, antes:svc.price })
+    }
+  })
+
+  const head = bulkMode==='products'
+    ? '<tr><th>Producto</th><th>Categoría</th><th>Marca</th><th>Formato</th><th>Precio</th><th>Stock</th></tr>'
+    : '<tr><th>Servicio</th><th>Precio actual</th><th>Precio nuevo</th><th>Duración</th></tr>'
+  const body = bulkRows.map(r => bulkMode==='products'
+    ? `<tr><td class="cname">${esc(r.name)}</td><td>${esc(r.category||'—')}</td><td>${esc(r.brand||'—')}</td>
+       <td>${esc(r.format||'—')}</td><td>${fmtMoney(r.price)}</td><td style="text-align:center">${r.stock}</td></tr>`
+    : `<tr><td class="cname">${esc(r.name)}</td><td style="color:var(--light)">${esc(r.antes||'—')}</td>
+       <td style="font-weight:700">${esc(r.price)}</td><td>${esc(r.duration||'sin cambio')}</td></tr>`).join('')
+
+  document.getElementById('bulkPreview').innerHTML =
+    (errores.length ? `<div class="hint-blue" style="background:#fdecea;color:#c0392b;margin-bottom:10px">⚠ ${errores.join('<br>')}</div>` : '') +
+    (bulkRows.length ? `<p class="rem-note" style="margin:0 0 8px">Se cargarán <strong>${bulkRows.length}</strong> ${bulkMode==='products'?'productos':'precios'}:</p>
+      <table class="ctbl"><thead>${head}</thead><tbody>${body}</tbody></table>` : '')
+  document.getElementById('bulkSaveBtn').disabled = !bulkRows.length
+}
+async function saveBulk(){
+  if(!bulkRows.length) return
+  const btn=document.getElementById('bulkSaveBtn'); btn.disabled=true; btn.textContent='Guardando…'
+  let ok=0, fail=0
+  try{
+    if(bulkMode==='products'){
+      for(const r of bulkRows){
+        try{ await supabase.insert('products',{ ...r, min_stock:0, cost:0, active:true, notes:'' }); ok++ }
+        catch(e){ fail++ }
+      }
+      await loadProducts(); renderProducts()
+    } else {
+      for(const r of bulkRows){
+        const row = r.duration ? { price:r.price, duration:r.duration } : { price:r.price }
+        try{ await supabase.update('services', r.id, row); ok++ }catch(e){ fail++ }
+      }
+      await reloadServices(); renderAdmin()
+    }
+    closeModal('bulkModal')
+    toast(`${ok} guardados${fail?` · ${fail} con error`:''}`, fail?'error':'success')
+  } finally { btn.disabled=false; btn.textContent='Guardar todo' }
 }
 
 /* ── VENTA DE PRODUCTOS ── */

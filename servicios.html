@@ -258,6 +258,7 @@
   <div class="container">
     <div class="cat-grid" id="catGrid"></div>
     <div class="cat-accordion" id="catAccordion" style="display:none"></div>
+    <div id="cpContainer"></div>
   </div>
 </section>
 
@@ -268,10 +269,14 @@
 <script src="/supabase-client.js?v=8"></script>
 <script src="/data.js?v=5"></script>
 <script src="/common.js?v=16"></script>
+<script src="/clases-paquetes.js?v=1"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
 document.getElementById('footerContainer').innerHTML = renderFooter()
 document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+/* clases y paquetes creados en el panel */
+ClasesPaquetes.load().then(cp => cp.render(document.getElementById('cpContainer')))
 
 const catGrid = document.getElementById('catGrid')
 const catAccordion = document.getElementById('catAccordion')
