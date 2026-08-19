@@ -3394,7 +3394,7 @@ async function runSalesInsight(){
   if(!cur.n){ box.innerHTML='<p class="rem-note" style="margin:0">Aún no hay ventas en este período para analizar.</p>'; return }
   box.innerHTML='<p class="rem-note" style="margin:0">Analizando tus ventas…</p>'
   try{
-    const res=await fetch('/api/sales-insight.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch('/api/sales-insight.php?t='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ periodo:`${isoDate(f)} a ${isoDate(t)}`, anterior:`${isoDate(pf)} a ${isoDate(pt)}`, actual:cur, previo:prev })})
     const j=await res.json()
     if(j.text){

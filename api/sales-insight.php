@@ -1,6 +1,7 @@
 <?php
 /* Análisis de ventas con OpenAI — recibe los totales ya agregados del panel */
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate');
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error'=>'Método no permitido']); exit; }
 
 $cfgFile = __DIR__ . '/bot-config.php';
