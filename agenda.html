@@ -3158,7 +3158,96 @@ function renderSidebar(){
 }
 function selectProf(id){ state.profId=id; render() }
 
+/* ── VISTA DÍA: una columna por profesional, como en la agenda de un spa ── */
+function renderCalendarDia(){
+  const fecha = isoDate(state.anchor)
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  const [minM,maxM] = hourBounds()
+  const SP = slotPx(), nSlots = Math.ceil((maxM-minM)/slotMin), gridH = nSlots*SP
+  const profs = state.professionals.filter(p => p.active!==false && profInFilter(p.id))
+
+  /* cabecera: foto o inicial + nombre */
+  let head = '<div class="gutter"></div>'
+  profs.forEach(p=>{
+    const m = metaOf(p.id)
+    const avatar = m.photo
+      ? `<img class="pcol-ava" src="${m.photo}" alt="">`
+      : `<span class="pcol-ava ini" style="background:${p.color||'#C5A467'}">${esc((p.name||'?').slice(0,2).toUpperCase())}</span>`
+    head += `<div class="dcol pcol"><div class="pcol-head">${avatar}<span class="pcol-nm">${esc(p.name)}</span></div></div>`
+  })
+  document.getElementById('calHead').innerHTML = head
+
+  let gut=''
+  for(let i=0;i<nSlots;i++) gut += `<div class="hr" style="height:${SP}px"><span>${toHHMM(minM+i*slotMin)}</span></div>`
+
+  let cols=''
+  profs.forEach(p=>{
+    /* líneas de la grilla */
+    let lines=''
+    for(let i=0;i<=nSlots;i++){
+      const isHour = ((minM+i*slotMin)%60)===0
+      lines += `<div class="hr-line ${isHour?'':'half'}" style="top:${i*SP}px"></div>`
+    }
+
+    /* tramos en que no atiende: gris con su leyenda */
+    const h = profHorarioDia(p.id, fecha)
+    let noDisp=''
+    if(!h || !h.trabaja){
+      noDisp = `<div class="nodisp" style="top:0;height:${gridH}px"><span>Profesional no disponible</span></div>`
+    } else {
+      const ini = toMin(h.desde), fin = toMin(h.hasta)
+      if(ini > minM){
+        const alto = (ini-minM)/slotMin*SP
+        noDisp += `<div class="nodisp" style="top:0;height:${alto}px"><span>Profesional no disponible<br><small>${toHHMM(minM)} – ${h.desde}</small></span></div>`
+      }
+      if(fin < maxM){
+        const top = (fin-minM)/slotMin*SP, alto = (maxM-fin)/slotMin*SP
+        noDisp += `<div class="nodisp" style="top:${top}px;height:${alto}px"><span>Profesional no disponible<br><small>${h.hasta} – ${toHHMM(maxM)}</small></span></div>`
+      }
+      /* descansos del día */
+      const desc = (metaOf(p.id).breaks||{})[dow] || (metaOf(p.id).breaks||{})[String(dow)] || []
+      desc.forEach(b=>{
+        const bi=toMin(b[0]), bf=toMin(b[1])
+        if(bf<=minM || bi>=maxM) return
+        const top=(Math.max(bi,minM)-minM)/slotMin*SP, alto=(Math.min(bf,maxM)-Math.max(bi,minM))/slotMin*SP
+        noDisp += `<div class="nodisp descanso" style="top:${top}px;height:${alto}px"><span>Descanso<br><small>${b[0]} – ${b[1]}</small></span></div>`
+      })
+    }
+
+    /* citas de este profesional */
+    const suyas = state.appointments.filter(a => a.appt_date===fecha && a.professional_id===p.id)
+    const blocks = layoutDay(suyas).map(a=>{
+      const top=(toMin(a.start_time)-minM)/slotMin*SP
+      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-2)
+      const w=100/a._cols, left=a._col*w
+      const pos=`top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px)`
+      if(a.status==='block'){
+        return `<div class="appt block" data-id="${a.id}" style="${pos}" onmousedown="apptMouseDown(event,'${a.id}')">
+          <div class="t">🔒 ${a.start_time.slice(0,5)}</div>
+          <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
+      }
+      const color=STATUS_COLORS[a.status]||p.color||'#C5A467'
+      return `<div class="appt" data-id="${a.id}" style="${pos};background:${color}"
+        onmousedown="apptMouseDown(event,'${a.id}')">
+        <div class="t">${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
+        <div class="n">${esc(a.client_name||'—')}</div>
+        <div class="s">${esc(a.service_name||'')}</div></div>`
+    }).join('')
+
+    cols += `<div class="dcol pcol" style="height:${gridH}px" data-date="${fecha}" data-prof="${p.id}"
+      onclick="onSlotClick(event,this)">${lines}${noDisp}${blocks}</div>`
+  })
+
+  document.getElementById('calGrid').innerHTML = `<div class="gutter">${gut}</div>${cols}`
+  if(!profs.length){
+    document.getElementById('calGrid').innerHTML += `<div class="empty-note">
+      <div>No hay profesionales para mostrar.</div>
+      <button class="btn-primary" onclick="openProfManager()">+ Agregar profesional</button></div>`
+  }
+}
+
 function renderCalendar(){
+  if(state.view==='day') return renderCalendarDia()
   const [from,to]=visibleRange()
   const days=[]; let d=new Date(from)
   while(d<=to){ days.push(new Date(d)); d=addDays(d,1) }
@@ -3257,7 +3346,7 @@ function onSlotClick(e,col){
   // el bloque clickeado según la granularidad configurada
   const idx=Math.floor((e.clientY-rect.top)/slotPx())
   const mins=minM + idx*slotMin
-  showGhost(col, mins, {date:col.dataset.date, start:toHHMM(mins)})
+  showGhost(col, mins, {date:col.dataset.date, start:toHHMM(mins), profId:col.dataset.prof||null})
 }
 function showGhost(col, mins, prefill){
   clearGhost(); slotPrefill=prefill
@@ -3793,6 +3882,8 @@ function openApptModal(id,prefill){
     document.getElementById('apptPhone').value=''
     document.getElementById('apptDate').value=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
     document.getElementById('apptStart').value=(prefill&&prefill.start)||'10:00'
+    // si vino de la columna de un profesional, queda preseleccionado
+    if(prefill&&prefill.profId){ const ps=document.getElementById('apptProf'); if([...ps.options].some(o=>o.value===prefill.profId)) ps.value=prefill.profId }
     document.getElementById('apptDur').value=60
     document.getElementById('apptStatus').value='reserved'
     document.getElementById('apptNotes').value=''
