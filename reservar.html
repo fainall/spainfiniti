@@ -54,6 +54,12 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .foot{text-align:center;font-size:.72rem;color:var(--light);margin-top:18px;line-height:1.6}
 .foot a{color:var(--gold-d)}
 .loading{text-align:center;color:var(--mid);font-size:.85rem;padding:20px}
+
+.done-btns{display:flex;flex-direction:column;gap:10px;margin-top:26px}
+.btn-ok{display:block;padding:14px;border-radius:30px;text-decoration:none;text-align:center;
+  font-size:.86rem;font-weight:700;letter-spacing:.04em;background:var(--gold);color:#fff}
+.btn-ok.sec{background:#fff;color:var(--gold);border:1px solid var(--gold)}
+.btn-ok.wa{background:#25d366;color:#fff}
 </style>
 </head>
 <body>
@@ -299,6 +305,11 @@ async function reservar(){
         </div>
         <p>Te esperamos en Santo Domingo 1083, oficina 502.<br>
         Si necesitas cambiarla, escríbenos por WhatsApp.</p>
+        <div class="done-btns">
+          <a class="btn-ok" href="/">Volver al inicio</a>
+          <a class="btn-ok sec" href="/servicios.html">Ver otros servicios</a>
+          <a class="btn-ok wa" href="https://wa.me/56986688771?text=${encodeURIComponent('Hola, acabo de reservar ' + servicio.name + ' para el ' + fechaSel + ' a las ' + horaSel + ' hrs.')}" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>
+        </div>
       </div>`
   }catch(e){
     err.textContent = e.message || 'No pudimos completar la reserva. Intenta de nuevo.'
