@@ -187,7 +187,18 @@ $tools = [
 $input = json_decode(file_get_contents('php://input'), true);
 $phone = $input['phone'] ?? '';
 
-function weekdayIso($date){ return (int)date('N', strtotime($date)); }
+/* ¿el profesional tiene asignado ese servicio? (Administración → Profesionales) */
+function prof_hace_servicio($profId, $serviceName) {
+    global $bot;
+    if (!$serviceName) return true;
+    $meta = $bot['prof_meta'] ?? [];
+    if (is_string($meta)) $meta = json_decode($meta, true);
+    $m = (is_array($meta) && isset($meta[$profId])) ? $meta[$profId] : null;
+    if (!$m || empty($m['services']) || $m['services'] === 'all') return true;
+    return in_array($serviceName, (array)$m['services']);
+}
+
+function weekdayIso(){ return (int)date('N', strtotime($date)); }
 
 function do_check($args) {
     global $pros;
@@ -196,7 +207,9 @@ function do_check($args) {
     $startM=(int)substr($time,0,2)*60+(int)substr($time,3,2); $endM=$startM+$dur;
     $appts = supa('GET', 'appointments?select=professional_id,start_time,end_time&appt_date=eq.'.$date) ?: [];
     $free=[];
+    $svcPedido = $args['service_name'] ?? '';
     foreach ($pros as $p) {
+        if ($svcPedido && !prof_hace_servicio($p['id'], $svcPedido)) continue;   // no lo tiene asignado
         $days = is_string($p['work_days']) ? json_decode($p['work_days'],true) : $p['work_days'];
         if (!in_array($wd, $days ?: [1,2,3,4,5,6])) continue;
         $ws=(int)substr($p['work_start'],0,2)*60+(int)substr($p['work_start'],3,2);
@@ -238,6 +251,8 @@ function do_book($args) {
     $chk=do_check($args);
     if (!$chk['available']) return ['ok'=>false,'reason'=>$chk['motivo'] ?? 'no_disponible'];
     $prof=$chk['professionals'][0];
+    if (!prof_hace_servicio($prof['id'], $args['service_name'] ?? ''))
+        return ['ok'=>false,'reason'=>'ese profesional no realiza ese servicio'];
     $time=substr($args['time'],0,5); $dur=$args['duration']??60;
     $endM=(int)substr($time,0,2)*60+(int)substr($time,3,2)+$dur;
     $end=sprintf('%02d:%02d', intdiv($endM,60), $endM%60);

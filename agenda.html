@@ -2332,6 +2332,7 @@ label.chk input{width:auto;margin:0}
     <input type="hidden" id="apptClientId" />
     <label>Profesional</label>
     <select id="apptProf"></select>
+    <div id="profAviso"></div>
     <label>Servicio</label>
     <div class="client-search-wrap" id="apptServiceWrap">
       <input type="text" id="apptServiceSearch" placeholder="Buscar servicio..." autocomplete="off" oninput="onApptServiceSearch()" onfocus="onApptServiceSearch()" />
@@ -3348,6 +3349,8 @@ async function apptMouseUp(){
   if(a.appt_date===d.targetDate && a.start_time.slice(0,5)===d.targetStart){ render(); return }
   const _m=checkServiceRules({serviceName:a.service_name, date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id})
   if(_m){ toast(_m,'error'); render(); return }
+  const _asig=checkProfServicio(d.targetProf || a.professional_id, a.service_name)
+  if(_asig){ toast(_asig,'error'); render(); return }
   const newEnd=toHHMM(toMin(d.targetStart)+d.dur)
   a.appt_date=d.targetDate; a.start_time=d.targetStart; a.end_time=newEnd  // optimista
   render()
@@ -3398,6 +3401,24 @@ function svcIdByName(name){
   const s = state.services.find(x => x.name === name)
   return s ? s.id : null
 }
+/* ¿el profesional tiene asignado este servicio? (Administración → Profesionales) */
+function profHaceServicio(profId, serviceName){
+  if(!profId || !serviceName) return true
+  const sv = metaOf(profId).services
+  if(!sv || sv === 'all') return true          // sin restricción: los hace todos
+  return sv.includes(serviceName)
+}
+/* mensaje de bloqueo si no lo realiza */
+function checkProfServicio(profId, serviceName){
+  if(profHaceServicio(profId, serviceName)) return null
+  const nombre = (state.professionals.find(x=>x.id===profId)||{}).name || 'Ese profesional'
+  return `${nombre} no tiene asignado "${serviceName}". Asígnaselo en Administración → Profesionales, o elige a otra persona.`
+}
+/* quiénes pueden atender este servicio */
+function profesionalesDe(serviceName){
+  return state.professionals.filter(p => p.active!==false && profHaceServicio(p.id, serviceName))
+}
+
 /* horario del profesional para un día concreto (usa el detalle si existe) */
 function profHorarioDia(profId, fecha){
   const p = state.professionals.find(x=>x.id===profId)
@@ -3499,9 +3520,28 @@ function classInfo(name, date, start){
     && a.start_time.slice(0,5)===start && a.status!=='block' && a.status!=='cancelled').length
   return { clase:c, tomados, libres: Math.max(0, c.cap - tomados) }
 }
-function fillProfSelect(){
-  document.getElementById('apptProf').innerHTML = state.professionals.filter(p=>p.active!==false)
-    .map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
+function fillProfSelect(serviceName){
+  const sel=document.getElementById('apptProf')
+  const anterior=sel.value
+  const activos=state.professionals.filter(p=>p.active!==false)
+  sel.innerHTML = activos.map(p=>{
+    const puede = profHaceServicio(p.id, serviceName)
+    return `<option value="${p.id}" ${puede?'':'disabled'}>${esc(p.name)}${puede?'':' — no realiza este servicio'}</option>`
+  }).join('')
+  // si quien estaba elegido no puede, saltamos al primero que sí
+  const permitidos=activos.filter(p=>profHaceServicio(p.id, serviceName))
+  if(anterior && permitidos.some(p=>p.id===anterior)) sel.value=anterior
+  else if(permitidos.length) sel.value=permitidos[0].id
+}
+/* al cambiar el servicio se recalcula quién puede atenderlo */
+function onServicioElegido(nombre){
+  fillProfSelect(nombre)
+  const aviso=document.getElementById('profAviso')
+  if(aviso){
+    const sinAsignar=state.professionals.filter(p=>p.active!==false && !profHaceServicio(p.id, nombre))
+    aviso.innerHTML = (nombre && sinAsignar.length)
+      ? `<span style="font-size:.72rem;color:var(--mid)">No lo realizan: ${sinAsignar.map(p=>esc(p.name)).join(', ')}</span>` : ''
+  }
 }
 function classHintOnPick(name){
   const d=document.getElementById('apptDate').value, st=document.getElementById('apptStart').value
@@ -3533,6 +3573,7 @@ function selectApptService(id){
   document.getElementById('apptServiceSearch').value=s.name
   document.getElementById('apptDur').value=s.duration||60
   document.getElementById('apptServiceDropdown').classList.remove('show')
+  onServicioElegido(s.name)   // deja solo a quienes lo realizan
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('#apptServiceWrap')){ const dd=document.getElementById('apptServiceDropdown'); if(dd) dd.classList.remove('show') } })
 /* crear servicio rápido */
@@ -3719,7 +3760,8 @@ async function saveFicha(clientId){
 function openApptModal(id,prefill){
   if(id && isPro()){ const _a=state.appointments.find(x=>x.id===id)
     if(_a && !canEditAppt(_a)){ toast('Esa reserva es de otro profesional','error'); return } }
-  fillProfSelect()
+  const _svcPrevio = id ? ((state.appointments.find(x=>x.id===id)||{}).service_name||'') : ''
+  fillProfSelect(_svcPrevio)
   const del=document.getElementById('apptDelBtn')
   if(id){
     const a=state.appointments.find(x=>x.id===id); if(!a) return
@@ -3777,6 +3819,8 @@ async function saveAppt(){
   if(_motivo){ toast(_motivo,'error'); return }
   const _horario=checkProfHours(profId, date, start, dur)
   if(_horario){ toast(_horario,'error'); return }
+  const _asignado=checkProfServicio(profId, svcName0)
+  if(_asignado){ toast(_asignado,'error'); return }
   // reglas propias de las clases
   const _ci=classInfo(svcName0, date, start)
   if(_ci){

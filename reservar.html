@@ -114,6 +114,15 @@ function precioEn(fecha, hora){
   return { precio: Math.round(base*(100-r.pct)/100), pct: r.pct }
 }
 
+/* ¿este profesional tiene asignado el servicio? (lo define el panel) */
+function haceElServicioWrap(p){ return haceElServicio(p.id) }
+function haceElServicio(profId){
+  const asign = config.prof_services || {}
+  const sv = asign[profId]
+  if(!sv || sv === 'all') return true
+  return sv.includes(servicio.name)
+}
+
 /* ¿el servicio tiene restricciones propias? (horario especial, cupos, recursos) */
 function reglasServicio(){ return (config.svc_meta || {})[svcId] || {} }
 
@@ -147,7 +156,7 @@ function horasLibres(fecha){
     if(fecha === iso(ahora) && t <= ahora.getHours()*60 + ahora.getMinutes() + 60) return
 
     // ¿hay algún profesional libre que trabaje ese día?
-    const disponible = profesionales.some(p => {
+    const disponible = profesionales.filter(haceElServicioWrap).some(p => {
       const dias = Array.isArray(p.work_days) ? p.work_days : JSON.parse(p.work_days||'[1,2,3,4,5,6]')
       if(!dias.includes(dow)) return false
       const ws = toMin((p.work_start||'09:00').slice(0,5)), we = toMin((p.work_end||'20:00').slice(0,5))
@@ -244,7 +253,7 @@ async function reservar(){
 
     const dur = durMin(servicio.duration)
     const dow = new Date(fechaSel+'T00:00:00').getDay()
-    const prof = profesionales.find(p => {
+    const prof = profesionales.filter(haceElServicioWrap).find(p => {
       const dias = Array.isArray(p.work_days) ? p.work_days : JSON.parse(p.work_days||'[1,2,3,4,5,6]')
       if(!dias.includes(dow)) return false
       const t = toMin(horaSel)
