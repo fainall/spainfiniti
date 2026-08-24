@@ -3398,6 +3398,31 @@ function svcIdByName(name){
   const s = state.services.find(x => x.name === name)
   return s ? s.id : null
 }
+/* horario del profesional para un día concreto (usa el detalle si existe) */
+function profHorarioDia(profId, fecha){
+  const p = state.professionals.find(x=>x.id===profId)
+  if(!p) return null
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  const dias = Array.isArray(p.work_days) ? p.work_days : JSON.parse(p.work_days||'[]')
+  if(!dias.includes(dow)) return { trabaja:false }
+  const hpd = (metaOf(profId).horasPorDia)||{}
+  const r = hpd[dow] || hpd[String(dow)]
+  return { trabaja:true,
+    desde: r ? r[0] : (p.work_start||'09:00').slice(0,5),
+    hasta: r ? r[1] : (p.work_end||'19:00').slice(0,5) }
+}
+/* avisa si la cita cae fuera del horario de ese profesional ese día */
+function checkProfHours(profId, fecha, inicio, dur){
+  const h = profHorarioDia(profId, fecha)
+  if(!h) return null
+  const nombre = (state.professionals.find(x=>x.id===profId)||{}).name || 'El profesional'
+  if(!h.trabaja) return `${nombre} no atiende ese día.`
+  const ini = toMin(inicio), fin = ini + (dur||60)
+  if(ini < toMin(h.desde) || fin > toMin(h.hasta))
+    return `${nombre} atiende ese día de ${h.desde} a ${h.hasta}.`
+  return null
+}
+
 function checkServiceRules({ serviceName, date, start, dur, apptId }){
   if(!serviceName) return null
   const sid = svcIdByName(serviceName)
@@ -3750,6 +3775,8 @@ async function saveAppt(){
   const svcName0=(document.getElementById('apptServiceName').value||'').trim()
   const _motivo=checkServiceRules({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
   if(_motivo){ toast(_motivo,'error'); return }
+  const _horario=checkProfHours(profId, date, start, dur)
+  if(_horario){ toast(_horario,'error'); return }
   // reglas propias de las clases
   const _ci=classInfo(svcName0, date, start)
   if(_ci){
@@ -5073,6 +5100,7 @@ function proHoursRows(p,m){
   const days=Array.isArray(p&&p.work_days)?p.work_days:(p?JSON.parse(p.work_days||'[]'):[1,2,3,4,5,6])
   const st=(p&&p.work_start||'09:00').slice(0,5), en=(p&&p.work_end||'19:00').slice(0,5)
   const breaks=(m&&m.breaks)||{}
+  const hpd=(m&&m.horasPorDia)||{}   // horario propio de cada día
   return [1,2,3,4,5,6,0].map(d=>{
     const localOpen = (localInfo.hours[d]||[])[2]
     const on = localOpen && days.includes(d)
@@ -5082,8 +5110,8 @@ function proHoursRows(p,m){
     return `<tr>
       <td style="font-weight:600">${DOW_ADM[(d+6)%7]}</td>
       <td><label class="sw"><input type="checkbox" data-prd="${d}" ${on?'checked':''} /><i></i></label></td>
-      <td><select data-prs="${d}">${hourOpts(st)}</select></td>
-      <td><select data-pre="${d}">${hourOpts(en)}</select></td>
+      <td><select data-prs="${d}">${hourOpts((hpd[d]&&hpd[d][0])||st)}</select></td>
+      <td><select data-pre="${d}">${hourOpts((hpd[d]&&hpd[d][1])||en)}</select></td>
       <td><div id="brk${d}">${(breaks[d]||[]).map(b=>brkRow(d,b[0],b[1])).join('')}</div>
         <button class="mini-link" onclick="addBreak(${d})">+ Descanso</button></td>
       <td>${d===1?'<button class="mini-link" onclick="copyProHours()">Copiar en todos</button>':''}</td></tr>`
@@ -5159,13 +5187,14 @@ function openProModal(id){
 async function savePro(){
   const name=document.getElementById('proName').value.trim()
   if(!name){ proTab('basicos'); toast('Falta el nombre','error'); return }
-  const days=[], starts=[], ends=[], breaks={}
+  const days=[], starts=[], ends=[], breaks={}, horasPorDia={}
   ;[1,2,3,4,5,6,0].forEach(d=>{
     const chk=document.querySelector(`[data-prd="${d}"]`)
     if(chk && chk.checked && !chk.disabled){
       days.push(d)
       const s=document.querySelector(`[data-prs="${d}"]`), e=document.querySelector(`[data-pre="${d}"]`)
       if(s) starts.push(s.value); if(e) ends.push(e.value)
+      if(s && e) horasPorDia[d]=[s.value, e.value]
       const box=document.getElementById('brk'+d)
       if(box){ const list=[...box.querySelectorAll('.brk-row')].map(r=>[r.querySelector('[data-brs]').value, r.querySelector('[data-bre]').value])
         if(list.length) breaks[d]=list }
@@ -5173,7 +5202,9 @@ async function savePro(){
   })
   const row={ name, color:(document.querySelector('#proSwatches .swatch.on')||{}).dataset?.color || PRO_COLORS[0],
     work_days: days.length?days:[1,2,3,4,5],
-    work_start: starts.length?starts.sort()[0]:'09:00', work_end: ends.length?ends.sort().pop():'19:00',
+    /* la tabla solo admite un rango; guardamos el más amplio para la agenda,
+       y el detalle de cada día queda en horasPorDia (prof_meta) */
+    work_start: starts.length?starts.slice().sort()[0]:'09:00', work_end: ends.length?ends.slice().sort().pop():'19:00',
     commission_pct: parseInt(document.getElementById('proComm').value)||0,
     active: document.getElementById('proActive').value==='1' }
   const all=document.getElementById('proAllSvc').checked
@@ -5183,11 +5214,14 @@ async function savePro(){
     let pid=id
     if(id) await supabase.update('professionals',id,row)
     else { const res=await supabase.insert('professionals',row); pid=(Array.isArray(res)?res[0]:res).id }
+    const _img=document.getElementById('proPhotoImg')
+    /* si no hay foto, src devuelve la URL de la página: hay que leer el atributo */
+    const _foto = (_img && _img.style.display!=='none') ? (_img.getAttribute('src')||'') : ''
     profMeta[pid]={ publicName:document.getElementById('proPublic').value.trim(),
       online:document.getElementById('proOnline').checked,
       email:document.getElementById('proUser').checked?document.getElementById('proEmail').value.trim():'',
-      services, breaks, bio:document.getElementById('proBio').value.trim(),
-      photo:document.getElementById('proPhotoImg').src||'' }
+      services, breaks, horasPorDia, bio:document.getElementById('proBio').value.trim(),
+      photo:_foto }
     const ok=await persistProfMeta()
     await loadProfessionals(); closeModal('proModal'); renderAdmin(); render()
     toast(ok?'Profesional guardado':'Guardado (los datos extra quedaron en este navegador)','success')
