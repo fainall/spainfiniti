@@ -761,6 +761,11 @@ label.chk input{width:auto;margin:0}
 .svc-search input{flex:1;border:none;outline:none;padding:12px 0;font-family:inherit;font-size:.88rem;background:transparent}
 .svc-clear{background:none;border:none;color:var(--light);cursor:pointer;font-size:.9rem;padding:4px}
 .svc-clear:hover{color:var(--red)}
+
+/* recursos */
+.res-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.adm-dot.off{color:var(--light)}
+.pcol-sub{font-size:.66rem;color:var(--light)}
 </style>
 </head>
 <body>
@@ -846,6 +851,7 @@ label.chk input{width:auto;margin:0}
     <div class="seg" id="viewSeg">
       <button data-v="week" class="on" onclick="setView('week')">Semana</button>
       <button data-v="day" onclick="setView('day')">Día</button>
+      <button data-v="rec" onclick="setView('rec')" id="segRec" style="display:none">Recursos</button>
     </div>
     <div class="nav-arrows">
       <button class="icon-btn" onclick="navDate(-1)">‹</button>
@@ -1579,6 +1585,7 @@ label.chk input{width:auto;margin:0}
           <button class="adm-nav on" data-sec="locales" onclick="admSec('locales')">🏠 Locales</button>
           <button class="adm-nav" data-sec="profesionales" onclick="admSec('profesionales')">👤 Profesionales</button>
           <button class="adm-nav" data-sec="servicios" onclick="admSec('servicios')">🧾 Servicios</button>
+          <button class="adm-nav" data-sec="recursos" onclick="admSec('recursos')">🧰 Recursos</button>
           <button class="adm-nav" data-sec="usuarios" onclick="admSec('usuarios')">🔐 Usuarios y accesos</button>
         </div>
         <div class="adm-box">
@@ -1597,6 +1604,63 @@ label.chk input{width:auto;margin:0}
     </div>
   </div>
 
+
+  <!-- MODAL: recurso (Administración) -->
+  <div class="modal-ov" id="resModal">
+    <div class="modal" style="width:820px;max-width:94vw">
+      <h2 id="resTitle">Nuevo recurso</h2>
+      <input type="hidden" id="resId" />
+      <div class="mtabs" id="resTabs">
+        <button class="on" onclick="resTab('basicos',this)">Datos básicos</button>
+        <button onclick="resTab('horario',this)" id="resTabHorario">Horario</button>
+      </div>
+
+      <div class="mtab-pane on" id="rstab-basicos">
+        <div class="fbox">
+          <label>Nombre del recurso <span style="color:var(--red)">*</span></label>
+          <input type="text" id="resName" placeholder="Box 1, Camilla 2, Pediluvio iónico…" />
+          <div class="row2" style="margin-top:12px">
+            <div><label>Local</label><input type="text" id="resLocal" /></div>
+            <div><label>Cantidad disponible</label><input type="number" id="resQty" min="1" value="1" /></div>
+          </div>
+          <p class="rem-note" style="margin-top:6px">La cantidad es cuántas citas pueden usar este recurso a la misma hora. Una camilla: 1. Tres camillas iguales: 3.</p>
+          <div class="sw-row" style="margin-top:16px">
+            <label class="sw"><input type="checkbox" id="resHasHours" onchange="resToggleHours(this.checked)" /><i></i></label>
+            <div class="sw-txt"><strong>Este recurso tiene horario propio</strong><span>Úsalo cuando el equipo o la sala solo está disponible en ciertos días y horas. Aparece como columna en la agenda.</span></div>
+          </div>
+          <div class="row2" style="margin-top:14px">
+            <div><label>Color en la agenda</label><div class="swatches" id="resSwatches"></div></div>
+            <div><label>Estado</label><select id="resActive"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
+          </div>
+        </div>
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600;margin-bottom:4px">Servicios asociados a este recurso</h3>
+          <p class="rem-note" style="margin:0 0 10px">Las citas de estos servicios ocuparán el recurso. Si dos servicios comparten la misma camilla, márcala en los dos.</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <label class="chk" style="font-weight:700"><input type="checkbox" id="resAllSvc" onchange="resToggleAllSvc(this.checked)" /> <span>Seleccionar todo</span></label>
+            <span id="resSvcCount" style="font-size:.78rem;color:var(--light)"></span>
+          </div>
+          <div id="resSvcTree" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <div class="mtab-pane" id="rstab-horario">
+        <div class="fbox">
+          <table class="ctbl lc-hours">
+            <thead><tr><th>Día</th><th>Estado</th><th>Disponible desde</th><th>Hasta</th><th>Descanso</th><th></th></tr></thead>
+            <tbody id="resHours"></tbody>
+          </table>
+          <p class="rem-note" style="margin-top:10px">Los días en que el local está cerrado no se pueden activar. Cámbialos en Administración → Locales.</p>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-danger" id="resDelBtn" onclick="deleteRes()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('resModal')">Cerrar</button>
+        <button class="btn-primary" onclick="saveRes()">Guardar</button>
+      </div>
+    </div>
+  </div>
   <!-- MODAL: profesional (Administración) -->
   <div class="modal-ov" id="proModal">
     <div class="modal" style="width:820px;max-width:94vw">
@@ -1896,9 +1960,8 @@ label.chk input{width:auto;margin:0}
           <div class="acc-body">
             <div class="hint-blue" style="margin-bottom:12px">ℹ Un recurso es un instrumento o espacio necesario para realizar un servicio. Ej: el servicio "Consulta básica" requiere el "Box 1".</div>
             <div id="svcResList"></div>
-            <div style="display:flex;gap:8px;margin-top:10px">
-              <input type="text" id="svcResNew" placeholder="Ej: Box 1, Camilla 2, Equipo láser" style="flex:1" />
-              <button class="btn-g" onclick="addResource()">+ Crear recurso</button>
+            <div style="margin-top:10px">
+              <button class="btn-g" onclick="closeModal('svcModal');switchView('admin');admSec('recursos')">🧰 Administrar recursos</button>
             </div>
           </div>
         </div>
@@ -3097,7 +3160,7 @@ function flattenServices(){
 
 /* ── RANGE ── */
 function visibleRange(){
-  if(state.view==='day') return [new Date(state.anchor), new Date(state.anchor)]
+  if(state.view==='day'||state.view==='rec') return [new Date(state.anchor), new Date(state.anchor)]
   const ws=weekStart(state.anchor); return [ws, addDays(ws,6)]
 }
 function activeProfs(){
@@ -3146,7 +3209,7 @@ function miniNav(dir){ const m=new Date(state.miniMonth); m.setMonth(m.getMonth(
 function pickMiniDay(y,mo,d){ state.anchor=new Date(y,mo,d); state.miniMonth=new Date(y,mo,1); loadAndRender() }
 function renderRangeLabel(){
   const el=document.getElementById('rangeLabel')
-  if(state.view==='day'){
+  if(state.view==='day'||state.view==='rec'){
     const d=state.anchor
     el.textContent = `${DOW_FULL[d.getDay()]} ${d.getDate()}/${pad(d.getMonth()+1)}`
   } else {
@@ -3187,6 +3250,79 @@ function renderSidebar(){
 function selectProf(id){ state.profId=id; render() }
 
 /* ── VISTA DÍA: una columna por profesional, como en la agenda de un spa ── */
+/* ── VISTA RECURSOS: una columna por box, camilla o equipo ──
+   Muestra las citas que ocupan cada recurso, para ver de un vistazo
+   qué está libre. Los recursos con horario propio pintan en gris las
+   horas en que no están disponibles. */
+function renderCalendarRec(){
+  const fecha = isoDate(state.anchor)
+  const [minM,maxM] = hourBounds()
+  const SP = slotPx(), nSlots = Math.ceil((maxM-minM)/slotMin), gridH = nSlots*SP
+  const recs = resources.filter(r => r.active!==false)
+
+  let head = '<div class="gutter"></div>'
+  recs.forEach(r=>{
+    const cupo = Math.max(1, parseInt(r.qty)||1)
+    head += `<div class="dcol pcol"><div class="pcol-head">
+      <span class="pcol-ava" style="background:${r.color||'#7E8CE0'}">${esc((r.name||'?').slice(0,2).toUpperCase())}</span>
+      <span class="pcol-nm">${esc(r.name)}</span>
+      ${cupo>1?`<span class="pcol-sub">${cupo} unidades</span>`:''}</div></div>`
+  })
+  document.getElementById('calHead').innerHTML = head
+
+  let gut=''
+  for(let i=0;i<nSlots;i++) gut += `<div class="hr" style="height:${SP}px"><span>${toHHMM(minM+i*slotMin)}</span></div>`
+
+  let cols=''
+  recs.forEach(r=>{
+    let lines=''
+    for(let i=0;i<=nSlots;i++){
+      const isHour = ((minM+i*slotMin)%60)===0
+      lines += `<div class="hr-line ${isHour?'':'half'}" style="top:${i*SP}px"></div>`
+    }
+    /* franjas no disponibles según su horario propio */
+    let noDisp=''
+    const hor = recHorarioDia(r, fecha)
+    if(!hor.abierto){
+      noDisp = `<div class="nodisp" style="top:0;height:${gridH}px"><span>Recurso no disponible</span></div>`
+    } else if(r.hasHours){
+      const ini=toMin(hor.desde), fin=toMin(hor.hasta)
+      if(ini>minM) noDisp += `<div class="nodisp" style="top:0;height:${(ini-minM)/slotMin*SP}px"><span>No disponible<br><small>${toHHMM(minM)} – ${hor.desde}</small></span></div>`
+      if(fin<maxM) noDisp += `<div class="nodisp" style="top:${(fin-minM)/slotMin*SP}px;height:${(maxM-fin)/slotMin*SP}px"><span>No disponible<br><small>${hor.hasta} – ${toHHMM(maxM)}</small></span></div>`
+      ;(hor.breaks||[]).forEach(bk=>{
+        const bi=toMin(bk[0]), bf=toMin(bk[1])
+        if(bf<=minM||bi>=maxM) return
+        const top=(Math.max(bi,minM)-minM)/slotMin*SP, alto=(Math.min(bf,maxM)-Math.max(bi,minM))/slotMin*SP
+        noDisp += `<div class="nodisp descanso" style="top:${top}px;height:${alto}px"><span>No disponible<br><small>${bk[0]} – ${bk[1]}</small></span></div>`
+      })
+    }
+    /* citas que ocupan este recurso */
+    const suyas = state.appointments.filter(a => a.appt_date===fecha && a.status!=='cancelled' && a.status!=='block'
+      && recursosDe(a.service_name).some(x=>x.id===r.id))
+    const blocks = layoutDay(suyas).map(a=>{
+      const top=(toMin(a.start_time)-minM)/slotMin*SP
+      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-2)
+      const w=100/a._cols, left=a._col*w
+      const prof=state.professionals.find(x=>x.id===a.professional_id)
+      const color=STATUS_COLORS[a.status]||(prof&&prof.color)||r.color||'#7E8CE0'
+      return `<div class="appt" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${color}"
+        onmousedown="apptMouseDown(event,'${a.id}')">
+        <div class="t">${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
+        <div class="n">${esc(a.client_name||'—')}</div>
+        <div class="s">${esc(a.service_name||'')}</div></div>`
+    }).join('')
+    cols += `<div class="dcol pcol" style="height:${gridH}px" data-date="${fecha}" data-rec="${r.id}"
+      onclick="onSlotClick(event,this)">${lines}${noDisp}${blocks}</div>`
+  })
+
+  document.getElementById('calGrid').innerHTML = `<div class="gutter">${gut}</div>${cols}`
+  if(!recs.length){
+    document.getElementById('calGrid').innerHTML += `<div class="empty-note">
+      <div>Aún no tienes recursos creados.</div>
+      <button class="btn-primary" onclick="switchView('admin');admSec('recursos')">+ Crear un recurso</button></div>`
+  }
+}
+
 function renderCalendarDia(){
   const fecha = isoDate(state.anchor)
   const dow = new Date(fecha+'T00:00:00').getDay()
@@ -3275,6 +3411,7 @@ function renderCalendarDia(){
 }
 
 function renderCalendar(){
+  if(state.view==='rec') return renderCalendarRec()
   if(state.view==='day') return renderCalendarDia()
   const [from,to]=visibleRange()
   const days=[]; let d=new Date(from)
@@ -3500,8 +3637,15 @@ function ajustarVistaMovil(){
 }
 
 /* ── NAV ── */
+/* el botón "Recursos" solo se muestra si hay alguno creado */
+function actualizarSegRec(){
+  const b=document.getElementById('segRec'); if(!b) return
+  const hay=resources.some(r=>r.active!==false)
+  b.style.display = hay ? '' : 'none'
+  if(!hay && state.view==='rec') setView('day')
+}
 function setView(v){ state.view=v; document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
-function navDate(dir){ state.anchor=addDays(state.anchor, state.view==='day'?dir:dir*7); state.miniMonth=new Date(state.anchor); loadAndRender() }
+function navDate(dir){ state.anchor=addDays(state.anchor, (state.view==='day'||state.view==='rec')?dir:dir*7); state.miniMonth=new Date(state.anchor); loadAndRender() }
 function goToday(){ state.anchor=new Date(); state.miniMonth=new Date(); loadAndRender() }
 async function loadAndRender(){ await loadAppointments(); render() }
 
@@ -3590,18 +3734,7 @@ function checkServiceRules({ serviceName, date, start, dur, apptId }){
       return `“${serviceName}” admite ${m.cap} cliente${m.cap>1?'s':''} a la vez y esa hora ya está completa.`
   }
 
-  /* 3. recursos ocupados */
-  if((m.resources || []).length){
-    for(const rec of m.resources){
-      const ocupado = solapan.find(a => {
-        const otro = svcIdByName(a.service_name)
-        const om = otro ? svcMetaOf(otro) : {}
-        return (om.resources || []).includes(rec)
-      })
-      if(ocupado)
-        return `El recurso “${rec}” está ocupado a esa hora por ${ocupado.client_name || 'otra cita'} (${ocupado.start_time.slice(0,5)}).`
-    }
-  }
+  /* los recursos se comprueban aparte, en checkRecursos() */
   return null
 }
 
@@ -3940,6 +4073,8 @@ async function saveAppt(){
   if(_horario){ toast(_horario,'error'); return }
   const _asignado=checkProfServicio(profId, svcName0)
   if(_asignado){ toast(_asignado,'error'); return }
+  const _recurso=checkRecursos({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
+  if(_recurso){ toast(_recurso,'error'); return }
   // reglas propias de las clases
   const _ci=classInfo(svcName0, date, start)
   if(_ci){
@@ -4672,6 +4807,7 @@ function renderAdmin(){
   else if(admCurrent==='usuarios'){ el.innerHTML=admUsuarios(); loadPanelUsers().then(()=>{ if(admCurrent==='usuarios') el.innerHTML=admUsuarios() }) }
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else if(admCurrent==='precios') el.innerHTML=admPrecios()
+  else if(admCurrent==='recursos') el.innerHTML=admRecursos()
   else el.innerHTML=admServicios()
 }
 function admLocales(){
@@ -5194,6 +5330,279 @@ async function sendUserReset(email){
    descansos, bio, foto) se guardan en bot_config.prof_meta; si la columna no existe,
    quedan en este navegador. */
 let profMeta={}, profGroups=[], admProfTab='profesionales'
+
+/* ══════════════ ADMINISTRACIÓN · RECURSOS ══════════════
+   Un recurso es algo físico que la cita necesita y que no puede estar
+   en dos sitios a la vez: un box, una camilla, el equipo de pediluvio.
+   · Sin horario  → solo limita cuántas citas caben a la misma hora.
+   · Con horario  → además tiene sus días y horas propias, y sale como
+                    columna en la agenda del día.
+   Se guardan en bot_config.resources, con copia en este navegador. */
+let resources = []
+let admResTab = 'simples'
+
+function loadResources(){
+  try{ const r=JSON.parse(localStorage.getItem('spa_resources')||'null'); if(Array.isArray(r)) resources=r }catch(e){}
+  if(botCfg && Array.isArray(botCfg.resources)) resources = botCfg.resources
+  normalizarRecursos()
+  migrarRecursosViejos()
+}
+/* antes los recursos eran solo nombres sueltos; ahora son fichas completas */
+function normalizarRecursos(){
+  let cambio=false
+  resources = resources.map((r,i)=>{
+    if(r && typeof r==='object') return r
+    cambio=true
+    const nombre=String(r)
+    const usan=state.services.filter(sv=>((svcMetaOf(sv.id).resources)||[]).includes(nombre)).map(sv=>sv.name)
+    return { id:'r'+Math.random().toString(36).slice(2,10), name:nombre, local:localInfo.name, qty:1,
+      services:usan, color:RES_COLORS[i%RES_COLORS.length], active:true, hasHours:false }
+  })
+  if(cambio) persistResources()
+}
+/* los recursos que antes se escribían a mano en la ficha del servicio
+   pasan a ser recursos de verdad, para no perder lo ya configurado */
+function migrarRecursosViejos(){
+  const sueltos = new Set()
+  Object.entries(svcMeta||{}).forEach(([sid,m])=>{ (m.resources||[]).forEach(n=>sueltos.add(n)) })
+  let nuevos = 0
+  sueltos.forEach(nombre=>{
+    if(resources.some(r=>r.name.toLowerCase()===String(nombre).toLowerCase())) return
+    const usanEste = state.services.filter(sv=>((svcMetaOf(sv.id).resources)||[]).includes(nombre)).map(sv=>sv.name)
+    resources.push({ id:'r'+Math.random().toString(36).slice(2,10), name:nombre, local:localInfo.name,
+      qty:1, services:usanEste, color:RES_COLORS[resources.length%RES_COLORS.length], active:true, hasHours:false })
+    nuevos++
+  })
+  if(nuevos) persistResources()
+}
+async function persistResources(){
+  localStorage.setItem('spa_resources', JSON.stringify(resources))
+  try{ await supabase.update('bot_config','1',{resources}); botCfg.resources=resources; return true }
+  catch(e){ return false }
+}
+const RES_COLORS=['#7E8CE0','#4DB6AC','#F5A623','#EC6FBF','#9CCC65','#3FC7EB','#C5A467','#F4A29B']
+
+/* ── qué recursos necesita un servicio ── */
+function recursosDe(serviceName){
+  if(!serviceName) return []
+  return resources.filter(r => r.active!==false &&
+    (r.services==='all' || (r.services||[]).includes(serviceName)))
+}
+/* horario del recurso para un día concreto */
+function recHorarioDia(r, fecha){
+  if(!r.hasHours) return { abierto:true }
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  if(!(r.days||[]).includes(dow)) return { abierto:false }
+  const hpd = (r.horasPorDia||{})[dow] || (r.horasPorDia||{})[String(dow)]
+  return { abierto:true,
+    desde: hpd ? hpd[0] : '09:00',
+    hasta: hpd ? hpd[1] : '19:00',
+    breaks: (r.breaks||{})[dow] || (r.breaks||{})[String(dow)] || [] }
+}
+/* ¿se puede agendar? devuelve el motivo del bloqueo, o null si todo bien */
+function checkRecursos({ serviceName, date, start, dur, apptId }){
+  const necesita = recursosDe(serviceName)
+  if(!necesita.length) return null
+  const ini = toMin(start), fin = ini + (dur||60)
+  const solapan = state.appointments.filter(a =>
+    a.id !== apptId && a.appt_date === date && a.status !== 'cancelled' &&
+    toMin(a.start_time.slice(0,5)) < fin && toMin((a.end_time||a.start_time).slice(0,5)) > ini)
+
+  for(const r of necesita){
+    const hor = recHorarioDia(r, date)
+    if(!hor.abierto) return `El recurso “${r.name}” no está disponible ese día.`
+    if(hor.desde && (ini < toMin(hor.desde) || fin > toMin(hor.hasta)))
+      return `“${r.name}” está disponible de ${hor.desde} a ${hor.hasta}.`
+    for(const b of (hor.breaks||[]))
+      if(ini < toMin(b[1]) && fin > toMin(b[0]))
+        return `“${r.name}” no está disponible entre las ${b[0]} y las ${b[1]}.`
+
+    const cupo = Math.max(1, parseInt(r.qty)||1)
+    const enUso = solapan.filter(a => recursosDe(a.service_name).some(x => x.id===r.id)).length
+    if(enUso >= cupo)
+      return cupo===1
+        ? `El recurso “${r.name}” ya está ocupado a esa hora.`
+        : `“${r.name}” tiene ${cupo} unidades y a esa hora ya están las ${cupo} ocupadas.`
+  }
+  return null
+}
+
+/* ── pantalla de Administración ── */
+function admResSetTab(t){ admResTab=t; renderAdmin() }
+function admRecursos(){
+  const tabs=`<div class="mtabs" style="margin-bottom:14px">
+    <button class="${admResTab==='simples'?'on':''}" onclick="admResSetTab('simples')">Recursos</button>
+    <button class="${admResTab==='horario'?'on':''}" onclick="admResSetTab('horario')">Recursos con horario</button></div>`
+  const conHorario = admResTab==='horario'
+  const lista = resources.filter(r => !!r.hasHours === conHorario)
+  const body = lista.length ? lista.map(r=>{
+    const svc = r.services==='all' ? 'Todos los servicios' : (r.services||[]).length+' servicio'+((r.services||[]).length===1?'':'s')
+    const dias = conHorario ? (r.days||[]).length+' día'+((r.days||[]).length===1?'':'s') : ''
+    return `<div class="adm-row">
+      <span class="res-dot" style="background:${r.color||'#7E8CE0'}"></span>
+      <span class="ar-name">${esc(r.name)}</span>
+      <span class="ar-meta">${esc(r.local||'')}</span>
+      <span class="ar-meta">${r.qty>1?('×'+r.qty+' unidades'):'1 unidad'}</span>
+      <span class="ar-meta">${svc}</span>
+      ${conHorario?`<span class="ar-meta">🕐 ${dias}</span>`:''}
+      <span class="adm-dot${r.active===false?' off':''}">● ${r.active===false?'Inactivo':'Activo'}</span>
+      <button class="mini-btn" onclick="openResModal('${r.id}')">✎ Editar</button></div>`
+  }).join('') : `<div class="empty-state">
+      <div style="font-size:2.2rem;margin-bottom:6px">🧰</div>
+      Aún no hay ${conHorario?'recursos con horario':'recursos'}.
+      <div style="font-size:.8rem;color:var(--light);margin-top:6px">${conHorario
+        ? 'Úsalos para salas o equipos que solo están disponibles ciertos días y horas.'
+        : 'Úsalos para boxes, camillas o equipos que no pueden estar en dos citas a la vez.'}</div>
+    </div>`
+  const aviso = conHorario
+    ? '⭐ <strong>Recursos con horario:</strong> además de limitar cuántas citas caben a la vez, tienen sus propios días y horas. Aparecen como columna en la vista Día de la agenda.'
+    : '⭐ <strong>Recursos:</strong> un box, una camilla o un equipo que una cita necesita. Si el recurso está ocupado, esa hora deja de ofrecerse en la web, en el bot y en el panel.'
+  return tabs+`<div class="inv-notice">${aviso}</div>
+    <div class="adm-head"><span class="ar-meta">${lista.length} recurso${lista.length===1?'':'s'}</span>
+      <button class="btn-primary" onclick="openResModal('','${conHorario?'1':''}')">+ Nuevo ${conHorario?'recurso con horario':'recurso'}</button></div>${body}`
+}
+
+/* ── modal ── */
+function resTab(name,btn){
+  ;['basicos','horario'].forEach(n=>document.getElementById('rstab-'+n).classList.toggle('on',n===name))
+  const btns=[...document.querySelectorAll('#resTabs button')]
+  btns.forEach(b=>b.classList.remove('on'))
+  ;(btn||btns[['basicos','horario'].indexOf(name)]).classList.add('on')
+}
+function resToggleHours(on){
+  document.getElementById('resTabHorario').style.display = on ? '' : 'none'
+  if(!on) resTab('basicos')
+}
+function resToggleAllSvc(on){ document.querySelectorAll('#resSvcTree input[type=checkbox]').forEach(c=>c.checked=on); resSyncSvc() }
+function resSyncSvc(){
+  document.querySelectorAll('#resSvcTree .svc-cat').forEach(cat=>{
+    const hijos=[...cat.querySelectorAll('.svc-items input')]
+    const cab=cat.querySelector('.cat-head input')
+    if(cab) cab.checked = hijos.length>0 && hijos.every(x=>x.checked)
+  })
+  const todos=[...document.querySelectorAll('#resSvcTree .svc-items input')]
+  const maestro=document.getElementById('resAllSvc')
+  if(maestro) maestro.checked = todos.length>0 && todos.every(x=>x.checked)
+  const n=todos.filter(x=>x.checked).length
+  const cont=document.getElementById('resSvcCount')
+  if(cont) cont.textContent = n===todos.length ? 'Todos los servicios' : n+' de '+todos.length+' servicios'
+}
+function resSvcTree(selected){
+  const byCat={}
+  state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
+  const all = selected==='all'
+  const sel = Array.isArray(selected) ? selected : []
+  return Object.entries(byCat).map(([cat,list],i)=>`<div class="svc-cat" id="ressvccat${i}">
+    <div class="cat-head">
+      <label class="chk"><input type="checkbox" onchange="document.querySelectorAll('#ressvccat${i} .svc-items input').forEach(c=>c.checked=this.checked);resSyncSvc()"
+        ${all||(list.length&&list.every(s=>sel.includes(s.name)))?'checked':''} /> <span>${esc(cat)}</span></label>
+      <button class="cat-toggle" onclick="document.getElementById('ressvccat${i}').classList.toggle('open')">(${list.length}) ▾</button>
+    </div>
+    <div class="svc-items">${list.map(s=>`<label class="chk"><input type="checkbox" value="${esc(s.name)}" ${all||sel.includes(s.name)?'checked':''} onchange="resSyncSvc()" /> <span>${esc(s.name)}</span></label>`).join('')}</div>
+  </div>`).join('') || '<p class="rem-note" style="margin:0">Aún no hay servicios cargados.</p>'
+}
+function resHoursRows(r){
+  const days = (r&&r.days) || [1,2,3,4,5,6]
+  const hpd = (r&&r.horasPorDia) || {}
+  const brk = (r&&r.breaks) || {}
+  return [1,2,3,4,5,6,0].map(d=>{
+    const localOpen = (localInfo.hours[d]||[])[2]
+    if(!localOpen) return `<tr><td style="font-weight:600">${DOW_ADM[(d+6)%7]}</td>
+      <td><label class="sw"><input type="checkbox" data-rrd="${d}" disabled /><i></i></label></td>
+      <td colspan="4" style="color:var(--light);font-size:.8rem">Local cerrado</td></tr>`
+    const hh = hpd[d] || hpd[String(d)] || []
+    return `<tr>
+      <td style="font-weight:600">${DOW_ADM[(d+6)%7]}</td>
+      <td><label class="sw"><input type="checkbox" data-rrd="${d}" ${days.includes(d)?'checked':''} /><i></i></label></td>
+      <td><select data-rrs="${d}">${hourOpts(hh[0]||(localInfo.hours[d]||[])[0]||'09:00')}</select></td>
+      <td><select data-rre="${d}">${hourOpts(hh[1]||(localInfo.hours[d]||[])[1]||'19:00')}</select></td>
+      <td><div id="resbrk${d}">${((brk[d]||brk[String(d)])||[]).map(b=>resBrkRow(d,b[0],b[1])).join('')}</div>
+        <button class="mini-link" onclick="addResBreak(${d})">+ Descanso</button></td>
+      <td>${d===1?'<button class="mini-link" onclick="copyResHours()">Copiar en todos</button>':''}</td></tr>`
+  }).join('')
+}
+function resBrkRow(d,a,b){
+  return `<div class="brk-row"><select data-rbs="${d}">${hourOpts(a||'13:00')}</select><span>–</span>
+    <select data-rbe="${d}">${hourOpts(b||'14:00')}</select>
+    <button onclick="this.parentElement.remove()">✕</button></div>`
+}
+function addResBreak(d){ document.getElementById('resbrk'+d).insertAdjacentHTML('beforeend', resBrkRow(d,'13:00','14:00')) }
+function copyResHours(){
+  const a=document.querySelector('[data-rrs="1"]'), b=document.querySelector('[data-rre="1"]')
+  if(!a) return
+  ;[2,3,4,5,6,0].forEach(d=>{
+    const da=document.querySelector(`[data-rrs="${d}"]`), db=document.querySelector(`[data-rre="${d}"]`)
+    if(da) da.value=a.value; if(db) db.value=b.value
+  })
+  toast('Horario copiado a los demás días','success')
+}
+function openResModal(id, conHorario){
+  const r = id ? resources.find(x=>x.id===id) : null
+  document.getElementById('resTitle').textContent = r ? 'Editando '+r.name : (conHorario?'Nuevo recurso con horario':'Nuevo recurso')
+  document.getElementById('resId').value = r ? r.id : ''
+  document.getElementById('resName').value = r ? r.name : ''
+  document.getElementById('resLocal').value = (r && r.local) || localInfo.name
+  document.getElementById('resQty').value = (r && r.qty) || 1
+  document.getElementById('resActive').value = (r && r.active===false) ? '0' : '1'
+  const hasH = r ? !!r.hasHours : !!conHorario
+  document.getElementById('resHasHours').checked = hasH
+  resToggleHours(hasH)
+  document.getElementById('resSvcTree').innerHTML = resSvcTree(r ? (r.services||[]) : [])
+  resSyncSvc()
+  document.getElementById('resHours').innerHTML = resHoursRows(r)
+  const color = (r && r.color) || RES_COLORS[resources.length % RES_COLORS.length]
+  document.getElementById('resSwatches').innerHTML = RES_COLORS.map(c=>
+    `<button class="swatch${c===color?' on':''}" style="background:${c}" data-color="${c}" onclick="document.querySelectorAll('#resSwatches .swatch').forEach(b=>b.classList.remove('on'));this.classList.add('on')"></button>`).join('')
+  document.getElementById('resDelBtn').style.display = r ? 'block' : 'none'
+  resTab('basicos')
+  openModal('resModal')
+}
+async function saveRes(){
+  const name=document.getElementById('resName').value.trim()
+  if(!name){ toast('Ponle un nombre al recurso','error'); return }
+  const marcados=[...document.querySelectorAll('#resSvcTree .svc-items input:checked')].map(c=>c.value)
+  if(!marcados.length){ toast('Marca al menos un servicio que use este recurso','error'); return }
+  const services = marcados.length===state.services.length ? 'all' : marcados
+  const hasHours=document.getElementById('resHasHours').checked
+  const days=[], horasPorDia={}, breaks={}
+  if(hasHours){
+    ;[1,2,3,4,5,6,0].forEach(d=>{
+      const c=document.querySelector(`[data-rrd="${d}"]`)
+      if(!c || !c.checked || c.disabled) return
+      days.push(d)
+      const a=document.querySelector(`[data-rrs="${d}"]`), b=document.querySelector(`[data-rre="${d}"]`)
+      if(a && b) horasPorDia[d]=[a.value, b.value]
+      const caja=document.getElementById('resbrk'+d)
+      if(caja){
+        const list=[...caja.querySelectorAll('.brk-row')].map(row=>[
+          row.querySelector('[data-rbs]').value, row.querySelector('[data-rbe]').value ])
+          .filter(x=>x[0]<x[1])
+        if(list.length) breaks[d]=list
+      }
+    })
+    if(!days.length){ toast('Marca al menos un día de disponibilidad','error'); return }
+  }
+  const row={ id:document.getElementById('resId').value || 'r'+Math.random().toString(36).slice(2,10),
+    name, local:document.getElementById('resLocal').value.trim(),
+    qty:Math.max(1, parseInt(document.getElementById('resQty').value)||1),
+    services, hasHours, days, horasPorDia, breaks,
+    color:(document.querySelector('#resSwatches .swatch.on')||{}).dataset?.color || RES_COLORS[0],
+    active:document.getElementById('resActive').value==='1' }
+  const i=resources.findIndex(x=>x.id===row.id)
+  if(i>=0) resources[i]=row; else resources.push(row)
+  const ok=await persistResources()
+  closeModal('resModal'); renderAdmin(); actualizarSegRec(); render()
+  toast(ok?'Recurso guardado':'Guardado solo en este navegador','success')
+}
+async function deleteRes(){
+  const id=document.getElementById('resId').value
+  const r=resources.find(x=>x.id===id)
+  if(!r || !confirm('¿Eliminar el recurso “'+r.name+'”? Las citas ya agendadas no se tocan.')) return
+  resources=resources.filter(x=>x.id!==id)
+  await persistResources()
+  closeModal('resModal'); renderAdmin(); actualizarSegRec(); render(); toast('Recurso eliminado','success')
+}
+
 const PRO_COLORS=['#C5A467','#3FC7EB','#EC6FBF','#9CCC65','#F5A623','#7E8CE0','#F4A29B','#4DB6AC']
 function loadProfMeta(){
   try{ const l=JSON.parse(localStorage.getItem('spa_prof_meta')||'null'); if(l) profMeta=l }catch(e){}
@@ -5447,24 +5856,21 @@ async function deleteGroup(){
 /* ── ADMINISTRACIÓN · SERVICIOS · CLASES · PAQUETES ──
    Servicios y categorías viven en las tablas services / categories (las mismas que usa
    el sitio web). Clases y paquetes se guardan en bot_config (svc_classes / svc_packages). */
-let admSvcTab='servicios', svcClasses=[], svcPackages=[], svcCats=[], svcMeta={}, resources=[]
+let admSvcTab='servicios', svcClasses=[], svcPackages=[], svcCats=[], svcMeta={}
 function loadSvcExtras(){
   try{ const c=JSON.parse(localStorage.getItem('spa_svc_classes')||'null'); if(c) svcClasses=c }catch(e){}
   try{ const p=JSON.parse(localStorage.getItem('spa_svc_packages')||'null'); if(p) svcPackages=p }catch(e){}
   try{ const m=JSON.parse(localStorage.getItem('spa_svc_meta')||'null'); if(m) svcMeta=m }catch(e){}
-  try{ const r=JSON.parse(localStorage.getItem('spa_resources')||'null'); if(r) resources=r }catch(e){}
   if(botCfg && botCfg.svc_classes) svcClasses=botCfg.svc_classes
   if(botCfg && botCfg.svc_packages) svcPackages=botCfg.svc_packages
   if(botCfg && botCfg.svc_meta) svcMeta=botCfg.svc_meta
-  if(botCfg && botCfg.resources) resources=botCfg.resources
 }
 async function persistSvcExtras(){
   localStorage.setItem('spa_svc_classes',JSON.stringify(svcClasses))
   localStorage.setItem('spa_svc_packages',JSON.stringify(svcPackages))
   localStorage.setItem('spa_svc_meta',JSON.stringify(svcMeta))
-  localStorage.setItem('spa_resources',JSON.stringify(resources))
-  try{ await supabase.update('bot_config','1',{svc_classes:svcClasses, svc_packages:svcPackages, svc_meta:svcMeta, resources})
-    botCfg.svc_classes=svcClasses; botCfg.svc_packages=svcPackages; botCfg.svc_meta=svcMeta; botCfg.resources=resources; return true }
+  try{ await supabase.update('bot_config','1',{svc_classes:svcClasses, svc_packages:svcPackages, svc_meta:svcMeta})
+    botCfg.svc_classes=svcClasses; botCfg.svc_packages=svcPackages; botCfg.svc_meta=svcMeta; return true }
   catch(e){ return false }
 }
 function svcMetaOf(id){ return svcMeta[id] || {} }
@@ -5473,25 +5879,33 @@ function svcHourMode(){
   document.getElementById('svcHourRange').style.display = v==='range'?'block':'none'
   document.getElementById('svcHourList').style.display = v==='hours'?'block':'none'
 }
+/* los recursos que puede usar este servicio; se administran en
+   Administración → Recursos y aquí solo se marcan */
 function renderResources(sel){
   const box=document.getElementById('svcResList'); if(!box) return
-  box.innerHTML = resources.length
-    ? resources.map(r=>`<label class="chk" style="padding:4px 0"><input type="checkbox" value="${esc(r)}" ${(sel||[]).includes(r)?'checked':''} /> <span>${esc(r)}</span>
-        <button class="mini-link" style="margin-left:auto;color:var(--red)" onclick="event.preventDefault();removeResource('${esc(r).replace(/'/g,"\\'")}')">Borrar</button></label>`).join('')
-    : `<div class="rr-ph" style="padding:14px"><span class="rp-ico">🔍</span>No hay recursos creados.<br>Crea uno abajo para asignarlo a este servicio.</div>`
+  const activos = resources.filter(r=>r.active!==false)
+  box.innerHTML = activos.length
+    ? activos.map(r=>`<label class="chk" style="padding:4px 0"><input type="checkbox" value="${esc(r.id)}" ${(sel||[]).includes(r.id)?'checked':''} />
+        <span>${esc(r.name)} <span style="color:var(--light)">${r.qty>1?('×'+r.qty):''}${r.hasHours?' · con horario':''}</span></span></label>`).join('')
+    : `<div class="rr-ph" style="padding:14px"><span class="rp-ico">🧰</span>No hay recursos creados.<br>Créalos en Administración → Recursos.</div>`
 }
-async function addResource(){
-  const v=document.getElementById('svcResNew').value.trim()
-  if(!v){ toast('Escribe el nombre del recurso','error'); return }
-  if(resources.includes(v)){ toast('Ya existe','error'); return }
-  resources.push(v); document.getElementById('svcResNew').value=''
-  const sel=[...document.querySelectorAll('#svcResList input:checked')].map(c=>c.value)
-  await persistSvcExtras(); renderResources([...sel,v])
-  toast('Recurso creado','success')
+/* qué recursos tiene marcados hoy este servicio */
+function recursosMarcadosDe(serviceName){
+  return resources.filter(r => r.services==='all' || (r.services||[]).includes(serviceName)).map(r=>r.id)
 }
-async function removeResource(name){
-  resources=resources.filter(r=>r!==name)
-  await persistSvcExtras(); renderResources()
+/* al guardar el servicio, se actualiza la lista de servicios de cada recurso:
+   la relación vive en el recurso, para que no haya dos versiones de lo mismo */
+async function sincronizarRecursos(serviceName, idsMarcados){
+  if(!serviceName) return
+  let cambio=false
+  resources.forEach(r=>{
+    if(r.services==='all') return                       // ese recurso vale para todo
+    const lista=(r.services||[]).filter(n=>n!==serviceName)
+    if(idsMarcados.includes(r.id)) lista.push(serviceName)
+    if(lista.length!==(r.services||[]).length || idsMarcados.includes(r.id)!==((r.services||[]).includes(serviceName))){
+      r.services=lista; cambio=true }
+  })
+  if(cambio) await persistResources()
 }
 async function loadSvcCats(){
   try{ svcCats = await supabase.fetch('categories',{order:'sort_order.asc'}) || [] }
@@ -5634,7 +6048,7 @@ function openSvcModal(id){
   document.getElementById('svcIva').checked=!!m.iva
   document.getElementById('svcComm').value=m.comm||0
   document.getElementById('svcCommType').value=m.commType||'pct'
-  renderResources(m.resources||[])
+  renderResources(recursosMarcadosDe(s?s.name:''))
   const mode=m.hourMode||'none'
   document.querySelectorAll('input[name=svcHourMode]').forEach(r=>r.checked=(r.value===mode))
   document.getElementById('svcFrom').innerHTML=hourOpts(m.from||'09:00')
@@ -5669,7 +6083,6 @@ async function saveSvc(){
     iva:document.getElementById('svcIva').checked,
     comm:parseInt(document.getElementById('svcComm').value)||0,
     commType:document.getElementById('svcCommType').value,
-    resources:[...document.querySelectorAll('#svcResList input:checked')].map(c=>c.value),
     hourMode:(document.querySelector('input[name=svcHourMode]:checked')||{}).value||'none',
     from:document.getElementById('svcFrom').value, to:document.getElementById('svcTo').value,
     hours:document.getElementById('svcHours').value.split(',').map(h=>h.trim()).filter(Boolean) }
@@ -5680,6 +6093,7 @@ async function saveSvc(){
       await supabase.insert('services',{ ...row, id:sid, sort_order:999 }) }
     svcMeta[sid]=meta
     await persistSvcExtras()
+    await sincronizarRecursos(name, [...document.querySelectorAll('#svcResList input:checked')].map(c=>c.value))
     await reloadServices()
     await saveSvcProfs(name, oldName)
     closeModal('svcModal'); renderAdmin()
@@ -7967,6 +8381,8 @@ async function boot(){
   loadCommCfg()
   loadPlanTpls()
   loadSmartPricing()
+  loadResources()
+  actualizarSegRec()
   applyRole()
   ajustarVistaMovil()
   render()

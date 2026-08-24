@@ -154,16 +154,62 @@ function service_rule_block($serviceName, $date, $time, $dur) {
         if ($mismos >= $m['cap']) return 'ese servicio ya tiene todos sus cupos tomados a esa hora';
     }
 
-    // recursos ocupados
-    if (!empty($m['resources'])) {
-        foreach ($m['resources'] as $rec) {
-            foreach ($solapan as $a) {
-                $otro = svc_id_by_name($a['service_name'] ?? '');
-                $om = ($otro && !empty($svcMeta[$otro])) ? $svcMeta[$otro] : [];
-                if (!empty($om['resources']) && in_array($rec, $om['resources']))
-                    return 'a esa hora no está disponible el recurso necesario ('.$rec.')';
-            }
+    // recursos: box, camilla o equipo que la cita necesita
+    $motivo = recurso_bloqueado($serviceName, $date, $startM, $endM, $solapan);
+    if ($motivo) return $motivo;
+
+    return null;
+}
+
+/* ── RECURSOS (Administración → Recursos) ──────────────────────────
+   Cada recurso tiene una cantidad y, si corresponde, su propio horario.
+   Devuelve el motivo del bloqueo, o null si hay disponibilidad. */
+function recursos_del_servicio($serviceName) {
+    global $bot;
+    $lista = $bot['resources'] ?? [];
+    if (is_string($lista)) $lista = json_decode($lista, true);
+    if (!is_array($lista) || !$serviceName) return [];
+    $out = [];
+    foreach ($lista as $r) {
+        if (!is_array($r)) continue;                        // formato antiguo: se ignora
+        if (($r['active'] ?? true) === false) continue;
+        $sv = $r['services'] ?? [];
+        if ($sv === 'all' || (is_array($sv) && in_array($serviceName, $sv))) $out[] = $r;
+    }
+    return $out;
+}
+function recurso_abierto($r, $date, $iniM, $finM) {
+    if (empty($r['hasHours'])) return true;
+    $dow = (int)date('w', strtotime($date));
+    $dias = $r['days'] ?? [];
+    if (!in_array($dow, $dias)) return false;
+    $hpd = $r['horasPorDia'] ?? [];
+    $rango = $hpd[$dow] ?? ($hpd[(string)$dow] ?? null);
+    $desde = $rango ? (int)substr($rango[0],0,2)*60 + (int)substr($rango[0],3,2) : 9*60;
+    $hasta = $rango ? (int)substr($rango[1],0,2)*60 + (int)substr($rango[1],3,2) : 19*60;
+    if ($iniM < $desde || $finM > $hasta) return false;
+    $brk = $r['breaks'] ?? [];
+    $desc = $brk[$dow] ?? ($brk[(string)$dow] ?? []);
+    foreach ($desc as $b) {
+        $bi = (int)substr($b[0],0,2)*60 + (int)substr($b[0],3,2);
+        $bf = (int)substr($b[1],0,2)*60 + (int)substr($b[1],3,2);
+        if ($iniM < $bf && $finM > $bi) return false;
+    }
+    return true;
+}
+function recurso_bloqueado($serviceName, $date, $iniM, $finM, $solapan) {
+    $necesita = recursos_del_servicio($serviceName);
+    if (!$necesita) return null;
+    foreach ($necesita as $r) {
+        if (!recurso_abierto($r, $date, $iniM, $finM))
+            return 'a esa hora no está disponible '.$r['name'];
+        $cupo = max(1, (int)($r['qty'] ?? 1));
+        $enUso = 0;
+        foreach ($solapan as $a) {
+            foreach (recursos_del_servicio($a['service_name'] ?? '') as $x)
+                if (($x['id'] ?? '') === ($r['id'] ?? '')) { $enUso++; break; }
         }
+        if ($enUso >= $cupo) return 'a esa hora ya está ocupado '.$r['name'];
     }
     return null;
 }

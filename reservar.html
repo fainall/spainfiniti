@@ -129,6 +129,39 @@ function haceElServicio(profId){
   return sv.includes(servicio.name)
 }
 
+/* ── RECURSOS ──
+   Un box, una camilla o un equipo que la cita necesita. Si ya está ocupado
+   a esa hora, o fuera de su horario, la hora no se ofrece. */
+function recursosDelServicio(nombre){
+  const lista = config.resources || []
+  if(!Array.isArray(lista) || !nombre) return []
+  return lista.filter(r => r.active!==false && (r.services==='all' || (r.services||[]).includes(nombre)))
+}
+function recursoAbierto(r, fecha, ini, fin){
+  if(!r.hasHours) return true
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  if(!(r.days||[]).includes(dow)) return false
+  const hpd = (r.horasPorDia||{})[dow] || (r.horasPorDia||{})[String(dow)]
+  const desde = hpd ? toMin(hpd[0]) : 9*60, hasta = hpd ? toMin(hpd[1]) : 19*60
+  if(ini < desde || fin > hasta) return false
+  const desc = (r.breaks||{})[dow] || (r.breaks||{})[String(dow)] || []
+  return !desc.some(bk => ini < toMin(bk[1]) && fin > toMin(bk[0]))
+}
+/* ¿queda alguna unidad libre de cada recurso que necesita el servicio? */
+function recursosLibres(fecha, ini, dur){
+  const necesita = recursosDelServicio(servicio.name)
+  if(!necesita.length) return true
+  const fin = ini + dur
+  const solapan = citas.filter(a => a.appt_date===fecha && a.status!=='cancelled'
+    && toMin(a.start_time.slice(0,5)) < fin && toMin((a.end_time||a.start_time).slice(0,5)) > ini)
+  return necesita.every(r => {
+    if(!recursoAbierto(r, fecha, ini, fin)) return false
+    const cupo = Math.max(1, parseInt(r.qty)||1)
+    const enUso = solapan.filter(a => recursosDelServicio(a.service_name).some(x=>x.id===r.id)).length
+    return enUso < cupo
+  })
+}
+
 /* ¿el servicio tiene restricciones propias? (horario especial, cupos, recursos) */
 function reglasServicio(){ return (config.svc_meta || {})[svcId] || {} }
 
@@ -179,6 +212,9 @@ function horasLibres(fecha){
         && toMin(a.start_time.slice(0,5)) < t + dur && toMin((a.end_time||a.start_time).slice(0,5)) > t).length
       if(mismos >= m.cap) return
     }
+    // recursos (box, camilla, equipo) ocupados o fuera de su horario
+    if(!recursosLibres(fecha, t, dur)) return
+
     libres.push(toHHMM(t))
   })
   return libres
@@ -256,6 +292,8 @@ async function reservar(){
     // relee las citas por si alguien tomó la hora mientras completabas
     citas = await supabase.fetch('appointments', { filters: `appt_date=eq.${fechaSel}` }) || []
     if(!horasLibres(fechaSel).includes(horaSel)) throw new Error('Justo tomaron esa hora. Elige otra, por favor.')
+    if(!recursosLibres(fechaSel, toMin(horaSel), durMin(servicio.duration)))
+      throw new Error('Justo ocuparon la sala o el equipo de esa hora. Elige otra, por favor.')
 
     const dur = durMin(servicio.duration)
     const dow = new Date(fechaSel+'T00:00:00').getDay()
