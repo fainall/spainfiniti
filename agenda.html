@@ -766,6 +766,40 @@ label.chk input{width:auto;margin:0}
 .res-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .adm-dot.off{color:var(--light)}
 .pcol-sub{font-size:.66rem;color:var(--light)}
+
+/* asa para reordenar arrastrando */
+.asa{cursor:grab;color:var(--light);font-size:1rem;line-height:1;user-select:none;padding:0 2px;flex-shrink:0}
+.asa:active{cursor:grabbing}
+.adm-row.arrastrando{opacity:.7;box-shadow:0 8px 24px rgba(0,0,0,.16);cursor:grabbing}
+@media(max-width:820px){ .asa{display:none} }
+.svc-search select{border:none;background:transparent;font-family:inherit;font-size:.84rem;color:var(--mid);outline:none;cursor:pointer;max-width:180px}
+@media(max-width:820px){ .svc-search{flex-wrap:wrap;padding:8px 12px} .svc-search select{max-width:100%;width:100%;border-top:1px solid var(--border);padding-top:8px} }
+
+/* ficha del cliente */
+.cd-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.cd-ava{width:42px;height:42px;border-radius:50%;background:var(--gold);color:#fff;display:grid;place-items:center;
+  font-weight:700;font-size:1.05rem;flex-shrink:0}
+.cd-since{font-size:.76rem;color:var(--light)}
+.cd-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.cd-chips span{background:var(--cream);border-radius:20px;padding:4px 11px;font-size:.78rem;color:var(--mid)}
+.cd-nota{background:#fffbf0;border:1px solid #f2e4c4;border-radius:8px;padding:9px 12px;font-size:.8rem;
+  color:var(--mid);margin-bottom:12px}
+.cd-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-bottom:6px}
+.cd-num{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;background:var(--cream);border-radius:10px}
+.cd-num .dot{width:8px;height:8px;border-radius:50%}
+.cd-num strong{font-size:1.25rem;line-height:1}
+.cd-num span:last-child{font-size:.68rem;color:var(--mid);text-align:center}
+.cd-h3{font-size:.85rem;font-weight:600;margin:16px 0 8px}
+.cd-scroll{max-height:300px;overflow-y:auto;overflow-x:auto;border:1px solid var(--border);border-radius:10px}
+.cd-tbl{width:100%;font-size:.8rem}
+.cd-tbl th{position:sticky;top:0;background:var(--white);z-index:1}
+.cd-tag{display:inline-block;color:#fff;border-radius:20px;padding:2px 9px;font-size:.7rem;white-space:nowrap}
+.cd-bono{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.cd-bono-top{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;margin-bottom:8px}
+.cd-bono-top span{color:var(--mid)}
+.cd-barra{height:7px;background:var(--cream-2);border-radius:20px;overflow:hidden}
+.cd-barra i{display:block;height:100%;background:var(--gold);border-radius:20px}
+@media(max-width:820px){ .cd-nums{grid-template-columns:repeat(auto-fit,minmax(80px,1fr))} }
 </style>
 </head>
 <body>
@@ -1585,7 +1619,6 @@ label.chk input{width:auto;margin:0}
           <button class="adm-nav on" data-sec="locales" onclick="admSec('locales')">🏠 Locales</button>
           <button class="adm-nav" data-sec="profesionales" onclick="admSec('profesionales')">👤 Profesionales</button>
           <button class="adm-nav" data-sec="servicios" onclick="admSec('servicios')">🧾 Servicios</button>
-          <button class="adm-nav" data-sec="recursos" onclick="admSec('recursos')">🧰 Recursos</button>
           <button class="adm-nav" data-sec="usuarios" onclick="admSec('usuarios')">🔐 Usuarios y accesos</button>
         </div>
         <div class="adm-box">
@@ -1593,6 +1626,7 @@ label.chk input{width:auto;margin:0}
           <div id="admAdvanced">
             <button class="adm-nav" data-sec="comisiones" onclick="admSec('comisiones')">💰 Comisiones</button>
             <button class="adm-nav" data-sec="planes" onclick="admSec('planes')">🎟 Planes</button>
+            <button class="adm-nav" data-sec="recursos" onclick="admSec('recursos')">🧰 Recursos</button>
             <button class="adm-nav" onclick="switchView('encuestas')">📊 Encuestas</button>
             <button class="adm-nav" onclick="switchView('asistente')">💬 WhatsApp / Asistente</button>
             <button class="adm-nav" onclick="switchView('recordatorios')">🔔 Recordatorios</button>
@@ -1620,13 +1654,33 @@ label.chk input{width:auto;margin:0}
           <label>Nombre del recurso <span style="color:var(--red)">*</span></label>
           <input type="text" id="resName" placeholder="Box 1, Camilla 2, Pediluvio iónico…" />
           <div class="row2" style="margin-top:12px">
+            <div><label>Categoría</label>
+              <div style="display:flex;gap:6px">
+                <select id="resCat" style="flex:1"></select>
+                <button class="btn-g" onclick="nuevaCatRecurso()" title="Nueva categoría">+</button>
+              </div></div>
             <div><label>Local</label><input type="text" id="resLocal" /></div>
+          </div>
+          <div class="row2" style="margin-top:12px">
             <div><label>Cantidad disponible</label><input type="number" id="resQty" min="1" value="1" /></div>
+            <div><label>Bloque itinerario</label>
+              <select id="resSlot">
+                <option value="">Usar el de la agenda</option>
+                <option value="10">10 minutos</option>
+                <option value="15">15 minutos</option>
+                <option value="20">20 minutos</option>
+                <option value="30">30 minutos</option>
+                <option value="60">60 minutos</option>
+              </select></div>
           </div>
           <p class="rem-note" style="margin-top:6px">La cantidad es cuántas citas pueden usar este recurso a la misma hora. Una camilla: 1. Tres camillas iguales: 3.</p>
           <div class="sw-row" style="margin-top:16px">
             <label class="sw"><input type="checkbox" id="resHasHours" onchange="resToggleHours(this.checked)" /><i></i></label>
             <div class="sw-txt"><strong>Este recurso tiene horario propio</strong><span>Úsalo cuando el equipo o la sala solo está disponible en ciertos días y horas. Aparece como columna en la agenda.</span></div>
+          </div>
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="resOnline" checked /><i></i></label>
+            <div class="sw-txt"><strong>Este recurso acepta reservas en línea</strong><span>Si lo apagas, el recurso solo se ocupa desde el panel: los clientes no verán bloqueadas esas horas en el sitio web.</span></div>
           </div>
           <div class="row2" style="margin-top:14px">
             <div><label>Color en la agenda</label><div class="swatches" id="resSwatches"></div></div>
@@ -2499,9 +2553,16 @@ label.chk input{width:auto;margin:0}
 
 <!-- MODAL: Client detail -->
 <div class="modal-ov" id="clientDetailModal">
-  <div class="modal" style="width:540px">
-    <h2 id="cdName" style="margin-bottom:4px"></h2>
+  <div class="modal" style="width:760px;max-width:94vw">
+    <div class="cd-head">
+      <span class="cd-ava" id="cdAva"></span>
+      <div>
+        <h2 id="cdName" style="margin:0"></h2>
+        <span class="cd-since" id="cdSince"></span>
+      </div>
+    </div>
     <div id="cdInfo"></div>
+    <div class="mtabs" id="cdTabs"></div>
     <div id="cdBody"></div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal('clientDetailModal')">Cerrar</button>
@@ -3257,8 +3318,11 @@ function selectProf(id){ state.profId=id; render() }
 function renderCalendarRec(){
   const fecha = isoDate(state.anchor)
   const [minM,maxM] = hourBounds()
-  const SP = slotPx(), nSlots = Math.ceil((maxM-minM)/slotMin), gridH = nSlots*SP
+  /* si algún recurso tiene bloque propio, la grilla usa el más fino de todos */
   const recs = resources.filter(r => r.active!==false)
+  const propios = recs.map(r=>parseInt(r.slot)||0).filter(Boolean)
+  const paso = propios.length ? Math.min(slotMin, ...propios) : slotMin
+  const SP = Math.max(28, HOUR_H*(paso/60)), nSlots = Math.ceil((maxM-minM)/paso), gridH = nSlots*SP
 
   let head = '<div class="gutter"></div>'
   recs.forEach(r=>{
@@ -3271,13 +3335,13 @@ function renderCalendarRec(){
   document.getElementById('calHead').innerHTML = head
 
   let gut=''
-  for(let i=0;i<nSlots;i++) gut += `<div class="hr" style="height:${SP}px"><span>${toHHMM(minM+i*slotMin)}</span></div>`
+  for(let i=0;i<nSlots;i++) gut += `<div class="hr" style="height:${SP}px"><span>${toHHMM(minM+i*paso)}</span></div>`
 
   let cols=''
   recs.forEach(r=>{
     let lines=''
     for(let i=0;i<=nSlots;i++){
-      const isHour = ((minM+i*slotMin)%60)===0
+      const isHour = ((minM+i*paso)%60)===0
       lines += `<div class="hr-line ${isHour?'':'half'}" style="top:${i*SP}px"></div>`
     }
     /* franjas no disponibles según su horario propio */
@@ -3287,12 +3351,12 @@ function renderCalendarRec(){
       noDisp = `<div class="nodisp" style="top:0;height:${gridH}px"><span>Recurso no disponible</span></div>`
     } else if(r.hasHours){
       const ini=toMin(hor.desde), fin=toMin(hor.hasta)
-      if(ini>minM) noDisp += `<div class="nodisp" style="top:0;height:${(ini-minM)/slotMin*SP}px"><span>No disponible<br><small>${toHHMM(minM)} – ${hor.desde}</small></span></div>`
-      if(fin<maxM) noDisp += `<div class="nodisp" style="top:${(fin-minM)/slotMin*SP}px;height:${(maxM-fin)/slotMin*SP}px"><span>No disponible<br><small>${hor.hasta} – ${toHHMM(maxM)}</small></span></div>`
+      if(ini>minM) noDisp += `<div class="nodisp" style="top:0;height:${(ini-minM)/paso*SP}px"><span>No disponible<br><small>${toHHMM(minM)} – ${hor.desde}</small></span></div>`
+      if(fin<maxM) noDisp += `<div class="nodisp" style="top:${(fin-minM)/paso*SP}px;height:${(maxM-fin)/paso*SP}px"><span>No disponible<br><small>${hor.hasta} – ${toHHMM(maxM)}</small></span></div>`
       ;(hor.breaks||[]).forEach(bk=>{
         const bi=toMin(bk[0]), bf=toMin(bk[1])
         if(bf<=minM||bi>=maxM) return
-        const top=(Math.max(bi,minM)-minM)/slotMin*SP, alto=(Math.min(bf,maxM)-Math.max(bi,minM))/slotMin*SP
+        const top=(Math.max(bi,minM)-minM)/paso*SP, alto=(Math.min(bf,maxM)-Math.max(bi,minM))/paso*SP
         noDisp += `<div class="nodisp descanso" style="top:${top}px;height:${alto}px"><span>No disponible<br><small>${bk[0]} – ${bk[1]}</small></span></div>`
       })
     }
@@ -3300,8 +3364,8 @@ function renderCalendarRec(){
     const suyas = state.appointments.filter(a => a.appt_date===fecha && a.status!=='cancelled' && a.status!=='block'
       && recursosDe(a.service_name).some(x=>x.id===r.id))
     const blocks = layoutDay(suyas).map(a=>{
-      const top=(toMin(a.start_time)-minM)/slotMin*SP
-      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-2)
+      const top=(toMin(a.start_time)-minM)/paso*SP
+      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/paso*SP-2)
       const w=100/a._cols, left=a._col*w
       const prof=state.professionals.find(x=>x.id===a.professional_id)
       const color=STATUS_COLORS[a.status]||(prof&&prof.color)||r.color||'#7E8CE0'
@@ -4188,29 +4252,147 @@ async function deleteClient(id, name){
   catch(e){ toast('Error al borrar','error') }
 }
 
-/* ── DETALLE DE CLIENTE (historial) ── */
+/* ══════════ FICHA DEL CLIENTE ══════════
+   Todo lo que sabemos de una persona, repartido en pestañas:
+   qué reservó, si asistió, cuánto pagó y qué bonos tiene. */
+let cdCliente = null, cdTab = 'actividad'
+
 function openClientDetail(id){
-  const c=state.clients.find(x=>x.id===id); if(!c) return
-  document.getElementById('cdName').textContent=c.name
-  document.getElementById('cdInfo').innerHTML=`<div style="color:var(--mid);font-size:.84rem;margin-bottom:16px">
-    ${c.phone?`📞 ${esc(c.phone)}　`:''}${c.email?`✉ ${esc(c.email)}　`:''}${c.rut?`RUT ${esc(c.rut)}`:''}
-    ${c.notes?`<div style="margin-top:6px">${esc(c.notes)}</div>`:''}</div>`
-  const appts=state.appointments.filter(a=>a.client_id===id && a.status!=='block').sort((a,b)=>b.appt_date.localeCompare(a.appt_date))
-  const bonos=state.plans.filter(p=>p.client_id===id && p.status!=='cancelled')
-  const sales=state.sales.filter(s=>s.client_id===id && s.status!=='deleted')
-  const spent=sales.reduce((a,s)=>a+Number(s.total||0),0)
-  document.getElementById('cdBody').innerHTML=`
-    <div class="rep-cards" style="margin-bottom:16px">
-      <div class="rep-card"><div class="rc-num">${appts.length}</div><div class="rc-lbl">Reservas</div></div>
-      <div class="rep-card"><div class="rc-num" style="font-size:1.4rem">${fmtMoney(spent)}</div><div class="rc-lbl">Total gastado</div></div>
-      <div class="rep-card"><div class="rc-num">${bonos.length}</div><div class="rc-lbl">Bonos</div></div>
-    </div>
-    ${bonos.length?`<h3 style="font-size:.85rem;margin-bottom:8px">Bonos</h3>${bonos.map(p=>`<div style="font-size:.82rem;padding:6px 0;border-bottom:1px solid var(--cream-2)">${esc(p.name)} — <strong>${p.used_sessions||0}/${p.total_sessions}</strong></div>`).join('')}`:''}
-    <h3 style="font-size:.85rem;margin:14px 0 8px">Historial de reservas</h3>
-    ${appts.length?appts.slice(0,12).map(a=>{const [y,m,d]=a.appt_date.split('-');return `<div style="font-size:.82rem;padding:6px 0;border-bottom:1px solid var(--cream-2);display:flex;justify-content:space-between;gap:10px"><span>${d}/${m}/${y} ${a.start_time.slice(0,5)} — ${esc(a.service_name||'—')}</span><span style="color:var(--mid);white-space:nowrap">${esc(profName(a.professional_id))}</span></div>`}).join(''):'<p style="color:var(--mid);font-size:.82rem">Sin reservas registradas.</p>'}`
-  document.getElementById('cdEditBtn').onclick=()=>{ closeModal('clientDetailModal'); openClientModal(true,id) }
+  cdCliente = state.clients.find(x=>x.id===id); if(!cdCliente) return
+  cdTab = 'actividad'
+  renderClientDetail()
   openModal('clientDetailModal')
 }
+function cdSetTab(t){ cdTab=t; renderClientDetail() }
+
+/* las reservas y ventas de este cliente */
+function cdDatos(){
+  const id = cdCliente.id
+  const appts = state.appointments.filter(a=>a.client_id===id && a.status!=='block')
+    .sort((a,b)=>(b.appt_date+b.start_time).localeCompare(a.appt_date+a.start_time))
+  const bonos = state.plans.filter(x=>x.client_id===id && x.status!=='cancelled')
+  const sales = state.sales.filter(x=>x.client_id===id && x.status!=='deleted')
+  return { appts, bonos, sales }
+}
+
+function renderClientDetail(){
+  const c = cdCliente; if(!c) return
+  const ini = (c.name||'?').trim().slice(0,1).toUpperCase()
+  document.getElementById('cdAva').textContent = ini
+  document.getElementById('cdName').textContent = c.name
+  const desde = c.created_at ? new Date(c.created_at) : null
+  document.getElementById('cdSince').textContent = desde
+    ? 'Cliente desde '+desde.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}) : ''
+  document.getElementById('cdInfo').innerHTML = `<div class="cd-chips">
+    ${c.phone?`<span>📞 ${esc(c.phone)}</span>`:''}
+    ${c.email?`<span>✉ ${esc(c.email)}</span>`:''}
+    ${c.rut?`<span>RUT ${esc(c.rut)}</span>`:''}
+    ${c.birthday?`<span>🎂 ${esc(c.birthday)}</span>`:''}</div>
+    ${c.notes?`<div class="cd-nota">${esc(c.notes)}</div>`:''}`
+
+  const { appts, bonos, sales } = cdDatos()
+  const tabs = [['actividad','Actividad'],['asistencia','Asistencia'],
+                ['pagos','Pagos y deudas'],['bonos','Bonos ('+bonos.length+')']]
+  document.getElementById('cdTabs').innerHTML = tabs.map(([k,t])=>
+    `<button class="${cdTab===k?'on':''}" onclick="cdSetTab('${k}')">${t}</button>`).join('')
+
+  const body = document.getElementById('cdBody')
+  if(cdTab==='actividad') body.innerHTML = cdActividad(appts)
+  else if(cdTab==='asistencia') body.innerHTML = cdAsistencia(appts)
+  else if(cdTab==='pagos') body.innerHTML = cdPagos(sales, appts)
+  else body.innerHTML = cdBonos(bonos)
+
+  document.getElementById('cdEditBtn').onclick=()=>{ closeModal('clientDetailModal'); openClientModal(true,c.id) }
+}
+
+/* ── Actividad: cuántas reservas hay de cada estado, y el historial ── */
+function cdActividad(appts){
+  const orden = ['reserved','confirmed','attending','cancelled','no_show','pending','waiting']
+  const nombre = {...STATUS_LABEL, cancelled:'Canceladas', reserved:'Reservadas', confirmed:'Confirmadas',
+    attending:'Asistidas', no_show:'No asistidas', pending:'Pendientes', waiting:'En espera'}
+  const cuenta = e => appts.filter(a=>a.status===e).length
+  return `<div class="cd-nums">${orden.map(e=>`<div class="cd-num">
+      <span class="dot" style="background:${STATUS_COLORS[e]||'#C9CDD4'}"></span>
+      <strong>${cuenta(e)}</strong><span>${nombre[e]}</span></div>`).join('')}</div>
+    <h3 class="cd-h3">Reservas de ${esc((cdCliente.name||'').split(' ')[0])}</h3>
+    ${cdTablaReservas(appts)}`
+}
+function cdTablaReservas(appts){
+  if(!appts.length) return '<div class="empty-state">Sin reservas registradas.</div>'
+  return `<div class="cd-scroll"><table class="ctbl cd-tbl">
+    <thead><tr><th>Fecha y hora</th><th>Servicio</th><th>Profesional</th><th>Estado</th></tr></thead>
+    <tbody>${appts.slice(0,40).map(a=>{
+      const [y,m,d]=a.appt_date.split('-')
+      return `<tr><td>${d}/${m}/${y} · ${a.start_time.slice(0,5)}</td>
+        <td>${esc(a.service_name||'—')}</td>
+        <td>${esc(profName(a.professional_id))}</td>
+        <td><span class="cd-tag" style="background:${STATUS_COLORS[a.status]||'#C9CDD4'}">${esc(STATUS_LABEL[a.status]||a.status||'—')}</span></td></tr>`
+    }).join('')}</tbody></table></div>
+    ${appts.length>40?`<p class="rem-note">Mostrando las 40 más recientes de ${appts.length}.</p>`:''}`
+}
+
+/* ── Asistencia: qué tan cumplidor es ── */
+function cdAsistencia(appts){
+  const hechas = appts.filter(a=>['attending','confirmed'].includes(a.status)).length
+  const faltas = appts.filter(a=>a.status==='no_show').length
+  const canc = appts.filter(a=>a.status==='cancelled').length
+  const total = appts.length
+  const pct = total ? Math.round(hechas/total*100) : 0
+  const ultimas = appts.filter(a=>['no_show','cancelled'].includes(a.status)).slice(0,10)
+  return `<div class="rep-cards" style="margin-bottom:16px">
+      <div class="rep-card"><div class="rc-num">${pct}%</div><div class="rc-lbl">Asistencia</div></div>
+      <div class="rep-card"><div class="rc-num">${faltas}</div><div class="rc-lbl">No asistió</div></div>
+      <div class="rep-card"><div class="rc-num">${canc}</div><div class="rc-lbl">Canceladas</div></div>
+      <div class="rep-card"><div class="rc-num">${total}</div><div class="rc-lbl">Reservas totales</div></div>
+    </div>
+    ${faltas>=3?'<div class="inv-notice" style="background:#fdf0ee;border-color:#f4c9c1">⚠ Este cliente ya faltó '+faltas+' veces. Considera pedirle abono al reservar.</div>':''}
+    <h3 class="cd-h3">Faltas y cancelaciones</h3>
+    ${ultimas.length?cdTablaReservas(ultimas):'<div class="empty-state">Nunca ha faltado ni cancelado. 👏</div>'}`
+}
+
+/* ── Pagos y deudas: lo pagado y lo que quedó pendiente ── */
+function cdPagos(sales, appts){
+  const gastado = sales.reduce((a,x)=>a+Number(x.total||0),0)
+  /* una reserva cuenta como deuda si no tiene venta asociada y ya pasó */
+  const hoy = isoDate(new Date())
+  const pagadas = new Set(sales.map(x=>x.appointment_id).filter(Boolean))
+  const deudas = appts.filter(a => a.appt_date<=hoy && !pagadas.has(a.id)
+    && !['cancelled','no_show'].includes(a.status) && money2num(a.price)>0)
+  const debe = deudas.reduce((a,x)=>a+money2num(x.price),0)
+  return `<div class="rep-cards" style="margin-bottom:16px">
+      <div class="rep-card"><div class="rc-num" style="font-size:1.4rem">${fmtMoney(gastado)}</div><div class="rc-lbl">Total pagado</div></div>
+      <div class="rep-card"><div class="rc-num" style="font-size:1.4rem;color:${debe?'var(--red)':'inherit'}">${fmtMoney(debe)}</div><div class="rc-lbl">Por cobrar</div></div>
+      <div class="rep-card"><div class="rc-num">${sales.length}</div><div class="rc-lbl">Ventas</div></div>
+    </div>
+    <h3 class="cd-h3">Reservas sin pago registrado</h3>
+    ${deudas.length?`<div class="cd-scroll"><table class="ctbl cd-tbl">
+      <thead><tr><th>Fecha</th><th>Servicio</th><th>Precio</th></tr></thead>
+      <tbody>${deudas.slice(0,20).map(a=>{const [y,m,d]=a.appt_date.split('-')
+        return `<tr><td>${d}/${m}/${y}</td><td>${esc(a.service_name||'—')}</td><td>${esc(a.price||'')}</td></tr>`}).join('')}
+      </tbody></table></div>`:'<div class="empty-state">Todo al día.</div>'}
+    <h3 class="cd-h3">Ventas</h3>
+    ${sales.length?`<div class="cd-scroll"><table class="ctbl cd-tbl">
+      <thead><tr><th>Fecha</th><th>Detalle</th><th>Total</th></tr></thead>
+      <tbody>${sales.slice(0,20).map(v=>`<tr><td>${esc((v.sold_at||'').slice(0,10))}</td>
+        <td>${esc(v.detail||v.notes||'—')}</td><td>${fmtMoney(v.total||0)}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="empty-state">Sin ventas registradas.</div>'}`
+}
+
+/* ── Bonos: sesiones compradas y cuántas quedan ── */
+function cdBonos(bonos){
+  if(!bonos.length) return '<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🎟</div>Este cliente no tiene bonos.</div>'
+  return bonos.map(b=>{
+    const usadas = b.used_sessions||0, tot = b.total_sessions||0
+    const pct = tot ? Math.round(usadas/tot*100) : 0
+    return `<div class="cd-bono">
+      <div class="cd-bono-top"><strong>${esc(b.name)}</strong><span>${usadas} de ${tot} sesiones</span></div>
+      <div class="cd-barra"><i style="width:${pct}%"></i></div>
+      ${b.expires_at?`<span class="rem-note">Vence el ${esc(b.expires_at)}</span>`:''}
+    </div>`
+  }).join('')
+}
+/* convierte "$25.600" en 25600 */
+function money2num(v){ const n=String(v||'').replace(/[^0-9]/g,''); return n?parseInt(n):0 }
 
 /* ── IMPORTAR CLIENTES (CSV) ── */
 function openImportModal(){
@@ -5331,6 +5513,54 @@ async function sendUserReset(email){
    quedan en este navegador. */
 let profMeta={}, profGroups=[], admProfTab='profesionales'
 
+
+/* ══════════ REORDENAR ARRASTRANDO ══════════
+   El orden elegido aquí es el que ve el cliente en el sitio web.
+   Se guarda en sort_order; mientras se arrastra no se toca la base. */
+let arrastrando = null
+
+function iniciarArrastre(e, fila){
+  if(e.button!==0) return
+  arrastrando = fila
+  fila.classList.add('arrastrando')
+  const caja = fila.parentElement
+  const mover = ev=>{
+    if(!arrastrando) return
+    const y = ev.clientY
+    const hermanas = [...caja.querySelectorAll('.adm-row[draggable-row]')].filter(x=>x!==arrastrando)
+    let puesto = null
+    for(const hx of hermanas){
+      const r = hx.getBoundingClientRect()
+      if(y < r.top + r.height/2){ puesto = hx; break }
+    }
+    if(puesto) caja.insertBefore(arrastrando, puesto)
+    else caja.appendChild(arrastrando)
+  }
+  const soltar = async ()=>{
+    document.removeEventListener('mousemove', mover)
+    document.removeEventListener('mouseup', soltar)
+    if(!arrastrando) return
+    arrastrando.classList.remove('arrastrando')
+    const tipo = arrastrando.getAttribute('draggable-row')
+    arrastrando = null
+    await guardarOrden(caja, tipo)
+  }
+  document.addEventListener('mousemove', mover)
+  document.addEventListener('mouseup', soltar)
+  e.preventDefault()
+}
+
+async function guardarOrden(caja, tipo){
+  const ids = [...caja.querySelectorAll('.adm-row[draggable-row]')].map(x=>x.dataset.id).filter(Boolean)
+  if(!ids.length) return
+  const tabla = tipo==='prof' ? 'professionals' : 'services'
+  try{
+    await Promise.all(ids.map((id,i)=> supabase.update(tabla, id, { sort_order:i })))
+    if(tipo==='prof') await loadProfessionals(); else await reloadServices()
+    toast('Orden guardado','success')
+    renderAdmin(); render()
+  }catch(e){ console.error(e); toast('No se pudo guardar el orden','error') }
+}
 /* ══════════════ ADMINISTRACIÓN · RECURSOS ══════════════
    Un recurso es algo físico que la cita necesita y que no puede estar
    en dos sitios a la vez: un box, una camilla, el equipo de pediluvio.
@@ -5339,7 +5569,7 @@ let profMeta={}, profGroups=[], admProfTab='profesionales'
                     columna en la agenda del día.
    Se guardan en bot_config.resources, con copia en este navegador. */
 let resources = []
-let admResTab = 'simples'
+let admResTab = 'horario'
 
 function loadResources(){
   try{ const r=JSON.parse(localStorage.getItem('spa_resources')||'null'); if(Array.isArray(r)) resources=r }catch(e){}
@@ -5431,8 +5661,8 @@ function checkRecursos({ serviceName, date, start, dur, apptId }){
 function admResSetTab(t){ admResTab=t; renderAdmin() }
 function admRecursos(){
   const tabs=`<div class="mtabs" style="margin-bottom:14px">
-    <button class="${admResTab==='simples'?'on':''}" onclick="admResSetTab('simples')">Recursos</button>
-    <button class="${admResTab==='horario'?'on':''}" onclick="admResSetTab('horario')">Recursos con horario</button></div>`
+    <button class="${admResTab==='horario'?'on':''}" onclick="admResSetTab('horario')">Recursos con horario</button>
+    <button class="${admResTab==='simples'?'on':''}" onclick="admResSetTab('simples')">Recursos</button></div>`
   const conHorario = admResTab==='horario'
   const lista = resources.filter(r => !!r.hasHours === conHorario)
   const body = lista.length ? lista.map(r=>{
@@ -5441,7 +5671,7 @@ function admRecursos(){
     return `<div class="adm-row">
       <span class="res-dot" style="background:${r.color||'#7E8CE0'}"></span>
       <span class="ar-name">${esc(r.name)}</span>
-      <span class="ar-meta">${esc(r.local||'')}</span>
+      <span class="ar-meta">${esc(r.cat||r.local||'')}</span>
       <span class="ar-meta">${r.qty>1?('×'+r.qty+' unidades'):'1 unidad'}</span>
       <span class="ar-meta">${svc}</span>
       ${conHorario?`<span class="ar-meta">🕐 ${dias}</span>`:''}
@@ -5462,6 +5692,24 @@ function admRecursos(){
       <button class="btn-primary" onclick="openResModal('','${conHorario?'1':''}')">+ Nuevo ${conHorario?'recurso con horario':'recurso'}</button></div>${body}`
 }
 
+/* categorías de recurso: salen de los propios recursos, no hay tabla aparte */
+function catsRecurso(){
+  const set=new Set()
+  resources.forEach(r=>{ if(r.cat) set.add(r.cat) })
+  return [...set].sort()
+}
+function pintarCatsRecurso(sel){
+  const el=document.getElementById('resCat'); if(!el) return
+  const cats=catsRecurso()
+  if(sel && !cats.includes(sel)) cats.push(sel)
+  el.innerHTML='<option value="">Sin categoría</option>'+
+    cats.map(c=>`<option value="${esc(c)}" ${c===sel?'selected':''}>${esc(c)}</option>`).join('')
+}
+function nuevaCatRecurso(){
+  const n=prompt('Nombre de la nueva categoría de recursos:')
+  if(!n || !n.trim()) return
+  pintarCatsRecurso(n.trim())
+}
 /* ── modal ── */
 function resTab(name,btn){
   ;['basicos','horario'].forEach(n=>document.getElementById('rstab-'+n).classList.toggle('on',n===name))
@@ -5543,6 +5791,9 @@ function openResModal(id, conHorario){
   document.getElementById('resName').value = r ? r.name : ''
   document.getElementById('resLocal').value = (r && r.local) || localInfo.name
   document.getElementById('resQty').value = (r && r.qty) || 1
+  pintarCatsRecurso(r ? (r.cat||'') : '')
+  document.getElementById('resSlot').value = (r && r.slot) || ''
+  document.getElementById('resOnline').checked = !r || r.online !== false
   document.getElementById('resActive').value = (r && r.active===false) ? '0' : '1'
   const hasH = r ? !!r.hasHours : !!conHorario
   document.getElementById('resHasHours').checked = hasH
@@ -5585,6 +5836,9 @@ async function saveRes(){
   const row={ id:document.getElementById('resId').value || 'r'+Math.random().toString(36).slice(2,10),
     name, local:document.getElementById('resLocal').value.trim(),
     qty:Math.max(1, parseInt(document.getElementById('resQty').value)||1),
+    cat:document.getElementById('resCat').value || '',
+    slot:parseInt(document.getElementById('resSlot').value)||0,
+    online:document.getElementById('resOnline').checked,
     services, hasHours, days, horasPorDia, breaks,
     color:(document.querySelector('#resSwatches .swatch.on')||{}).dataset?.color || RES_COLORS[0],
     active:document.getElementById('resActive').value==='1' }
@@ -5638,7 +5892,8 @@ function admProfesionales(){
     const dn=days.map(d=>DOW_ADM[(d+6)%7].slice(0,3)).join(' · ')
     const av=m.photo?`<img src="${m.photo}" style="width:32px;height:32px;border-radius:50%;object-fit:cover" alt="">`
       :`<span style="width:32px;height:32px;border-radius:50%;background:${p.color||'#C5A467'};color:#fff;display:grid;place-items:center;font-size:.72rem;font-weight:700">${esc((p.name||'?').slice(0,2).toUpperCase())}</span>`
-    return `<div class="adm-row">${av}
+    return `<div class="adm-row" draggable-row="prof" data-id="${p.id}">
+      <span class="asa" onmousedown="iniciarArrastre(event,this.parentElement)" title="Arrastra para reordenar">⠿</span>${av}
       <span class="ar-name">${esc(p.name)}</span>
       <span class="ar-meta">${(p.work_start||'').slice(0,5)} – ${(p.work_end||'').slice(0,5)} · ${dn||'sin días'}</span>
       <span class="ar-meta">Comisión ${p.commission_pct||0}%</span>
@@ -5955,27 +6210,33 @@ function admServicios(){
     <div class="svc-search"><span>🔍</span>
       <input type="text" id="svcBuscar" placeholder="Buscar servicio por nombre, categoría o precio…"
         value="${esc(svcFiltro)}" oninput="filtrarServicios(this.value)" />
+      <select id="svcCatFiltro" onchange="svcCatSel=this.value;filtrarServicios(svcFiltro)" title="Filtrar por categoría">
+        <option value="">Todas las categorías</option>
+        ${Object.keys(byCat).sort().map(c=>`<option value="${esc(c)}" ${c===svcCatSel?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>
       <button class="svc-clear" id="svcClear" onclick="filtrarServicios('',true)" title="Limpiar" style="display:${svcFiltro?'block':'none'}">✕</button>
     </div>
     <div id="svcListBox">${listaServicios()}</div>`
 }
 
-/* texto escrito en el buscador de servicios */
-let svcFiltro = ''
+/* texto escrito en el buscador de servicios y categoría elegida */
+let svcFiltro = '', svcCatSel = ''
 /* dibuja la lista aplicando el filtro */
 function listaServicios(){
   const q = svcFiltro.trim().toLowerCase()
+  const base = svcCatSel ? state.services.filter(s => s.cat===svcCatSel) : state.services
   const filtrados = q
-    ? state.services.filter(s => ((s.name||'')+' '+(s.cat||'')+' '+(s.price||'')+' '+s.duration).toLowerCase().includes(q))
-    : state.services
+    ? base.filter(s => ((s.name||'')+' '+(s.cat||'')+' '+(s.price||'')+' '+s.duration).toLowerCase().includes(q))
+    : base
   if(!state.services.length) return '<div class="empty-state">Aún no hay servicios.</div>'
   if(!filtrados.length) return `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🔍</div>
-    Ningún servicio coincide con "${esc(svcFiltro)}"</div>`
+    Ningún servicio coincide con ${svcFiltro?`"${esc(svcFiltro)}"`:'ese filtro'}${svcCatSel?' en '+esc(svcCatSel):''}</div>`
   const byCat={}
   filtrados.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
   return Object.entries(byCat).map(([cat,list])=>
     `<div class="adm-cat">${esc(cat)} <span style="font-weight:400;color:var(--light)">(${list.length})</span></div>`+
-    list.map(s=>`<div class="adm-row">
+    list.map(s=>`<div class="adm-row" draggable-row="svc" data-id="${s.id}">
+      <span class="asa" onmousedown="iniciarArrastre(event,this.parentElement)" title="Arrastra para reordenar">⠿</span>
       <span class="ar-name">${esc(s.name)}</span>
       <span class="ar-meta">${s.duration} min</span>
       <span class="ar-meta">${esc(s.price||'')}</span>
@@ -5984,17 +6245,23 @@ function listaServicios(){
 }
 /* filtra sin repintar toda la pantalla, para no perder lo que se está escribiendo */
 function filtrarServicios(texto, limpiar){
+  /* limpiar primero, para que el contador y la lista se pinten ya sin filtros */
+  if(limpiar){
+    svcCatSel=''
+    const c=document.getElementById('svcCatFiltro'); if(c) c.value=''
+    const i=document.getElementById('svcBuscar'); if(i){ i.value=''; i.focus() }
+  }
   svcFiltro = texto || ''
   const box = document.getElementById('svcListBox')
   if(box) box.innerHTML = listaServicios()
   const cont = document.getElementById('svcCount')
   if(cont){
     const q = svcFiltro.trim().toLowerCase()
-    const n = q ? state.services.filter(s => ((s.name||'')+' '+(s.cat||'')+' '+(s.price||'')+' '+s.duration).toLowerCase().includes(q)).length : state.services.length
-    cont.textContent = q ? `${n} de ${state.services.length} servicios` : `${state.services.length} servicios`
+    const base = svcCatSel ? state.services.filter(s => s.cat===svcCatSel) : state.services
+    const n = q ? base.filter(s => ((s.name||'')+' '+(s.cat||'')+' '+(s.price||'')+' '+s.duration).toLowerCase().includes(q)).length : base.length
+    cont.textContent = (q||svcCatSel) ? `${n} de ${state.services.length} servicios` : `${state.services.length} servicios`
   }
-  const x=document.getElementById('svcClear'); if(x) x.style.display = svcFiltro ? 'block' : 'none'
-  if(limpiar){ const i=document.getElementById('svcBuscar'); if(i){ i.value=''; i.focus() } }
+  const x=document.getElementById('svcClear'); if(x) x.style.display = (svcFiltro||svcCatSel) ? 'block' : 'none'
 }
 function svcTab(name,btn){
   ;['basicos','web','avanzadas'].forEach(n=>document.getElementById('svtab-'+n).classList.toggle('on',n===name))

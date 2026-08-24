@@ -135,7 +135,8 @@ function haceElServicio(profId){
 function recursosDelServicio(nombre){
   const lista = config.resources || []
   if(!Array.isArray(lista) || !nombre) return []
-  return lista.filter(r => r.active!==false && (r.services==='all' || (r.services||[]).includes(nombre)))
+  return lista.filter(r => r.active!==false && r.online!==false
+    && (r.services==='all' || (r.services||[]).includes(nombre)))
 }
 function recursoAbierto(r, fecha, ini, fin){
   if(!r.hasHours) return true
