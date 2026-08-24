@@ -109,3 +109,16 @@ RewriteRule ^panel-infinity-x7q9k2(\.html)?/?$ /agenda [R=301,L]
     ExpiresActive Off
   </IfModule>
 </FilesMatch>
+
+# ── API: nunca cachear ──
+# Las respuestas de la API llevan datos del negocio y dependen de quién pregunta:
+# si el CDN las guarda, podría entregárselas a alguien sin sesión.
+<FilesMatch "\.php$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+  </IfModule>
+  <IfModule mod_expires.c>
+    ExpiresActive Off
+  </IfModule>
+</FilesMatch>
