@@ -1626,7 +1626,10 @@ label.chk input{width:auto;margin:0}
         </div>
         <div class="fbox">
           <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Selecciona los servicios que realiza el profesional</h3>
-          <label class="chk" style="font-weight:700"><input type="checkbox" id="proAllSvc" onchange="proToggleAllSvc(this.checked)" /> <span>Seleccionar todo</span></label>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <label class="chk" style="font-weight:700"><input type="checkbox" id="proAllSvc" onchange="proToggleAllSvc(this.checked)" /> <span>Seleccionar todo</span></label>
+            <span id="proSvcCount" style="font-size:.78rem;color:var(--light)"></span>
+          </div>
           <div id="proSvcTree" style="margin-top:10px"></div>
         </div>
       </div>
@@ -5242,18 +5245,32 @@ function proTab(name,btn){
   btns.forEach(b=>b.classList.remove('on'))
   ;(btn||btns[['basicos','horario','perfil'].indexOf(name)]).classList.add('on')
 }
-function proToggleAllSvc(on){ document.querySelectorAll('#proSvcTree input[type=checkbox]').forEach(c=>c.checked=on) }
+function proToggleAllSvc(on){ document.querySelectorAll('#proSvcTree input[type=checkbox]').forEach(c=>c.checked=on); proSyncSvc() }
+/* mantiene coherentes el interruptor "todos" y el de cada categoría con lo que hay marcado abajo */
+function proSyncSvc(){
+  document.querySelectorAll('#proSvcTree .svc-cat').forEach(cat=>{
+    const hijos=[...cat.querySelectorAll('.svc-items input')]
+    const cab=cat.querySelector('.cat-head input')
+    if(cab) cab.checked = hijos.length>0 && hijos.every(x=>x.checked)
+  })
+  const todos=[...document.querySelectorAll('#proSvcTree .svc-items input')]
+  const maestro=document.getElementById('proAllSvc')
+  if(maestro) maestro.checked = todos.length>0 && todos.every(x=>x.checked)
+  const n=todos.filter(x=>x.checked).length
+  const cont=document.getElementById('proSvcCount')
+  if(cont) cont.textContent = n===todos.length ? 'Todos los servicios' : n+' de '+todos.length+' servicios'
+}
 function proSvcTree(selected){
   const byCat={}
   state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
   const all = !selected || selected==='all'
   return Object.entries(byCat).map(([cat,list],i)=>`<div class="svc-cat open" id="svccat${i}">
     <div class="cat-head">
-      <label class="chk"><input type="checkbox" data-cat="${i}" onchange="document.querySelectorAll('#svccat${i} .svc-items input').forEach(c=>c.checked=this.checked)"
+      <label class="chk"><input type="checkbox" data-cat="${i}" onchange="document.querySelectorAll('#svccat${i} .svc-items input').forEach(c=>c.checked=this.checked);proSyncSvc()"
         ${all||list.every(s=>selected.includes(s.name))?'checked':''} /> <span>${esc(cat)}</span></label>
       <button class="cat-toggle" onclick="document.getElementById('svccat${i}').classList.toggle('open')">(${list.length}) ▾</button>
     </div>
-    <div class="svc-items">${list.map(s=>`<label class="chk"><input type="checkbox" value="${esc(s.name)}" ${all||selected.includes(s.name)?'checked':''} /> <span>${esc(s.name)}</span></label>`).join('')}</div>
+    <div class="svc-items">${list.map(s=>`<label class="chk"><input type="checkbox" value="${esc(s.name)}" ${all||selected.includes(s.name)?'checked':''} onchange="proSyncSvc()" /> <span>${esc(s.name)}</span></label>`).join('')}</div>
   </div>`).join('') || '<p class="rem-note" style="margin:0">Aún no hay servicios cargados.</p>'
 }
 function proHoursRows(p,m){
@@ -5330,6 +5347,7 @@ function openProModal(id){
   document.getElementById('proEmail').value=m.email||''
   document.getElementById('proSvcTree').innerHTML=proSvcTree(m.services||'all')
   document.getElementById('proAllSvc').checked=!m.services || m.services==='all'
+  proSyncSvc()
   document.getElementById('proHours').innerHTML=proHoursRows(p,m)
   document.getElementById('proBio').value=m.bio||''
   const img=document.getElementById('proPhotoImg')
@@ -5367,8 +5385,11 @@ async function savePro(){
     work_start: starts.length?starts.slice().sort()[0]:'09:00', work_end: ends.length?ends.slice().sort().pop():'19:00',
     commission_pct: parseInt(document.getElementById('proComm').value)||0,
     active: document.getElementById('proActive').value==='1' }
-  const all=document.getElementById('proAllSvc').checked
-  const services = all ? 'all' : [...document.querySelectorAll('#proSvcTree .svc-items input:checked')].map(c=>c.value)
+  /* la verdad son las casillas marcadas, no el interruptor de arriba:
+     si quedaba encendido y el usuario destildó servicios, antes se guardaba 'all' y los perdía */
+  const marcados=[...document.querySelectorAll('#proSvcTree .svc-items input:checked')].map(c=>c.value)
+  const services = marcados.length===state.services.length ? 'all' : marcados
+  if(!marcados.length && !confirm('No marcaste ningún servicio: este profesional no podrá recibir reservas. ¿Guardar igual?')) return
   const id=document.getElementById('proId').value
   try{
     let pid=id
