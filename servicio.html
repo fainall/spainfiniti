@@ -569,7 +569,10 @@ if (!result) {
   document.getElementById('svcImg').alt = svc.name
 
   const waLink = `https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20${encodeURIComponent(svc.name)}`
-  const bookUrl = svc.link || waLink
+  /* Categorías con agenda propia: el cliente elige día y hora en nuestro sistema */
+  const AGENDA_PROPIA = ['desintoxicantes']
+  const usaAgendaPropia = AGENDA_PROPIA.includes(cat.id)
+  const bookUrl = usaAgendaPropia ? `/reservar.html?svc=${svc.id}` : (svc.link || waLink)
   // Links que no admiten iframe → abrir en nueva pestaña
   const noIframe = ['wa.me','api.whatsapp.com','whatsapp.com','instagram.com','facebook.com','m.me']
   const opensExternal = noIframe.some(d => bookUrl.includes(d))

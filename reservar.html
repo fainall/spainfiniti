@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Reservar tu hora — Spa Infinity</title>
+<link rel="icon" href="/images/logo.webp">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#C5A467;--gold-d:#A8883F;--gold-pale:#F5EFE3;--dark:#1A2436;--mid:#6B7280;--light:#9CA3AF;--border:#E5E7EB;--cream:#FCFBF9;--green:#2e9e63}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Montserrat',sans-serif;background:#F5F2EC;color:var(--dark);padding:20px;min-height:100vh}
+.wrap{max-width:620px;margin:0 auto}
+.card{background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.08);overflow:hidden}
+.head{background:linear-gradient(135deg,#C5A467,#8A7344);color:#fff;padding:26px 24px;text-align:center}
+.head h1{font-family:'Playfair Display',serif;font-size:1.45rem;margin-bottom:4px}
+.head p{font-size:.76rem;opacity:.92;letter-spacing:2px;text-transform:uppercase}
+.body{padding:24px}
+.svc-box{background:var(--cream);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:22px}
+.svc-name{font-family:'Playfair Display',serif;font-size:1.15rem;margin-bottom:6px}
+.svc-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;color:var(--mid)}
+.svc-price{font-weight:700;color:var(--gold-d)}
+.sp-tag{display:inline-block;background:#e4f7ec;color:#1f7a4c;font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:20px;margin-top:8px}
+h3{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mid);margin:22px 0 10px}
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.day{flex:0 0 auto;min-width:64px;border:1px solid var(--border);border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;background:#fff;transition:.15s}
+.day:hover{border-color:var(--gold)}
+.day.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.day.off{opacity:.35;cursor:not-allowed}
+.day .dw{font-size:.66rem;text-transform:uppercase;letter-spacing:.06em}
+.day .dd{font-size:1.15rem;font-weight:700;line-height:1.3}
+.day .dm{font-size:.64rem;opacity:.8}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.slot{border:1px solid var(--border);background:#fff;border-radius:9px;padding:11px 4px;font-family:inherit;font-size:.86rem;font-weight:600;cursor:pointer;position:relative}
+.slot:hover{border-color:var(--gold)}
+.slot.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.slot .off{display:block;font-size:.6rem;font-weight:700;color:var(--green)}
+.slot.on .off{color:#fff}
+.empty{color:var(--mid);font-size:.85rem;padding:14px 0}
+label{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mid);margin:14px 0 6px}
+input,textarea{width:100%;padding:12px 13px;border:1px solid var(--border);border-radius:9px;font-family:inherit;font-size:.9rem}
+input:focus,textarea:focus{outline:none;border-color:var(--gold)}
+.btn{width:100%;margin-top:22px;padding:15px;background:var(--gold);color:#fff;border:none;border-radius:30px;font-family:inherit;font-size:.9rem;font-weight:700;letter-spacing:.05em;cursor:pointer}
+.btn:hover{background:var(--gold-d)}
+.btn:disabled{opacity:.45;cursor:default}
+.resumen{background:var(--gold-pale);border-radius:10px;padding:14px 16px;font-size:.86rem;margin-top:18px;line-height:1.6}
+.err{background:#fdecea;color:#c0392b;border-radius:9px;padding:12px 14px;font-size:.84rem;margin-top:14px;display:none}
+.done{text-align:center;padding:44px 24px}
+.done .em{font-size:3.2rem;margin-bottom:14px}
+.done h2{font-family:'Playfair Display',serif;font-size:1.35rem;margin-bottom:12px}
+.done p{color:var(--mid);font-size:.9rem;line-height:1.7}
+.done .det{background:var(--cream);border-radius:10px;padding:16px;margin:18px 0;text-align:left;font-size:.88rem;line-height:1.8}
+.foot{text-align:center;font-size:.72rem;color:var(--light);margin-top:18px;line-height:1.6}
+.foot a{color:var(--gold-d)}
+.loading{text-align:center;color:var(--mid);font-size:.85rem;padding:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="head">
+      <h1>Spa Infinity</h1>
+      <p>Reserva tu hora</p>
+    </div>
+    <div class="body" id="body">
+      <div class="loading">Cargando…</div>
+    </div>
+  </div>
+  <p class="foot">Centro Podológico &amp; Spa · Santo Domingo 1083, of. 502, Santiago Centro<br>
+    ¿Prefieres escribirnos? <a href="https://wa.me/56986688771" target="_blank" rel="noopener">WhatsApp +56 9 8668 8771</a></p>
+</div>
+
+<script src="/supabase-client.js?v=9"></script>
+<script src="/data.js?v=5"></script>
+<script>
+/* ═══════════════════════════════════════════
+   RESERVA ONLINE — calcula las horas libres contra la agenda real
+   (horario del local, profesionales, citas ya tomadas y reglas del servicio)
+   ═══════════════════════════════════════════ */
+const params = new URLSearchParams(location.search)
+const svcId = params.get('svc')
+const DOW_S = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB']
+const MES_S = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+
+let servicio = null, config = {}, profesionales = [], citas = []
+let fechaSel = null, horaSel = null, precioSel = null
+
+const pad = n => String(n).padStart(2,'0')
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
+const toMin = t => { const [h,m] = String(t).split(':').map(Number); return h*60+m }
+const toHHMM = m => `${pad(Math.floor(m/60))}:${pad(m%60)}`
+const money = n => '$' + (Number(n)||0).toLocaleString('es-CL')
+const money2int = p => { const n = String(p||'').replace(/[^0-9]/g,''); return n ? parseInt(n) : 0 }
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+
+function durMin(str){
+  if(!str) return 60
+  const t = String(str).toLowerCase()
+  const h = t.match(/(\d+)\s*(h|hr|hrs|hora|horas)/), m = t.match(/(\d+)\s*(m|min|mins|minuto|minutos)/)
+  if(h||m) return ((h?parseInt(h[1])*60:0) + (m?parseInt(m[1]):0)) || 60
+  const n = t.match(/\d+/); return n ? parseInt(n[0]) : 60
+}
+
+/* precio con descuento si esa hora cae en una franja de precios inteligentes */
+function precioEn(fecha, hora){
+  const base = money2int(servicio.price)
+  const sp = config.smart_pricing || {}
+  if(!sp.on) return { precio: base, pct: 0 }
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  const r = (sp.rules||[]).find(x => x.active && (x.days||[]).includes(dow) && hora >= x.from && hora < x.to
+    && (x.services === 'all' || (x.services||[]).includes(servicio.name)))
+  if(!r) return { precio: base, pct: 0 }
+  return { precio: Math.round(base*(100-r.pct)/100), pct: r.pct }
+}
+
+/* ¿el servicio tiene restricciones propias? (horario especial, cupos, recursos) */
+function reglasServicio(){ return (config.svc_meta || {})[svcId] || {} }
+
+/* horas libres de un día */
+function horasLibres(fecha){
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  const dur = durMin(servicio.duration)
+  const m = reglasServicio()
+
+  // horario del local
+  const hLocal = (config.local_info && config.local_info.hours) || {}
+  const dia = hLocal[dow] || hLocal[String(dow)]
+  if(dia && dia[2] === false) return []
+  let abre = dia ? toMin(dia[0]) : 9*60
+  let cierra = dia ? toMin(dia[1]) : 20*60
+
+  // horario especial del servicio
+  if(m.hourMode === 'range' && m.from && m.to){ abre = Math.max(abre, toMin(m.from)); cierra = Math.min(cierra, toMin(m.to)) }
+
+  const libres = []
+  const ahora = new Date()
+  const paso = 30
+
+  const candidatas = (m.hourMode === 'hours' && (m.hours||[]).length)
+    ? m.hours.map(toMin)
+    : (() => { const out=[]; for(let t=abre; t+dur<=cierra; t+=paso) out.push(t); return out })()
+
+  candidatas.forEach(t => {
+    if(t < abre || t + dur > cierra) return
+    // no ofrecer horas pasadas
+    if(fecha === iso(ahora) && t <= ahora.getHours()*60 + ahora.getMinutes() + 60) return
+
+    // ¿hay algún profesional libre que trabaje ese día?
+    const disponible = profesionales.some(p => {
+      const dias = Array.isArray(p.work_days) ? p.work_days : JSON.parse(p.work_days||'[1,2,3,4,5,6]')
+      if(!dias.includes(dow)) return false
+      const ws = toMin((p.work_start||'09:00').slice(0,5)), we = toMin((p.work_end||'20:00').slice(0,5))
+      if(t < ws || t + dur > we) return false
+      const ocupado = citas.some(a => a.professional_id === p.id && a.appt_date === fecha
+        && toMin(a.start_time.slice(0,5)) < t + dur && toMin((a.end_time||a.start_time).slice(0,5)) > t)
+      return !ocupado
+    })
+    if(!disponible) return
+
+    // cupos simultáneos del servicio
+    if(m.cap && m.cap > 1){
+      const mismos = citas.filter(a => a.service_name === servicio.name && a.appt_date === fecha
+        && toMin(a.start_time.slice(0,5)) < t + dur && toMin((a.end_time||a.start_time).slice(0,5)) > t).length
+      if(mismos >= m.cap) return
+    }
+    libres.push(toHHMM(t))
+  })
+  return libres
+}
+
+/* ── pantallas ── */
+function pintarDias(){
+  const hoy = new Date(); hoy.setHours(0,0,0,0)
+  let html = '<h3>Elige el día</h3><div class="days">'
+  for(let i=0;i<14;i++){
+    const d = new Date(hoy); d.setDate(d.getDate()+i)
+    const f = iso(d)
+    const hay = horasLibres(f).length
+    html += `<div class="day ${fechaSel===f?'on':''} ${hay?'':'off'}" ${hay?`onclick="elegirDia('${f}')"`:''}>
+      <div class="dw">${DOW_S[d.getDay()]}</div><div class="dd">${d.getDate()}</div><div class="dm">${MES_S[d.getMonth()]}</div></div>`
+  }
+  return html + '</div>'
+}
+function pintarHoras(){
+  if(!fechaSel) return ''
+  const libres = horasLibres(fechaSel)
+  if(!libres.length) return '<h3>Horas disponibles</h3><p class="empty">No quedan horas ese día. Prueba con otro.</p>'
+  return '<h3>Elige la hora</h3><div class="slots">' + libres.map(h => {
+    const p = precioEn(fechaSel, h)
+    return `<button class="slot ${horaSel===h?'on':''}" onclick="elegirHora('${h}')">${h}
+      ${p.pct ? `<span class="off">−${p.pct}%</span>` : ''}</button>`
+  }).join('') + '</div>'
+}
+function pintarFormulario(){
+  if(!fechaSel || !horaSel) return ''
+  const p = precioEn(fechaSel, horaSel)
+  const d = new Date(fechaSel+'T00:00:00')
+  return `<h3>Tus datos</h3>
+    <label>Nombre y apellido *</label><input type="text" id="nombre" placeholder="Cómo te llamas" />
+    <label>Teléfono *</label><input type="tel" id="fono" placeholder="+56 9 1234 5678" />
+    <label>Correo</label><input type="email" id="mail" placeholder="tu@email.com (opcional)" />
+    <label>¿Algo que debamos saber?</label><textarea id="nota" rows="2" placeholder="Opcional"></textarea>
+    <div class="resumen">
+      <strong>${esc(servicio.name)}</strong><br>
+      ${DOW_S[d.getDay()]} ${d.getDate()} de ${MES_S[d.getMonth()]} · ${horaSel} hrs · ${durMin(servicio.duration)} min<br>
+      Total: <strong>${money(p.precio)}</strong>${p.pct ? ` <span class="sp-tag">−${p.pct}% por horario</span>` : ''}
+    </div>
+    <div class="err" id="err"></div>
+    <button class="btn" id="btnReservar" onclick="reservar()">Confirmar mi reserva</button>`
+}
+function render(){
+  const m = reglasServicio()
+  const p0 = money2int(servicio.price)
+  document.getElementById('body').innerHTML = `
+    <div class="svc-box">
+      <div class="svc-name">${esc(servicio.name)}</div>
+      <div class="svc-meta">
+        <span>⏱ ${durMin(servicio.duration)} min</span>
+        <span class="svc-price">${esc(servicio.price || money(p0))}</span>
+      </div>
+      ${m.hourMode === 'range' ? `<span class="sp-tag">Se realiza entre ${m.from} y ${m.to}</span>` : ''}
+    </div>
+    ${pintarDias()}
+    ${pintarHoras()}
+    ${pintarFormulario()}`
+}
+function elegirDia(f){ fechaSel = f; horaSel = null; render() }
+function elegirHora(h){ horaSel = h; render(); document.getElementById('nombre').focus() }
+
+async function reservar(){
+  const nombre = document.getElementById('nombre').value.trim()
+  const fono = document.getElementById('fono').value.trim()
+  const mail = document.getElementById('mail').value.trim()
+  const nota = document.getElementById('nota').value.trim()
+  const err = document.getElementById('err'), btn = document.getElementById('btnReservar')
+  err.style.display = 'none'
+  if(!nombre || !fono){ err.textContent = 'Necesitamos tu nombre y tu teléfono para confirmar la hora.'; err.style.display='block'; return }
+  btn.disabled = true; btn.textContent = 'Reservando…'
+  try{
+    // relee las citas por si alguien tomó la hora mientras completabas
+    citas = await supabase.fetch('appointments', { filters: `appt_date=eq.${fechaSel}` }) || []
+    if(!horasLibres(fechaSel).includes(horaSel)) throw new Error('Justo tomaron esa hora. Elige otra, por favor.')
+
+    const dur = durMin(servicio.duration)
+    const dow = new Date(fechaSel+'T00:00:00').getDay()
+    const prof = profesionales.find(p => {
+      const dias = Array.isArray(p.work_days) ? p.work_days : JSON.parse(p.work_days||'[1,2,3,4,5,6]')
+      if(!dias.includes(dow)) return false
+      const t = toMin(horaSel)
+      const ws = toMin((p.work_start||'09:00').slice(0,5)), we = toMin((p.work_end||'20:00').slice(0,5))
+      if(t < ws || t + dur > we) return false
+      return !citas.some(a => a.professional_id === p.id
+        && toMin(a.start_time.slice(0,5)) < t + dur && toMin((a.end_time||a.start_time).slice(0,5)) > t)
+    })
+    if(!prof) throw new Error('Esa hora ya no está disponible. Elige otra, por favor.')
+
+    // cliente: reutiliza si ya existe por teléfono
+    let clienteId = null
+    const digits = fono.replace(/\D/g,'').slice(-8)
+    try{
+      const ex = await supabase.fetch('clients', { filters: `phone=ilike.*${digits}` })
+      if(ex && ex.length) clienteId = ex[0].id
+    }catch(e){}
+    if(!clienteId){
+      const nuevo = await supabase.insert('clients', { name: nombre, phone: fono, email: mail })
+      clienteId = (Array.isArray(nuevo) ? nuevo[0] : nuevo).id
+    }
+
+    const p = precioEn(fechaSel, horaSel)
+    await supabase.insert('appointments', {
+      professional_id: prof.id, client_id: clienteId, client_name: nombre, client_phone: fono,
+      service_name: servicio.name, appt_date: fechaSel,
+      start_time: horaSel + ':00', end_time: toHHMM(toMin(horaSel)+dur) + ':00',
+      status: 'reserved', price: money(p.precio),
+      notes: 'Reservado desde el sitio web' + (nota ? ' — ' + nota : '')
+    })
+
+    const d = new Date(fechaSel+'T00:00:00')
+    document.getElementById('body').innerHTML = `
+      <div class="done">
+        <div class="em">✨</div>
+        <h2>¡Tu hora quedó reservada!</h2>
+        <div class="det">
+          <strong>${esc(servicio.name)}</strong><br>
+          📅 ${DOW_S[d.getDay()]} ${d.getDate()} de ${MES_S[d.getMonth()]}<br>
+          🕐 ${horaSel} hrs · ${dur} minutos<br>
+          👤 ${esc(prof.name)}<br>
+          💵 ${money(p.precio)}${p.pct ? ` (−${p.pct}% por horario)` : ''}
+        </div>
+        <p>Te esperamos en Santo Domingo 1083, oficina 502.<br>
+        Si necesitas cambiarla, escríbenos por WhatsApp.</p>
+      </div>`
+  }catch(e){
+    err.textContent = e.message || 'No pudimos completar la reserva. Intenta de nuevo.'
+    err.style.display = 'block'
+    btn.disabled = false; btn.textContent = 'Confirmar mi reserva'
+    render()
+  }
+}
+
+/* ── arranque ── */
+async function init(){
+  const body = document.getElementById('body')
+  if(!svcId){ body.innerHTML = '<p class="empty">Enlace incompleto: falta el servicio.</p>'; return }
+  try{
+    if(typeof initSupabaseData === 'function'){ try{ await initSupabaseData() }catch(e){} }
+    const r = getServiceById ? getServiceById(svcId) : null
+    servicio = r && r.service
+    if(!servicio){ body.innerHTML = '<p class="empty">No encontramos ese servicio.</p>'; return }
+
+    const [cfg, pros] = await Promise.all([
+      supabase.fetch('public_pricing').catch(()=>[]),
+      supabase.fetch('professionals', { filters: 'active=eq.true' }).catch(()=>[])
+    ])
+    config = (cfg && cfg[0]) || {}
+    profesionales = pros || []
+
+    const hoy = new Date(), fin = new Date(); fin.setDate(fin.getDate()+14)
+    citas = await supabase.fetch('appointments', { filters: `appt_date=gte.${iso(hoy)}&appt_date=lte.${iso(fin)}` }) || []
+
+    if(!profesionales.length){ body.innerHTML = '<p class="empty">Por ahora no hay horas publicadas. Escríbenos por WhatsApp y te ayudamos.</p>'; return }
+    render()
+  }catch(e){
+    console.error(e)
+    body.innerHTML = '<p class="empty">No pudimos cargar las horas. Escríbenos por WhatsApp y te ayudamos.</p>'
+  }
+}
+init()
+</script>
+</body>
+</html>
