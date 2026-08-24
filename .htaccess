@@ -94,10 +94,13 @@ Options -Indexes
 # Security: bloquear sesiones del bot (historial de conversaciones)
 RedirectMatch 403 ^/api/bot-sessions/
 
+# ── El enlace antiguo del panel lleva al nuevo ──
+RewriteRule ^panel-infinity-x7q9k2(\.html)?/?$ /agenda [R=301,L]
+
 # ── PANEL Y ADMINISTRACIÓN: nunca cachear ──
 # El panel cambia seguido y no debe quedar servido desde la caché del CDN.
 # (Las páginas públicas conservan su caché normal de 1 hora.)
-<FilesMatch "^(panel-infinity-x7q9k2|admin)\.html$">
+<FilesMatch "^(agenda|admin)\.html$">
   <IfModule mod_headers.c>
     Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
