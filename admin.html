@@ -985,7 +985,7 @@ body {
    ADMIN PANEL — Logic
    ═══════════════════════════════════════════ */
 
-const ADMIN_PASS = 'infinity2026'
+/* Sin contraseñas en el código: se entra con cuenta de administrador */
 let adminData = {}
 
 /* ── INIT ─────────────────────── */
@@ -1068,14 +1068,6 @@ async function doLogin() {
   const err = document.getElementById('loginError')
   err.style.display = 'none'
 
-  /* respaldo: clave maestra sin correo (mientras se crean las cuentas) */
-  if (!email && pass === ADMIN_PASS) {
-    localStorage.setItem('spa_admin_auth', 'true')
-    document.getElementById('loginScreen').style.display = 'none'
-    document.getElementById('adminPanel').style.display = 'flex'
-    initAdmin()
-    return
-  }
   if (!email || !pass) { err.textContent = 'Escribe tu correo y contraseña'; err.style.display = 'block'; return }
 
   try {

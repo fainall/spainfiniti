@@ -11,10 +11,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_
 @set_time_limit(120);
 
 $cfg = file_exists(__DIR__.'/bot-config.php') ? require __DIR__.'/bot-config.php' : [];
-$secret = $cfg['campaignKey'] ?? 'spa-camp-2026';
+require_once __DIR__ . '/require-auth.php';
+require_panel_user();   // solo administradores con sesión abierta
 
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
-if (($in['key'] ?? '') !== $secret) { http_response_code(403); echo json_encode(['error'=>'forbidden']); exit; }
+
 
 $subject = trim($in['subject'] ?? '');
 $message = trim($in['message'] ?? '');

@@ -644,6 +644,17 @@ label.chk input{width:auto;margin:0}
     <button onclick="doLogin()" id="loginBtn">Entrar</button>
     <div class="login-err" id="loginErr">Correo o contraseña incorrectos</div>
     <button class="login-link" onclick="forgotPassword()">Olvidé mi contraseña</button>
+
+    <div id="setupBox" style="display:none;border-top:1px solid var(--border);margin-top:18px;padding-top:16px;text-align:left">
+      <p style="font-size:.82rem;color:var(--mid);margin-bottom:12px">
+        <strong>Primer ingreso.</strong> Crea la cuenta de administrador. La contraseña la eliges tú y queda encriptada.
+      </p>
+      <input type="text" id="suName" placeholder="Tu nombre" />
+      <input type="email" id="suEmail" placeholder="Tu correo" autocomplete="username" />
+      <input type="password" id="suPass" placeholder="Contraseña (mínimo 8 caracteres)" autocomplete="new-password" />
+      <button onclick="createFirstAdmin()" id="suBtn">Crear cuenta de administrador</button>
+      <div class="login-err" id="suErr"></div>
+    </div>
   </div>
 </div>
 
@@ -2640,7 +2651,7 @@ label.chk input{width:auto;margin:0}
 <script src="/supabase-client.js?v=9"></script>
 <script src="/data.js?v=5"></script>
 <script>
-const ADMIN_PASS = 'infinity2026'
+/* Ya no hay contraseñas en el código: se entra con cuenta (Supabase Auth) */
 const COLORS = ['#C5A467','#C27B8A','#6B8E7F','#5B7DB1','#B06B9E','#D08B4F','#7A9E5B','#4FA3A3']
 const DOW = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
 const DOW_FULL = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
@@ -2698,13 +2709,53 @@ const isAdmin = () => !me || me.role === 'admin'
 const isPro   = () => !!me && me.role === 'pro'
 const myProfId = () => (me && me.professional_id) || null
 
+/* si todavía no existe ningún administrador, ofrecemos crearlo */
+async function checkFirstRun(){
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/admin_exists', {
+      method:'POST', headers:{ 'apikey':SUPABASE_ANON_KEY, 'Content-Type':'application/json' }, body:'{}'
+    })
+    const hay = await res.json()
+    if(hay === false){
+      document.getElementById('setupBox').style.display='block'
+      document.querySelector('.login-box .sub').textContent='Configura tu cuenta para empezar'
+    }
+  }catch(e){ /* si no se puede consultar, se muestra el login normal */ }
+}
+async function createFirstAdmin(){
+  const name=document.getElementById('suName').value.trim()
+  const email=document.getElementById('suEmail').value.trim()
+  const pass=document.getElementById('suPass').value
+  const err=document.getElementById('suErr'), btn=document.getElementById('suBtn')
+  err.style.display='none'
+  if(!name || !email){ err.textContent='Escribe tu nombre y tu correo'; err.style.display='block'; return }
+  if(pass.length<8){ err.textContent='La contraseña necesita al menos 8 caracteres'; err.style.display='block'; return }
+  btn.disabled=true; btn.textContent='Creando…'
+  try{
+    const res=await fetch(SUPABASE_URL+'/auth/v1/signup',{method:'POST',
+      headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pass})})
+    const j=await res.json()
+    if(!res.ok) throw new Error(j.msg||j.error_description||'No pudimos crear la cuenta')
+    // iniciar sesión para poder guardar el perfil
+    await supaAuth.signIn(email, pass)
+    const uid = supaAuth.session().user.id
+    await supabase.insert('panel_users',{ id:uid, email, name, role:'admin', active:true })
+    localStorage.setItem('spa_admin_auth','true')
+    await boot()
+  }catch(e){
+    err.textContent = /confirm/i.test(e.message)
+      ? 'Supabase pide confirmar el correo. Desactiva esa opción en Authentication → Sign In/Providers → Email y vuelve a intentar.'
+      : e.message
+    err.style.display='block'
+    btn.disabled=false; btn.textContent='Crear cuenta de administrador'
+  }
+}
 async function doLogin(){
   const email=(document.getElementById('loginEmail').value||'').trim()
   const pass=document.getElementById('loginPass').value
   const err=document.getElementById('loginErr'), btn=document.getElementById('loginBtn')
   err.style.display='none'
-  // compatibilidad: clave maestra mientras no existan cuentas
-  if(!email && pass===ADMIN_PASS){ localStorage.setItem('spa_admin_auth','true'); boot(); return }
   if(!email || !pass){ err.textContent='Escribe tu correo y contraseña'; err.style.display='block'; return }
   btn.disabled=true; btn.textContent='Entrando…'
   try{
@@ -3752,6 +3803,14 @@ async function doImport(){
   }catch(e){ console.error(e); toast('Error al importar','error') }
 }
 
+/* cabeceras con la sesión, para que el servidor sepa quién llama */
+function authHeaders(extra){
+  const s = (typeof supaAuth!=='undefined') ? supaAuth.session() : null
+  const h = Object.assign({}, extra||{})
+  if(s && s.access_token) h['Authorization'] = 'Bearer ' + s.access_token
+  return h
+}
+
 /* ── VIEW SWITCHING ── */
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
 const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
@@ -3816,7 +3875,7 @@ function addFaqRow(){ botCfg.faq=botCfg.faq||[]; botCfg.faq.push({q:'',a:''}); r
 
 
 /* ── EMAIL MARKETING (Campañas) ── */
-const CAMPAIGN_KEY='spa-camp-2026'
+/* los endpoints ahora validan la sesión del usuario, no una clave compartida */
 function filteredAudience(){
   // Aplica los mismos filtros de la barra lateral para decidir a quién enviar.
   const fG=document.getElementById('clfGender').value
@@ -3858,8 +3917,8 @@ async function sendCampaign(){
   if(!confirm(`¿Enviar la campaña a ${list.length} cliente${list.length===1?'':'s'}? Esto puede tardar unos segundos.`)) return
   const btn=event.target; btn.disabled=true; btn.textContent='Enviando...'
   try{
-    const res=await fetch('/api/send-campaign.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      key:CAMPAIGN_KEY, subject:subj, message:msg,
+    const res=await fetch('/api/send-campaign.php',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({
+      subject:subj, message:msg,
       imageUrl:document.getElementById('campImg').value.trim(),
       btnText:document.getElementById('campBtnText').value.trim(),
       btnUrl:document.getElementById('campBtnUrl').value.trim(),
@@ -5614,7 +5673,7 @@ async function runSalesInsight(){
   if(!cur.n){ box.innerHTML='<p class="rem-note" style="margin:0">Aún no hay ventas en este período para analizar.</p>'; return }
   box.innerHTML='<p class="rem-note" style="margin:0">Analizando tus ventas…</p>'
   try{
-    const res=await fetch('/api/sales-insight.php?t='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},
+    const res=await fetch('/api/sales-insight.php?t='+Date.now(),{method:'POST',cache:'no-store',headers:authHeaders({'Content-Type':'application/json'}),
       body:JSON.stringify({ periodo:`${isoDate(f)} a ${isoDate(t)}`, anterior:`${isoDate(pf)} a ${isoDate(pt)}`, actual:cur, previo:prev })})
     const j=await res.json()
     if(j.text){
@@ -6021,7 +6080,7 @@ async function loadGiftCards(){
   const cont=document.getElementById('gcTable')
   if(cont && !state.giftcards.length) cont.innerHTML='<div class="empty-state">Cargando gift cards…</div>'
   try{
-    const res=await fetch('/api/giftcards.php?key='+CAMPAIGN_KEY)
+    const res=await fetch('/api/giftcards.php',{headers:authHeaders()})
     const j=await res.json()
     state.giftcards = j.giftcards || []
   }catch(e){ console.warn('gift cards:',e); state.giftcards=[] }
@@ -7316,7 +7375,7 @@ async function sendReminderEmail(id){
   const email=c&&c.email
   if(!email){ toast('El cliente no tiene email','error'); return }
   try{
-    const res=await fetch('/api/send-reminder.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email, name:a.client_name, message:buildReminderMsg(a)})})
+    const res=await fetch('/api/send-reminder.php',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({email, name:a.client_name, message:buildReminderMsg(a)})})
     const j=await res.json().catch(()=>({}))
     if(res.ok && j.success){
       await supabase.update('appointments', id, { reminded_at: new Date().toISOString(), reminded_channel: 'email' })
@@ -7535,6 +7594,7 @@ async function boot(){
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
 }
 if(localStorage.getItem('spa_admin_auth')==='true') boot()
+else checkFirstRun()
 </script>
 </body>
 </html>

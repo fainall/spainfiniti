@@ -4,6 +4,8 @@
  * Recibe POST JSON { email, name, message } y envía el recordatorio al cliente.
  */
 header('Content-Type: application/json; charset=UTF-8');
+require_once __DIR__ . '/require-auth.php';
+require_panel_user(false);   // admin o profesional con sesión
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

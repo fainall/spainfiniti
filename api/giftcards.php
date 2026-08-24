@@ -7,8 +7,8 @@
 header('Content-Type: application/json; charset=UTF-8');
 
 $cfg = file_exists(__DIR__.'/bot-config.php') ? require __DIR__.'/bot-config.php' : [];
-$secret = $cfg['campaignKey'] ?? 'spa-camp-2026';
-if (($_GET['key'] ?? '') !== $secret) { http_response_code(403); echo json_encode(['error'=>'forbidden']); exit; }
+require_once __DIR__ . '/require-auth.php';
+require_panel_user();   // solo administradores con sesión abierta
 
 $dir = __DIR__ . '/orders';
 $out = [];
