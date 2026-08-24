@@ -648,6 +648,7 @@ label.chk input{width:auto;margin:0}
 
   /* cabeceras de vista: el botón de acción baja en vez de salirse */
   .view-head,.inv-head,.adm-head,.cli-actions-row{flex-wrap:wrap;gap:10px}
+  .adm-head span{flex-wrap:wrap;max-width:100%}
   .view-inner{padding:16px 12px}
   .inv-actions{width:100%}
   .inv-search{min-width:0;flex:1}
@@ -752,6 +753,14 @@ label.chk input{width:auto;margin:0}
 .nodisp.descanso span{color:#9a7b3f}
 @media(max-width:820px){ .pcol{min-width:170px} .pcol-nm{font-size:.7rem} .pcol-ava{width:28px!important;height:28px!important;max-width:28px;max-height:28px} }
 
+
+/* buscador de servicios en Administración */
+.svc-search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);
+  border-radius:10px;padding:0 14px;margin-bottom:14px}
+.svc-search span{color:var(--light);font-size:.9rem}
+.svc-search input{flex:1;border:none;outline:none;padding:12px 0;font-family:inherit;font-size:.88rem;background:transparent}
+.svc-clear{background:none;border:none;color:var(--light);cursor:pointer;font-size:.9rem;padding:4px}
+.svc-clear:hover{color:var(--red)}
 </style>
 </head>
 <body>
@@ -5502,20 +5511,55 @@ function admServicios(){
   }
   const byCat={}
   state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
-  const body=Object.keys(byCat).length ? Object.entries(byCat).map(([cat,list])=>
-    `<div class="adm-cat">${esc(cat)}</div>`+list.map(s=>`<div class="adm-row">
+  return tabs+`<div class="inv-notice">⭐ <strong>Configura tus servicios:</strong> precio, duración, descripción e imágenes. Puedes organizarlos en distintas categorías; los cambios se reflejan en el sitio web.</div>
+    <div class="adm-head"><span class="ar-meta" id="svcCount">${state.services.length} servicios en ${Object.keys(byCat).length} categorías</span>
+      <span style="display:flex;gap:8px"><button class="btn-g" onclick="openSvcCatModal()">+ Nueva categoría</button>
+      <button class="btn-g" onclick="openBulk('prices')">⬆ Carga masiva de precios</button>
+      <button class="btn-download" onclick="exportServicios()">⬇ Descargar</button>
+      <button class="btn-primary" onclick="openSvcModal()">+ Nuevo</button></span></div>
+    <div class="svc-search"><span>🔍</span>
+      <input type="text" id="svcBuscar" placeholder="Buscar servicio por nombre, categoría o precio…"
+        value="${esc(svcFiltro)}" oninput="filtrarServicios(this.value)" />
+      <button class="svc-clear" id="svcClear" onclick="filtrarServicios('',true)" title="Limpiar" style="display:${svcFiltro?'block':'none'}">✕</button>
+    </div>
+    <div id="svcListBox">${listaServicios()}</div>`
+}
+
+/* texto escrito en el buscador de servicios */
+let svcFiltro = ''
+/* dibuja la lista aplicando el filtro */
+function listaServicios(){
+  const q = svcFiltro.trim().toLowerCase()
+  const filtrados = q
+    ? state.services.filter(s => ((s.name||'')+' '+(s.cat||'')+' '+(s.price||'')+' '+s.duration).toLowerCase().includes(q))
+    : state.services
+  if(!state.services.length) return '<div class="empty-state">Aún no hay servicios.</div>'
+  if(!filtrados.length) return `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🔍</div>
+    Ningún servicio coincide con "${esc(svcFiltro)}"</div>`
+  const byCat={}
+  filtrados.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
+  return Object.entries(byCat).map(([cat,list])=>
+    `<div class="adm-cat">${esc(cat)} <span style="font-weight:400;color:var(--light)">(${list.length})</span></div>`+
+    list.map(s=>`<div class="adm-row">
       <span class="ar-name">${esc(s.name)}</span>
       <span class="ar-meta">${s.duration} min</span>
       <span class="ar-meta">${esc(s.price||'')}</span>
       <span class="adm-dot">● Activo</span>
       <button class="mini-btn" onclick="openSvcModal('${s.id}')">✎ Editar</button></div>`).join('')).join('')
-    : '<div class="empty-state">Aún no hay servicios.</div>'
-  return tabs+`<div class="inv-notice">⭐ <strong>Configura tus servicios:</strong> precio, duración, descripción e imágenes. Puedes organizarlos en distintas categorías; los cambios se reflejan en el sitio web.</div>
-    <div class="adm-head"><span class="ar-meta">${state.services.length} servicios en ${Object.keys(byCat).length} categorías</span>
-      <span style="display:flex;gap:8px"><button class="btn-g" onclick="openSvcCatModal()">+ Nueva categoría</button>
-      <button class="btn-g" onclick="openBulk('prices')">⬆ Carga masiva de precios</button>
-      <button class="btn-download" onclick="exportServicios()">⬇ Descargar</button>
-      <button class="btn-primary" onclick="openSvcModal()">+ Nuevo</button></span></div>${body}`
+}
+/* filtra sin repintar toda la pantalla, para no perder lo que se está escribiendo */
+function filtrarServicios(texto, limpiar){
+  svcFiltro = texto || ''
+  const box = document.getElementById('svcListBox')
+  if(box) box.innerHTML = listaServicios()
+  const cont = document.getElementById('svcCount')
+  if(cont){
+    const q = svcFiltro.trim().toLowerCase()
+    const n = q ? state.services.filter(s => ((s.name||'')+' '+(s.cat||'')+' '+(s.price||'')+' '+s.duration).toLowerCase().includes(q)).length : state.services.length
+    cont.textContent = q ? `${n} de ${state.services.length} servicios` : `${state.services.length} servicios`
+  }
+  const x=document.getElementById('svcClear'); if(x) x.style.display = svcFiltro ? 'block' : 'none'
+  if(limpiar){ const i=document.getElementById('svcBuscar'); if(i){ i.value=''; i.focus() } }
 }
 function svcTab(name,btn){
   ;['basicos','web','avanzadas'].forEach(n=>document.getElementById('svtab-'+n).classList.toggle('on',n===name))
