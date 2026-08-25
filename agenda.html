@@ -1028,6 +1028,11 @@ body.sin-scroll{overflow:hidden}
 .fz-aviso span{font-size:1.05rem;line-height:1.2}
 .fz-aviso p{margin:0;font-size:.85rem;color:#7a5c1e;line-height:1.5}
 .appt.forzada::after{content:'⚡';position:absolute;bottom:2px;right:3px;font-size:.6rem;opacity:.75}
+
+/* vista previa de la importación */
+.imp-linea{font-size:.8rem;color:var(--mid);margin-top:5px}
+.imp-ojo{color:#a4700f}
+.imp-mal{color:var(--red)}
 </style>
 </head>
 <body>
@@ -5698,11 +5703,44 @@ function openImportModal(){
   document.getElementById('importPreview').textContent=''
   openModal('importModal')
 }
+/* ══════════ LECTURA DEL ARCHIVO ══════════
+   Antes se leía siempre como UTF-8. Un CSV guardado desde Excel viene en
+   Windows-1252, y al leerlo como UTF-8 los acentos se destruían: "Acuña"
+   quedaba como "Acu?a" y la letra ya no se podía recuperar. Ahora se
+   averigua la codificación antes de leer. */
+function decodificarCSV(buf){
+  const b = new Uint8Array(buf)
+  /* marca de orden de bytes: el archivo dice qué es */
+  if(b[0]===0xEF && b[1]===0xBB && b[2]===0xBF)
+    return { texto:new TextDecoder('utf-8').decode(b.subarray(3)), origen:'UTF-8' }
+  if(b[0]===0xFF && b[1]===0xFE) return { texto:new TextDecoder('utf-16le').decode(b), origen:'UTF-16' }
+  if(b[0]===0xFE && b[1]===0xFF) return { texto:new TextDecoder('utf-16be').decode(b), origen:'UTF-16' }
+  /* sin marca: si es UTF-8 válido, lo es; si no, es de Excel */
+  try{
+    const t = new TextDecoder('utf-8', { fatal:true }).decode(b)
+    return { texto:repararDobleCodificacion(t), origen:'UTF-8' }
+  }catch(e){
+    return { texto:new TextDecoder('windows-1252').decode(b), origen:'Windows-1252 (Excel)' }
+  }
+}
+/* el caso "Ã±": un UTF-8 que ya se guardó mal una vez. Se puede deshacer. */
+function repararDobleCodificacion(t){
+  if(!/[ÃÂ][\u0080-\u00BF]/.test(t)) return t
+  try{
+    const bytes = Uint8Array.from([...t].map(c => c.charCodeAt(0) & 0xFF))
+    return new TextDecoder('utf-8', { fatal:true }).decode(bytes)
+  }catch(e){ return t }
+}
 function onImportFile(){
   const f=document.getElementById('importFile').files[0]; if(!f) return
   const rd=new FileReader()
-  rd.onload=()=>{ document.getElementById('importText').value=rd.result; previewImport() }
-  rd.readAsText(f,'UTF-8')
+  rd.onload=()=>{
+    const { texto, origen } = decodificarCSV(rd.result)
+    document.getElementById('importText').value = texto
+    window.__csvOrigen = origen
+    previewImport()
+  }
+  rd.readAsArrayBuffer(f)
 }
 function parseImport(text){
   const lines=String(text||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean)
@@ -5725,16 +5763,61 @@ function parseImport(text){
   return rows
 }
 function previewImport(){
-  const rows=parseImport(document.getElementById('importText').value)
-  document.getElementById('importPreview').textContent=rows.length?`Se detectaron ${rows.length} cliente(s). Ej: ${rows[0].name}${rows[0].phone?' · '+rows[0].phone:''}`:'No se detectaron clientes.'
+  const txt = document.getElementById('importText').value
+  const rows = parseImport(txt)
+  const el = document.getElementById('importPreview')
+  if(!rows.length){ el.innerHTML = 'No se detectaron clientes.'; return }
+
+  const rotos = rows.filter(r => /[\uFFFD]/.test(r.name + r.email)).length
+  const repetidos = contarRepetidos(rows)
+  const conAcento = rows.filter(r => /[áéíóúñÁÉÍÓÚÑ]/.test(r.name)).length
+
+  el.innerHTML = `<strong>${rows.length} cliente${rows.length===1?'':'s'}</strong> en el archivo.
+    <div class="imp-linea">Primero: ${esc(rows[0].name)}${rows[0].phone?' · '+esc(rows[0].phone):''}</div>
+    ${window.__csvOrigen?`<div class="imp-linea">Codificación detectada: <strong>${esc(window.__csvOrigen)}</strong>${conAcento?` — ${conAcento} con acentos, se leyeron bien`:''}</div>`:''}
+    ${repetidos?`<div class="imp-linea imp-ojo">${repetidos} ya están en tu base (mismo teléfono o correo): se omitirán.</div>`:''}
+    ${rotos?`<div class="imp-linea imp-mal">⚠ ${rotos} tienen caracteres dañados. Vuelve a exportar el archivo eligiendo UTF-8, o se guardarán así.</div>`:''}`
+}
+/* cuántos del archivo ya existen en la base */
+function contarRepetidos(rows){
+  let n = 0
+  rows.forEach(r => { if(clienteExistente(r)) n++ })
+  return n
+}
+function clienteExistente(r){
+  const tel = String(r.phone||'').replace(/\D/g,'').slice(-8)
+  const mail = String(r.email||'').trim().toLowerCase()
+  return state.clients.find(c =>
+    (mail && String(c.email||'').trim().toLowerCase() === mail) ||
+    (tel && String(c.phone||'').replace(/\D/g,'').slice(-8) === tel))
 }
 async function doImport(){
-  const rows=parseImport(document.getElementById('importText').value)
-  if(!rows.length){ toast('No se detectaron clientes','error'); return }
+  const todas = parseImport(document.getElementById('importText').value)
+  if(!todas.length){ toast('No se detectaron clientes','error'); return }
+
+  /* si vienen caracteres dañados, se avisa antes de guardarlos */
+  const rotos = todas.filter(r => /[\uFFFD]/.test(r.name + r.email))
+  if(rotos.length && !confirm(rotos.length + ' clientes traen caracteres dañados, por ejemplo:\n\n' +
+      rotos.slice(0,3).map(r=>'• '+r.name).join('\n') +
+      '\n\nEso pasa cuando el archivo se exportó en otra codificación. Lo mejor es volver a exportarlo eligiendo UTF-8.\n\n¿Importar de todas formas?')) return
+
+  /* no duplicar a quien ya está */
+  const nuevas = todas.filter(r => !clienteExistente(r))
+  const omitidas = todas.length - nuevas.length
+  if(!nuevas.length){ toast('Todos esos clientes ya estaban en tu base','error'); return }
+
+  const btn = document.querySelector('#importModal .btn-primary')
+  if(btn){ btn.disabled = true; btn.textContent = 'Importando…' }
   try{
-    await supabase.insert('clients', rows)
-    await loadClients(); closeModal('importModal'); toast(rows.length+' clientes importados','success'); renderClientList()
-  }catch(e){ console.error(e); toast('Error al importar','error') }
+    /* de a 100, para no mandar un bloque enorme de una sola vez */
+    for(let i=0; i<nuevas.length; i+=100){
+      await supabase.insert('clients', nuevas.slice(i, i+100))
+      if(btn) btn.textContent = 'Importando… ' + Math.min(i+100, nuevas.length) + '/' + nuevas.length
+    }
+    await loadClients(); closeModal('importModal'); renderClientList()
+    toast(nuevas.length + ' clientes importados' + (omitidas ? ' · ' + omitidas + ' ya estaban' : ''), 'success')
+  }catch(e){ console.error(e); toast('Error al importar: ' + e.message, 'error') }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = 'Importar' } }
 }
 
 /* cabeceras con la sesión, para que el servidor sepa quién llama */
