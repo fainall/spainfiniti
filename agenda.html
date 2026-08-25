@@ -3196,7 +3196,26 @@ const SLOT_OPTIONS=[5,10,15,20,30,40,45,60]
 let slotMin = parseInt(localStorage.getItem('spa_slot_min')) || 60
 /* Alto de cada bloque: proporcional a la hora, pero nunca menor a 28px
    para que los bloques cortos (5/10 min) sigan siendo clickeables. */
-function slotPx(){ return Math.max(28, HOUR_H * (slotMin/60)) }
+/* Alto de cada bloque de la agenda.
+   La jornada completa tiene que caber en la pantalla sin scroll, así que
+   el alto de la hora se reparte según el espacio disponible. Si el día es
+   muy largo o los bloques muy finos y no alcanza, se respeta un mínimo
+   legible y vuelve a aparecer el scroll. */
+const HORA_MIN = 34, HORA_MAX = 90
+function altoHora(){
+  const caja = document.getElementById('calWrap')
+  if(!caja) return HOUR_H
+  /* la cabecera con las fotos vive dentro de esta caja: no es grilla */
+  const cab = document.getElementById('calHead')
+  const alto = caja.clientHeight - (cab ? cab.offsetHeight : 0)
+  if(alto <= 0) return HOUR_H
+  const [minM, maxM] = hourBounds()
+  const horas = (maxM - minM) / 60
+  if(horas <= 0) return HOUR_H
+  /* -2px para que el borde inferior no provoque una barra de scroll */
+  return Math.min(HORA_MAX, Math.max(HORA_MIN, (alto - 2) / horas))
+}
+function slotPx(){ return Math.max(22, altoHora() * (slotMin/60)) }
 function renderSlotMenu(){
   const m=document.getElementById('slotMenu'); if(!m) return
   m.innerHTML=SLOT_OPTIONS.map(v=>`<button class="${v===slotMin?'on':''}" onclick="setSlotMin(${v})">${v} minutos</button>`).join('')
@@ -3588,9 +3607,30 @@ function hourBounds(){
   return [Math.floor(mn/60)*60, Math.ceil(mx/60)*60]
 }
 
+
+/* si cambia el tamaño de la ventana, la agenda se vuelve a repartir */
+let _tReajuste = null
+function _reajustarAgenda(){
+  clearTimeout(_tReajuste)
+  _tReajuste = setTimeout(()=>{ if(typeof renderCalendar==='function') renderCalendar() }, 150)
+}
+window.addEventListener('resize', _reajustarAgenda)
+
 /* ── RENDER ── */
+/* La cabecera cambia de alto entre Semana, Día y Recursos, y al calcular
+   el reparto todavía está la anterior. Se mide una vez ya pintada y, si
+   quedó sobrando, se repinta una sola vez con el dato bueno. */
+let _ajustando = false
+function ajustarAlturaAgenda(){
+  const w = document.getElementById('calWrap'); if(!w) return
+  if(_ajustando){ _ajustando = false; return }
+  const sobra = w.scrollHeight - w.clientHeight
+  if(sobra > 2 && sobra < 260){ _ajustando = true; renderCalendar(); _ajustando = false }
+}
+
 function render(){
   renderSidebar(); renderMiniCal(); renderRangeLabel(); renderCalendar()
+  requestAnimationFrame(ajustarAlturaAgenda)
   if(typeof bloquearSiSoloLectura==='function') setTimeout(bloquearSiSoloLectura, 30)
   if(document.getElementById('view-cobros') && document.getElementById('view-cobros').classList.contains('on')) renderCobros()
 }
@@ -4061,7 +4101,7 @@ function actualizarSegRec(){
   b.style.display = hay ? '' : 'none'
   if(!hay && state.view==='rec') setView('day')
 }
-function setView(v){ state.view=v; document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
+function setView(v){ state.view=v; setTimeout(()=>requestAnimationFrame(ajustarAlturaAgenda),80); document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
 function navDate(dir){ state.anchor=addDays(state.anchor, (state.view==='day'||state.view==='rec')?dir:dir*7); state.miniMonth=new Date(state.anchor); loadAndRender() }
 function goToday(){ state.anchor=new Date(); state.miniMonth=new Date(); loadAndRender() }
 async function loadAndRender(){ await loadAppointments(); render() }
