@@ -1041,6 +1041,15 @@ body.sin-scroll{overflow:hidden}
 .appt .pag.abo{color:#fff}
 .abono-sello{display:inline-flex;align-items:center;gap:5px;background:#fdf1e0;color:#8a6318;
   border-radius:20px;padding:5px 12px;font-size:.76rem;font-weight:600;margin-right:8px}
+
+/* precio ajustado a mano */
+.re-precio{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:9px;
+  padding:0 12px;background:#fff}
+.re-precio span{color:var(--light);font-size:.9rem}
+.re-precio input{flex:1;border:none;outline:none;padding:11px 0;font-family:inherit;font-size:.86rem;
+  font-weight:600;color:var(--dark);background:transparent}
+.re-ajustado{display:inline-block;background:#fdf1e0;color:#8a6318;border-radius:20px;padding:1px 9px;
+  font-size:.68rem;font-weight:600;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -4585,7 +4594,7 @@ function openApptQuickView(id){
       <button class="qv-icon" onclick="closeQuickView()">✕</button>
     </div>
     <div class="qv-name">${esc(a.client_name||'Sin cliente')}</div>
-    ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${a.price?` <span style="color:var(--gold-d);font-weight:600">${esc(a.price)}</span>`:''}</div>`:''}
+    ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${a.price?` <span style="color:var(--gold-d);font-weight:600">${esc(a.price)}</span>`:''}${precioAjustado(a)?' <span class="re-ajustado">precio ajustado</span>':''}</div>`:''}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--dark)">${esc(p.name)}</strong></div>`:''}
     ${phone?`<div class="qv-row">📱 ${esc(phone)} ${waP?`<a href="https://wa.me/${waP}" target="_blank" class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366">WhatsApp</a>`:''}</div>`:''}
@@ -5092,6 +5101,18 @@ async function vdCobrar(){
   }
 }
 
+/* el precio que tiene ese servicio en el catálogo */
+function precioDeCatalogo(a){
+  const sv = state.services.find(x => x.name === a.service_name)
+  return sv ? (sv.price || '') : ''
+}
+/* ¿el precio de esta reserva es distinto al del catálogo? */
+function precioAjustado(a){
+  const cat = money2num(precioDeCatalogo(a))
+  const act = money2num(a.price)
+  return cat > 0 && act !== cat
+}
+
 /* ══════════════ PESTAÑA RESERVA (editable) ══════════════
    Se edita aquí mismo, sin abrir otra ventana: fecha, hora, profesional,
    servicio y notas. Cada cambio se guarda al salir del campo. */
@@ -5176,6 +5197,15 @@ function reservaEditable(a){
     <label class="re-lbl">Servicios</label>
     <select class="re-input" onchange="reGuardar('${a.id}','servicio',this.value)">${svcOpts}</select>
 
+    <label class="re-lbl">Precio${precioAjustado(a) ? ' <span class="re-ajustado">ajustado</span>' : ''}</label>
+    <div class="re-precio">
+      <span>$</span>
+      <input type="text" inputmode="numeric" value="${esc(milesCL(money2num(a.price)))}"
+        onchange="reGuardar('${a.id}','precio',this.value)" />
+      ${precioAjustado(a) ? `<button class="mini-link" onclick="reGuardar('${a.id}','precio','${esc(precioDeCatalogo(a))}')" title="Volver al precio del servicio">Restaurar ${esc(precioDeCatalogo(a))}</button>` : ''}
+    </div>
+    <p class="rem-note" style="margin:5px 0 0">Cámbialo si acordaste otro valor con el cliente. Se usa para cobrar y para los reportes.</p>
+
     <label class="re-lbl">Estado</label>
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
       ${statusDotsRow(a.id,a.status)} <strong style="margin-left:4px">${STATUS_LABEL[a.status]||''}</strong>
@@ -5217,10 +5247,20 @@ async function reGuardar(id, campo, valor){
   } else if(campo === 'servicio'){
     const sv = state.services.find(x=>x.name===valor)
     cambio.service_name = valor
-    if(sv){ cambio.service_id = sv.id; cambio.price = sv.price || '' }
+    if(sv){
+      /* si el precio estaba ajustado a mano, se pregunta antes de pisarlo */
+      const ajustado = precioAjustado(a)
+      if(!ajustado || confirm('Esta reserva tiene un precio ajustado a mano (' + a.price + ').\n\n¿Quieres poner el precio de "' + valor + '" (' + (sv.price||'sin precio') + ')?')){
+        cambio.service_id = sv.id; cambio.price = sv.price || ''
+      } else { cambio.service_id = sv.id }
+    }
     /* si el profesional actual no hace el servicio nuevo, se avisa */
     if(!profHaceServicio(a.professional_id, valor))
       toast('Ojo: ' + (profName(a.professional_id)||'ese profesional') + ' no tiene asignado este servicio','error')
+  } else if(campo === 'precio'){
+    const v = money2num(valor)
+    if(v <= 0 && String(valor).trim() !== '0'){ toast('Escribe un precio válido','error'); renderApptTab(); return }
+    cambio.price = v > 0 ? ('$' + milesCL(v)) : '$0'
   } else if(campo === 'notas'){
     cambio.notes = valor
   }
