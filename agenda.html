@@ -519,7 +519,7 @@ label.chk input{width:auto;margin:0}
 .dcol.off{background:repeating-linear-gradient(45deg,#fafafa,#fafafa 8px,#f4f4f4 8px,#f4f4f4 16px)}
 .hr-line{position:absolute;left:0;right:0;border-top:1px solid #f0f0f0}
 .hr-line.half{border-top-style:dotted}
-.appt{position:absolute;left:2px;right:2px;border-radius:6px;padding:4px 7px;font-size:.7rem;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.07);border-left:4px solid rgba(0,0,0,.2)}
+.appt{position:absolute;left:2px;right:2px;border-radius:6px;padding:4px 7px;font-size:.7rem;color:#1f2328;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.07);border-left:4px solid rgba(0,0,0,.2)}
 .appt:hover{filter:brightness(.97);box-shadow:0 3px 10px rgba(0,0,0,.13);z-index:3}
 .appt{cursor:grab}
 .appt.dragging{opacity:.3}
@@ -549,9 +549,9 @@ label.chk input{width:auto;margin:0}
 .ad-sub{display:flex;gap:6px;margin-bottom:14px}
 .ad-sub button{padding:7px 12px;border:1px solid var(--border);background:#fff;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer}
 .ad-sub button.on{background:var(--gold-pale);border-color:var(--gold);color:var(--gold-d)}
-.appt .t{font-weight:700;font-size:.66rem;opacity:.85}
-.appt .n{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.appt .s{opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appt .t{font-weight:700;font-size:.66rem;color:#3d434b}
+.appt .n{font-weight:700;color:#1f2328;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.appt .s{color:#5b626b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .appt.cancelled{background:#f1f1f1!important;color:#9a9a9a!important;border-left-color:#cfcfcf!important;text-decoration:line-through}
 .appt.block{background:repeating-linear-gradient(45deg,#eceef1,#eceef1 6px,#e3e6ea 6px,#e3e6ea 12px)!important;color:#6b7280!important;border-left-color:#b9bec6!important}
 .appt.block .n{font-weight:600}
@@ -3689,7 +3689,7 @@ function renderCalendarRec(){
       const w=100/a._cols, left=a._col*w
       const prof=state.professionals.find(x=>x.id===a.professional_id)
       const color=STATUS_COLORS[a.status]||(prof&&prof.color)||r.color||'#7E8CE0'
-      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${bgSuave(color)};color:${txtOscuro(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -3775,7 +3775,7 @@ function renderCalendarDia(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||p.color||'#C5A467'
-      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};color:${txtOscuro(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -3845,7 +3845,7 @@ function renderCalendar(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||(p?p.color:'#C5A467')
-      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};color:${txtOscuro(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -4259,7 +4259,7 @@ function _mezcla(hex, otro, p){
   return _hex(a[0]+(otro[0]-a[0])*p, a[1]+(otro[1]-a[1])*p, a[2]+(otro[2]-a[2])*p)
 }
 /* fondo pastel del bloque */
-function bgSuave(c){ return _mezcla(c||'#C5A467', [255,255,255], 0.84) }
+function bgSuave(c){ return _mezcla(c||'#C5A467', [255,255,255], 0.90) }
 /* texto legible sobre ese fondo */
 function txtOscuro(c){ return _mezcla(c||'#C5A467', [0,0,0], 0.48) }
 
