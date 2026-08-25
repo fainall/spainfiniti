@@ -844,6 +844,22 @@ label.chk input{width:auto;margin:0}
 .rol-card strong{display:block;font-size:.86rem;margin-bottom:6px}
 .rol-card p{font-size:.78rem;color:var(--mid);line-height:1.45;margin:0 0 8px}
 .rol-card span{font-size:.72rem;color:var(--light)}
+
+/* plantillas de mensajes */
+.wa-burbuja{background:#dcf8c6;border-radius:14px 14px 14px 4px;padding:12px 14px;font-size:.86rem;
+  line-height:1.5;color:#1f2733;white-space:normal;max-width:100%}
+.mt-vars{display:flex;flex-wrap:wrap;gap:6px}
+.mt-vars .mini-btn{font-size:.74rem}
+
+/* catálogo de gift cards */
+.gc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.gc-card{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--white)}
+.gc-img{height:120px;background:var(--cream-2) center/cover no-repeat;display:grid;place-items:center;font-size:2rem}
+.gc-body{padding:12px 14px}
+.gc-body strong{display:block;font-size:.86rem;margin-bottom:2px}
+.gc-svc{display:block;font-size:.75rem;color:var(--mid);margin-bottom:6px;line-height:1.35}
+.gc-precio{display:block;font-size:.86rem;font-weight:600;margin-bottom:10px}
+.gc-pie{display:flex;justify-content:space-between;align-items:center;gap:8px}
 </style>
 </head>
 <body>
@@ -1688,6 +1704,9 @@ label.chk input{width:auto;margin:0}
             <button class="adm-nav" onclick="switchView('asistente')">💬 WhatsApp / Asistente</button>
             <button class="adm-nav" onclick="switchView('recordatorios')">🔔 Recordatorios</button>
             <button class="adm-nav" data-sec="precios" onclick="admSec('precios')">💲 Precios Inteligentes</button>
+            <button class="adm-nav" data-sec="mensajes" onclick="admSec('mensajes')">💬 Plantillas de mensajes</button>
+            <button class="adm-nav" data-sec="gccat" onclick="admSec('gccat')">🎁 Catálogo de gift cards</button>
+            <button class="adm-nav" data-sec="config" onclick="admSec('config')">⚙ Configuración</button>
           </div>
         </div>
       </aside>
@@ -1782,6 +1801,91 @@ label.chk input{width:auto;margin:0}
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeModal('fmModal')">Cerrar</button>
         <button class="btn-primary" onclick="guardarFirma()">Firmar y guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ver mensaje -->
+  <div class="modal-ov" id="mvModal">
+    <div class="modal" style="width:420px;max-width:94vw">
+      <h2 id="mvTitle">Mensaje</h2>
+      <div id="mvBody" style="margin-top:14px"></div>
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="closeModal('mvModal')">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: editar plantilla de mensaje -->
+  <div class="modal-ov" id="mtModal">
+    <div class="modal" style="width:620px;max-width:94vw">
+      <h2 id="mtTitle">Plantilla</h2>
+      <span class="cd-since" id="mtCuando"></span>
+      <input type="hidden" id="mtId" />
+      <div class="fbox" style="margin-top:14px">
+        <div class="row2">
+          <div><label>Se envía por</label><select id="mtCanal">
+            <option value="ambos">WhatsApp y correo</option>
+            <option value="whatsapp">Solo WhatsApp</option>
+            <option value="email">Solo correo</option></select></div>
+          <div><label>Estado</label><select id="mtActiva">
+            <option value="1">Activa</option><option value="0">Inactiva</option></select></div>
+        </div>
+        <label style="margin-top:14px">Texto del mensaje</label>
+        <textarea id="mtTexto" rows="9"></textarea>
+        <p class="rem-note" style="margin:8px 0 6px">Pincha una palabra para insertarla; se reemplaza sola por el dato real:</p>
+        <div class="mt-vars">
+          <button class="mini-btn" onclick="insertarVariable('cliente')">cliente</button>
+          <button class="mini-btn" onclick="insertarVariable('servicio')">servicio</button>
+          <button class="mini-btn" onclick="insertarVariable('fecha')">fecha</button>
+          <button class="mini-btn" onclick="insertarVariable('hora')">hora</button>
+          <button class="mini-btn" onclick="insertarVariable('profesional')">profesional</button>
+          <button class="mini-btn" onclick="insertarVariable('precio')">precio</button>
+          <button class="mini-btn" onclick="insertarVariable('local')">local</button>
+          <button class="mini-btn" onclick="insertarVariable('link')">link</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('mtModal')">Cerrar</button>
+        <button class="btn-g" onclick="verMensaje(document.getElementById('mtId').value)">👁 Previsualizar</button>
+        <button class="btn-primary" onclick="saveMsgTpl()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: gift card del catálogo -->
+  <div class="modal-ov" id="gcModal">
+    <div class="modal" style="width:600px;max-width:94vw">
+      <h2 id="gcTitle">Nueva gift card</h2>
+      <div class="fbox">
+        <label>Nombre de la tarjeta <span style="color:var(--red)">*</span></label>
+        <input type="text" id="gcName" placeholder="Masajes Spa, Podología Clínica…" />
+        <label style="margin-top:12px">Servicio que incluye <span style="color:var(--red)">*</span></label>
+        <select id="gcService" onchange="gcSvcElegido()"></select>
+        <div class="row2" style="margin-top:12px">
+          <div><label>Precio de venta</label><input type="text" id="gcPrice" placeholder="$27.900" /></div>
+          <div><label>Estado</label><select id="gcActive"><option value="1">Activa</option><option value="0">Inactiva</option></select></div>
+        </div>
+      </div>
+      <div class="fbox">
+        <h3 style="font-size:.95rem;font-weight:600;margin-bottom:4px">Imagen de la tarjeta</h3>
+        <p class="rem-note" style="margin:2px 0 10px">Es lo primero que ve quien va a regalar. La imagen se reduce sola.</p>
+        <div class="pro-photo">
+          <div class="pro-drop" onclick="document.getElementById('gcFile').click()">
+            <span id="gcImgPh">🎁<br><span style="font-size:.74rem">Arrastra o selecciona la imagen</span></span>
+            <img id="gcImg" style="display:none" alt="" />
+          </div>
+          <div>
+            <button class="btn-g" onclick="document.getElementById('gcFile').click()">⬆ Subir imagen</button>
+            <button class="mini-link" style="display:block;margin-top:8px" onclick="quitarGcFoto()">Quitar imagen</button>
+            <input type="file" id="gcFile" accept="image/*" style="display:none" onchange="onGcFoto(this)" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="gcDelBtn" onclick="deleteGcCard()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('gcModal')">Cerrar</button>
+        <button class="btn-primary" onclick="saveGcCard()">Guardar</button>
       </div>
     </div>
   </div>
@@ -4325,6 +4429,9 @@ async function saveAppt(){
   const dur=parseInt(document.getElementById('apptDur').value)||60
   if(!profId){ toast('Selecciona un profesional','error'); return }
   if(!client){ toast('Falta el nombre del cliente','error'); return }
+  if(cfgCuenta.exigirContacto && !document.getElementById('apptPhone').value.trim()
+     && !(state.clients.find(c=>c.id===document.getElementById('apptClientId').value)||{}).email){
+    toast('Este cliente necesita al menos un teléfono o un correo. Puedes desactivarlo en Administración → Configuración','error'); return }
   if(!date||!start){ toast('Falta fecha u hora','error'); return }
   const svcName0=(document.getElementById('apptServiceName').value||'').trim()
   const _motivo=checkServiceRules({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
@@ -4334,7 +4441,10 @@ async function saveAppt(){
   const _asignado=checkProfServicio(profId, svcName0)
   if(_asignado){ toast(_asignado,'error'); return }
   const _recurso=checkRecursos({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
-  if(_recurso){ toast(_recurso,'error'); return }
+  if(_recurso && !cfgCuenta.sobrecargaRecursos){ toast(_recurso,'error'); return }
+  const _reglas=checkReglasCuenta({ profId, clientId:document.getElementById('apptClientId').value||null,
+    date, start, dur, apptId:document.getElementById('apptId').value })
+  if(_reglas){ toast(_reglas,'error'); return }
   // reglas propias de las clases
   const _ci=classInfo(svcName0, date, start)
   if(_ci){
@@ -5209,6 +5319,9 @@ function renderAdmin(){
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else if(admCurrent==='precios') el.innerHTML=admPrecios()
   else if(admCurrent==='recursos') el.innerHTML=admRecursos()
+  else if(admCurrent==='config') el.innerHTML=admConfig()
+  else if(admCurrent==='mensajes') el.innerHTML=admMensajes()
+  else if(admCurrent==='gccat') el.innerHTML=admGcCatalogo()
   else if(admCurrent==='fichas'){ el.innerHTML=admFichas(); cargarPlantillas().then(()=>{ if(admCurrent==='fichas') el.innerHTML=admFichas() }) }
   else if(admCurrent==='consent'){ el.innerHTML=admConsent(); cargarConsentimientos().then(()=>{ if(admCurrent==='consent') el.innerHTML=admConsent() }) }
   else el.innerHTML=admServicios()
@@ -6123,7 +6236,9 @@ function openFirma(consentId){
     ? `<a class="btn-g" href="${esc(firmaDoc.file_url)}" target="_blank" rel="noopener">📄 Leer el documento</a>` : ''
   document.getElementById('fmNombre').value = cdCliente.name || ''
   openModal('fmModal')
-  setTimeout(prepararFirma, 60)
+  /* el ancho real solo se conoce cuando el modal ya está en pantalla */
+  requestAnimationFrame(()=>requestAnimationFrame(prepararFirma))
+  window.addEventListener('resize', prepararFirma, { once:true })
 }
 
 function prepararFirma(){
@@ -6302,8 +6417,7 @@ async function cobrarPorWhatsapp(apptId){
   toast('Generando el link de pago…','success')
   const url = await crearLinkCobro(apptId); if(!url) return
   await guardarCobro(a, url, 'whatsapp')
-  const [y,m,d] = a.appt_date.split('-')
-  const txt = `Hola ${(a.client_name||'').split(' ')[0]}, te dejamos el link para pagar tu ${a.service_name} del ${d}/${m} a las ${a.start_time.slice(0,5)} hrs (${a.price}):\n${url}\n\n— Spa Infinity`
+  const txt = armarMensaje('cobro', datosDeReserva(a, { link:url }))
   const fono = String(a.client_phone||'').replace(/\D/g,'')
   window.open('https://wa.me/' + (fono||'') + '?text=' + encodeURIComponent(txt), '_blank')
   render()
@@ -6344,6 +6458,332 @@ async function registrarPagoReserva(apptId){
     await loadSales(); await cargarCobros(); render()
     toast('Pago registrado','success')
   }catch(e){ console.error(e); toast('No se pudo registrar: ' + e.message,'error') }
+}
+
+/* ══════════════ CONFIGURACIÓN DE LA CUENTA ══════════════
+   Cómo se comporta la agenda y la caja. Se guarda en bot_config,
+   junto al resto de ajustes del local. */
+let cfgCuenta = {
+  reservasSobrepuestas: false,   // dos reservas del mismo profesional a la misma hora
+  clientesSimultaneos: false,    // el mismo cliente en dos reservas a la vez
+  sobrecargaRecursos: false,     // reservar internamente aunque el recurso esté ocupado
+  exigirContacto: true,          // pedir teléfono o correo al agendar
+  fichaRequerida: false,         // no marcar "Asiste" sin ficha completada
+  limiteCitas: 0,                // máximo de reservas por cliente al mes (0 = sin límite)
+  fueraDeHorario: false,         // permitir reservas internas fuera del horario
+  requiereCliente: true,         // exigir cliente al registrar un pago
+  permiteEditarPrecio: true,     // dejar cambiar el precio al cobrar
+  medios: ['Efectivo','Débito','Crédito','Transferencia','Gift card']
+}
+function loadCfgCuenta(){
+  try{ const c=JSON.parse(localStorage.getItem('spa_cfg_cuenta')||'null'); if(c) cfgCuenta=Object.assign(cfgCuenta,c) }catch(e){}
+  if(botCfg && botCfg.cfg_cuenta) cfgCuenta = Object.assign(cfgCuenta, botCfg.cfg_cuenta)
+}
+async function persistCfgCuenta(){
+  localStorage.setItem('spa_cfg_cuenta', JSON.stringify(cfgCuenta))
+  try{ await supabase.update('bot_config','1',{ cfg_cuenta: cfgCuenta }); botCfg.cfg_cuenta = cfgCuenta; return true }
+  catch(e){ return false }
+}
+
+function sw(campo, titulo, texto){
+  return `<div class="sw-row">
+    <label class="sw"><input type="checkbox" ${cfgCuenta[campo]?'checked':''}
+      onchange="cfgCuenta['${campo}']=this.checked;guardarCfgCuenta()" /><i></i></label>
+    <div class="sw-txt"><strong>${titulo}</strong><span>${texto}</span></div>
+  </div>`
+}
+async function guardarCfgCuenta(){
+  const ok = await persistCfgCuenta()
+  toast(ok ? 'Configuración guardada' : 'Guardado solo en este navegador','success')
+}
+
+function admConfig(){
+  return `<div class="inv-notice">⭐ <strong>Configuración de la cuenta:</strong> reglas que valen para toda la agenda y la caja. Los cambios se guardan solos.</div>
+
+    <h3 class="cd-h3">Comportamiento de las reservas</h3>
+    <div class="fbox">
+      <div class="row2" style="margin-bottom:6px">
+        <div><label>Bloque de la agenda</label>
+          <select onchange="setSlotMin(parseInt(this.value))">
+            ${[10,15,20,30,60].map(v=>`<option value="${v}" ${v===slotMin?'selected':''}>${v} minutos</option>`).join('')}
+          </select>
+          <p class="rem-note" style="margin:4px 0 0">Determina el alto de cada bloque en la agenda.</p></div>
+        <div><label>Máximo de reservas por cliente al mes</label>
+          <input type="number" min="0" value="${cfgCuenta.limiteCitas||0}"
+            onchange="cfgCuenta.limiteCitas=parseInt(this.value)||0;guardarCfgCuenta()" />
+          <p class="rem-note" style="margin:4px 0 0">0 = sin límite.</p></div>
+      </div>
+      ${sw('reservasSobrepuestas','Reservas sobrepuestas','Permite que un profesional tenga dos reservas a la misma hora. Solo desde el panel; en el sitio web nunca se ofrece.')}
+      ${sw('clientesSimultaneos','Reservas simultáneas del mismo cliente','Permite que una persona tenga dos reservas a la vez, por ejemplo manos y pies con dos profesionales.')}
+      ${sw('sobrecargaRecursos','Sobrecarga de recursos','Permite agendar aunque el box o la camilla estén ocupados. Solo desde el panel: el sitio web sigue respetando la disponibilidad.')}
+      ${sw('fueraDeHorario','Reservas internas fuera de horario','Permite agendar antes de abrir o después de cerrar. Tus clientes no pueden hacerlo desde la web.')}
+      ${sw('exigirContacto','Exigir datos de contacto','Al crear una reserva, el cliente debe tener al menos teléfono o correo.')}
+      ${sw('fichaRequerida','Ficha obligatoria para marcar “Asiste”','Solo si tu rubro lo necesita: obliga a completar una ficha antes de dar la cita por realizada.')}
+    </div>
+
+    <h3 class="cd-h3">Caja y pagos</h3>
+    <div class="fbox">
+      ${sw('requiereCliente','Exigir cliente al registrar un pago','Cada pago queda asociado a una persona, para poder ver su historial.')}
+      ${sw('permiteEditarPrecio','Permitir editar el precio al cobrar','Deja ajustar el monto en el momento del cobro, por ejemplo para aplicar un descuento puntual.')}
+      <label style="margin-top:14px">Medios de pago aceptados</label>
+      <p class="rem-note" style="margin:2px 0 8px">Separados por coma. Son los que aparecen al registrar un pago.</p>
+      <input type="text" value="${esc((cfgCuenta.medios||[]).join(', '))}"
+        onchange="cfgCuenta.medios=this.value.split(',').map(x=>x.trim()).filter(Boolean);guardarCfgCuenta()" />
+    </div>`
+}
+
+/* ── las reglas se aplican al guardar una reserva ── */
+/* devuelve el motivo del bloqueo, o null si todo bien */
+function checkReglasCuenta({ profId, clientId, date, start, dur, apptId }){
+  const ini = toMin(start), fin = ini + (dur||60)
+  const solapan = state.appointments.filter(a =>
+    a.id !== apptId && a.appt_date === date && a.status !== 'cancelled' && a.status !== 'block' &&
+    toMin(a.start_time.slice(0,5)) < fin && toMin((a.end_time||a.start_time).slice(0,5)) > ini)
+
+  if(!cfgCuenta.reservasSobrepuestas){
+    const choca = solapan.find(a => a.professional_id === profId)
+    if(choca) return `Ese profesional ya tiene a ${choca.client_name||'otro cliente'} a las ${choca.start_time.slice(0,5)}. Actívalo en Administración → Configuración si quieres permitir reservas sobrepuestas.`
+  }
+  if(!cfgCuenta.clientesSimultaneos && clientId){
+    const choca = solapan.find(a => a.client_id === clientId)
+    if(choca) return `Ese cliente ya tiene otra reserva a las ${choca.start_time.slice(0,5)} (${choca.service_name||''}).`
+  }
+  if(cfgCuenta.limiteCitas > 0 && clientId){
+    const mes = date.slice(0,7)
+    const n = state.appointments.filter(a => a.id!==apptId && a.client_id===clientId &&
+      a.appt_date.startsWith(mes) && a.status!=='cancelled' && a.status!=='block').length
+    if(n >= cfgCuenta.limiteCitas)
+      return `Ese cliente ya tiene ${n} reservas este mes y el límite configurado es ${cfgCuenta.limiteCitas}.`
+  }
+  if(!cfgCuenta.fueraDeHorario){
+    const dow = new Date(date+'T00:00:00').getDay()
+    const hLocal = (localInfo.hours||{})[dow]
+    if(hLocal && hLocal[2] === false) return 'El local está cerrado ese día. Actívalo en Configuración si necesitas agendar igual.'
+    if(hLocal && hLocal[0] && hLocal[1]){
+      if(ini < toMin(hLocal[0]) || fin > toMin(hLocal[1]))
+        return `El local atiende de ${hLocal[0]} a ${hLocal[1]} ese día.`
+    }
+  }
+  return null
+}
+
+/* ══════════════ PLANTILLAS DE MENSAJES ══════════════
+   Los textos que se le mandan al cliente por WhatsApp o correo.
+   Se escriben una vez y se reutilizan; las palabras entre llaves
+   se reemplazan por los datos reales de cada reserva. */
+const MSG_BASE = [
+  { id:'confirmacion', nombre:'Confirmación de reserva', cuando:'Al crear la reserva', canal:'ambos', activa:true,
+    texto:'Hola {cliente} 👋\nTu hora quedó reservada:\n\n📅 {fecha} a las {hora} hrs\n💆 {servicio}\n👤 Con {profesional}\n💵 {precio}\n\nTe esperamos en {local}.\nSi necesitas cambiarla, respóndenos por aquí.' },
+  { id:'recordatorio', nombre:'Recordatorio de la cita', cuando:'24 horas antes', canal:'ambos', activa:true,
+    texto:'Hola {cliente}, te recordamos tu hora de mañana:\n\n📅 {fecha} a las {hora} hrs\n💆 {servicio}\n\nTe esperamos en {local}. Si no puedes venir, avísanos con tiempo. ¡Gracias!' },
+  { id:'agradecimiento', nombre:'Agradecimiento después del servicio', cuando:'2 horas después de la cita', canal:'whatsapp', activa:false,
+    texto:'¡Gracias por venir, {cliente}! 💛\nEsperamos que hayas disfrutado tu {servicio}.\n\nSi quieres, cuéntanos cómo te fue: tu opinión nos ayuda muchísimo.\n\n— {local}' },
+  { id:'cumpleanos', nombre:'Saludo de cumpleaños', cuando:'El día del cumpleaños', canal:'whatsapp', activa:false,
+    texto:'¡Feliz cumpleaños, {cliente}! 🎂\nQueremos celebrarlo contigo: este mes tienes un descuento especial en cualquier tratamiento.\n\nEscríbenos y agendamos tu hora.\n— {local}' },
+  { id:'cobro', nombre:'Link de pago', cuando:'Al enviar un cobro', canal:'whatsapp', activa:true,
+    texto:'Hola {cliente}, te dejamos el link para pagar tu {servicio} del {fecha} a las {hora} hrs ({precio}):\n\n{link}\n\n— {local}' },
+  { id:'bienvenida', nombre:'Mensaje de bienvenida', cuando:'Primera reserva del cliente', canal:'whatsapp', activa:false,
+    texto:'¡Bienvenido/a a {local}, {cliente}! 🌿\nGracias por confiar en nosotros. Cualquier duda antes de tu visita, escríbenos por aquí.' }
+]
+let msgTemplates = []
+
+function loadMsgTemplates(){
+  try{ const m=JSON.parse(localStorage.getItem('spa_msg_tpl')||'null'); if(Array.isArray(m)) msgTemplates=m }catch(e){}
+  if(botCfg && Array.isArray(botCfg.msg_templates) && botCfg.msg_templates.length) msgTemplates = botCfg.msg_templates
+  /* las que falten se rellenan con las de fábrica */
+  MSG_BASE.forEach(b=>{ if(!msgTemplates.some(t=>t.id===b.id)) msgTemplates.push(Object.assign({},b)) })
+}
+async function persistMsgTemplates(){
+  localStorage.setItem('spa_msg_tpl', JSON.stringify(msgTemplates))
+  try{ await supabase.update('bot_config','1',{ msg_templates: msgTemplates }); botCfg.msg_templates = msgTemplates; return true }
+  catch(e){ return false }
+}
+function msgTpl(id){ return msgTemplates.find(t=>t.id===id) || MSG_BASE.find(t=>t.id===id) }
+
+/* cambia {cliente}, {fecha}… por los datos reales */
+function armarMensaje(id, datos){
+  const t = msgTpl(id); if(!t) return ''
+  let txt = t.texto
+  Object.entries(datos||{}).forEach(([k,v])=>{ txt = txt.split('{'+k+'}').join(v==null?'':String(v)) })
+  return txt.replace(/\{[a-z]+\}/g,'')   // las que queden sin dato se borran
+}
+/* los datos de una reserva, listos para la plantilla */
+function datosDeReserva(a, extra){
+  const [y,m,d] = (a.appt_date||'').split('-')
+  const dt = new Date(a.appt_date+'T00:00:00')
+  return Object.assign({
+    cliente: (a.client_name||'').split(' ')[0] || 'hola',
+    servicio: a.service_name || 'tu servicio',
+    fecha: DOW_FULL ? `${DOW_FULL[dt.getDay()]} ${d}/${m}` : `${d}/${m}/${y}`,
+    hora: (a.start_time||'').slice(0,5),
+    profesional: profName(a.professional_id) || '',
+    precio: a.price || '',
+    local: localInfo.name || 'Spa Infinity'
+  }, extra||{})
+}
+
+const CANALES = { whatsapp:'Solo WhatsApp', email:'Solo correo', ambos:'WhatsApp y correo' }
+
+function admMensajes(){
+  const filas = msgTemplates.map(t=>`<div class="adm-row">
+      <span class="ar-name">${esc(t.nombre)}</span>
+      <span class="ar-meta">${esc(t.cuando||'')}</span>
+      <span class="ar-meta">${CANALES[t.canal]||t.canal}</span>
+      <span class="adm-dot${t.activa===false?' off':''}">● ${t.activa===false?'Inactiva':'Activa'}</span>
+      <button class="mini-btn" onclick="verMensaje('${t.id}')">👁 Ver</button>
+      <button class="mini-btn" onclick="openMsgTpl('${t.id}')">✎ Editar</button></div>`).join('')
+  return `<div class="inv-notice">⭐ <strong>Plantillas de mensajes:</strong> escribe una vez cada texto y el sistema lo completa con los datos de cada reserva. Las palabras entre llaves se reemplazan solas.</div>
+    <div class="adm-head"><span class="ar-meta">${msgTemplates.filter(t=>t.activa!==false).length} de ${msgTemplates.length} activas</span><span></span></div>${filas}`
+}
+
+/* previsualización con una reserva de ejemplo */
+function ejemploReserva(){
+  const a = state.appointments.find(x=>x.status!=='block') || {
+    client_name:'María Pérez', service_name:'Masaje Descontracturante',
+    appt_date:isoDate(new Date()), start_time:'16:00', price:'$27.900' }
+  return datosDeReserva(a, { link:'https://spainfinity.cl/pago/ejemplo' })
+}
+function verMensaje(id){
+  const t = msgTpl(id)
+  document.getElementById('mvTitle').textContent = t.nombre
+  document.getElementById('mvBody').innerHTML =
+    `<div class="wa-burbuja">${esc(armarMensaje(id, ejemploReserva())).replace(/\n/g,'<br>')}</div>
+     <p class="rem-note" style="margin-top:10px">Así se ve con los datos de una reserva real.</p>`
+  openModal('mvModal')
+}
+
+function openMsgTpl(id){
+  const t = msgTpl(id)
+  document.getElementById('mtId').value = t.id
+  document.getElementById('mtTitle').textContent = t.nombre
+  document.getElementById('mtCuando').textContent = t.cuando || ''
+  document.getElementById('mtCanal').value = t.canal || 'ambos'
+  document.getElementById('mtActiva').value = t.activa===false ? '0' : '1'
+  document.getElementById('mtTexto').value = t.texto || ''
+  openModal('mtModal')
+}
+async function saveMsgTpl(){
+  const id = document.getElementById('mtId').value
+  const t = msgTemplates.find(x=>x.id===id); if(!t) return
+  t.canal = document.getElementById('mtCanal').value
+  t.activa = document.getElementById('mtActiva').value==='1'
+  t.texto = document.getElementById('mtTexto').value
+  const ok = await persistMsgTemplates()
+  closeModal('mtModal'); renderAdmin()
+  toast(ok ? 'Plantilla guardada' : 'Guardada solo en este navegador','success')
+}
+function insertarVariable(v){
+  const ta = document.getElementById('mtTexto')
+  const i = ta.selectionStart || ta.value.length
+  ta.value = ta.value.slice(0,i) + '{' + v + '}' + ta.value.slice(ta.selectionEnd || i)
+  ta.focus(); ta.selectionStart = ta.selectionEnd = i + v.length + 2
+}
+
+/* ══════════════ CATÁLOGO DE GIFT CARDS ══════════════
+   Tarjetas de regalo armadas de antemano, con su imagen y su precio.
+   Se muestran destacadas en la página de gift cards del sitio. */
+let gcCatalogo = [], gcEdit = null
+
+function loadGcCatalogo(){
+  try{ const g=JSON.parse(localStorage.getItem('spa_gc_catalogo')||'null'); if(Array.isArray(g)) gcCatalogo=g }catch(e){}
+  if(botCfg && Array.isArray(botCfg.gc_catalog)) gcCatalogo = botCfg.gc_catalog
+}
+async function persistGcCatalogo(){
+  localStorage.setItem('spa_gc_catalogo', JSON.stringify(gcCatalogo))
+  try{ await supabase.update('bot_config','1',{ gc_catalog: gcCatalogo }); botCfg.gc_catalog = gcCatalogo; return true }
+  catch(e){ return false }
+}
+
+function admGcCatalogo(){
+  const tarjetas = gcCatalogo.length ? gcCatalogo.map(g=>`<div class="gc-card">
+      <div class="gc-img" style="${g.img?`background-image:url('${esc(g.img)}')`:''}">${g.img?'':'🎁'}</div>
+      <div class="gc-body">
+        <strong>${esc(g.name)}</strong>
+        <span class="gc-svc">${esc(g.service||'')}</span>
+        <span class="gc-precio">${esc(g.price||'')}</span>
+        <div class="gc-pie">
+          <span class="adm-dot${g.active===false?' off':''}">● ${g.active===false?'Inactiva':'Activa'}</span>
+          <button class="mini-btn" onclick="openGcCard('${g.id}')">✎ Editar</button>
+        </div>
+      </div>
+    </div>`).join('') : `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🎁</div>
+      Aún no hay gift cards en el catálogo.
+      <div style="font-size:.8rem;color:var(--light);margin-top:6px">Arma tarjetas listas para regalar; tus clientes las compran de un clic en el sitio web.</div></div>`
+  return `<div class="inv-notice">⭐ <strong>Catálogo de gift cards:</strong> tarjetas ya armadas con imagen y precio. Aparecen destacadas en la página de gift cards del sitio.</div>
+    <div class="adm-head"><span class="ar-meta">${gcCatalogo.filter(g=>g.active!==false).length} activas de ${gcCatalogo.length}</span>
+      <span style="display:flex;gap:8px">
+        <button class="btn-g" onclick="copiarTexto(location.origin+'/giftcard.html')">🔗 Copiar link del catálogo</button>
+        <button class="btn-primary" onclick="openGcCard()">+ Nueva gift card</button></span></div>
+    <div class="gc-grid">${tarjetas}</div>`
+}
+
+function openGcCard(id){
+  const g = id ? gcCatalogo.find(x=>x.id===id) : null
+  gcEdit = g ? Object.assign({}, g) : { id:'g'+Math.random().toString(36).slice(2,9), name:'', service:'', price:'', img:'', active:true }
+  document.getElementById('gcTitle').textContent = g ? 'Editando ' + g.name : 'Nueva gift card'
+  document.getElementById('gcName').value = gcEdit.name || ''
+  document.getElementById('gcPrice').value = gcEdit.price || ''
+  document.getElementById('gcActive').value = gcEdit.active===false ? '0' : '1'
+  const sel = document.getElementById('gcService')
+  sel.innerHTML = '<option value="">— Elige el servicio —</option>' +
+    state.services.map(sv=>`<option value="${esc(sv.name)}" ${sv.name===gcEdit.service?'selected':''}>${esc(sv.name)} · ${esc(sv.price||'')}</option>`).join('')
+  const img = document.getElementById('gcImg')
+  if(gcEdit.img){ img.src = gcEdit.img; img.style.display='block'; document.getElementById('gcImgPh').style.display='none' }
+  else { img.removeAttribute('src'); img.style.display='none'; document.getElementById('gcImgPh').style.display='block' }
+  document.getElementById('gcDelBtn').style.display = g ? 'block' : 'none'
+  openModal('gcModal')
+}
+/* al elegir servicio se propone su precio */
+function gcSvcElegido(){
+  const nombre = document.getElementById('gcService').value
+  const sv = state.services.find(x=>x.name===nombre)
+  if(sv && !document.getElementById('gcPrice').value) document.getElementById('gcPrice').value = sv.price || ''
+  if(sv && !document.getElementById('gcName').value) document.getElementById('gcName').value = sv.name
+}
+function onGcFoto(input){
+  const f = input.files && input.files[0]; if(!f) return
+  const r = new FileReader()
+  r.onload = e => {
+    const im = new Image()
+    im.onload = () => {
+      /* se reduce para que no pese de más */
+      const c = document.createElement('canvas')
+      const max = 600, esc2 = Math.min(1, max/Math.max(im.width, im.height))
+      c.width = im.width*esc2; c.height = im.height*esc2
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height)
+      gcEdit.img = c.toDataURL('image/jpeg', 0.82)
+      const img = document.getElementById('gcImg')
+      img.src = gcEdit.img; img.style.display='block'
+      document.getElementById('gcImgPh').style.display='none'
+    }
+    im.src = e.target.result
+  }
+  r.readAsDataURL(f); input.value=''
+}
+function quitarGcFoto(){
+  gcEdit.img=''
+  const img=document.getElementById('gcImg'); img.removeAttribute('src'); img.style.display='none'
+  document.getElementById('gcImgPh').style.display='block'
+}
+async function saveGcCard(){
+  const name = document.getElementById('gcName').value.trim()
+  const service = document.getElementById('gcService').value
+  if(!name){ toast('Ponle un nombre a la gift card','error'); return }
+  if(!service){ toast('Elige el servicio que incluye','error'); return }
+  const row = Object.assign({}, gcEdit, { name, service,
+    price: document.getElementById('gcPrice').value.trim(),
+    active: document.getElementById('gcActive').value==='1' })
+  const i = gcCatalogo.findIndex(x=>x.id===row.id)
+  if(i>=0) gcCatalogo[i]=row; else gcCatalogo.push(row)
+  const ok = await persistGcCatalogo()
+  closeModal('gcModal'); renderAdmin()
+  toast(ok ? 'Gift card guardada' : 'Guardada solo en este navegador','success')
+}
+async function deleteGcCard(){
+  if(!gcEdit.id) return
+  if(!confirm('¿Quitar “' + gcEdit.name + '” del catálogo? Las gift cards ya vendidas siguen válidas.')) return
+  gcCatalogo = gcCatalogo.filter(x=>x.id!==gcEdit.id)
+  await persistGcCatalogo(); closeModal('gcModal'); renderAdmin(); toast('Gift card quitada','success')
 }
 
 /* ══════════ REORDENAR ARRASTRANDO ══════════
@@ -9481,6 +9921,10 @@ async function boot(){
   loadPlanTpls()
   loadSmartPricing()
   loadResources()
+  loadCfgCuenta()
+  loadMsgTemplates()
+  loadGcCatalogo()
+  cargarCobros()
   actualizarSegRec()
   applyRole()
   ajustarVistaMovil()

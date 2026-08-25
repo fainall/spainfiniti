@@ -986,6 +986,19 @@
   .gc-form-panel { padding: 24px 20px; }
   .gc-actions { flex-direction: column; align-items: stretch; text-align: center; }
 }
+
+/* tarjetas de regalo ya armadas */
+.gc-dest-tit{font-size:1rem;font-weight:600;margin:0 0 12px;text-align:center}
+.gc-dest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:14px}
+.gc-dest{border:1px solid var(--border,#e8e2d6);border-radius:14px;overflow:hidden;cursor:pointer;
+  background:#fff;transition:transform .15s,box-shadow .15s}
+.gc-dest:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.10)}
+.gc-dest-img{height:96px;background:#f4f1ea center/cover no-repeat;display:grid;place-items:center;font-size:1.8rem}
+.gc-dest-body{padding:10px 12px}
+.gc-dest-body strong{display:block;font-size:.82rem;margin-bottom:2px}
+.gc-dest-body span{display:block;font-size:.72rem;color:#8a8578;line-height:1.3;margin-bottom:6px}
+.gc-dest-body b{font-size:.86rem}
+.gc-dest-pie{text-align:center;font-size:.8rem;color:#8a8578;margin:0 0 18px}
 </style>
 </head>
 <body class="pt-nav">
@@ -1027,6 +1040,7 @@
         <h2>¿Qué servicio quieres regalar?</h2>
         <p>Elige una categoría y selecciona el servicio perfecto para regalar</p>
       </div>
+      <div id="gcDestacadas"></div>
       <div class="gc-cat-select-wrap">
         <select class="gc-cat-select" id="gcCatSelect"></select>
       </div>
@@ -1266,6 +1280,46 @@ function gcPriceNum(svc) {
 }
 
 /* ── Category select ──────────────── */
+
+/* ── Tarjetas ya armadas (catálogo del panel) ──
+   Quien entra a regalar suele no saber qué elegir: estas tarjetas
+   le dan opciones listas, con su imagen y su precio. */
+async function cargarDestacadas(){
+  try{
+    const rows = await supabase.fetch('public_pricing')
+    const cat = (rows && rows[0] && rows[0].gc_catalog) || []
+    pintarDestacadas(Array.isArray(cat) ? cat.filter(g=>g.active!==false) : [])
+  }catch(e){ /* si falla, la página sigue funcionando igual */ }
+}
+function pintarDestacadas(lista){
+  const box = document.getElementById('gcDestacadas')
+  if(!box || !lista.length) return
+  box.innerHTML = '<h3 class="gc-dest-tit">Listas para regalar</h3>' +
+    '<div class="gc-dest-grid">' + lista.map(g => `
+      <div class="gc-dest" onclick="elegirDestacada('${String(g.service).replace(/'/g,"\\'")}')">
+        <div class="gc-dest-img" style="${g.img?`background-image:url('${g.img}')`:''}">${g.img?'':'🎁'}</div>
+        <div class="gc-dest-body">
+          <strong>${g.name}</strong>
+          <span>${g.service||''}</span>
+          <b>${g.price||''}</b>
+        </div>
+      </div>`).join('') + '</div>' +
+    '<p class="gc-dest-pie">O arma la tuya eligiendo el servicio que quieras 👇</p>'
+}
+/* al pinchar una tarjeta, se selecciona ese servicio en la lista de abajo */
+function elegirDestacada(nombreServicio){
+  for(const cat of CATEGORIES){
+    const svc = cat.services.find(x => x.name === nombreServicio)
+    if(svc){
+      gcCatSelect.value = cat.id
+      renderServices(cat.id)
+      if(!selectedServices.some(x=>x.id===svc.id)) toggleService(svc.id)
+      document.getElementById('gcSvcList').scrollIntoView({behavior:'smooth', block:'center'})
+      return
+    }
+  }
+}
+
 const gcCatSelect = document.getElementById('gcCatSelect')
 
 gcCatSelect.addEventListener('change', () => renderServices(gcCatSelect.value))
@@ -1504,6 +1558,7 @@ function showSuccess() {
   // Wait for fresh Supabase data (falls back to static if fails)
   await initSupabaseData().catch(() => {})
 
+  cargarDestacadas()
   // Populate category dropdown with fresh data
   gcCatSelect.innerHTML = CATEGORIES.map(cat =>
     `<option value="${cat.id}">${cat.name} (${cat.services.length})</option>`
