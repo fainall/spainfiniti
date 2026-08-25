@@ -800,6 +800,50 @@ label.chk input{width:auto;margin:0}
 .cd-barra{height:7px;background:var(--cream-2);border-radius:20px;overflow:hidden}
 .cd-barra i{display:block;height:100%;background:var(--gold);border-radius:20px}
 @media(max-width:820px){ .cd-nums{grid-template-columns:repeat(auto-fit,minmax(80px,1fr))} }
+
+/* constructor de fichas médicas */
+.ft-sec{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;background:var(--white)}
+.ft-sec-head{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.ft-sec-head input{flex:1;font-weight:600}
+.ft-campo{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:7px 0;border-top:1px solid var(--cream-2)}
+.ft-campo input[type=text]{flex:1;min-width:150px}
+.ft-campo select{min-width:150px}
+.ft-campo .chk{white-space:nowrap;font-size:.76rem}
+/* formulario de la ficha del paciente */
+.ff-sec{margin-bottom:20px}
+.ff-sec h4{font-size:.9rem;font-weight:600;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.ff-campo{margin-bottom:12px}
+.ff-campo label{display:block;font-size:.8rem;font-weight:600;color:var(--mid);margin-bottom:5px}
+.ff-campo input,.ff-campo select,.ff-campo textarea{width:100%}
+.ff-varias{display:flex;flex-wrap:wrap;gap:12px}
+.ff-valor{background:var(--cream);border-radius:8px;padding:8px 12px;font-size:.84rem}
+.cd-nuevas{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+@media(max-width:820px){ .ft-campo{flex-direction:column;align-items:stretch} .ft-campo select,.ft-campo input[type=text]{min-width:0;width:100%} }
+
+/* consentimientos y firma */
+.fm-texto{background:var(--cream);border-radius:10px;padding:14px 16px;font-size:.84rem;line-height:1.6;
+  max-height:260px;overflow-y:auto;color:var(--mid)}
+.fm-canvas-box{border:1px dashed var(--border);border-radius:10px;background:#fff;padding:2px;touch-action:none}
+.fm-canvas-box canvas{display:block;width:100%;height:150px;cursor:crosshair}
+.cd-firma{display:flex;justify-content:space-between;align-items:center;gap:14px;border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.cd-firma strong{display:block;font-size:.86rem}
+.cd-firma-img{height:52px;max-width:180px;object-fit:contain}
+
+/* cobros */
+.appt.pagada{box-shadow:inset 4px 0 0 #2ecc8f}
+.appt .pag{display:inline-block;font-style:normal;font-weight:700;color:#eafff5;margin-right:3px}
+.cb-acciones{display:flex;gap:6px;flex-wrap:wrap}
+.cb-tag{display:inline-block;border-radius:20px;padding:2px 10px;font-size:.72rem;background:var(--cream-2);color:var(--mid)}
+.cb-tag.pagado{background:#e4f8ef;color:#1d8a5f}
+.cb-tag.pend{background:#fff3e0;color:#a4700f}
+
+/* perfiles de usuario */
+.rol-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.rol-card{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--white)}
+.rol-card strong{display:block;font-size:.86rem;margin-bottom:6px}
+.rol-card p{font-size:.78rem;color:var(--mid);line-height:1.45;margin:0 0 8px}
+.rol-card span{font-size:.72rem;color:var(--light)}
 </style>
 </head>
 <body>
@@ -838,6 +882,7 @@ label.chk input{width:auto;margin:0}
         <button data-view="ventas" onclick="switchView('ventas')">Ventas ▾</button>
         <div class="topnav-dd-menu">
           <button onclick="switchView('ventas')">Detalle de ventas</button>
+          <button onclick="switchView('cobros')">Cobros pendientes</button>
           <button onclick="switchView('transacciones')">Transacciones</button>
           <button onclick="switchView('planes')">Planes / Bonos</button>
           <button onclick="switchView('giftcards')">Gift Cards</button>
@@ -1226,6 +1271,16 @@ label.chk input{width:auto;margin:0}
   </div>
 
   <!-- VISTA: TRANSACCIONES -->
+  <div class="view" id="view-cobros">
+    <div class="view-inner" style="max-width:1600px">
+      <div class="view-head">
+        <h2>Cobros</h2>
+      </div>
+      <p class="inv-sub" style="margin-bottom:16px">Cobra las reservas pendientes y envía links de pago a tus clientes en segundos.</p>
+      <div id="cobrosBody"></div>
+    </div>
+  </div>
+
   <div class="view" id="view-transacciones">
     <div class="view-inner" style="max-width:1600px">
       <div class="view-head">
@@ -1627,6 +1682,8 @@ label.chk input{width:auto;margin:0}
             <button class="adm-nav" data-sec="comisiones" onclick="admSec('comisiones')">💰 Comisiones</button>
             <button class="adm-nav" data-sec="planes" onclick="admSec('planes')">🎟 Planes</button>
             <button class="adm-nav" data-sec="recursos" onclick="admSec('recursos')">🧰 Recursos</button>
+            <button class="adm-nav" data-sec="fichas" onclick="admSec('fichas')">🩺 Fichas médicas</button>
+            <button class="adm-nav" data-sec="consent" onclick="admSec('consent')">✍ Consentimientos</button>
             <button class="adm-nav" onclick="switchView('encuestas')">📊 Encuestas</button>
             <button class="adm-nav" onclick="switchView('asistente')">💬 WhatsApp / Asistente</button>
             <button class="adm-nav" onclick="switchView('recordatorios')">🔔 Recordatorios</button>
@@ -1638,6 +1695,96 @@ label.chk input{width:auto;margin:0}
     </div>
   </div>
 
+
+  <!-- MODAL: plantilla de ficha médica -->
+  <div class="modal-ov" id="ftModal">
+    <div class="modal" style="width:820px;max-width:94vw">
+      <h2 id="ftTitle">Nueva ficha médica</h2>
+      <div class="fbox">
+        <label>Nombre de la ficha <span style="color:var(--red)">*</span></label>
+        <input type="text" id="ftName" placeholder="Ficha técnica podología, Consentimiento facial…" />
+        <div class="row2" style="margin-top:12px">
+          <div><label>Descripción</label><input type="text" id="ftDesc" placeholder="Para qué sirve (opcional)" /></div>
+          <div><label>Estado</label><select id="ftActive"><option value="1">Activa</option><option value="0">Inactiva</option></select></div>
+        </div>
+      </div>
+      <div class="fbox">
+        <h3 style="font-size:.95rem;font-weight:600;margin-bottom:4px">Preguntas de la ficha</h3>
+        <p class="rem-note" style="margin:0 0 12px">Agrupa las preguntas en secciones. Cada pregunta puede ser texto, número, fecha, sí/no o una lista de opciones.</p>
+        <div id="ftSections"></div>
+        <button class="btn-g" style="margin-top:10px" onclick="agregarSeccion()">+ Agregar sección</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="ftDelBtn" onclick="deletePlantilla()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('ftModal')">Cerrar</button>
+        <button class="btn-primary" onclick="savePlantilla()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ficha del paciente (rellenar) -->
+  <div class="modal-ov" id="ffModal">
+    <div class="modal" style="width:720px;max-width:94vw">
+      <h2 id="ffTitle" style="margin-bottom:2px">Ficha</h2>
+      <span class="cd-since" id="ffSub"></span>
+      <div id="ffBody" style="margin-top:16px"></div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="ffDelBtn" onclick="deleteFichaCliente()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('ffModal')">Cerrar</button>
+        <button class="btn-primary" onclick="saveFichaCliente()">Guardar ficha</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: consentimiento (Administración) -->
+  <div class="modal-ov" id="coModal">
+    <div class="modal" style="width:680px;max-width:94vw">
+      <h2 id="coTitle">Nuevo consentimiento</h2>
+      <div class="fbox">
+        <label>Nombre <span style="color:var(--red)">*</span></label>
+        <input type="text" id="coName" placeholder="Consentimiento informado podología" />
+        <div class="row2" style="margin-top:12px">
+          <div><label>Estado</label><select id="coActive"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
+          <div><label>Documento PDF (opcional)</label>
+            <button class="btn-g" onclick="document.getElementById('coFile').click()">⬆ Subir PDF</button>
+            <input type="file" id="coFile" accept="application/pdf" style="display:none" onchange="subirPdfConsent(this)" />
+            <div id="coFileLink" style="margin-top:6px;font-size:.8rem"></div>
+          </div>
+        </div>
+      </div>
+      <div class="fbox">
+        <label>Texto del consentimiento</label>
+        <p class="rem-note" style="margin:2px 0 8px">Lo que el cliente leerá antes de firmar. Si subiste un PDF, puedes dejarlo vacío.</p>
+        <textarea id="coBody" rows="9" placeholder="Declaro haber sido informado/a del tratamiento…"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="coDelBtn" onclick="deleteConsent()" style="display:none">Eliminar</button>
+        <button class="btn-ghost" onclick="closeModal('coModal')">Cerrar</button>
+        <button class="btn-primary" onclick="saveConsent()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: firmar consentimiento -->
+  <div class="modal-ov" id="fmModal">
+    <div class="modal" style="width:620px;max-width:94vw">
+      <h2 id="fmTitle">Consentimiento</h2>
+      <div id="fmPdf" style="margin:8px 0"></div>
+      <div id="fmTexto"></div>
+      <div class="fbox" style="margin-top:14px">
+        <label>Nombre de quien firma <span style="color:var(--red)">*</span></label>
+        <input type="text" id="fmNombre" />
+        <label style="margin-top:12px">Firma</label>
+        <p class="rem-note" style="margin:2px 0 8px">Firma con el dedo si estás en el teléfono, o con el mouse.</p>
+        <div class="fm-canvas-box"><canvas id="fmCanvas"></canvas></div>
+        <button class="mini-link" onclick="limpiarFirma()">Borrar y volver a firmar</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('fmModal')">Cerrar</button>
+        <button class="btn-primary" onclick="guardarFirma()">Firmar y guardar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL: recurso (Administración) -->
   <div class="modal-ov" id="resModal">
@@ -1896,9 +2043,10 @@ label.chk input{width:auto;margin:0}
           <p class="rem-note" style="margin-top:6px">Entrégasela a la persona; podrá cambiarla al entrar.</p>
         </div>
         <div class="row2" style="margin-top:12px">
-          <div><label>Rol</label><select id="usRole"><option value="pro">Profesional</option><option value="admin">Administrador</option></select></div>
+          <div><label>Rol</label><select id="usRole" onchange="pintarDescRol()"></select></div>
           <div><label>Estado</label><select id="usActive"><option value="1">Activo</option><option value="0">Desactivado</option></select></div>
         </div>
+        <p class="rem-note" id="usRoleDesc" style="margin:8px 0 0"></p>
         <label style="margin-top:12px">Ficha de profesional que verá</label>
         <select id="usProf"></select>
         <p class="rem-note" style="margin-top:6px">Es la agenda cuyas horas e ingresos podrá ver y gestionar.</p>
@@ -2966,8 +3114,49 @@ const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto',
    Rol 'admin' ve todo; rol 'pro' ve solo lo suyo.
    ══════════════════════════════════════════════ */
 let me = null   // { id, email, name, role, professional_id }
+/* ══════════════ ROLES ══════════════
+   Seis perfiles, como en AgendaPro. Cada uno abre unas pantallas y no otras,
+   y algunos pueden mirar pero no modificar. */
+const ROLES = {
+  admin:        { nombre:'Administrador general', desc:'Configura toda la cuenta. Acceso a todo, sin restricciones.',
+                  vistas:'all', edita:true },
+  admin_local:  { nombre:'Administrador de local', desc:'Encargado del local: ve y edita todo salvo la configuración de la cuenta.',
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','recordatorios','encuestas','misingresos'],
+                  edita:true },
+  recepcion:    { nombre:'Recepcionista', desc:'Agenda, clientes y cobros del día a día. No entra a reportes ni a administración.',
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios'],
+                  edita:true },
+  recepcion_ro: { nombre:'Recepcionista (sin edición)', desc:'Ve la agenda y los clientes, pero no puede crear ni modificar nada.',
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios'],
+                  edita:false },
+  pro:          { nombre:'Profesional', desc:'Ve y gestiona su propia agenda, sus fichas y sus ingresos.',
+                  vistas:['agenda','misingresos'], edita:true, soloSuyo:true },
+  pro_ro:       { nombre:'Profesional (sin edición)', desc:'Solo mira su agenda. No puede crear ni cambiar reservas.',
+                  vistas:['agenda','misingresos'], edita:false, soloSuyo:true }
+}
+function rolDe(){ return ROLES[(me && me.role) || 'admin'] || ROLES.admin }
+function puedeEditar(){ return !me || rolDe().edita !== false }
+function vePantalla(v){
+  const r = rolDe()
+  return r.vistas === 'all' || r.vistas.includes(v)
+}
+/* el profesional solo ve su propia agenda */
+function soloLoSuyo(){ return !!(me && rolDe().soloSuyo) }
+
+/* deja el botón deshabilitado si el rol no puede editar */
+function bloquearSiSoloLectura(){
+  if(puedeEditar()) return
+  document.querySelectorAll('.btn-primary, .btn-danger, .mini-btn, .btn-g').forEach(b=>{
+    const t = (b.textContent||'').trim()
+    if(/^(\+|✎|⬆|✍|\$ Registrar|💬|🔗)/.test(t) || /Guardar|Eliminar|Borrar|Nuevo|Nueva/i.test(t)){
+      b.disabled = true; b.title = 'Tu perfil solo permite consultar'
+      b.style.opacity = '.5'; b.style.cursor = 'not-allowed'
+    }
+  })
+}
+
 const isAdmin = () => !me || me.role === 'admin'
-const isPro   = () => !!me && me.role === 'pro'
+const isPro   = () => !!me && (me.role === 'pro' || me.role === 'pro_ro')
 const myProfId = () => (me && me.professional_id) || null
 
 /* si todavía no existe ningún administrador, ofrecemos crearlo */
@@ -3050,6 +3239,11 @@ async function loadMe(){
 function applyRole(){
   const nav=document.querySelector('.topnav-tabs')
   const old=document.getElementById('userChip'); if(old) old.remove()
+  /* cada botón del menú se muestra solo si el rol abre esa pantalla */
+  nav.querySelectorAll('.topnav-dd-menu button').forEach(b=>{
+    const m = (b.getAttribute('onclick')||'').match(/switchView\('([a-z]+)'\)/)
+    if(m) b.style.display = vePantalla(m[1]) ? '' : 'none'
+  })
   if(isAdmin()){
     ;[...nav.children].forEach(el=>{ if(!el.classList.contains('pro-only')) el.style.display='' })
     nav.querySelectorAll('.pro-only').forEach(el=>el.remove())
@@ -3240,6 +3434,8 @@ function hourBounds(){
 /* ── RENDER ── */
 function render(){
   renderSidebar(); renderMiniCal(); renderRangeLabel(); renderCalendar()
+  if(typeof bloquearSiSoloLectura==='function') setTimeout(bloquearSiSoloLectura, 30)
+  if(document.getElementById('view-cobros') && document.getElementById('view-cobros').classList.contains('on')) renderCobros()
 }
 function renderMiniCal(){
   const el=document.getElementById('miniCal'); if(!el) return
@@ -3369,9 +3565,9 @@ function renderCalendarRec(){
       const w=100/a._cols, left=a._col*w
       const prof=state.professionals.find(x=>x.id===a.professional_id)
       const color=STATUS_COLORS[a.status]||(prof&&prof.color)||r.color||'#7E8CE0'
-      return `<div class="appt" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
-        <div class="t">${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
+        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div></div>`
     }).join('')
@@ -3455,9 +3651,9 @@ function renderCalendarDia(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||p.color||'#C5A467'
-      return `<div class="appt" data-id="${a.id}" style="${pos};background:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="${pos};background:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
-        <div class="t">${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
+        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div></div>`
     }).join('')
@@ -3525,9 +3721,9 @@ function renderCalendar(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||(p?p.color:'#C5A467')
-      return `<div class="appt" data-id="${a.id}" style="${pos};background:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="${pos};background:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
-        <div class="t">${a.start_time.slice(0,5)}</div>
+        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div></div>`
     }).join('')
@@ -4257,11 +4453,18 @@ async function deleteClient(id, name){
    qué reservó, si asistió, cuánto pagó y qué bonos tiene. */
 let cdCliente = null, cdTab = 'actividad'
 
-function openClientDetail(id){
+async function openClientDetail(id){
   cdCliente = state.clients.find(x=>x.id===id); if(!cdCliente) return
   cdTab = 'actividad'
+  fichasCliente = []
   renderClientDetail()
   openModal('clientDetailModal')
+  /* las fichas y consentimientos se traen aparte, para que el modal abra al tiro */
+  if(!plantillas.length) await cargarPlantillas()
+  if(!consentimientos.length) await cargarConsentimientos()
+  await cargarFichasDe(id)
+  await cargarFirmasDe(id)
+  if(document.getElementById('clientDetailModal').classList.contains('open')) renderClientDetail()
 }
 function cdSetTab(t){ cdTab=t; renderClientDetail() }
 
@@ -4272,6 +4475,7 @@ function cdDatos(){
     .sort((a,b)=>(b.appt_date+b.start_time).localeCompare(a.appt_date+a.start_time))
   const bonos = state.plans.filter(x=>x.client_id===id && x.status!=='cancelled')
   const sales = state.sales.filter(x=>x.client_id===id && x.status!=='deleted')
+    .sort((a,b)=>String(b.sale_date||b.created_at||'').localeCompare(String(a.sale_date||a.created_at||'')))
   return { appts, bonos, sales }
 }
 
@@ -4292,7 +4496,9 @@ function renderClientDetail(){
 
   const { appts, bonos, sales } = cdDatos()
   const tabs = [['actividad','Actividad'],['asistencia','Asistencia'],
-                ['pagos','Pagos y deudas'],['bonos','Bonos ('+bonos.length+')']]
+                ['pagos','Pagos y deudas'],['fichas','Fichas ('+fichasCliente.length+')'],
+                ['consent','Consentimientos ('+firmasCliente.length+')'],
+                ['bonos','Bonos ('+bonos.length+')']]
   document.getElementById('cdTabs').innerHTML = tabs.map(([k,t])=>
     `<button class="${cdTab===k?'on':''}" onclick="cdSetTab('${k}')">${t}</button>`).join('')
 
@@ -4300,6 +4506,8 @@ function renderClientDetail(){
   if(cdTab==='actividad') body.innerHTML = cdActividad(appts)
   else if(cdTab==='asistencia') body.innerHTML = cdAsistencia(appts)
   else if(cdTab==='pagos') body.innerHTML = cdPagos(sales, appts)
+  else if(cdTab==='fichas') body.innerHTML = cdFichas()
+  else if(cdTab==='consent') body.innerHTML = cdConsent()
   else body.innerHTML = cdBonos(bonos)
 
   document.getElementById('cdEditBtn').onclick=()=>{ closeModal('clientDetailModal'); openClientModal(true,c.id) }
@@ -4373,8 +4581,8 @@ function cdPagos(sales, appts){
     <h3 class="cd-h3">Ventas</h3>
     ${sales.length?`<div class="cd-scroll"><table class="ctbl cd-tbl">
       <thead><tr><th>Fecha</th><th>Detalle</th><th>Total</th></tr></thead>
-      <tbody>${sales.slice(0,20).map(v=>`<tr><td>${esc((v.sold_at||'').slice(0,10))}</td>
-        <td>${esc(v.detail||v.notes||'—')}</td><td>${fmtMoney(v.total||0)}</td></tr>`).join('')}
+      <tbody>${sales.slice(0,20).map(v=>`<tr><td>${esc((v.sale_date||v.created_at||'').slice(0,10))}</td>
+        <td>${esc(resumenVenta(v))}</td><td>${fmtMoney(v.total||0)}</td></tr>`).join('')}
       </tbody></table></div>`:'<div class="empty-state">Sin ventas registradas.</div>'}`
 }
 
@@ -4390,6 +4598,16 @@ function cdBonos(bonos){
       ${b.expires_at?`<span class="rem-note">Vence el ${esc(b.expires_at)}</span>`:''}
     </div>`
   }).join('')
+}
+/* qué se vendió, en una línea */
+function resumenVenta(v){
+  let it = v.items
+  if(typeof it === 'string'){ try{ it = JSON.parse(it) }catch(e){ it = null } }
+  if(Array.isArray(it) && it.length){
+    const nombres = it.map(x => x.name || x.service_name || x.product_name || '').filter(Boolean)
+    if(nombres.length) return nombres.length>2 ? nombres.slice(0,2).join(', ')+' y '+(nombres.length-2)+' más' : nombres.join(', ')
+  }
+  return v.notes || '—'
 }
 /* convierte "$25.600" en 25600 */
 function money2num(v){ const n=String(v||'').replace(/[^0-9]/g,''); return n?parseInt(n):0 }
@@ -4449,13 +4667,13 @@ function authHeaders(extra){
 }
 
 /* ── VIEW SWITCHING ── */
-const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones']
+const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones','cobros']
 const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
 const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
 const REPORTES_GROUP=['reportes','represervas','repventas']
 const PRO_VIEWS=['agenda','misingresos']
 function switchView(v){
-  if(typeof isPro==='function' && isPro() && !PRO_VIEWS.includes(v)) v='agenda'   // el profesional solo entra a lo suyo
+  if(typeof vePantalla==='function' && !vePantalla(v)) v = (typeof isPro==='function'&&isPro()) ? 'agenda' : 'agenda'   // el rol no abre esa pantalla
   document.querySelectorAll('.view').forEach(el=>el.classList.toggle('on', el.id==='view-'+v))
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : PRODUCTOS_GROUP.includes(v) ? 'productos' : REPORTES_GROUP.includes(v) ? 'reportes' : v
   document.querySelectorAll('.topnav-tabs [data-view]').forEach(b=>b.classList.toggle('on', b.dataset.view===hi))
@@ -4463,6 +4681,7 @@ function switchView(v){
   if(v==='reportes') renderReportes()
   if(v==='ventas') renderSales()
   if(v==='transacciones') renderTransacciones()
+  if(v==='cobros') renderCobros()
   if(v==='giftcards') loadGiftCards()
   if(v==='encuestas') loadSurveys()
   if(v==='caja') renderCaja()
@@ -4990,6 +5209,8 @@ function renderAdmin(){
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else if(admCurrent==='precios') el.innerHTML=admPrecios()
   else if(admCurrent==='recursos') el.innerHTML=admRecursos()
+  else if(admCurrent==='fichas'){ el.innerHTML=admFichas(); cargarPlantillas().then(()=>{ if(admCurrent==='fichas') el.innerHTML=admFichas() }) }
+  else if(admCurrent==='consent'){ el.innerHTML=admConsent(); cargarConsentimientos().then(()=>{ if(admCurrent==='consent') el.innerHTML=admConsent() }) }
   else el.innerHTML=admServicios()
 }
 function admLocales(){
@@ -5445,7 +5666,7 @@ function admUsuarios(){
     return `<div class="adm-row">
       <span class="ar-name">${esc(u.name||u.email)}</span>
       <span class="ar-meta">${esc(u.email||'')}</span>
-      <span class="ar-meta">${u.role==='admin'?'Administrador':'Profesional'}${prof?' · '+esc(prof.name):''}</span>
+      <span class="ar-meta">${(ROLES[u.role]||{}).nombre || u.role}${prof?' · '+esc(prof.name):''}</span>
       <span class="adm-dot ${u.active===false?'off':''}">● ${u.active===false?'Desactivado':'Activo'}</span>
       <button class="mini-btn" onclick="openUserModal('${u.id}')">✎ Editar</button>
       <button class="mini-btn" onclick="sendUserReset('${esc(u.email)}')">Enviar clave nueva</button>
@@ -5453,7 +5674,18 @@ function admUsuarios(){
   return `<div class="inv-notice">⭐ <strong>Cuentas de acceso.</strong> Cada profesional entra con su propio correo y contraseña, ve solo su agenda y sus ingresos, y puede cambiar su clave cuando quiera.</div>
     <div class="adm-head"><span></span><button class="btn-primary" onclick="openUserModal()">+ Nueva cuenta</button></div>
     ${rows || '<div class="empty-state">Aún no hay cuentas creadas.</div>'}
-    <p class="rem-note" style="margin-top:14px">La contraseña queda encriptada en Supabase: ni tú ni yo podemos verla. Si alguien la olvida, usa “Enviar clave nueva” y le llega un correo para crearla de nuevo.</p>`
+    <p class="rem-note" style="margin-top:14px">La contraseña queda encriptada en Supabase: ni tú ni yo podemos verla. Si alguien la olvida, usa “Enviar clave nueva” y le llega un correo para crearla de nuevo.</p>
+    <h3 class="cd-h3" style="margin-top:22px">Qué puede hacer cada perfil</h3>
+    <div class="rol-cards">${Object.entries(ROLES).map(([k,r])=>`<div class="rol-card">
+      <strong>${esc(r.nombre)}</strong>
+      <p>${esc(r.desc)}</p>
+      <span>${r.vistas==='all' ? 'Todas las pantallas' : r.vistas.length+' pantallas'}${r.edita===false?' · solo consulta':''}</span>
+    </div>`).join('')}</div>`
+}
+function pintarDescRol(){
+  const k=document.getElementById('usRole').value
+  const el=document.getElementById('usRoleDesc'); if(!el) return
+  const r=ROLES[k]; el.textContent = r ? r.desc : ''
 }
 function openUserModal(id){
   const u=id?panelUsers.find(x=>x.id===id):null
@@ -5462,7 +5694,10 @@ function openUserModal(id){
   document.getElementById('usName').value=u?(u.name||''):''
   document.getElementById('usEmail').value=u?(u.email||''):''
   document.getElementById('usEmail').disabled=!!u
-  document.getElementById('usRole').value=u?u.role:'pro'
+  const selRol=document.getElementById('usRole')
+  selRol.innerHTML=Object.entries(ROLES).map(([k,r])=>'<option value="'+k+'">'+r.nombre+'</option>').join('')
+  selRol.value=(u&&ROLES[u.role])?u.role:'pro'
+  pintarDescRol()
   document.getElementById('usActive').value=(u&&u.active===false)?'0':'1'
   const ps=document.getElementById('usProf')
   ps.innerHTML='<option value="">— Sin vincular —</option>'+state.professionals.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
@@ -5513,6 +5748,603 @@ async function sendUserReset(email){
    quedan en este navegador. */
 let profMeta={}, profGroups=[], admProfTab='profesionales'
 
+
+
+/* ══════════════ FICHAS MÉDICAS ══════════════
+   Una plantilla define qué se le pregunta al paciente; la ficha es
+   esa plantilla ya rellenada para una persona concreta.
+   Son datos de salud: solo se leen y escriben con sesión iniciada. */
+let plantillas = [], plantillaEdit = null
+
+async function cargarPlantillas(){
+  try{ plantillas = await supabase.fetch('record_templates',{order:'sort_order.asc'}) || [] }
+  catch(e){ console.warn('fichas:', e.message); plantillas = [] }
+}
+
+function admFichas(){
+  const filas = plantillas.length ? plantillas.map(t=>{
+    const nCampos = (t.sections||[]).reduce((a,sec)=>a+(sec.fields||[]).length,0)
+    return `<div class="adm-row">
+      <span class="ar-name">${esc(t.name)}</span>
+      <span class="ar-meta">${(t.sections||[]).length} secciones · ${nCampos} preguntas</span>
+      <span class="adm-dot${t.active===false?' off':''}">● ${t.active===false?'Inactiva':'Activa'}</span>
+      <button class="mini-btn" onclick="openPlantilla('${t.id}')">✎ Editar</button></div>`
+  }).join('') : `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🩺</div>
+      Aún no hay fichas creadas.
+      <div style="font-size:.8rem;color:var(--light);margin-top:6px">Sirven para registrar antecedentes, evolución e indicaciones de cada paciente.</div></div>`
+  return `<div class="inv-notice">⭐ <strong>Fichas médicas:</strong> arma el formulario una vez y complétalo en cada visita desde la ficha del cliente. Queda el historial de todas las veces.</div>
+    <div class="adm-head"><span class="ar-meta">${plantillas.length} ficha${plantillas.length===1?'':'s'}</span>
+      <span style="display:flex;gap:8px">
+        <button class="btn-g" onclick="plantillaEjemplo()">✨ Crear una de ejemplo</button>
+        <button class="btn-primary" onclick="openPlantilla()">+ Nueva ficha</button></span></div>${filas}`
+}
+
+/* tipos de pregunta que admite una ficha */
+const TIPOS_CAMPO = [['texto','Texto corto'],['parrafo','Texto largo'],['numero','Número'],
+  ['fecha','Fecha'],['si_no','Sí / No'],['opcion','Elegir una opción'],['varias','Elegir varias'],
+  ['nota','Solo texto informativo']]
+
+function openPlantilla(id){
+  const t = id ? plantillas.find(x=>x.id===id) : null
+  plantillaEdit = t ? JSON.parse(JSON.stringify(t)) : { name:'', description:'', sections:[], services:'all', active:true }
+  document.getElementById('ftTitle').textContent = t ? 'Editando ' + t.name : 'Nueva ficha médica'
+  document.getElementById('ftName').value = plantillaEdit.name || ''
+  document.getElementById('ftDesc').value = plantillaEdit.description || ''
+  document.getElementById('ftActive').value = plantillaEdit.active===false ? '0' : '1'
+  document.getElementById('ftDelBtn').style.display = t ? 'block' : 'none'
+  pintarSecciones()
+  openModal('ftModal')
+}
+
+function pintarSecciones(){
+  const box = document.getElementById('ftSections')
+  const secs = plantillaEdit.sections || []
+  if(!secs.length){
+    box.innerHTML = '<p class="rem-note" style="margin:0 0 10px">Agrega una sección para empezar. Por ejemplo: “Antecedentes”, “Evaluación” o “Indicaciones”.</p>'
+    return
+  }
+  box.innerHTML = secs.map((sec,i)=>`
+    <div class="ft-sec">
+      <div class="ft-sec-head">
+        <input type="text" value="${esc(sec.title||'')}" placeholder="Título de la sección"
+          oninput="plantillaEdit.sections[${i}].title=this.value" />
+        <button class="mini-link" onclick="moverSeccion(${i},-1)" title="Subir">↑</button>
+        <button class="mini-link" onclick="moverSeccion(${i},1)" title="Bajar">↓</button>
+        <button class="mini-link" style="color:var(--red)" onclick="borrarSeccion(${i})">Borrar</button>
+      </div>
+      ${(sec.fields||[]).map((f,j)=>`<div class="ft-campo">
+        <input type="text" value="${esc(f.label||'')}" placeholder="Pregunta o etiqueta"
+          oninput="plantillaEdit.sections[${i}].fields[${j}].label=this.value" />
+        <select onchange="plantillaEdit.sections[${i}].fields[${j}].type=this.value;pintarSecciones()">
+          ${TIPOS_CAMPO.map(([v,n])=>`<option value="${v}" ${f.type===v?'selected':''}>${n}</option>`).join('')}
+        </select>
+        ${['opcion','varias'].includes(f.type)?`<input type="text" value="${esc((f.options||[]).join(', '))}"
+          placeholder="Opciones separadas por coma"
+          oninput="plantillaEdit.sections[${i}].fields[${j}].options=this.value.split(',').map(x=>x.trim()).filter(Boolean)" />`:''}
+        <label class="chk"><input type="checkbox" ${f.required?'checked':''}
+          onchange="plantillaEdit.sections[${i}].fields[${j}].required=this.checked" /> <span>Obligatorio</span></label>
+        <button class="mini-link" style="color:var(--red)" onclick="borrarCampo(${i},${j})">✕</button>
+      </div>`).join('')}
+      <button class="mini-link" onclick="agregarCampo(${i})">+ Agregar pregunta</button>
+    </div>`).join('')
+}
+
+function agregarSeccion(){
+  plantillaEdit.sections = plantillaEdit.sections || []
+  plantillaEdit.sections.push({ title:'', fields:[] })
+  pintarSecciones()
+}
+function borrarSeccion(i){
+  if(!confirm('¿Borrar esta sección y sus preguntas?')) return
+  plantillaEdit.sections.splice(i,1); pintarSecciones()
+}
+function moverSeccion(i,d){
+  const arr = plantillaEdit.sections, j = i + d
+  if(j<0 || j>=arr.length) return
+  const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp
+  pintarSecciones()
+}
+function agregarCampo(i){
+  plantillaEdit.sections[i].fields = plantillaEdit.sections[i].fields || []
+  plantillaEdit.sections[i].fields.push({ label:'', type:'texto', required:false })
+  pintarSecciones()
+}
+function borrarCampo(i,j){ plantillaEdit.sections[i].fields.splice(j,1); pintarSecciones() }
+
+async function savePlantilla(){
+  const name = document.getElementById('ftName').value.trim()
+  if(!name){ toast('Ponle un nombre a la ficha','error'); return }
+  const row = { name, description:document.getElementById('ftDesc').value.trim(),
+    sections: plantillaEdit.sections || [], services: plantillaEdit.services || 'all',
+    active: document.getElementById('ftActive').value==='1' }
+  try{
+    if(plantillaEdit.id) await supabase.update('record_templates', plantillaEdit.id, row)
+    else await supabase.insert('record_templates', Object.assign({}, row, { sort_order: plantillas.length }))
+    await cargarPlantillas(); closeModal('ftModal'); renderAdmin(); toast('Ficha guardada','success')
+  }catch(e){ console.error(e); toast('No se pudo guardar: ' + e.message,'error') }
+}
+
+async function deletePlantilla(){
+  if(!plantillaEdit.id) return
+  if(!confirm('¿Borrar la ficha “' + plantillaEdit.name + '”? Las ya completadas se conservan.')) return
+  try{
+    await supabase.delete('record_templates', plantillaEdit.id)
+    await cargarPlantillas(); closeModal('ftModal'); renderAdmin(); toast('Ficha borrada','success')
+  }catch(e){ toast('No se pudo borrar','error') }
+}
+
+/* una ficha de ejemplo, para no partir de una pantalla en blanco */
+async function plantillaEjemplo(){
+  const ej = { name:'Ficha técnica podología', description:'Antecedentes y evolución del paciente.',
+    services:'all', active:true, sort_order:plantillas.length,
+    sections:[
+      { title:'Antecedentes de salud', fields:[
+        { label:'¿Es diabético/a?', type:'si_no', required:true },
+        { label:'¿Toma anticoagulantes?', type:'si_no' },
+        { label:'Alergias conocidas', type:'texto' },
+        { label:'Medicamentos que toma actualmente', type:'parrafo' } ] },
+      { title:'Evaluación', fields:[
+        { label:'Motivo de consulta', type:'parrafo', required:true },
+        { label:'Zona tratada', type:'opcion', options:['Pie derecho','Pie izquierdo','Ambos'] },
+        { label:'Hallazgos', type:'parrafo' } ] },
+      { title:'Indicaciones', fields:[
+        { label:'Tratamiento realizado', type:'parrafo' },
+        { label:'Indicaciones al paciente', type:'parrafo' },
+        { label:'Próximo control', type:'fecha' } ] }
+    ] }
+  try{
+    await supabase.insert('record_templates', ej)
+    await cargarPlantillas(); renderAdmin()
+    toast('Ficha de ejemplo creada — edítala a tu gusto','success')
+  }catch(e){ toast('No se pudo crear: ' + e.message,'error') }
+}
+
+/* ══════════════ FICHAS RELLENADAS DE UN CLIENTE ══════════════ */
+let fichasCliente = [], fichaEdit = null
+
+async function cargarFichasDe(clientId){
+  try{ fichasCliente = await supabase.fetch('client_records',
+    { filters:'client_id=eq.' + clientId, order:'created_at.desc' }) || [] }
+  catch(e){ console.warn('fichas cliente:', e.message); fichasCliente = [] }
+}
+
+/* dibuja el formulario de una ficha para rellenar o consultar */
+function formularioFicha(tpl, datos, soloLectura){
+  const d = datos || {}
+  return (tpl.sections||[]).map((sec,i)=>`
+    <div class="ff-sec">
+      ${sec.title?`<h4>${esc(sec.title)}</h4>`:''}
+      ${(sec.fields||[]).map((f,j)=>{
+        const k = 's'+i+'c'+j
+        const v = d[k]
+        if(f.type==='nota') return `<p class="rem-note">${esc(f.label||'')}</p>`
+        const req = f.required ? ' <span style="color:var(--red)">*</span>' : ''
+        let campo = ''
+        if(soloLectura){
+          const txt = Array.isArray(v) ? v.join(', ') : (v===true?'Sí':v===false?'No':(v||'—'))
+          campo = `<div class="ff-valor">${esc(String(txt))}</div>`
+        } else if(f.type==='parrafo') campo = `<textarea data-fk="${k}" rows="3">${esc(v||'')}</textarea>`
+        else if(f.type==='numero') campo = `<input type="number" data-fk="${k}" value="${esc(v||'')}" />`
+        else if(f.type==='fecha') campo = `<input type="date" data-fk="${k}" value="${esc(v||'')}" />`
+        else if(f.type==='si_no') campo = `<select data-fk="${k}"><option value="">—</option>
+            <option value="si" ${v==='si'?'selected':''}>Sí</option>
+            <option value="no" ${v==='no'?'selected':''}>No</option></select>`
+        else if(f.type==='opcion') campo = `<select data-fk="${k}"><option value="">—</option>
+            ${(f.options||[]).map(o=>`<option value="${esc(o)}" ${v===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`
+        else if(f.type==='varias') campo = `<div class="ff-varias" data-fk="${k}">
+            ${(f.options||[]).map(o=>`<label class="chk"><input type="checkbox" value="${esc(o)}"
+              ${(Array.isArray(v)&&v.includes(o))?'checked':''} /> <span>${esc(o)}</span></label>`).join('')}</div>`
+        else campo = `<input type="text" data-fk="${k}" value="${esc(v||'')}" />`
+        return `<div class="ff-campo"><label>${esc(f.label||'')}${req}</label>${campo}</div>`
+      }).join('')}
+    </div>`).join('') || '<p class="rem-note">Esta ficha no tiene preguntas todavía.</p>'
+}
+
+/* recoge lo escrito en el formulario */
+function leerFicha(){
+  const d = {}
+  document.querySelectorAll('#ffBody [data-fk]').forEach(el=>{
+    const k = el.dataset.fk
+    if(el.classList.contains('ff-varias')){
+      d[k] = [...el.querySelectorAll('input:checked')].map(x=>x.value)
+    } else d[k] = el.value
+  })
+  return d
+}
+
+function openFichaCliente(recordId, templateId){
+  const tpl = plantillas.find(t=>t.id===templateId) ||
+              plantillas.find(t=>t.id===(fichasCliente.find(r=>r.id===recordId)||{}).template_id)
+  const rec = recordId ? fichasCliente.find(r=>r.id===recordId) : null
+  if(!tpl && !rec){ toast('No encuentro esa ficha','error'); return }
+  fichaEdit = { id: rec ? rec.id : null, template: tpl, record: rec }
+  const nombre = (tpl && tpl.name) || (rec && rec.template_name) || 'Ficha'
+  document.getElementById('ffTitle').textContent = nombre
+  document.getElementById('ffSub').textContent = rec
+    ? 'Completada el ' + new Date(rec.created_at).toLocaleDateString('es-CL') : 'Nueva ficha de ' + (cdCliente?cdCliente.name:'')
+  document.getElementById('ffBody').innerHTML = tpl
+    ? formularioFicha(tpl, rec ? rec.data : {}, false)
+    : '<p class="rem-note">La plantilla de esta ficha ya no existe. Solo se puede consultar lo guardado.</p>' +
+      formularioFicha({sections:[]}, rec?rec.data:{}, true)
+  document.getElementById('ffDelBtn').style.display = rec ? 'block' : 'none'
+  openModal('ffModal')
+}
+
+async function saveFichaCliente(){
+  if(!fichaEdit || !cdCliente) return
+  const tpl = fichaEdit.template
+  const data = leerFicha()
+  /* comprobar las obligatorias */
+  if(tpl){
+    for(let i=0;i<(tpl.sections||[]).length;i++)
+      for(let j=0;j<(tpl.sections[i].fields||[]).length;j++){
+        const f = tpl.sections[i].fields[j]
+        const v = data['s'+i+'c'+j]
+        if(f.required && (!v || (Array.isArray(v)&&!v.length))){
+          toast('Falta responder: ' + f.label,'error'); return
+        }
+      }
+  }
+  const row = { client_id: cdCliente.id, template_id: tpl ? tpl.id : null,
+    template_name: tpl ? tpl.name : (fichaEdit.record||{}).template_name, data,
+    professional_id: isPro() ? myProfId() : null }
+  try{
+    if(fichaEdit.id) await supabase.update('client_records', fichaEdit.id, { data, updated_at:new Date().toISOString() })
+    else await supabase.insert('client_records', row)
+    await cargarFichasDe(cdCliente.id)
+    closeModal('ffModal'); renderClientDetail(); toast('Ficha guardada','success')
+  }catch(e){ console.error(e); toast('No se pudo guardar: ' + e.message,'error') }
+}
+
+async function deleteFichaCliente(){
+  if(!fichaEdit || !fichaEdit.id) return
+  if(!confirm('¿Borrar esta ficha completada? No se puede deshacer.')) return
+  try{
+    await supabase.delete('client_records', fichaEdit.id)
+    await cargarFichasDe(cdCliente.id)
+    closeModal('ffModal'); renderClientDetail(); toast('Ficha borrada','success')
+  }catch(e){ toast('No se pudo borrar','error') }
+}
+
+/* la pestaña Fichas dentro del cliente */
+function cdFichas(){
+  const activas = plantillas.filter(t=>t.active!==false)
+  const lista = fichasCliente.length ? fichasCliente.map(r=>{
+    const f = new Date(r.created_at)
+    return `<div class="adm-row">
+      <span class="ar-name">${esc(r.template_name||'Ficha')}</span>
+      <span class="ar-meta">${f.toLocaleDateString('es-CL')} · ${f.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</span>
+      <span class="ar-meta">${esc(profName(r.professional_id)||'')}</span>
+      <button class="mini-btn" onclick="openFichaCliente('${r.id}')">Ver / editar</button></div>`
+  }).join('') : '<div class="empty-state">Este cliente todavía no tiene fichas completadas.</div>'
+  const nuevas = activas.length
+    ? `<div class="cd-nuevas">${activas.map(t=>
+        `<button class="btn-g" onclick="openFichaCliente('','${t.id}')">+ ${esc(t.name)}</button>`).join('')}</div>`
+    : `<p class="rem-note">No hay fichas creadas. Créalas en Administración → Fichas médicas.</p>`
+  return `<h3 class="cd-h3">Completar una ficha</h3>${nuevas}
+    <h3 class="cd-h3">Fichas completadas</h3>${lista}`
+}
+
+/* ══════════════ CONSENTIMIENTOS ══════════════
+   Un documento que el cliente acepta y firma antes de un tratamiento.
+   Puede ser texto escrito aquí o un PDF subido. La firma se dibuja
+   con el dedo o el mouse y se guarda junto a la fecha. */
+let consentimientos = [], firmasCliente = [], consentEdit = null
+
+async function cargarConsentimientos(){
+  try{ consentimientos = await supabase.fetch('consents',{order:'created_at.desc'}) || [] }
+  catch(e){ console.warn('consentimientos:', e.message); consentimientos = [] }
+}
+async function cargarFirmasDe(clientId){
+  try{ firmasCliente = await supabase.fetch('client_consents',
+    { filters:'client_id=eq.' + clientId, order:'signed_at.desc' }) || [] }
+  catch(e){ firmasCliente = [] }
+}
+
+function admConsent(){
+  const filas = consentimientos.length ? consentimientos.map(c=>`<div class="adm-row">
+      <span class="ar-name">${esc(c.name)}</span>
+      <span class="ar-meta">${c.file_url ? '📄 PDF adjunto' : ((c.body||'').length + ' caracteres')}</span>
+      <span class="adm-dot${c.active===false?' off':''}">● ${c.active===false?'Inactivo':'Activo'}</span>
+      <button class="mini-btn" onclick="openConsent('${c.id}')">✎ Editar</button></div>`).join('')
+    : `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">✍</div>
+        Aún no hay consentimientos.
+        <div style="font-size:.8rem;color:var(--light);margin-top:6px">Escribe el texto o sube el PDF que tus clientes deben aceptar antes de un tratamiento.</div></div>`
+  return `<div class="inv-notice">⭐ <strong>Consentimientos:</strong> el cliente los firma desde su ficha, con el dedo en el teléfono o con el mouse. Queda guardada la firma y la fecha.</div>
+    <div class="adm-head"><span class="ar-meta">${consentimientos.length} documento${consentimientos.length===1?'':'s'}</span>
+      <button class="btn-primary" onclick="openConsent()">+ Nuevo consentimiento</button></div>${filas}`
+}
+
+function openConsent(id){
+  const c = id ? consentimientos.find(x=>x.id===id) : null
+  consentEdit = c ? Object.assign({}, c) : { name:'', body:'', file_url:'', active:true }
+  document.getElementById('coTitle').textContent = c ? 'Editando ' + c.name : 'Nuevo consentimiento'
+  document.getElementById('coName').value = consentEdit.name || ''
+  document.getElementById('coBody').value = consentEdit.body || ''
+  document.getElementById('coActive').value = consentEdit.active===false ? '0' : '1'
+  const enlace = document.getElementById('coFileLink')
+  enlace.innerHTML = consentEdit.file_url
+    ? `<a href="${esc(consentEdit.file_url)}" target="_blank" rel="noopener">📄 Ver el PDF adjunto</a>
+       <button class="mini-link" style="color:var(--red)" onclick="quitarPdfConsent()">Quitar</button>` : ''
+  document.getElementById('coDelBtn').style.display = c ? 'block' : 'none'
+  openModal('coModal')
+}
+function quitarPdfConsent(){ consentEdit.file_url=''; document.getElementById('coFileLink').innerHTML='' }
+
+/* sube el PDF a la carpeta de consentimientos */
+async function subirPdfConsent(input){
+  const f = input.files && input.files[0]; if(!f) return
+  if(f.size > 5*1024*1024){ toast('El archivo no puede pesar más de 5 MB','error'); return }
+  const nombre = Date.now() + '-' + f.name.replace(/[^a-zA-Z0-9._-]/g,'_')
+  try{
+    const r = await fetch(SUPABASE_URL + '/storage/v1/object/consentimientos/' + nombre, {
+      method:'POST',
+      headers:{ Authorization: supaAuthHeader(), apikey: SUPABASE_ANON_KEY, 'Content-Type': f.type || 'application/pdf' },
+      body: f })
+    if(!r.ok) throw new Error(await r.text())
+    consentEdit.file_url = SUPABASE_URL + '/storage/v1/object/public/consentimientos/' + nombre
+    document.getElementById('coFileLink').innerHTML =
+      `<a href="${esc(consentEdit.file_url)}" target="_blank" rel="noopener">📄 Ver el PDF adjunto</a>
+       <button class="mini-link" style="color:var(--red)" onclick="quitarPdfConsent()">Quitar</button>`
+    toast('PDF subido','success')
+  }catch(e){ console.error(e); toast('No se pudo subir el PDF','error') }
+  input.value = ''
+}
+
+async function saveConsent(){
+  const name = document.getElementById('coName').value.trim()
+  if(!name){ toast('Ponle un nombre al consentimiento','error'); return }
+  const row = { name, body:document.getElementById('coBody').value.trim(),
+    file_url: consentEdit.file_url || null, active: document.getElementById('coActive').value==='1' }
+  if(!row.body && !row.file_url){ toast('Escribe el texto o sube un PDF','error'); return }
+  try{
+    if(consentEdit.id) await supabase.update('consents', consentEdit.id, row)
+    else await supabase.insert('consents', row)
+    await cargarConsentimientos(); closeModal('coModal'); renderAdmin(); toast('Consentimiento guardado','success')
+  }catch(e){ console.error(e); toast('No se pudo guardar: ' + e.message,'error') }
+}
+async function deleteConsent(){
+  if(!consentEdit.id) return
+  if(!confirm('¿Borrar “' + consentEdit.name + '”? Las firmas ya recogidas se conservan.')) return
+  try{ await supabase.delete('consents', consentEdit.id)
+    await cargarConsentimientos(); closeModal('coModal'); renderAdmin(); toast('Consentimiento borrado','success')
+  }catch(e){ toast('No se pudo borrar','error') }
+}
+
+/* ── firma del cliente ── */
+let firmaCanvas = null, firmaCtx = null, firmando = false, firmaVacia = true, firmaDoc = null
+
+function openFirma(consentId){
+  firmaDoc = consentimientos.find(c=>c.id===consentId); if(!firmaDoc || !cdCliente) return
+  document.getElementById('fmTitle').textContent = firmaDoc.name
+  document.getElementById('fmTexto').innerHTML = firmaDoc.body
+    ? `<div class="fm-texto">${esc(firmaDoc.body).replace(/\n/g,'<br>')}</div>` : ''
+  document.getElementById('fmPdf').innerHTML = firmaDoc.file_url
+    ? `<a class="btn-g" href="${esc(firmaDoc.file_url)}" target="_blank" rel="noopener">📄 Leer el documento</a>` : ''
+  document.getElementById('fmNombre').value = cdCliente.name || ''
+  openModal('fmModal')
+  setTimeout(prepararFirma, 60)
+}
+
+function prepararFirma(){
+  firmaCanvas = document.getElementById('fmCanvas'); if(!firmaCanvas) return
+  const caja = firmaCanvas.parentElement.getBoundingClientRect()
+  firmaCanvas.width = Math.max(280, caja.width - 4)
+  firmaCanvas.height = 150
+  firmaCtx = firmaCanvas.getContext('2d')
+  firmaCtx.lineWidth = 2; firmaCtx.lineCap = 'round'; firmaCtx.strokeStyle = '#1f2733'
+  firmaVacia = true
+  const punto = ev => {
+    const r = firmaCanvas.getBoundingClientRect()
+    const t = ev.touches ? ev.touches[0] : ev
+    return [t.clientX - r.left, t.clientY - r.top]
+  }
+  const empezar = ev => { firmando = true; firmaVacia = false; firmaCtx.beginPath(); firmaCtx.moveTo(...punto(ev)); ev.preventDefault() }
+  const trazar  = ev => { if(!firmando) return; firmaCtx.lineTo(...punto(ev)); firmaCtx.stroke(); ev.preventDefault() }
+  const parar   = () => { firmando = false }
+  firmaCanvas.onmousedown = empezar; firmaCanvas.onmousemove = trazar
+  firmaCanvas.onmouseup = parar; firmaCanvas.onmouseleave = parar
+  firmaCanvas.ontouchstart = empezar; firmaCanvas.ontouchmove = trazar; firmaCanvas.ontouchend = parar
+}
+function limpiarFirma(){
+  if(firmaCtx) firmaCtx.clearRect(0,0,firmaCanvas.width,firmaCanvas.height)
+  firmaVacia = true
+}
+async function guardarFirma(){
+  if(firmaVacia){ toast('Falta la firma','error'); return }
+  const quien = document.getElementById('fmNombre').value.trim()
+  if(!quien){ toast('Falta el nombre de quien firma','error'); return }
+  try{
+    await supabase.insert('client_consents', { client_id: cdCliente.id, consent_id: firmaDoc.id,
+      consent_name: firmaDoc.name, signature: firmaCanvas.toDataURL('image/png'), signed_by: quien })
+    await cargarFirmasDe(cdCliente.id)
+    closeModal('fmModal'); renderClientDetail(); toast('Consentimiento firmado','success')
+  }catch(e){ console.error(e); toast('No se pudo guardar la firma: ' + e.message,'error') }
+}
+
+/* la pestaña Consentimientos dentro del cliente */
+function cdConsent(){
+  const activos = consentimientos.filter(c=>c.active!==false)
+  const firmados = new Set(firmasCliente.map(f=>f.consent_id))
+  const pendientes = activos.filter(c=>!firmados.has(c.id))
+  const lista = firmasCliente.length ? firmasCliente.map(f=>{
+    const d = new Date(f.signed_at)
+    return `<div class="cd-firma">
+      <div><strong>${esc(f.consent_name||'Consentimiento')}</strong>
+        <span class="cd-since">Firmado por ${esc(f.signed_by||'')} el ${d.toLocaleDateString('es-CL')}</span></div>
+      ${f.signature?`<img class="cd-firma-img" src="${esc(f.signature)}" alt="firma" />`:''}
+    </div>`
+  }).join('') : '<div class="empty-state">Este cliente no ha firmado ningún consentimiento.</div>'
+  const porFirmar = pendientes.length
+    ? `<div class="cd-nuevas">${pendientes.map(c=>
+        `<button class="btn-g" onclick="openFirma('${c.id}')">✍ ${esc(c.name)}</button>`).join('')}</div>`
+    : (activos.length ? '<p class="rem-note">Ya firmó todos los consentimientos activos.</p>'
+                      : '<p class="rem-note">No hay consentimientos creados. Créalos en Administración → Consentimientos.</p>')
+  return `<h3 class="cd-h3">Pendientes de firma</h3>${porFirmar}
+    <h3 class="cd-h3">Firmados</h3>${lista}`
+}
+
+/* ══════════════ COBROS ══════════════
+   Reservas que ya pasaron y no tienen pago registrado. Desde aquí se
+   envía el link de pago por WhatsApp o correo, se copia, o se registra
+   que el cliente pagó en el local. */
+let cobrosEnviados = [], cobrosTab = 'pendientes'
+
+async function cargarCobros(){
+  try{ cobrosEnviados = await supabase.fetch('payment_links',{order:'created_at.desc'}) || [] }
+  catch(e){ console.warn('cobros:', e.message); cobrosEnviados = [] }
+}
+
+/* ¿esta reserva ya está pagada? */
+function apptPagada(a){
+  if(!a) return false
+  return state.sales.some(v => v.appointment_id === a.id && v.status !== 'deleted')
+}
+/* reservas cobrables: ya ocurrieron, tienen precio y nadie las pagó */
+function reservasPorCobrar(){
+  const hoy = isoDate(new Date())
+  return state.appointments.filter(a =>
+      a.status !== 'block' && a.status !== 'cancelled' && a.status !== 'no_show' &&
+      a.appt_date <= hoy && money2num(a.price) > 0 && !apptPagada(a))
+    .sort((a,b)=>(b.appt_date+b.start_time).localeCompare(a.appt_date+a.start_time))
+}
+
+function cobrosSetTab(t){ cobrosTab = t; render() }
+
+function renderCobros(){
+  const el = document.getElementById('cobrosBody'); if(!el) return
+  const tabs = `<div class="mtabs" style="margin-bottom:14px">
+    <button class="${cobrosTab==='pendientes'?'on':''}" onclick="cobrosSetTab('pendientes')">Reservas no pagadas</button>
+    <button class="${cobrosTab==='enviados'?'on':''}" onclick="cobrosSetTab('enviados')">Cobros enviados</button></div>`
+
+  if(cobrosTab === 'enviados'){
+    const filas = cobrosEnviados.length ? cobrosEnviados.map(c=>{
+      const d = new Date(c.created_at)
+      const estado = c.status==='paid' ? '<span class="cb-tag pagado">Pagado</span>'
+        : c.status==='cancelled' ? '<span class="cb-tag">Anulado</span>'
+        : '<span class="cb-tag pend">Enviado</span>'
+      return `<tr>
+        <td>${d.toLocaleDateString('es-CL')}</td>
+        <td>${esc(c.client_name||'—')}</td>
+        <td>${esc(c.service_name||'—')}</td>
+        <td>${fmtMoney(c.amount||0)}</td>
+        <td>${esc(c.channel||'—')}</td>
+        <td>${estado}</td>
+        <td>${c.url?`<button class="mini-btn" onclick="copiarTexto('${esc(c.url)}')">Copiar link</button>`:''}</td>
+      </tr>`
+    }).join('') : '<tr><td colspan="7"><div class="empty-state">Todavía no has enviado ningún cobro.</div></td></tr>'
+    el.innerHTML = tabs + `<div class="cd-scroll"><table class="ctbl">
+      <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Monto</th><th>Vía</th><th>Estado</th><th></th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`
+    return
+  }
+
+  const lista = reservasPorCobrar()
+  const total = lista.reduce((a,x)=>a+money2num(x.price),0)
+  const filas = lista.length ? lista.map(a=>{
+    const [y,m,d] = a.appt_date.split('-')
+    return `<tr>
+      <td>${d}/${m}/${y} · ${a.start_time.slice(0,5)}</td>
+      <td>${esc(a.client_name||'—')}</td>
+      <td>${esc(a.service_name||'—')}</td>
+      <td>${esc(profName(a.professional_id))}</td>
+      <td><strong>${esc(a.price||'')}</strong></td>
+      <td class="cb-acciones">
+        <button class="mini-btn" onclick="cobrarPorWhatsapp('${a.id}')" title="Enviar link de pago por WhatsApp">💬 WhatsApp</button>
+        <button class="mini-btn" onclick="copiarLinkCobro('${a.id}')" title="Copiar el link de pago">🔗 Link</button>
+        <button class="mini-btn" onclick="registrarPagoReserva('${a.id}')" title="Ya pagó en el local">$ Registrar pago</button>
+      </td></tr>`
+  }).join('') : '<tr><td colspan="6"><div class="empty-state">No hay reservas pendientes de cobro. 👏</div></td></tr>'
+
+  el.innerHTML = tabs + `
+    <div class="rep-cards" style="margin-bottom:16px">
+      <div class="rep-card"><div class="rc-num">${lista.length}</div><div class="rc-lbl">Reservas sin pagar</div></div>
+      <div class="rep-card"><div class="rc-num" style="font-size:1.4rem;color:${total?'var(--red)':'inherit'}">${fmtMoney(total)}</div><div class="rc-lbl">Total por cobrar</div></div>
+    </div>
+    <div class="cd-scroll"><table class="ctbl">
+      <thead><tr><th>Fecha y hora</th><th>Cliente</th><th>Servicio</th><th>Profesional</th><th>Precio</th><th></th></tr></thead>
+      <tbody>${filas}</tbody></table></div>`
+}
+
+/* pide a Flow un link de pago para esa reserva */
+async function crearLinkCobro(apptId){
+  const a = state.appointments.find(x=>x.id===apptId); if(!a) return null
+  const cli = state.clients.find(c=>c.id===a.client_id) || {}
+  try{
+    const r = await fetch('/api/cobro-link.php', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', Authorization: supaAuthHeader() },
+      body: JSON.stringify({ appointment_id:a.id, client_id:a.client_id,
+        client_name:a.client_name, client_email:cli.email||'',
+        service_name:a.service_name, amount:money2num(a.price) })
+    })
+    const j = await r.json()
+    if(!r.ok || !j.paymentUrl) throw new Error(j.error || 'No se pudo crear el cobro')
+    return j.paymentUrl
+  }catch(e){
+    console.error(e)
+    toast('No se pudo crear el link de pago: ' + e.message, 'error')
+    return null
+  }
+}
+
+async function guardarCobro(a, url, via){
+  try{
+    await supabase.insert('payment_links', { appointment_id:a.id, client_id:a.client_id,
+      client_name:a.client_name, service_name:a.service_name,
+      amount:money2num(a.price), channel:via, url, status:'sent' })
+    await cargarCobros()
+  }catch(e){ console.warn('no se pudo registrar el cobro:', e.message) }
+}
+
+async function cobrarPorWhatsapp(apptId){
+  const a = state.appointments.find(x=>x.id===apptId); if(!a) return
+  toast('Generando el link de pago…','success')
+  const url = await crearLinkCobro(apptId); if(!url) return
+  await guardarCobro(a, url, 'whatsapp')
+  const [y,m,d] = a.appt_date.split('-')
+  const txt = `Hola ${(a.client_name||'').split(' ')[0]}, te dejamos el link para pagar tu ${a.service_name} del ${d}/${m} a las ${a.start_time.slice(0,5)} hrs (${a.price}):\n${url}\n\n— Spa Infinity`
+  const fono = String(a.client_phone||'').replace(/\D/g,'')
+  window.open('https://wa.me/' + (fono||'') + '?text=' + encodeURIComponent(txt), '_blank')
+  render()
+}
+
+async function copiarLinkCobro(apptId){
+  const a = state.appointments.find(x=>x.id===apptId); if(!a) return
+  toast('Generando el link de pago…','success')
+  const url = await crearLinkCobro(apptId); if(!url) return
+  await guardarCobro(a, url, 'link')
+  copiarTexto(url)
+  render()
+}
+
+function copiarTexto(t){
+  navigator.clipboard.writeText(t)
+    .then(()=>toast('Link copiado','success'))
+    .catch(()=>prompt('Copia el link:', t))
+}
+
+/* el cliente pagó en el local: se registra la venta y la reserva queda saldada */
+async function registrarPagoReserva(apptId){
+  const a = state.appointments.find(x=>x.id===apptId); if(!a) return
+  const medio = prompt('¿Cómo pagó?\n\nEscribe: efectivo, débito, crédito, transferencia o giftcard', 'efectivo')
+  if(medio === null) return
+  try{
+    await supabase.insert('sales', {
+      client_id: a.client_id, client_name: a.client_name,
+      appointment_id: a.id, sale_date: isoDate(new Date()),
+      items: [{ name: a.service_name, qty: 1, price: money2num(a.price) }],
+      total: money2num(a.price), payment_method: (medio||'efectivo').trim().toLowerCase(),
+      professional_id: a.professional_id, status: 'paid',
+      notes: 'Cobro registrado desde Ventas → Cobros'
+    })
+    /* si había un link enviado, se marca como pagado */
+    const link = cobrosEnviados.find(c=>c.appointment_id===a.id && c.status==='sent')
+    if(link) await supabase.update('payment_links', link.id, { status:'paid', paid_at:new Date().toISOString() })
+    await loadSales(); await cargarCobros(); render()
+    toast('Pago registrado','success')
+  }catch(e){ console.error(e); toast('No se pudo registrar: ' + e.message,'error') }
+}
 
 /* ══════════ REORDENAR ARRASTRANDO ══════════
    El orden elegido aquí es el que ve el cliente en el sitio web.
