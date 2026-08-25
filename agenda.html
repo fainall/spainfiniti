@@ -882,6 +882,35 @@ label.chk input{width:auto;margin:0}
 .pagada-sello{display:inline-flex;align-items:center;gap:5px;background:#e4f8ef;color:#1d8a5f;
   border-radius:20px;padding:5px 12px;font-size:.78rem;font-weight:600}
 @media(max-width:820px){ .pagar-menu{left:auto;right:0} }
+
+/* pestaña Pago del detalle de reserva */
+.pg-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.pg-num{font-size:1.05rem;font-weight:700;color:var(--dark);display:flex;align-items:center;gap:6px}
+.pg-link{background:none;border:none;cursor:pointer;color:var(--gold-d);font-size:.9rem;padding:0}
+.pg-id{font-size:.74rem;color:var(--light);margin-top:2px}
+.pg-acciones{display:flex;align-items:center;gap:10px}
+.pg-tag{background:#e4f8ef;color:#1d8a5f;border-radius:20px;padding:5px 12px;font-size:.76rem;font-weight:600}
+.pg-del{background:#fff;border:1px solid var(--red);color:var(--red);border-radius:24px;padding:7px 16px;
+  font-family:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
+.pg-del:hover{background:#fdf0ee}
+.pg-meta{font-size:.78rem;color:var(--mid);margin-top:10px}
+.pg-total{font-size:1.5rem;font-weight:700;color:var(--dark);margin-top:6px}
+.pg-h3{font-size:.98rem;font-weight:700;margin:22px 0 10px}
+.pg-caja{border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.pg-tbl{width:100%;border-collapse:collapse;font-size:.82rem}
+.pg-tbl th{background:var(--cream);text-align:left;padding:11px 14px;font-size:.74rem;font-weight:600;color:var(--mid)}
+.pg-tbl td{padding:12px 14px;border-top:1px solid var(--border);vertical-align:top}
+.pg-tbl .c{text-align:center}
+.pg-tbl .r{text-align:right}
+.pg-tbl s{color:var(--light)}
+.pg-item{display:block;color:var(--dark)}
+.pg-sub{display:block;font-size:.72rem;color:var(--light);margin-top:3px}
+.pg-nada{color:var(--light);text-align:center}
+.pg-vacio{text-align:center;padding:26px 20px}
+.pg-vacio-ico{font-size:2.2rem;margin-bottom:8px}
+.pg-vacio strong{display:block;font-size:.95rem;margin-bottom:6px}
+.pg-vacio p{font-size:.82rem;color:var(--mid);margin:0 auto;max-width:380px;line-height:1.5}
+@media(max-width:820px){ .pg-tbl th,.pg-tbl td{padding:9px 10px;font-size:.78rem} .pg-caja{overflow-x:auto} }
 </style>
 </head>
 <body>
@@ -4446,6 +4475,129 @@ function cobrarEnLocal(id){
   payFromAppt(id)
 }
 
+/* ══════════════ PESTAÑA PAGO DE UNA RESERVA ══════════════
+   Cuando la reserva ya se cobró se muestra la boleta completa: quién la
+   hizo, qué llevaba, con qué se pagó y por cuánto. Si aún no se ha
+   cobrado, se ofrecen las formas de cobro. */
+
+/* número corto y estable de la venta, por orden de creación */
+function numeroVenta(v){
+  const orden = state.sales
+    .filter(x => x.status !== 'deleted')
+    .sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')))
+  const i = orden.findIndex(x => x.id === v.id)
+  return 1000 + (i >= 0 ? i + 1 : 0)
+}
+function itemsDe(v){
+  let it = v.items
+  if(typeof it === 'string'){ try{ it = JSON.parse(it) }catch(e){ it = [] } }
+  return Array.isArray(it) ? it : []
+}
+function fechaHora(iso){
+  if(!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' - ' +
+         d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',hour12:true}).toLowerCase()
+}
+
+function pagoDeReserva(a){
+  const v = state.sales.find(s => s.appointment_id === a.id && s.status !== 'deleted')
+
+  /* todavía sin cobrar */
+  if(!v){
+    return `<div class="pg-vacio">
+        <div class="pg-vacio-ico">💵</div>
+        <strong>Esta reserva aún no está pagada</strong>
+        <p>Cóbrala en el local, manda el link de pago por WhatsApp o márcala como pagada si ya te pagaron.</p>
+        <div style="margin-top:14px">${botonPagar(a.id, true)}</div>
+      </div>`
+  }
+
+  const items = itemsDe(v)
+  const suma = items.reduce((t,i)=> t + (Number(i.price)||0) * (Number(i.qty)||1), 0)
+  const total = Number(v.total || 0)
+  const hizo = profName(v.professional_id) || '—'
+
+  return `
+    <div class="pg-top">
+      <div>
+        <div class="pg-num">Venta #${numeroVenta(v)}
+          <button class="pg-link" title="Ver en Ventas"
+            onclick="closeModal('apptDetailModal');switchView('ventas');setTimeout(()=>editSale('${v.id}'),350)">↗</button>
+        </div>
+        <div class="pg-id">${esc(v.id.replace(/-/g,'').slice(0,8))}</div>
+      </div>
+      <div class="pg-acciones">
+        <span class="pg-tag">Pago asociado</span>
+        <button class="pg-del" onclick="eliminarPagoReserva('${v.id}','${a.id}')">Eliminar pago</button>
+      </div>
+    </div>
+    <div class="pg-meta">Creada por ${esc(hizo)} • ${fechaHora(v.created_at)}</div>
+    <div class="pg-total">${fmtMoney(total)}</div>
+
+    <h3 class="pg-h3">Detalle</h3>
+    <div class="pg-caja">
+      <table class="pg-tbl">
+        <thead><tr><th>Ítem</th><th class="c">Cantidad</th><th class="r">Subtotal</th><th class="r">Total</th></tr></thead>
+        <tbody>${items.length ? items.map(i=>{
+          const cant = Number(i.qty)||1, precio = Number(i.price)||0
+          const sub = precio * cant
+          /* si el total cobrado es menor que la suma de los ítems, hubo descuento */
+          const rebaja = suma > total && suma > 0
+          const final = rebaja ? Math.round(sub * total / suma) : sub
+          return `<tr>
+            <td><span class="pg-item">${esc(i.name||'—')}</span>
+              <span class="pg-sub">${esc(a.appt_date ? fmtLongDate(a.appt_date) : '')} · ${esc(a.start_time?a.start_time.slice(0,5):'')} · ${esc(profName(a.professional_id)||'')}</span></td>
+            <td class="c">${cant}</td>
+            <td class="r">${final!==sub ? `<s>${fmtMoney(sub)}</s>` : fmtMoney(sub)}</td>
+            <td class="r"><strong>${fmtMoney(final)}</strong></td></tr>`
+        }).join('') : `<tr><td colspan="4" class="pg-nada">Esta venta no tiene detalle de ítems.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="pg-h3">Transacciones</h3>
+    <div class="pg-caja">
+      <table class="pg-tbl">
+        <thead><tr><th>Fecha y hora</th><th>Medio de pago</th><th>Referencia</th><th class="r">Monto</th></tr></thead>
+        <tbody><tr>
+          <td><span class="pg-item">${fechaHora(v.created_at)}</span>
+            <span class="pg-sub">#${esc(v.id.replace(/-/g,'').slice(-8))}</span></td>
+          <td>${esc(v.payment_method || '—')}</td>
+          <td>${esc(referenciaPago(v))}</td>
+          <td class="r"><strong>${fmtMoney(total)}</strong></td>
+        </tr>${Number(v.tip)>0?`<tr>
+          <td><span class="pg-item">Propina</span></td><td>${esc(v.payment_method||'—')}</td><td>-</td>
+          <td class="r"><strong>${fmtMoney(Number(v.tip))}</strong></td></tr>`:''}
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="pg-h3">Documentos tributarios</h3>
+    <div class="pg-caja pg-nada" style="padding:20px;text-align:center">No hay resultados para mostrar</div>`
+}
+
+/* si el cobro salió de un link de pago, se muestra su número de orden */
+function referenciaPago(v){
+  const l = (typeof cobrosEnviados !== 'undefined' ? cobrosEnviados : [])
+    .find(c => c.appointment_id === v.appointment_id && c.status === 'paid')
+  return l && l.url ? (l.url.split('token=')[1] || '').slice(0,12) || '-' : '-'
+}
+
+/* deshace el cobro: borra la venta y la reserva vuelve a quedar pendiente */
+async function eliminarPagoReserva(ventaId, apptId){
+  if(!confirm('¿Eliminar este pago? La reserva volverá a aparecer como pendiente de cobro.')) return
+  try{
+    /* se anula, no se borra: asi queda el rastro de que hubo un cobro */
+    await supabase.update('sales', ventaId, { status:'deleted' })
+    const l = cobrosEnviados.find(c => c.appointment_id === apptId && c.status === 'paid')
+    if(l) await supabase.update('payment_links', l.id, { status:'sent', paid_at:null })
+    await loadSales(); await cargarCobros(); render()
+    if(document.getElementById('apptDetailModal').classList.contains('open')) renderApptTab()
+    toast('Pago eliminado','success')
+  }catch(e){ console.error(e); toast('No se pudo eliminar el pago','error') }
+}
+
 /* ── DETALLE DE RESERVA (modal con pestañas) ── */
 let adState={id:null, tab:'reserva', hist:'cliente'}
 const AD_TABS=[['reserva','Reserva'],['pago','Pago'],['recordatorios','Recordatorios'],['cliente','Cliente'],['ficha','Ficha'],['historial','Historial']]
@@ -4482,13 +4634,7 @@ function renderApptTab(){
         <button class="btn-primary" style="margin-left:auto" onclick="closeModal('apptDetailModal');openApptModal('${a.id}')">Editar reserva</button>
       </div>`
   } else if(t==='pago'){
-    const sales=state.sales.filter(s=>s.status!=='deleted' && s.client_id && s.client_id===a.client_id)
-    el.innerHTML=`
-      <div class="ad-info-row"><span class="k">Esta reserva</span><span>${botonPagar(a.id, true)}</span></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 12px">
-        <span style="color:var(--mid)">Otros pagos del cliente</span>
-      </div>
-      ${sales.length?`<table class="ctbl"><thead><tr><th>Fecha</th><th>Detalle</th><th>Método</th><th style="text-align:right">Total</th></tr></thead><tbody>${sales.map(s=>{const it=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]');const [y,m,d]=s.sale_date.split('-');return `<tr><td>${d}/${m}</td><td>${esc(it.map(i=>i.name).join(', '))}</td><td>${esc(s.payment_method||'')}</td><td style="text-align:right;font-weight:700">${fmtMoney(Number(s.total||0))}</td></tr>`}).join('')}</tbody></table>`:'<div class="ad-empty">Sin pagos registrados para este cliente.</div>'}`
+    el.innerHTML = pagoDeReserva(a)
   } else if(t==='recordatorios'){
     const phone=waPhone(a.client_phone); const email=(c&&c.email)||''; const sent=!!a.reminded_at
     el.innerHTML=`
