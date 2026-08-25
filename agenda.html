@@ -4751,7 +4751,12 @@ function vdTotal(){ return vd.items.reduce((t,i)=> t + (Number(i.price)||0) * (N
 function vdPorPagar(){ return Math.max(0, vdTotal() - (Number(vd.abono)||0)) }
 
 function vdRender(){
-  if(!vd) return
+  if(!vd){
+    /* el panel quedó abierto sin datos: se cierra para no dejarlo muerto */
+    const ov = document.getElementById('ventaDrawer')
+    if(ov && ov.classList.contains('on')){ cerrarVenta(); toast('Se perdió la venta en curso, vuelve a abrirla','error') }
+    return
+  }
   const titulos = { 1:'Nueva venta', 2:'Método de pago', 3:'Abono' }
   document.getElementById('vdTitulo').textContent = titulos[vd.paso] || 'Nueva venta'
   document.getElementById('vdLocal').textContent = vd.paso === 1 ? localInfo.name : ''
@@ -4825,7 +4830,7 @@ const MEDIOS = [
 function vdMetodos(){
   return `
     <div class="vd-medios">${MEDIOS.map(([m,ico,desc])=>`
-      <button class="vd-medio${vd.metodo===m?' on':''}" title="${esc(desc)}" onclick="vdElegirMedio('${m}')">
+      <button type="button" class="vd-medio${vd.metodo===m?' on':''}" data-medio="${esc(m)}" title="${esc(desc)}">
         <span class="vd-medio-ico">${ico}</span><span>${esc(m)}</span></button>`).join('')}
     </div>
     <h4 class="vd-h4">Opciones de pago</h4>
@@ -4842,7 +4847,23 @@ function vdMetodos(){
         <button class="mini-link" onclick="vd.partes.splice(${i},1);vdRender()">quitar</button></div>`).join('')}</div>`:''}
     ${vd.abono>0?`<p class="rem-note">Se cobra ${fmtMoney(vdPorPagar())} y quedan ${fmtMoney(vd.abono)} como abono ya pagado.</p>`:''}`
 }
-function vdElegirMedio(m){ vd.metodo = m; vdRender() }
+function vdElegirMedio(m){
+  if(!vd){ toast('Vuelve a abrir el cobro','error'); return }
+  vd.metodo = m
+  /* se marca al instante, aunque el repintado tarde */
+  document.querySelectorAll('.vd-medio').forEach(b=>b.classList.toggle('on', b.dataset.medio===m))
+  vdRender()
+}
+
+/* Un solo oyente para todo el panel: así el botón responde aunque el
+   contenido se haya repintado, y si algo falla se ve el motivo. */
+document.addEventListener('click', function(ev){
+  const b = ev.target.closest && ev.target.closest('.vd-medio')
+  if(!b) return
+  ev.preventDefault(); ev.stopPropagation()
+  try{ vdElegirMedio(b.dataset.medio) }
+  catch(e){ console.error(e); toast('No se pudo elegir el medio de pago: ' + e.message, 'error') }
+})
 
 function vdContinuar(){
   if(!vd.items.length){ toast('Agrega algo al carro','error'); return }
@@ -4903,7 +4924,7 @@ function vdAbonoPantalla(){
     </div>
     <p class="vd-pendiente">Monto pendiente: <strong>${fmtMoney(pend)}</strong></p>
     <div class="vd-medios">${MEDIOS.map(([m,ico,desc])=>`
-      <button class="vd-medio${vd.metodo===m?' on':''}" title="${esc(desc)}" onclick="vdElegirMedio('${m}')">
+      <button type="button" class="vd-medio${vd.metodo===m?' on':''}" data-medio="${esc(m)}" title="${esc(desc)}">
         <span class="vd-medio-ico">${ico}</span><span>${esc(m)}</span></button>`).join('')}
     </div>
     <h4 class="vd-h4">Opciones de pago</h4>
