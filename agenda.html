@@ -860,6 +860,21 @@ label.chk input{width:auto;margin:0}
 .gc-svc{display:block;font-size:.75rem;color:var(--mid);margin-bottom:6px;line-height:1.35}
 .gc-precio{display:block;font-size:.86rem;font-weight:600;margin-bottom:10px}
 .gc-pie{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+/* menú de pago de una reserva */
+.pagar-wrap{position:relative;display:inline-block}
+.pagar-wrap.ancho{display:block}
+.pagar-btn{white-space:nowrap}
+.pagar-menu{display:none;position:absolute;bottom:calc(100% + 6px);left:0;z-index:900;background:#fff;
+  border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.18);
+  padding:6px;min-width:230px}
+.pagar-menu.on{display:block}
+.pagar-menu button{display:block;width:100%;text-align:left;background:none;border:none;cursor:pointer;
+  font-family:inherit;font-size:.82rem;color:var(--dark);padding:9px 11px;border-radius:8px;white-space:nowrap}
+.pagar-menu button:hover{background:var(--cream)}
+.pagada-sello{display:inline-flex;align-items:center;gap:5px;background:#e4f8ef;color:#1d8a5f;
+  border-radius:20px;padding:5px 12px;font-size:.78rem;font-weight:600}
+@media(max-width:820px){ .pagar-menu{left:auto;right:0} }
 </style>
 </head>
 <body>
@@ -4250,8 +4265,8 @@ function openApptQuickView(id){
     ${email?`<div class="qv-row">✉ ${esc(email)}</div>`:''}
     <div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--dark)">${STATUS_LABEL[a.status]||''}</span></div>
-    <div style="display:flex;gap:8px;margin-top:14px">
-      <button class="mini-btn" onclick="payFromAppt('${id}')">$ Pagar</button>
+    <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
+      ${botonPagar(id)}
       ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();switchView('clientes');openClientDetail('${a.client_id}')">Ficha</button>`:''}
     </div>`
   document.body.appendChild(qv)
@@ -4282,6 +4297,42 @@ function payFromAppt(id){
   if(a.service_name){ saleItemsArr=[{name:a.service_name, qty:1, price:parseMoney(a.price), productId:null}]; renderSaleItems() }
 }
 document.addEventListener('click',e=>{ if(document.getElementById('apptQV') && !e.target.closest('#apptQV') && !e.target.closest('.appt')) closeQuickView() })
+
+/* ══════════════ MENÚ DE PAGO DE UNA RESERVA ══════════════
+   Si ya está pagada se ve el sello; si no, las tres formas de cobrar:
+   en el local, mandando el link por WhatsApp, o copiando el link. */
+function botonPagar(id, ancho){
+  const a = findAppt(id); if(!a) return ''
+  if(apptPagada(a)){
+    const v = state.sales.find(s=>s.appointment_id===a.id && s.status!=='deleted') || {}
+    return `<span class="pagada-sello" title="${esc(v.payment_method||'')}">✓ Pagada${v.payment_method?' · '+esc(v.payment_method):''}</span>`
+  }
+  const monto = a.price || ''
+  return `<div class="pagar-wrap${ancho?' ancho':''}">
+    <button class="mini-btn pagar-btn" onclick="togglePagarMenu(event,'${id}')">$ Pagar ${esc(monto)} ▾</button>
+    <div class="pagar-menu" id="pagarMenu-${id}">
+      <button onclick="cobrarEnLocal('${id}')">💳 Cobrar ${esc(monto)} en el local</button>
+      <button onclick="cobrarPorWhatsapp('${id}');cerrarPagarMenus()">💬 Cobrar por WhatsApp</button>
+      <button onclick="copiarLinkCobro('${id}');cerrarPagarMenus()">🔗 Copiar link de pago</button>
+      <button onclick="registrarPagoReserva('${id}');cerrarPagarMenus()">$ Marcar como pagada</button>
+    </div>
+  </div>`
+}
+function togglePagarMenu(ev, id){
+  ev.stopPropagation()
+  const m = document.getElementById('pagarMenu-'+id)
+  const abierto = m && m.classList.contains('on')
+  cerrarPagarMenus()
+  if(m && !abierto) m.classList.add('on')
+}
+function cerrarPagarMenus(){ document.querySelectorAll('.pagar-menu.on').forEach(m=>m.classList.remove('on')) }
+document.addEventListener('click', e=>{ if(!e.target.closest('.pagar-wrap')) cerrarPagarMenus() })
+
+/* cobrar aquí mismo: abre la venta con el servicio ya cargado */
+function cobrarEnLocal(id){
+  cerrarPagarMenus()
+  payFromAppt(id)
+}
 
 /* ── DETALLE DE RESERVA (modal con pestañas) ── */
 let adState={id:null, tab:'reserva', hist:'cliente'}
@@ -4321,9 +4372,9 @@ function renderApptTab(){
   } else if(t==='pago'){
     const sales=state.sales.filter(s=>s.status!=='deleted' && s.client_id && s.client_id===a.client_id)
     el.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <span style="color:var(--mid)">Pagos del cliente</span>
-        <button class="btn-primary" onclick="payFromAppt('${a.id}')">$ Registrar pago</button>
+      <div class="ad-info-row"><span class="k">Esta reserva</span><span>${botonPagar(a.id, true)}</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 12px">
+        <span style="color:var(--mid)">Otros pagos del cliente</span>
       </div>
       ${sales.length?`<table class="ctbl"><thead><tr><th>Fecha</th><th>Detalle</th><th>Método</th><th style="text-align:right">Total</th></tr></thead><tbody>${sales.map(s=>{const it=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]');const [y,m,d]=s.sale_date.split('-');return `<tr><td>${d}/${m}</td><td>${esc(it.map(i=>i.name).join(', '))}</td><td>${esc(s.payment_method||'')}</td><td style="text-align:right;font-weight:700">${fmtMoney(Number(s.total||0))}</td></tr>`}).join('')}</tbody></table>`:'<div class="ad-empty">Sin pagos registrados para este cliente.</div>'}`
   } else if(t==='recordatorios'){
@@ -6440,6 +6491,7 @@ function copiarTexto(t){
 
 /* el cliente pagó en el local: se registra la venta y la reserva queda saldada */
 async function registrarPagoReserva(apptId){
+  const _qvAbierta = !!document.getElementById('apptQV')
   const a = state.appointments.find(x=>x.id===apptId); if(!a) return
   const medio = prompt('¿Cómo pagó?\n\nEscribe: efectivo, débito, crédito, transferencia o giftcard', 'efectivo')
   if(medio === null) return
@@ -6456,6 +6508,8 @@ async function registrarPagoReserva(apptId){
     const link = cobrosEnviados.find(c=>c.appointment_id===a.id && c.status==='sent')
     if(link) await supabase.update('payment_links', link.id, { status:'paid', paid_at:new Date().toISOString() })
     await loadSales(); await cargarCobros(); render()
+    if(_qvAbierta) openApptQuickView(apptId)
+    if(document.getElementById('apptDetailModal').classList.contains('open')) renderApptTab()
     toast('Pago registrado','success')
   }catch(e){ console.error(e); toast('No se pudo registrar: ' + e.message,'error') }
 }
