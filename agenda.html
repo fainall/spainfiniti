@@ -2923,7 +2923,7 @@ body.sin-scroll{overflow:hidden}
     <label>Cliente</label>
     <div class="client-row">
       <div class="client-search-wrap">
-        <input type="text" id="apptClientSearch" placeholder="Busca por nombre, apellido, teléfono o email" autocomplete="off" oninput="onClientSearch()" onfocus="onClientSearch()" />
+        <input type="text" id="apptClientSearch" placeholder="Busca por nombre, apellido, teléfono o email" autocomplete="off" oninput="onClientSearch()" onfocus="onClientSearch()" onpaste="limpiarAlPegar(event)" />
         <div class="client-dropdown" id="clientDropdown"></div>
       </div>
       <button type="button" class="btn-newclient" onclick="openClientModal()">+ Nuevo cliente</button>
@@ -4933,10 +4933,8 @@ function vdAtras(){ vd.paso = vd.paso === 3 ? 2 : 1; vdRender() }
 function vdBuscarCliente(){
   const q = prompt('Buscar cliente por nombre o teléfono:', vd.clientName || '')
   if(q === null) return
-  const t = q.trim().toLowerCase()
-  if(!t){ vd.clientId=''; vd.clientName=''; vdRender(); return }
-  const enc = state.clients.filter(c =>
-    (c.name||'').toLowerCase().includes(t) || String(c.phone||'').includes(t))
+  if(!normalizarBusqueda(q)){ vd.clientId=''; vd.clientName=''; vdRender(); return }
+  const enc = state.clients.filter(c => clienteCoincide(c, q))
   if(!enc.length){ vd.clientId=''; vd.clientName=q.trim(); vdRender()
     toast('No está en la base: se guardará solo el nombre','success'); return }
   if(enc.length === 1){ vd.clientId=enc[0].id; vd.clientName=enc[0].name; vdRender(); return }
@@ -5463,14 +5461,70 @@ async function deleteAppt(){
   catch(e){ toast('Error al eliminar','error') }
 }
 
+/* ══════════ BUSCAR CLIENTES ══════════
+   Lo que se pega desde WhatsApp trae basura invisible: espacios que no son
+   espacios, marcas de dirección del texto, saltos de línea y espacios de
+   sobra. Y los teléfonos vienen con formato: "+56 9 3068 4584". Aquí se
+   limpia todo eso antes de comparar, en los dos lados. */
+function normalizarBusqueda(txt){
+  return String(txt || '')
+    /* espacios raros (fino, duro, de tabulación…) pasan a espacio normal */
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    /* marcas invisibles de dirección y separadores de palabra */
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    /* los acentos dejan de estorbar: "munoz" encuentra "Muñoz" */
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+/* solo los dígitos, para comparar teléfonos con cualquier formato */
+function soloDigitos(txt){ return String(txt || '').replace(/\D/g, '') }
+
+/* ¿este cliente coincide con lo que se buscó? */
+function clienteCoincide(c, consulta){
+  const q = normalizarBusqueda(consulta)
+  if(!q) return true
+  const campos = normalizarBusqueda([c.name, c.email, c.rut, c.phone, c.notes].filter(Boolean).join(' '))
+
+  /* si lo buscado parece un teléfono, se comparan solo los números */
+  const dig = soloDigitos(consulta)
+  if(dig.length >= 6){
+    const tel = soloDigitos(c.phone)
+    const rut = soloDigitos(c.rut)
+    if(tel && (tel.endsWith(dig.slice(-8)) || dig.endsWith(tel.slice(-8)))) return true
+    if(rut && rut.includes(dig)) return true
+  }
+
+  /* texto: tienen que estar todas las palabras, en cualquier orden */
+  const palabras = q.split(' ').filter(Boolean)
+  return palabras.every(w => campos.includes(w))
+}
+
+/* al pegar desde WhatsApp, se deja el texto limpio en el propio campo */
+function limpiarAlPegar(ev){
+  const texto = (ev.clipboardData || window.clipboardData).getData('text')
+  if(!texto) return
+  ev.preventDefault()
+  const limpio = String(texto)
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+    .replace(/\s+/g, ' ').trim()
+  const el = ev.target
+  const i = el.selectionStart || 0, j = el.selectionEnd || 0
+  el.value = el.value.slice(0,i) + limpio + el.value.slice(j)
+  el.selectionStart = el.selectionEnd = i + limpio.length
+  el.dispatchEvent(new Event('input', { bubbles:true }))
+}
+
 /* ── CLIENT PICKER ── */
 function onClientSearch(){
-  const q=document.getElementById('apptClientSearch').value.trim().toLowerCase()
+  const q=document.getElementById('apptClientSearch').value
   document.getElementById('apptClientId').value=''  // escribir invalida la selección previa
   const dd=document.getElementById('clientDropdown')
   if(!state.clients.length){ dd.classList.remove('show'); return }
   let list=state.clients
-  if(q) list=state.clients.filter(c=>((c.name||'')+' '+(c.phone||'')+' '+(c.email||'')+' '+(c.rut||'')).toLowerCase().includes(q))
+  if(normalizarBusqueda(q)) list=state.clients.filter(c=>clienteCoincide(c,q))
   list=list.slice(0,8)
   dd.innerHTML = list.length
     ? list.map(c=>`<div class="client-opt" onclick="selectClient('${c.id}')"><div class="cn">${esc(c.name)}</div><div class="cd">${esc(c.phone||'')}${c.email?' · '+esc(c.email):''}</div></div>`).join('')
@@ -6005,10 +6059,10 @@ function fillClientFilters(){
 }
 function clientsFiltered(){
   const g=id=>document.getElementById(id)?.value||''
-  const q=g('clientListSearch').trim().toLowerCase()
+  const q=g('clientListSearch')
   const appts=state.appointments.filter(a=>a.status!=='block'&&a.client_id)
   let list=state.clients
-  if(q) list=list.filter(c=>((c.name||'')+' '+(c.phone||'')+' '+(c.email||'')+' '+(c.rut||'')).toLowerCase().includes(q))
+  if(normalizarBusqueda(q)) list=list.filter(c=>clienteCoincide(c,q))
   if(g('clfGender')) list=list.filter(c=>c.gender===g('clfGender'))
   // profesional / servicio / estado de reserva → según sus citas
   const prof=g('clfProf'), svc=g('clfService'), st=g('clfApptStatus')
