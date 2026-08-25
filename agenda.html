@@ -12,6 +12,8 @@
   --gold:#C5A467; --gold-d:#A8883F; --gold-pale:#F5EDE2;
   --cream:#FCFBF9; --cream-2:#F9F7F4; --dark:#1A2436; --mid:#6B7280;
   --light:#9CA3AF; --border:#E5E7EB; --white:#fff; --red:#E74C3C; --green:#27AE60;
+  /* reja de la agenda: la hora en punto marcada y la media hora mas tenue */
+  --reja:#C8CDD4; --reja-media:#DFE3E8;
   --hour-h:60px; --gutter-w:58px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -505,20 +507,20 @@ label.chk input{width:auto;margin:0}
 
 /* ── CALENDAR ── */
 .cal-wrap{flex:1;overflow:auto;position:relative;background:var(--white)}
-.cal-head{display:flex;position:sticky;top:0;z-index:5;background:var(--white);border-bottom:1px solid var(--border)}
-.cal-head .gutter{width:var(--gutter-w);flex-shrink:0;border-right:1px solid var(--border)}
-.cal-head .dcol{flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--border);min-width:0}
+.cal-head{display:flex;position:sticky;top:0;z-index:5;background:var(--white);border-bottom:1px solid var(--reja)}
+.cal-head .gutter{width:var(--gutter-w);flex-shrink:0;border-right:1px solid var(--reja)}
+.cal-head .dcol{flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--reja);min-width:0}
 .cal-head .dcol .dow{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);font-weight:600}
 .cal-head .dcol .dnum{font-size:1.05rem;font-weight:600;margin-top:2px}
 .cal-head .dcol.today .dnum{background:var(--gold);color:#fff;width:30px;height:30px;line-height:30px;border-radius:50%;display:inline-block;margin-top:0}
 .cal-grid{display:flex;position:relative}
 .gutter{width:var(--gutter-w);flex-shrink:0;border-right:1px solid var(--border)}
 .gutter .hr{height:var(--hour-h);position:relative}
-.gutter .hr span{position:absolute;top:-7px;right:7px;font-size:.62rem;color:var(--light)}
-.dcol{flex:1;border-right:1px solid var(--border);position:relative;min-width:0}
+.gutter .hr span{position:absolute;top:-7px;right:7px;font-size:.64rem;color:#6b7280;font-weight:500}
+.dcol{flex:1;border-right:1px solid var(--reja);position:relative;min-width:0}
 .dcol.off{background:repeating-linear-gradient(45deg,#fafafa,#fafafa 8px,#f4f4f4 8px,#f4f4f4 16px)}
-.hr-line{position:absolute;left:0;right:0;border-top:1px solid #f0f0f0}
-.hr-line.half{border-top-style:dotted}
+.hr-line{position:absolute;left:0;right:0;border-top:1px solid var(--reja)}
+.hr-line.half{border-top:1px dashed var(--reja-media)}
 .appt{position:absolute;left:2px;right:2px;border-radius:6px;padding:4px 7px;font-size:.7rem;color:#1f2328;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.07);border-left:4px solid rgba(0,0,0,.2)}
 .appt:hover{filter:brightness(.97);box-shadow:0 3px 10px rgba(0,0,0,.13);z-index:3}
 .appt{cursor:grab}
