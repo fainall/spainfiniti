@@ -1033,6 +1033,14 @@ body.sin-scroll{overflow:hidden}
 .imp-linea{font-size:.8rem;color:var(--mid);margin-top:5px}
 .imp-ojo{color:#a4700f}
 .imp-mal{color:var(--red)}
+
+/* reserva con abono: barra ámbar con una A */
+.appt.abonada{padding-left:20px;border-left:0}
+.appt.abonada::before{content:'';position:absolute;left:0;top:0;bottom:0;width:15px;
+  background:#e8a33d;border-radius:6px 0 0 6px}
+.appt .pag.abo{color:#fff}
+.abono-sello{display:inline-flex;align-items:center;gap:5px;background:#fdf1e0;color:#8a6318;
+  border-radius:20px;padding:5px 12px;font-size:.76rem;font-weight:600;margin-right:8px}
 </style>
 </head>
 <body>
@@ -3949,9 +3957,9 @@ function renderCalendarRec(){
       const w=100/a._cols, left=a._col*w
       const prof=state.professionals.find(x=>x.id===a.professional_id)
       const color=STATUS_COLORS[a.status]||(prof&&prof.color)||r.color||'#7E8CE0'
-      return `<div class="appt${apptPagada(a)?' pagada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
-        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
+        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div></div>`
     }).join('')
@@ -4035,9 +4043,9 @@ function renderCalendarDia(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||p.color||'#C5A467'
-      return `<div class="appt${apptPagada(a)?' pagada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
-        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
+        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div></div>`
     }).join('')
@@ -4105,9 +4113,9 @@ function renderCalendar(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||(p?p.color:'#C5A467')
-      return `<div class="appt${apptPagada(a)?' pagada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
-        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)}</div>
+        <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
         <div class="s">${esc(a.service_name||'')}</div>
         ${profHaceServicio(a.professional_id,a.service_name)?'':'<span class="ojo-ico" title="Este profesional no tiene asignado este servicio">⚠</span>'}</div>`
@@ -4627,6 +4635,20 @@ function botonPagar(id, ancho){
     const v = state.sales.find(s=>s.appointment_id===a.id && s.status!=='deleted') || {}
     return `<span class="pagada-sello" title="${esc(v.payment_method||'')}">✓ Pagada${v.payment_method?' · '+esc(v.payment_method):''}</span>`
   }
+  /* con abono: se muestra lo pagado y se cobra solo el saldo */
+  if(apptAbonada(a)){
+    const falta = saldoPendiente(a)
+    return `<div class="pagar-wrap${ancho?' ancho':''}">
+      <span class="abono-sello">A · Abonado ${fmtMoney(totalCobrado(a))}</span>
+      <button class="mini-btn pagar-btn" onclick="togglePagarMenu(event,'${id}')">Cobrar ${fmtMoney(falta)} ▾</button>
+      <div class="pagar-menu" id="pagarMenu-${id}">
+        <button onclick="cobrarEnLocal('${id}')">💳 Cobrar el saldo en el local</button>
+        <button onclick="cobrarPorWhatsapp('${id}');cerrarPagarMenus()">💬 Cobrar por WhatsApp</button>
+        <button onclick="copiarLinkCobro('${id}');cerrarPagarMenus()">🔗 Copiar link de pago</button>
+        <button onclick="registrarPagoReserva('${id}');cerrarPagarMenus()">$ Marcar como pagada</button>
+      </div>
+    </div>`
+  }
   const monto = a.price || ''
   return `<div class="pagar-wrap${ancho?' ancho':''}">
     <button class="mini-btn pagar-btn" onclick="togglePagarMenu(event,'${id}')">$ Pagar ${esc(monto)} ▾</button>
@@ -4790,7 +4812,7 @@ function abrirVenta(apptId){
     apptId: apptId || null,
     clientId: a ? (a.client_id || '') : '',
     clientName: a ? (a.client_name || '') : '',
-    items: a ? [{ name:a.service_name || 'Servicio', qty:1, price:money2num(a.price),
+    items: a ? [{ name:a.service_name || 'Servicio', qty:1, price:(apptAbonada(a) ? saldoPendiente(a) : money2num(a.price)),
                   prof:a.professional_id, cuando:a.appt_date + ' ' + (a.start_time||'').slice(0,5) }] : [],
     metodo: '', abono: 0, partes: [], nota: ''
   }
@@ -5056,12 +5078,16 @@ async function vdCobrar(){
       }
     }
     const apptId = vd.apptId
+    const eraAbono = vd.paso === 3
     await loadSales(); await cargarCobros()
     cerrarVenta(); render(); if(typeof renderSales==='function') renderSales()
     if(apptId && document.getElementById('apptDetailModal').classList.contains('open')) renderApptTab()
-    toast('Cobro registrado','success')
+    toast(eraAbono ? 'Abono registrado' : 'Cobro registrado','success')
   }catch(e){
     console.error(e); toast('No se pudo registrar el cobro: ' + e.message,'error')
+  }finally{
+    /* el botón es siempre el mismo elemento: si no se suelta aquí,
+       queda bloqueado y el siguiente cobro no llega a ejecutarse */
     b.disabled = false; b.textContent = txt; b.dataset.ocupado = '0'
   }
 }
@@ -7417,11 +7443,28 @@ async function cargarCobros(){
 }
 
 /* ¿esta reserva ya está pagada? */
+/* cuánto se ha cobrado de una reserva, sumando abonos */
+function totalCobrado(a){
+  if(!a) return 0
+  return state.sales
+    .filter(v => v.appointment_id === a.id && v.status !== 'deleted' && v.status !== 'cancelled' && v.status !== 'void')
+    .reduce((t,v) => t + (Number(v.total)||0), 0)
+}
+/* pagada del todo */
 function apptPagada(a){
   if(!a) return false
-  return state.sales.some(v => v.appointment_id === a.id &&
-    v.status !== 'deleted' && v.status !== 'cancelled' && v.status !== 'void')
+  const cobrado = totalCobrado(a)
+  if(cobrado <= 0) return false
+  const precio = money2num(a.price)
+  return precio > 0 ? cobrado >= precio : true
 }
+/* pagada solo en parte */
+function apptAbonada(a){
+  if(!a) return false
+  const cobrado = totalCobrado(a), precio = money2num(a.price)
+  return cobrado > 0 && precio > 0 && cobrado < precio
+}
+function saldoPendiente(a){ return Math.max(0, money2num(a.price) - totalCobrado(a)) }
 /* reservas cobrables: ya ocurrieron, tienen precio y nadie las pagó */
 function reservasPorCobrar(){
   const hoy = isoDate(new Date())
