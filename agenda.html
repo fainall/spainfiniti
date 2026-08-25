@@ -1772,7 +1772,7 @@ label.chk input{width:auto;margin:0}
       <div class="modal-actions">
         <button class="btn-danger" id="ffDelBtn" onclick="deleteFichaCliente()" style="display:none">Eliminar</button>
         <button class="btn-ghost" onclick="closeModal('ffModal')">Cerrar</button>
-        <button class="btn-primary" onclick="saveFichaCliente()">Guardar ficha</button>
+        <button class="btn-primary" onclick="unaVez(event,saveFichaCliente)">Guardar ficha</button>
       </div>
     </div>
   </div>
@@ -1822,7 +1822,7 @@ label.chk input{width:auto;margin:0}
       </div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeModal('fmModal')">Cerrar</button>
-        <button class="btn-primary" onclick="guardarFirma()">Firmar y guardar</button>
+        <button class="btn-primary" onclick="unaVez(event,guardarFirma)">Firmar y guardar</button>
       </div>
     </div>
   </div>
@@ -2773,7 +2773,7 @@ label.chk input{width:auto;margin:0}
     <div class="modal-actions">
       <button class="btn-danger" id="apptDelBtn" onclick="deleteAppt()" style="display:none">Eliminar</button>
       <button class="btn-ghost" onclick="closeModal('apptModal')">Cancelar</button>
-      <button class="btn-primary" onclick="saveAppt()">Guardar reserva</button>
+      <button class="btn-primary" onclick="unaVez(event,saveAppt)">Guardar reserva</button>
     </div>
   </div>
 </div>
@@ -2883,7 +2883,7 @@ label.chk input{width:auto;margin:0}
     <textarea id="clNotes" rows="2" placeholder="Preferencias, alergias, etc."></textarea>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal('clientModal')">Cancelar</button>
-      <button class="btn-primary" onclick="saveClient()">Guardar cliente</button>
+      <button class="btn-primary" onclick="unaVez(event,saveClient)">Guardar cliente</button>
     </div>
   </div>
 </div>
@@ -2967,7 +2967,7 @@ label.chk input{width:auto;margin:0}
     <div class="modal-actions">
       <button class="btn-danger" id="saleDelBtn" onclick="deleteSale()" style="display:none">Eliminar</button>
       <button class="btn-ghost" onclick="closeModal('saleModal')">Cancelar</button>
-      <button class="btn-primary" onclick="saveSale()">Guardar venta</button>
+      <button class="btn-primary" onclick="unaVez(event,saveSale)">Guardar venta</button>
     </div>
   </div>
 </div>
@@ -4265,6 +4265,19 @@ function bgSuave(c){ return _mezcla(c||'#C5A467', [255,255,255], 0.90) }
 /* texto legible sobre ese fondo */
 function txtOscuro(c){ return _mezcla(c||'#C5A467', [0,0,0], 0.48) }
 
+/* ══════════ UN CLIC, UNA VEZ ══════════
+   Un doble clic en Guardar llegaba a crear dos veces lo mismo, porque
+   el botón seguía activo mientras se hablaba con el servidor. Esto lo
+   apaga y muestra "Guardando…" hasta que termina. */
+function unaVez(ev, tarea){
+  const b = (ev && (ev.currentTarget || ev.target)) || null
+  if(b && b.dataset.ocupado === '1') return
+  if(b){ b.dataset.ocupado = '1'; b.dataset.txt = b.textContent; b.textContent = 'Guardando…'; b.disabled = true }
+  Promise.resolve()
+    .then(tarea)
+    .catch(e => { console.error(e); toast('No se pudo guardar','error') })
+    .finally(() => { if(b){ b.disabled = false; b.textContent = b.dataset.txt; b.dataset.ocupado = '0' } })
+}
 /* ── VISTA RÁPIDA DE RESERVA (al hacer clic) ── */
 function fmtLongDate(iso){ const [y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d); return `${DOW_FULL[dt.getDay()].toLowerCase()}, ${d} de ${MONTHS[m-1].toLowerCase()}` }
 function openApptQuickView(id){
@@ -8709,8 +8722,14 @@ function editSale(id){
   document.getElementById('saleDelBtn').style.display='block'
   openModal('saleModal')
 }
+let guardandoVenta = false
 async function saveSale(){
+  if(guardandoVenta) return
   if(!saleItemsArr.length){ toast('Agrega al menos un ítem','error'); return }
+  guardandoVenta = true
+  try{ await _saveSale() } finally { guardandoVenta = false }
+}
+async function _saveSale(){
   const row={
     client_id:document.getElementById('saleClientId').value||null,
     client_name:document.getElementById('saleClientSearch').value.trim(),
