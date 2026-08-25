@@ -3771,7 +3771,14 @@ function hourBounds(){
   /* 3. y si tampoco hay equipo, un horario razonable */
   if(mn === null){ mn = 10*60; mx = 20*60 }
 
-  /* 4. nunca cortar una reserva que ya existe en los días visibles */
+  /* 4. un margen antes de abrir y después de cerrar, para poder agendar
+        a quien llega antes o se pasa de la hora (Administración → Configuración) */
+  const margen = (typeof cfgCuenta !== 'undefined' && cfgCuenta.margenAgenda != null)
+    ? Number(cfgCuenta.margenAgenda) : 60
+  mn = Math.max(0, mn - margen)
+  mx = Math.min(24*60, mx + margen)
+
+  /* 5. nunca cortar una reserva que ya existe en los días visibles */
   const dIni = isoDate(desde), dFin = isoDate(hasta)
   state.appointments.forEach(a => {
     if(a.appt_date < dIni || a.appt_date > dFin) return
@@ -7436,6 +7443,7 @@ let cfgCuenta = {
   exigirContacto: true,          // pedir teléfono o correo al agendar
   fichaRequerida: false,         // no marcar "Asiste" sin ficha completada
   limiteCitas: 0,                // máximo de reservas por cliente al mes (0 = sin límite)
+  margenAgenda: 60,              // minutos visibles antes de abrir y después de cerrar
   fueraDeHorario: false,         // permitir reservas internas fuera del horario
   requiereCliente: true,         // exigir cliente al registrar un pago
   permiteEditarPrecio: true,     // dejar cambiar el precio al cobrar
@@ -7463,6 +7471,14 @@ async function guardarCfgCuenta(){
   toast(ok ? 'Configuración guardada' : 'Guardado solo en este navegador','success')
 }
 
+/* muestra cómo queda el horario visible con el margen elegido */
+function horaConMargen(signo){
+  const m = (cfgCuenta.margenAgenda != null) ? Number(cfgCuenta.margenAgenda) : 60
+  const dia = localInfo.hours[1] || ['10:00','20:00',true]
+  const base = signo < 0 ? toMin(dia[0]) : toMin(dia[1])
+  const v = signo < 0 ? Math.max(0, base - m) : Math.min(24*60, base + m)
+  return toHHMM(Math.floor(v/60)*60)
+}
 function admConfig(){
   return `<div class="inv-notice">⭐ <strong>Configuración de la cuenta:</strong> reglas que valen para toda la agenda y la caja. Los cambios se guardan solos.</div>
 
@@ -7478,6 +7494,14 @@ function admConfig(){
           <input type="number" min="0" value="${cfgCuenta.limiteCitas||0}"
             onchange="cfgCuenta.limiteCitas=parseInt(this.value)||0;guardarCfgCuenta()" />
           <p class="rem-note" style="margin:4px 0 0">0 = sin límite.</p></div>
+      </div>
+      <div class="row2" style="margin-bottom:6px">
+        <div><label>Margen visible en la agenda</label>
+          <select onchange="cfgCuenta.margenAgenda=parseInt(this.value);guardarCfgCuenta();render()">
+            ${[0,30,60,90,120].map(v=>`<option value="${v}" ${v===(cfgCuenta.margenAgenda!=null?cfgCuenta.margenAgenda:60)?'selected':''}>${v===0?'Solo el horario del local':v+' minutos antes y después'}</option>`).join('')}
+          </select>
+          <p class="rem-note" style="margin:4px 0 0">Con el local de ${esc((localInfo.hours[1]||[])[0]||'10:00')} a ${esc((localInfo.hours[1]||[])[1]||'20:00')}, la agenda se ve de ${horaConMargen(-1)} a ${horaConMargen(1)}.</p></div>
+        <div></div>
       </div>
       ${sw('reservasSobrepuestas','Reservas sobrepuestas','Permite que un profesional tenga dos reservas a la misma hora. Solo desde el panel; en el sitio web nunca se ofrece.')}
       ${sw('clientesSimultaneos','Reservas simultáneas del mismo cliente','Permite que una persona tenga dos reservas a la vez, por ejemplo manos y pies con dos profesionales.')}
