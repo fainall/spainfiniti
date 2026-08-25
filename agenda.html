@@ -831,8 +831,13 @@ label.chk input{width:auto;margin:0}
 .cd-firma-img{height:52px;max-width:180px;object-fit:contain}
 
 /* cobros */
-.appt.pagada{box-shadow:inset 4px 0 0 #2ecc8f}
-.appt .pag{display:inline-block;font-style:normal;font-weight:700;color:#eafff5;margin-right:3px}
+/* reserva pagada: barra verde al costado con el signo peso centrado */
+.appt.pagada{padding-left:20px;border-left:0}
+.appt.pagada::before{content:'';position:absolute;left:0;top:0;bottom:0;width:15px;
+  background:#22c58a;border-radius:6px 0 0 6px}
+.appt .pag{position:absolute;left:0;top:0;bottom:0;width:15px;display:flex;align-items:center;
+  justify-content:center;font-style:normal;font-weight:700;font-size:.72rem;color:#fff;
+  text-shadow:0 1px 1px rgba(0,0,0,.18);pointer-events:none;z-index:2}
 .cb-acciones{display:flex;gap:6px;flex-wrap:wrap}
 .cb-tag{display:inline-block;border-radius:20px;padding:2px 10px;font-size:.72rem;background:var(--cream-2);color:var(--mid)}
 .cb-tag.pagado{background:#e4f8ef;color:#1d8a5f}
