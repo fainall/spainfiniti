@@ -1021,6 +1021,13 @@ body.sin-scroll{overflow:hidden}
 /* reserva con un profesional que no realiza ese servicio */
 .appt.ojo{box-shadow:0 0 0 2px #e8a33d inset}
 .ojo-ico{position:absolute;top:2px;right:3px;font-size:.66rem;line-height:1}
+
+/* aviso al forzar una reserva */
+.fz-aviso{display:flex;gap:11px;align-items:flex-start;background:#fff8ec;border:1px solid #f0dcb4;
+  border-radius:10px;padding:13px 15px;margin:14px 0}
+.fz-aviso span{font-size:1.05rem;line-height:1.2}
+.fz-aviso p{margin:0;font-size:.85rem;color:#7a5c1e;line-height:1.5}
+.appt.forzada::after{content:'⚡';position:absolute;bottom:2px;right:3px;font-size:.6rem;opacity:.75}
 </style>
 </head>
 <body>
@@ -2065,6 +2072,19 @@ body.sin-scroll{overflow:hidden}
         <button class="vd-btn" id="vdBoton">Continuar</button>
       </footer>
     </aside>
+  </div>
+
+  <!-- MODAL: forzar una reserva -->
+  <div class="modal-ov" id="forzarModal">
+    <div class="modal" style="width:440px;max-width:94vw">
+      <h2>¿Reservar de todas formas?</h2>
+      <div class="fz-aviso"><span>⚠</span><p id="fzMotivo"></p></div>
+      <p class="rem-note">Puedes seguir adelante si sabes lo que estás haciendo — por ejemplo, una sesión en pareja en el mismo box con dos profesionales, o un cliente que llegó tarde. La reserva quedará marcada como forzada.</p>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="forzarResponder(false)">Cancelar</button>
+        <button class="btn-primary" onclick="forzarResponder(true)">Forzar reserva</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL: recurso (Administración) -->
@@ -4222,12 +4242,12 @@ async function apptMouseUp(){
   const _asig=checkProfServicio(profDestino, a.service_name)
   if(_asig){ toast(_asig,'error'); render(); return }
   const _hor=checkProfHours(profDestino, d.targetDate, d.targetStart, d.dur)
-  if(_hor){ toast(_hor,'error'); render(); return }
+  if(_hor && !await seguirPeseA(_hor)){ render(); return }
   const _reglas=checkReglasCuenta({ profId:profDestino, clientId:a.client_id,
     date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id })
-  if(_reglas){ toast(_reglas,'error'); render(); return }
+  if(_reglas && !await seguirPeseA(_reglas)){ render(); return }
   const _rec=checkRecursos({ serviceName:a.service_name, date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id })
-  if(_rec && !cfgCuenta.sobrecargaRecursos){ toast(_rec,'error'); render(); return }
+  if(_rec && !cfgCuenta.sobrecargaRecursos && !await seguirPeseA(_rec)){ render(); return }
 
   const newEnd=toHHMM(toMin(d.targetStart)+d.dur)
   const cambioProf = profDestino !== a.professional_id
@@ -5175,10 +5195,12 @@ async function reGuardar(id, campo, valor){
   const dur = toMin(nueva.end_time.slice(0,5)) - toMin(ini)
   if(['fecha','inicio','fin','prof'].includes(campo)){
     const m1 = checkProfHours(nueva.professional_id, nueva.appt_date, ini, dur)
-    if(m1){ toast(m1,'error'); renderApptTab(); return }
+    if(m1 && !await seguirPeseA(m1)){ renderApptTab(); return }
     const m2 = checkReglasCuenta({ profId:nueva.professional_id, clientId:a.client_id,
       date:nueva.appt_date, start:ini, dur, apptId:a.id })
-    if(m2){ toast(m2,'error'); renderApptTab(); return }
+    if(m2 && !await seguirPeseA(m2)){ renderApptTab(); return }
+    const m3 = checkRecursos({ serviceName:nueva.service_name, date:nueva.appt_date, start:ini, dur, apptId:a.id })
+    if(m3 && !cfgCuenta.sobrecargaRecursos && !await seguirPeseA(m3)){ renderApptTab(); return }
   }
 
   try{
@@ -5206,6 +5228,30 @@ function reInfoCliente(id, cual){
   } else {
     toast(cual + ': aún no está disponible', 'success')
   }
+}
+
+/* ══════════ FORZAR UNA RESERVA ══════════
+   Hay bloqueos que son avisos, no prohibiciones: el box ocupado cuando
+   se atiende a una pareja con dos profesionales, o pasarse del horario
+   porque el cliente llegó tarde. En esos casos se puede seguir adelante
+   dejando constancia de que la reserva se forzó. */
+let _forzarResolver = null
+
+function pedirForzar(motivo){
+  return new Promise(resolve => {
+    _forzarResolver = resolve
+    document.getElementById('fzMotivo').textContent = motivo
+    openModal('forzarModal')
+  })
+}
+function forzarResponder(si){
+  closeModal('forzarModal')
+  if(_forzarResolver){ _forzarResolver(si); _forzarResolver = null }
+}
+/* comprueba un bloqueo y, si lo hay, ofrece forzarlo. Devuelve true si se puede seguir */
+async function seguirPeseA(motivo){
+  if(!motivo) return true
+  return await pedirForzar(motivo)
 }
 
 /* ── DETALLE DE RESERVA (modal con pestañas) ── */
@@ -5344,17 +5390,22 @@ async function saveAppt(){
     toast('Este cliente necesita al menos un teléfono o un correo. Puedes desactivarlo en Administración → Configuración','error'); return }
   if(!date||!start){ toast('Falta fecha u hora','error'); return }
   const svcName0=(document.getElementById('apptServiceName').value||'').trim()
-  const _motivo=checkServiceRules({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
-  if(_motivo){ toast(_motivo,'error'); return }
-  const _horario=checkProfHours(profId, date, start, dur)
-  if(_horario){ toast(_horario,'error'); return }
+  /* que el profesional realice el servicio no se puede saltar: eso es un
+     error de configuración, no una excepción del día a día */
   const _asignado=checkProfServicio(profId, svcName0)
   if(_asignado){ toast(_asignado,'error'); return }
+
+  /* los demás avisos sí se pueden forzar */
+  let forzada = false
+  const _motivo=checkServiceRules({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
+  if(_motivo){ if(!await seguirPeseA(_motivo)) return; forzada = true }
+  const _horario=checkProfHours(profId, date, start, dur)
+  if(_horario){ if(!await seguirPeseA(_horario)) return; forzada = true }
   const _recurso=checkRecursos({serviceName:svcName0, date, start, dur, apptId:document.getElementById('apptId').value})
-  if(_recurso && !cfgCuenta.sobrecargaRecursos){ toast(_recurso,'error'); return }
+  if(_recurso && !cfgCuenta.sobrecargaRecursos){ if(!await seguirPeseA(_recurso)) return; forzada = true }
   const _reglas=checkReglasCuenta({ profId, clientId:document.getElementById('apptClientId').value||null,
     date, start, dur, apptId:document.getElementById('apptId').value })
-  if(_reglas){ toast(_reglas,'error'); return }
+  if(_reglas){ if(!await seguirPeseA(_reglas)) return; forzada = true }
   // reglas propias de las clases
   const _ci=classInfo(svcName0, date, start)
   if(_ci){
@@ -5379,6 +5430,7 @@ async function saveAppt(){
     client_name:client,
     client_phone:document.getElementById('apptPhone').value.trim(),
     appt_date:date, start_time:start, end_time:end,
+    forzada,
     status:document.getElementById('apptStatus').value,
     notes:document.getElementById('apptNotes').value.trim()
   }
