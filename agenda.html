@@ -4291,6 +4291,7 @@ async function qvDelete(id){
 function payFromAppt(id){
   const a=findAppt(id); if(!a) return
   closeQuickView(); openSaleModal()
+  ventaDeReserva = id
   document.getElementById('saleClientSearch').value=a.client_name||''
   document.getElementById('saleClientId').value=a.client_id||''
   if(a.professional_id) document.getElementById('saleProf').value=a.professional_id
@@ -6364,7 +6365,8 @@ async function cargarCobros(){
 /* ¿esta reserva ya está pagada? */
 function apptPagada(a){
   if(!a) return false
-  return state.sales.some(v => v.appointment_id === a.id && v.status !== 'deleted')
+  return state.sales.some(v => v.appointment_id === a.id &&
+    v.status !== 'deleted' && v.status !== 'cancelled' && v.status !== 'void')
 }
 /* reservas cobrables: ya ocurrieron, tienen precio y nadie las pagó */
 function reservasPorCobrar(){
@@ -8639,7 +8641,12 @@ function selectSaleClient(id){
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('#saleModal .client-search-wrap')){ const dd=document.getElementById('saleClientDropdown'); if(dd) dd.classList.remove('show') } })
 
+/* reserva que se está cobrando; queda vinculada a la venta para
+   que la agenda pueda mostrar el signo de pagada */
+let ventaDeReserva = null
+
 function openSaleModal(){
+  ventaDeReserva = null
   fillSaleItemPick(); fillSaleProf()
   document.getElementById('saleTitle').textContent='Nueva venta'
   document.getElementById('saleId').value=''
@@ -8658,6 +8665,7 @@ function openSaleModal(){
 }
 function editSale(id){
   const s=state.sales.find(x=>x.id===id); if(!s) return
+  ventaDeReserva = s.appointment_id || null
   fillSaleItemPick(); fillSaleProf()
   document.getElementById('saleTitle').textContent='Venta'
   document.getElementById('saleId').value=s.id
@@ -8686,7 +8694,8 @@ async function saveSale(){
     tip:parseInt(document.getElementById('saleTip').value)||0,
     payment_method:document.getElementById('salePay').value,
     status:document.getElementById('saleStatus').value,
-    notes:document.getElementById('saleNotes').value.trim()
+    notes:document.getElementById('saleNotes').value.trim(),
+    appointment_id: ventaDeReserva || null
   }
   const id=document.getElementById('saleId').value
   try{
@@ -8702,6 +8711,17 @@ async function saveSale(){
       }
     }
     await loadSales(); closeModal('saleModal'); toast('Venta guardada','success'); renderSales()
+    /* si la venta era de una reserva, la agenda ya puede marcarla como pagada */
+    if(ventaDeReserva){
+      const _r = ventaDeReserva
+      const _link = (typeof cobrosEnviados!=='undefined' ? cobrosEnviados : []).find(c=>c.appointment_id===_r && c.status==='sent')
+      if(_link){ try{ await supabase.update('payment_links', _link.id, { status:'paid', paid_at:new Date().toISOString() }) }catch(e){} }
+      if(typeof cargarCobros==='function') await cargarCobros()
+      ventaDeReserva = null
+      render()
+      if(document.getElementById('apptDetailModal').classList.contains('open')) renderApptTab()
+      openApptQuickView(_r)
+    }
   }catch(e){ console.error(e); toast('Error al guardar la venta','error') }
 }
 async function deleteSale(){
