@@ -1017,6 +1017,10 @@ body.sin-scroll{overflow:hidden}
 .vd-monto input{flex:1;border:none;outline:none;padding:15px 0;font-family:inherit;font-size:1.15rem;
   font-weight:700;color:var(--dark);background:transparent}
 .vd-pendiente{text-align:right;font-size:.8rem;color:var(--gold-d);margin:0 0 20px}
+
+/* reserva con un profesional que no realiza ese servicio */
+.appt.ojo{box-shadow:0 0 0 2px #e8a33d inset}
+.ojo-ico{position:absolute;top:2px;right:3px;font-size:.66rem;line-height:1}
 </style>
 </head>
 <body>
@@ -3913,7 +3917,7 @@ function renderCalendarRec(){
       const w=100/a._cols, left=a._col*w
       const prof=state.professionals.find(x=>x.id===a.professional_id)
       const color=STATUS_COLORS[a.status]||(prof&&prof.color)||r.color||'#7E8CE0'
-      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -3999,7 +4003,7 @@ function renderCalendarDia(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||p.color||'#C5A467'
-      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -4069,11 +4073,12 @@ function renderCalendar(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||(p?p.color:'#C5A467')
-      return `<div class="appt${apptPagada(a)?' pagada':''}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':''}${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
-        <div class="s">${esc(a.service_name||'')}</div></div>`
+        <div class="s">${esc(a.service_name||'')}</div>
+        ${profHaceServicio(a.professional_id,a.service_name)?'':'<span class="ojo-ico" title="Este profesional no tiene asignado este servicio">⚠</span>'}</div>`
     }).join('')
     cols+=`<div class="dcol ${working?'':'off'}" style="height:${gridH}px" data-date="${isoDate(dd)}" onclick="onSlotClick(event,this)">
       ${lines}${blocks}</div>`
@@ -4191,6 +4196,8 @@ function apptMouseMove(e){
     mins=Math.max(minM, Math.min(mins, maxM-drag.dur))
     drag.targetDate=col.dataset.date
     drag.targetStart=toHHMM(mins)
+    /* en la vista Día cada columna es un profesional: soltar ahí lo reasigna */
+    drag.targetProf=col.dataset.prof || null
     const top=(mins-minM)/slotMin*SP, h=Math.max(20, drag.dur/slotMin*SP-2)
     const d=document.createElement('div'); d.className='drop-hint'; d.id='dropHint'
     d.style.top=top+'px'; d.style.height=h+'px'; d.textContent=toHHMM(mins)
@@ -4211,15 +4218,33 @@ async function apptMouseUp(){
   if(a.appt_date===d.targetDate && a.start_time.slice(0,5)===d.targetStart){ render(); return }
   const _m=checkServiceRules({serviceName:a.service_name, date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id})
   if(_m){ toast(_m,'error'); render(); return }
-  const _asig=checkProfServicio(d.targetProf || a.professional_id, a.service_name)
+  const profDestino = d.targetProf || a.professional_id
+  const _asig=checkProfServicio(profDestino, a.service_name)
   if(_asig){ toast(_asig,'error'); render(); return }
+  const _hor=checkProfHours(profDestino, d.targetDate, d.targetStart, d.dur)
+  if(_hor){ toast(_hor,'error'); render(); return }
+  const _reglas=checkReglasCuenta({ profId:profDestino, clientId:a.client_id,
+    date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id })
+  if(_reglas){ toast(_reglas,'error'); render(); return }
+  const _rec=checkRecursos({ serviceName:a.service_name, date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id })
+  if(_rec && !cfgCuenta.sobrecargaRecursos){ toast(_rec,'error'); render(); return }
+
   const newEnd=toHHMM(toMin(d.targetStart)+d.dur)
-  a.appt_date=d.targetDate; a.start_time=d.targetStart; a.end_time=newEnd  // optimista
+  const cambioProf = profDestino !== a.professional_id
+  const antes = { fecha:a.appt_date, ini:a.start_time, fin:a.end_time, prof:a.professional_id }
+  a.appt_date=d.targetDate; a.start_time=d.targetStart; a.end_time=newEnd
+  a.professional_id=profDestino   // optimista
   render()
   try{
-    await supabase.update('appointments', d.id, {appt_date:d.targetDate, start_time:d.targetStart, end_time:newEnd})
-    toast('Reserva movida','success')
-  }catch(err){ console.error(err); toast('Error al mover — recargando','error'); loadAndRender() }
+    await supabase.update('appointments', d.id,
+      { appt_date:d.targetDate, start_time:d.targetStart, end_time:newEnd, professional_id:profDestino })
+    toast(cambioProf ? ('Reserva movida a ' + (profName(profDestino)||'otro profesional')) : 'Reserva movida','success')
+  }catch(err){
+    console.error(err)
+    /* si falla, la reserva vuelve a donde estaba */
+    a.appt_date=antes.fecha; a.start_time=antes.ini; a.end_time=antes.fin; a.professional_id=antes.prof
+    toast('No se pudo mover la reserva','error'); render()
+  }
 }
 
 /* ── MÓVIL ── */
