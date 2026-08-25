@@ -3548,12 +3548,43 @@ function activeProfs(){
   const list = state.professionals.filter(p=>p.active!==false)
   return list.filter(p=>profInFilter(p.id))
 }
+/* Hasta dónde llega la agenda de arriba a abajo.
+   Manda el horario del local (Administración → Locales): si abre de 10 a 20,
+   la agenda muestra de 10 a 20 y no se pierde media pantalla en horas muertas.
+   Solo se estira si hay una reserva fuera de ese horario, para no ocultarla. */
 function hourBounds(){
-  // Rango base amplio para que se pueda ver y agendar en todo el día
-  let mn=8*60, mx=21*60
-  activeProfs().forEach(p=>{ mn=Math.min(mn,toMin(p.work_start||'09:00')); mx=Math.max(mx,toMin(p.work_end||'20:00')) })
-  // Nunca cortar una reserva existente
-  state.appointments.forEach(a=>{ mn=Math.min(mn,toMin(a.start_time)); mx=Math.max(mx,toMin(a.end_time)) })
+  let mn = null, mx = null
+  const marca = (a, b) => {
+    if(a==null || b==null) return
+    mn = (mn===null) ? a : Math.min(mn, a)
+    mx = (mx===null) ? b : Math.max(mx, b)
+  }
+
+  /* 1. horario del local en los días que se están viendo */
+  const [desde, hasta] = visibleRange()
+  const horas = (localInfo && localInfo.hours) || {}
+  for(let d = new Date(desde); d <= hasta; d = addDays(d, 1)){
+    const dia = horas[d.getDay()] || horas[String(d.getDay())]
+    if(!dia || dia[2] === false || !dia[0] || !dia[1]) continue
+    marca(toMin(dia[0]), toMin(dia[1]))
+  }
+
+  /* 2. si el local está cerrado todos esos días, usar el horario del equipo */
+  if(mn === null){
+    activeProfs().forEach(p => marca(toMin((p.work_start||'10:00').slice(0,5)),
+                                    toMin((p.work_end||'20:00').slice(0,5))))
+  }
+  /* 3. y si tampoco hay equipo, un horario razonable */
+  if(mn === null){ mn = 10*60; mx = 20*60 }
+
+  /* 4. nunca cortar una reserva que ya existe en los días visibles */
+  const dIni = isoDate(desde), dFin = isoDate(hasta)
+  state.appointments.forEach(a => {
+    if(a.appt_date < dIni || a.appt_date > dFin) return
+    mn = Math.min(mn, toMin(a.start_time))
+    mx = Math.max(mx, toMin(a.end_time || a.start_time))
+  })
+
   return [Math.floor(mn/60)*60, Math.ceil(mx/60)*60]
 }
 
@@ -10051,7 +10082,7 @@ async function boot(){
   render()
   if(isPro()) switchView('agenda')
   // scroll a las 9:00 aprox
-  setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=60 }, 100)
+  setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=0 }, 100)
 }
 if(localStorage.getItem('spa_admin_auth')==='true') boot()
 else checkFirstRun()
