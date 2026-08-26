@@ -4956,6 +4956,71 @@ function payFromAppt(id){
 }
 document.addEventListener('click',e=>{ if(document.getElementById('apptQV') && !e.target.closest('#apptQV') && !e.target.closest('.appt')) closeQuickView() })
 
+/* ══════════ COBRAR TODAS LAS RESERVAS DEL DÍA ══════════
+   Un cliente que viene a dos o tres cosas el mismo día paga una vez.
+   Se juntan en un solo carro, pero al guardar se registra una venta por
+   reserva: así cada una queda marcada como pagada y la comisión llega a
+   la profesional que atendió, aunque sean distintas. */
+function reservasDelDia(a){
+  if(!a) return []
+  const mismo = b => a.client_id
+    ? b.client_id === a.client_id
+    : normalizarBusqueda(b.client_name||'') === normalizarBusqueda(a.client_name||'')
+  return state.appointments
+    .filter(b => b.appt_date === a.appt_date && b.status !== 'cancelled' && b.status !== 'block'
+      && mismo(b) && !apptPagada(b))
+    .sort((x,y) => String(x.start_time).localeCompare(String(y.start_time)))
+}
+function cobrarReservasDelDia(id){
+  cerrarPagarMenus()
+  const a = findAppt(id); if(!a) return
+  const lista = reservasDelDia(a)
+  if(lista.length < 2){ abrirVenta(id); return }
+  vd = {
+    paso: 1,
+    apptId: lista[0].id,
+    apptIds: lista.map(x => x.id),
+    clientId: a.client_id || '',
+    clientName: a.client_name || '',
+    items: lista.map(x => ({
+      name: x.service_name || 'Servicio', qty: 1,
+      price: apptAbonada(x) ? saldoPendiente(x) : money2num(x.price),
+      prof: x.professional_id, apptId: x.id,
+      cuando: x.appt_date + ' ' + (x.start_time||'').slice(0,5)
+    })),
+    metodo: '', abono: 0, partes: [], nota: ''
+  }
+  closeQuickView()
+  document.getElementById('ventaDrawer').classList.add('on')
+  document.body.classList.add('sin-scroll')
+  vdRender()
+}
+/* una venta por reserva, todas con el mismo medio de pago */
+async function guardarCobroMultiple(medio){
+  const sueltos = vd.items.filter(i => !i.apptId)
+  let primera = true
+  for(const apptId of vd.apptIds){
+    const a = findAppt(apptId); if(!a) continue
+    const mios = vd.items.filter(i => i.apptId === apptId)
+    if(!mios.length) continue
+    const items = primera ? mios.concat(sueltos) : mios
+    const total = items.reduce((t,i)=> t + (Number(i.price)||0) * (Number(i.qty)||1), 0)
+    await supabase.insert('sales', {
+      client_id: vd.clientId || null,
+      client_name: vd.clientName || '',
+      professional_id: a.professional_id || null,
+      appointment_id: apptId,
+      sale_date: isoDate(new Date()),
+      items: items.map(i=>({ name:i.name, qty:i.qty, price:i.price })),
+      total, payment_method: medio, status: 'paid',
+      notes: ('Parte del cobro de ' + vd.apptIds.length + ' reservas del día. ' + (vd.nota||'')).trim()
+    })
+    const l = cobrosEnviados.find(c => c.appointment_id === apptId && c.status === 'sent')
+    if(l) await supabase.update('payment_links', l.id, { status:'paid', paid_at:new Date().toISOString() })
+    primera = false
+  }
+}
+
 /* ══════════════ MENÚ DE PAGO DE UNA RESERVA ══════════════
    Si ya está pagada se ve el sello; si no, las tres formas de cobrar:
    en el local, mandando el link por WhatsApp, o copiando el link. */
@@ -4975,6 +5040,7 @@ function botonPagar(id, ancho){
         <button onclick="cobrarEnLocal('${id}')">💳 Cobrar el saldo en el local</button>
         <button onclick="cobrarPorWhatsapp('${id}');cerrarPagarMenus()">💬 Cobrar por WhatsApp</button>
         <button onclick="copiarLinkCobro('${id}');cerrarPagarMenus()">🔗 Copiar link de pago</button>
+        ${(()=>{const _n=reservasDelDia(a).length; return _n>1?`<button onclick="cobrarReservasDelDia('${id}')">🧾 Cobrar las ${_n} reservas del día</button>`:''})()}
       </div>
     </div>`
   }
@@ -4985,6 +5051,7 @@ function botonPagar(id, ancho){
       <button onclick="cobrarEnLocal('${id}')">💳 Cobrar ${esc(monto)} en el local</button>
       <button onclick="cobrarPorWhatsapp('${id}');cerrarPagarMenus()">💬 Cobrar por WhatsApp</button>
       <button onclick="copiarLinkCobro('${id}');cerrarPagarMenus()">🔗 Copiar link de pago</button>
+      ${(()=>{const _n=reservasDelDia(a).length; return _n>1?`<button onclick="cobrarReservasDelDia('${id}')">🧾 Cobrar las ${_n} reservas del día</button>`:''})()}
     </div>
   </div>`
 }
@@ -5316,7 +5383,9 @@ function vdMasOpciones(){
   const n = prompt('Nota de la venta (queda guardada en el detalle):', vd.nota || '')
   if(n !== null){ vd.nota = n.trim(); toast('Nota guardada','success') }
 }
-function vdPedirAbono(){ vd.paso = 3; vd.abono = vd.abono || 0; vdRender() }
+function vdPedirAbono(){
+  if(vd.apptIds && vd.apptIds.length > 1){ toast('El abono se hace sobre una sola reserva','error'); return }
+  vd.paso = 3; vd.abono = vd.abono || 0; vdRender() }
 
 /* paso 3: cobrar solo una parte ahora y dejar el resto pendiente */
 function vdAbonoPantalla(){
@@ -5381,6 +5450,20 @@ async function vdCobrar(){
       ? vd.partes.map(p=>`${p.medio} ${fmtMoney(p.monto)}`).join(' + ')
       : vd.metodo
     const a = vd.apptId ? findAppt(vd.apptId) : null
+    if(vd.apptIds && vd.apptIds.length > 1){
+      await guardarCobroMultiple(medio)
+      for(const i of vd.items){
+        if(i.productId){
+          const p = state.products.find(x=>x.id===i.productId)
+          if(p){ const ns = Math.max(0,(p.stock||0)-(i.qty||1)); await supabase.update('products',p.id,{stock:ns}); p.stock = ns }
+        }
+      }
+      const _n = vd.apptIds.length
+      await loadSales(); await cargarCobros()
+      cerrarVenta(); render(); if(typeof renderSales==='function') renderSales()
+      toast('Cobradas las ' + _n + ' reservas del día','success')
+      return
+    }
     await supabase.insert('sales', {
       client_id: vd.clientId || null,
       client_name: vd.clientName || '',
