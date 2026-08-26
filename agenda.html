@@ -3032,23 +3032,19 @@ body.sin-scroll{overflow:hidden}
     </div>
     <input type="hidden" id="apptService" />
     <input type="hidden" id="apptServiceName" />
+    <label>Precio</label>
+    <div class="re-precio">
+      <span>$</span>
+      <input type="text" inputmode="numeric" id="apptPrecio" placeholder="0" oninput="marcarPrecioManual()" />
+      <button class="mini-link" id="apptPrecioReset" style="display:none" onclick="restaurarPrecioServicio()">Usar el del servicio</button>
+    </div>
+    <p class="rem-note" style="margin:5px 0 0" id="apptPrecioNota">Se completa con el del servicio. Cámbialo si acordaste otro valor.</p>
     <div class="collapse" id="apptCollapse">
       <button type="button" class="collapse-head" onclick="toggleCollapse('apptCollapse')">Información adicional <span class="chev">▼</span></button>
       <div class="collapse-body">
         <div class="row2">
           <div><label>Teléfono</label><input type="text" id="apptPhone" placeholder="+569..." /></div>
           <div><label>Duración (min)</label><input type="number" id="apptDur" min="5" step="5" value="60" /></div>
-        </div>
-        <div class="row2">
-          <div><label>Precio</label>
-            <div class="re-precio">
-              <span>$</span>
-              <input type="text" inputmode="numeric" id="apptPrecio" placeholder="0" oninput="marcarPrecioManual()" />
-              <button class="mini-link" id="apptPrecioReset" style="display:none" onclick="restaurarPrecioServicio()">Usar el del servicio</button>
-            </div>
-            <p class="rem-note" style="margin:4px 0 0" id="apptPrecioNota">Se completa con el precio del servicio. Cámbialo si acordaste otro valor.</p>
-          </div>
-          <div></div>
         </div>
         <label>Notas</label>
         <textarea id="apptNotes" rows="2" placeholder="Opcional"></textarea>
