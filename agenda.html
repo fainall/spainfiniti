@@ -2099,7 +2099,7 @@ body.sin-scroll{overflow:hidden}
   <!-- MODAL: forzar una reserva -->
   <div class="modal-ov" id="forzarModal">
     <div class="modal" style="width:440px;max-width:94vw">
-      <h2>¿Reservar de todas formas?</h2>
+      <h2 id="fzTitulo">¿Reservar de todas formas?</h2>
       <div class="fz-aviso"><span>⚠</span><p id="fzMotivo"></p></div>
       <p class="rem-note">Puedes seguir adelante si sabes lo que estás haciendo — por ejemplo, una sesión en pareja en el mismo box con dos profesionales, o un cliente que llegó tarde. La reserva quedará marcada como forzada.</p>
       <div class="modal-actions">
@@ -4271,12 +4271,12 @@ async function apptMouseUp(){
   const _asig=checkProfServicio(profDestino, a.service_name)
   if(_asig){ toast(_asig,'error'); render(); return }
   const _hor=checkProfHours(profDestino, d.targetDate, d.targetStart, d.dur)
-  if(_hor && !await seguirPeseA(_hor)){ render(); return }
+  if(_hor && !await seguirPeseA(_hor,'mover')){ render(); return }
   const _reglas=checkReglasCuenta({ profId:profDestino, clientId:a.client_id,
     date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id })
-  if(_reglas && !await seguirPeseA(_reglas)){ render(); return }
+  if(_reglas && !await seguirPeseA(_reglas,'mover')){ render(); return }
   const _rec=checkRecursos({ serviceName:a.service_name, date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id })
-  if(_rec && !cfgCuenta.sobrecargaRecursos && !await seguirPeseA(_rec)){ render(); return }
+  if(_rec && !cfgCuenta.sobrecargaRecursos && !await seguirPeseA(_rec,'mover')){ render(); return }
 
   const newEnd=toHHMM(toMin(d.targetStart)+d.dur)
   const cambioProf = profDestino !== a.professional_id
@@ -5313,10 +5313,13 @@ function reInfoCliente(id, cual){
    dejando constancia de que la reserva se forzó. */
 let _forzarResolver = null
 
-function pedirForzar(motivo){
+function pedirForzar(motivo, accion){
   return new Promise(resolve => {
     _forzarResolver = resolve
     document.getElementById('fzMotivo').textContent = motivo
+    document.getElementById('fzTitulo').textContent = accion === 'mover' ? '¿Mover la reserva igual?' : '¿Reservar de todas formas?'
+    const b = document.querySelector('#forzarModal .btn-primary')
+    if(b) b.textContent = accion === 'mover' ? 'Mover igual' : 'Forzar reserva'
     openModal('forzarModal')
   })
 }
@@ -5325,9 +5328,9 @@ function forzarResponder(si){
   if(_forzarResolver){ _forzarResolver(si); _forzarResolver = null }
 }
 /* comprueba un bloqueo y, si lo hay, ofrece forzarlo. Devuelve true si se puede seguir */
-async function seguirPeseA(motivo){
+async function seguirPeseA(motivo, accion){
   if(!motivo) return true
-  return await pedirForzar(motivo)
+  return await pedirForzar(motivo, accion)
 }
 
 /* ── DETALLE DE RESERVA (modal con pestañas) ── */
@@ -7657,8 +7660,8 @@ async function registrarPagoReserva(apptId){
    Cómo se comporta la agenda y la caja. Se guarda en bot_config,
    junto al resto de ajustes del local. */
 let cfgCuenta = {
-  reservasSobrepuestas: false,   // dos reservas del mismo profesional a la misma hora
-  clientesSimultaneos: false,    // el mismo cliente en dos reservas a la vez
+  reservasSobrepuestas: true,    // dos reservas del mismo profesional a la misma hora
+  clientesSimultaneos: true,     // el mismo cliente en dos reservas a la vez
   sobrecargaRecursos: false,     // reservar internamente aunque el recurso esté ocupado
   exigirContacto: true,          // pedir teléfono o correo al agendar
   fichaRequerida: false,         // no marcar "Asiste" sin ficha completada
