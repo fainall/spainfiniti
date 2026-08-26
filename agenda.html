@@ -3039,6 +3039,17 @@ body.sin-scroll{overflow:hidden}
           <div><label>Teléfono</label><input type="text" id="apptPhone" placeholder="+569..." /></div>
           <div><label>Duración (min)</label><input type="number" id="apptDur" min="5" step="5" value="60" /></div>
         </div>
+        <div class="row2">
+          <div><label>Precio</label>
+            <div class="re-precio">
+              <span>$</span>
+              <input type="text" inputmode="numeric" id="apptPrecio" placeholder="0" oninput="marcarPrecioManual()" />
+              <button class="mini-link" id="apptPrecioReset" style="display:none" onclick="restaurarPrecioServicio()">Usar el del servicio</button>
+            </div>
+            <p class="rem-note" style="margin:4px 0 0" id="apptPrecioNota">Se completa con el precio del servicio. Cámbialo si acordaste otro valor.</p>
+          </div>
+          <div></div>
+        </div>
         <label>Notas</label>
         <textarea id="apptNotes" rows="2" placeholder="Opcional"></textarea>
       </div>
@@ -4610,12 +4621,35 @@ function onApptServiceSearch(){
   if(!list.length && q) html+=`<div class="client-opt empty">Sin servicios — usa “+ Crear servicio”</div>`
   dd.innerHTML=html; dd.classList.add('show')
 }
+let precioTocadoAMano = false
+function marcarPrecioManual(){
+  precioTocadoAMano = true
+  const r = document.getElementById('apptPrecioReset')
+  const svc = state.services.find(x => x.id === document.getElementById('apptService').value)
+  if(r && svc) r.style.display = (money2num(document.getElementById('apptPrecio').value) !== money2num(svc.price)) ? 'inline' : 'none'
+  const nota = document.getElementById('apptPrecioNota')
+  if(nota) nota.textContent = 'Precio ajustado a mano para esta reserva.'
+}
+function restaurarPrecioServicio(){
+  const svc = state.services.find(x => x.id === document.getElementById('apptService').value)
+  if(!svc) return
+  document.getElementById('apptPrecio').value = milesCL(money2num(svc.price))
+  precioTocadoAMano = false
+  document.getElementById('apptPrecioReset').style.display = 'none'
+  document.getElementById('apptPrecioNota').textContent = 'Se completa con el precio del servicio. Cámbialo si acordaste otro valor.'
+}
+
 function selectApptService(id){
   const s=state.services.find(x=>x.id===id); if(!s) return
   document.getElementById('apptService').value=s.id
   document.getElementById('apptServiceName').value=s.name
   document.getElementById('apptServiceSearch').value=s.name
   document.getElementById('apptDur').value=s.duration||60
+  /* el precio del catálogo, salvo que ya lo hayan cambiado a mano */
+  if(!precioTocadoAMano){
+    document.getElementById('apptPrecio').value = milesCL(money2num(s.price))
+    document.getElementById('apptPrecioReset').style.display = 'none'
+  }
   document.getElementById('apptServiceDropdown').classList.remove('show')
   onServicioElegido(s.name)   // deja solo a quienes lo realizan
 }
@@ -5758,6 +5792,14 @@ function openApptModal(id,prefill){
     document.getElementById('apptServiceName').value=a.service_name||''
     document.getElementById('apptServiceSearch').value=a.service_name||''
     document.getElementById('apptClientSearch').value=a.client_name||''
+    const pr2=document.getElementById('apptPrecio')
+    if(pr2){ pr2.value = milesCL(money2num(a.price)); precioTocadoAMano = true
+      const svc0=state.services.find(x=>x.name===a.service_name)
+      const dif = svc0 && money2num(a.price)!==money2num(svc0.price)
+      document.getElementById('apptPrecioReset').style.display = dif?'inline':'none'
+      document.getElementById('apptPrecioNota').textContent = dif
+        ? 'Precio ajustado a mano para esta reserva.'
+        : 'Se completa con el precio del servicio. Cámbialo si acordaste otro valor.' }
     document.getElementById('apptClientId').value=a.client_id||''
     document.getElementById('apptPhone').value=a.client_phone||''
     document.getElementById('apptDate').value=a.appt_date
@@ -5776,6 +5818,10 @@ function openApptModal(id,prefill){
     document.getElementById('apptClientSearch').value=''
     document.getElementById('apptClientId').value=''
     document.getElementById('apptPhone').value=''
+    precioTocadoAMano = false
+    const pr = document.getElementById('apptPrecio')
+    if(pr){ pr.value=''; document.getElementById('apptPrecioReset').style.display='none'
+      document.getElementById('apptPrecioNota').textContent='Se completa con el precio del servicio. Cámbialo si acordaste otro valor.' }
     document.getElementById('apptDate').value=(prefill&&prefill.date)||isoDate(state.view==='day'?state.anchor:new Date())
     document.getElementById('apptStart').value=(prefill&&prefill.start)||'10:00'
     // si vino de la columna de un profesional, queda preseleccionado
@@ -5841,7 +5887,10 @@ async function saveAppt(){
     client_id:document.getElementById('apptClientId').value||null,
     service_id:svcId,
     service_name:document.getElementById('apptServiceName').value||(svc?svc.name:''),
-    price:svc?(svc.price||''):'',
+    price:(() => {
+      const v = money2num(document.getElementById('apptPrecio').value)
+      return v > 0 ? ('$' + milesCL(v)) : (svc ? (svc.price||'') : '')
+    })(),
     client_name:client,
     client_phone:document.getElementById('apptPhone').value.trim(),
     appt_date:date, start_time:start, end_time:end,
