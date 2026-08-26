@@ -1120,6 +1120,36 @@ body.sin-scroll{overflow:hidden}
 .re-sesion.otra{opacity:.72}
 .re-tabs button.on{color:var(--gold-d);font-weight:600;background:#fff}
 .re-info-box .rem-note{padding:0 15px 12px;margin:6px 0 0}
+
+/* editor de una línea del carro */
+.vd-ed-cant{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 20px}
+.vd-ed-cant strong{font-size:1.15rem;min-width:28px;text-align:center}
+.vd-ed-mm{width:34px;height:34px;border:1px solid var(--border);background:#fff;border-radius:9px;
+  font-size:1.1rem;line-height:1;cursor:pointer;color:var(--dark)}
+.vd-ed-mm:hover:not(:disabled){background:var(--cream)}
+.vd-ed-mm:disabled{opacity:.4;cursor:default}
+.vd-ed-campo{margin-bottom:16px}
+.vd-ed-campo label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--mid);font-weight:600;margin-bottom:6px}
+.vd-ed-fijo{padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--cream-2);
+  font-size:.85rem;color:var(--mid)}
+.vd-ed-money{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:8px;
+  padding:0 10px;background:#fff}
+.vd-ed-money span{color:var(--light);font-size:.85rem}
+.vd-ed-money input{flex:1;min-width:0;border:none;outline:none;padding:10px 0;font-size:.9rem;
+  font-family:inherit;background:none;color:var(--dark)}
+.vd-ed-tipo{width:34px;height:28px;border:1px solid var(--border);background:var(--cream-2);border-radius:7px;
+  font-weight:700;font-size:.8rem;cursor:pointer;color:var(--gold-d)}
+.vd-ed-tipo:hover{background:var(--gold-pale)}
+.vd-ed-resumen{border-top:1px solid var(--border);margin-top:20px;padding-top:14px;font-size:.85rem}
+.vd-ed-resumen div{display:flex;justify-content:space-between;padding:4px 0;color:var(--mid)}
+.vd-ed-desc strong{color:#1d8a5f}
+.vd-ed-final{border-top:1px solid var(--border);margin-top:8px;padding-top:10px!important;color:var(--dark)!important}
+.vd-ed-final strong{font-size:1.05rem}
+.vd-ed-quitar{margin-top:22px;width:100%;padding:11px;border:1px solid var(--border);background:#fff;
+  border-radius:9px;color:var(--red);font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit}
+.vd-ed-quitar:hover{background:#fff5f5;border-color:var(--red)}
+.vd-item-pre s{color:var(--light);font-weight:400;margin-right:4px}
 </style>
 </head>
 <body>
@@ -5221,7 +5251,7 @@ function cerrarVenta(){
   document.body.classList.remove('sin-scroll')
   vd = null
 }
-function vdTotal(){ return vd.items.reduce((t,i)=> t + (Number(i.price)||0) * (Number(i.qty)||1), 0) }
+function vdTotal(){ return vd.items.reduce((t,i)=> t + vdItemTotal(i), 0) }
 function vdPorPagar(){ return Math.max(0, vdTotal() - (Number(vd.abono)||0)) }
 
 function vdRender(){
@@ -5231,15 +5261,17 @@ function vdRender(){
     if(ov && ov.classList.contains('on')){ cerrarVenta(); toast('Se perdió la venta en curso, vuelve a abrirla','error') }
     return
   }
+  const editando = vd.editando != null && vd.items[vd.editando]
   const titulos = { 1:'Nueva venta', 2:'Método de pago', 3:'Abono' }
-  document.getElementById('vdTitulo').textContent = titulos[vd.paso] || 'Nueva venta'
-  document.getElementById('vdLocal').textContent = vd.paso === 1 ? localInfo.name : ''
-  document.getElementById('vdAtras').style.display = vd.paso === 1 ? 'none' : 'block'
+  document.getElementById('vdTitulo').textContent = editando ? vd.items[vd.editando].name : (titulos[vd.paso] || 'Nueva venta')
+  document.getElementById('vdLocal').textContent = (!editando && vd.paso === 1) ? localInfo.name : ''
+  document.getElementById('vdAtras').style.display = (editando || vd.paso !== 1) ? 'block' : 'none'
   document.getElementById('vdBody').innerHTML =
-    vd.paso === 1 ? vdCarro() : vd.paso === 3 ? vdAbonoPantalla() : vdMetodos()
+    editando ? vdItemPanel() : vd.paso === 1 ? vdCarro() : vd.paso === 3 ? vdAbonoPantalla() : vdMetodos()
   document.getElementById('vdTotal').textContent = fmtMoney(vdTotal())
   const b = document.getElementById('vdBoton')
-  if(vd.paso === 1){ b.textContent = 'Continuar'; b.onclick = vdContinuar; b.disabled = !vd.items.length }
+  if(editando){ b.textContent = 'Guardar cambios'; b.onclick = vdGuardarItem; b.disabled = false }
+  else if(vd.paso === 1){ b.textContent = 'Continuar'; b.onclick = vdContinuar; b.disabled = !vd.items.length }
   else if(vd.paso === 3){
     b.textContent = vd.metodo ? ('Cobrar ' + fmtMoney(vd.abono||0)) : 'Elige un medio de pago'
     b.onclick = vdCobrar; b.disabled = !vd.metodo || !(vd.abono>0)
@@ -5262,7 +5294,7 @@ function vdCarro(){
     ${vd.items.map((i,n)=>`<div class="vd-item">
         <div class="vd-item-top" onclick="vdEditarItem(${n})" style="cursor:pointer" title="Cambiar cantidad o precio">
           <span class="vd-item-nom">${esc(i.name)} <em>x${i.qty}</em></span>
-          <span class="vd-item-pre">${fmtMoney((Number(i.price)||0)*(Number(i.qty)||1))}</span>
+          <span class="vd-item-pre">${vdDescuentoDe(i)?`<s>${fmtMoney(vdItemBase(i)*(i.qty||1))}</s> `:''}${fmtMoney(vdItemTotal(i))}</span>
           <button class="vd-quitar" title="Quitar" onclick="event.stopPropagation();vdQuitar(${n})">🗑</button>
         </div>
         ${(i.prof||i.cuando)?`<div class="vd-item-sub">${esc(profName(i.prof)||'')}${i.cuando?' | '+esc(vdFecha(i.cuando)):''}</div>`:''}
@@ -5277,19 +5309,107 @@ function vdFecha(txt){
   const [y,m,d] = f.split('-')
   return `${d}/${m}/${y}${h?' '+h:''}`
 }
-/* ajustar cantidad o precio de una línea del carro */
+/* ══════════ EDITAR UNA LÍNEA DEL CARRO ══════════
+   Cantidad, precio y descuento —por monto o por porcentaje—, como en
+   el mostrador: "te dejo la manicure a 18.000" o "te hago un 10%".
+   El descuento se guarda aplicado al precio, así el total, la comisión
+   y los reportes ven siempre lo que el cliente pagó de verdad. */
+function vdItemBase(i){ return Number(i.base != null ? i.base : i.price) || 0 }
+function vdDescuentoDe(i){
+  const base = vdItemBase(i) * (Number(i.qty)||1)
+  const d = Number(i.desc)||0
+  if(d <= 0) return 0
+  return i.descTipo === '%' ? Math.round(base * Math.min(100,d) / 100) : Math.min(base, Math.round(d))
+}
+function vdItemTotal(i){ return Math.max(0, vdItemBase(i)*(Number(i.qty)||1) - vdDescuentoDe(i)) }
+
 function vdEditarItem(n){
   const i = vd.items[n]; if(!i) return
-  const q = prompt('Cantidad de "' + i.name + '":', String(i.qty||1))
-  if(q === null) return
-  const cant = Math.max(1, parseInt(q)||1)
-  const pr = prompt('Precio unitario de "' + i.name + '":\n\nDéjalo igual si no quieres cambiarlo.', fmtMoney(i.price).replace('$',''))
-  if(pr === null) return
-  i.qty = cant
-  const nuevo = money2num(pr)
-  if(nuevo > 0) i.price = nuevo
+  if(i.base == null) i.base = Number(i.price)||0
+  vd.editando = n
   vdRender()
 }
+function vdItemPanel(){
+  const i = vd.items[vd.editando]
+  if(!i) { vd.editando = null; return vdCarro() }
+  const base = vdItemBase(i), desc = vdDescuentoDe(i), tipo = i.descTipo === '%' ? '%' : '$'
+  return `
+    <div class="vd-ed-cant">
+      <button class="vd-ed-mm" onclick="vdItemCant(-1)" ${((i.qty||1)<=1)?'disabled':''}>−</button>
+      <strong>${i.qty||1}</strong>
+      <button class="vd-ed-mm" onclick="vdItemCant(1)">+</button>
+    </div>
+    ${i.prof?`<div class="vd-ed-campo"><label>Profesional</label>
+      <div class="vd-ed-fijo">${esc(profName(i.prof)||'—')}</div></div>`:''}
+    <div class="vd-ed-campo">
+      <label>Precio</label>
+      <div class="vd-ed-money"><span>$</span>
+        <input type="text" inputmode="numeric" id="vdItemPrecio" value="${milesCL(base)}"
+          oninput="vdItemCambia()" /></div>
+    </div>
+    <div class="vd-ed-campo">
+      <label>Descuento</label>
+      <div class="vd-ed-money">
+        <input type="text" inputmode="numeric" id="vdItemDesc" value="${i.desc?milesCL(i.desc):''}"
+          placeholder="0" oninput="vdItemCambia()" />
+        <button class="vd-ed-tipo" onclick="vdItemTipo()" title="Cambiar entre monto y porcentaje">${tipo}</button>
+      </div>
+      <p class="rem-note" style="margin:6px 0 0">${tipo==='%'?'Se descuenta ese porcentaje del precio.':'Se descuentan esos pesos del total de la línea.'}</p>
+    </div>
+    <div class="vd-ed-resumen">
+      <div><span>Precio × ${i.qty||1}</span><strong>${fmtMoney(base*(i.qty||1))}</strong></div>
+      ${desc?`<div class="vd-ed-desc"><span>Descuento${tipo==='%'?' ('+(Number(i.desc)||0)+'%)':''}</span><strong>−${fmtMoney(desc)}</strong></div>`:''}
+      <div class="vd-ed-final"><span>Queda en</span><strong>${fmtMoney(vdItemTotal(i))}</strong></div>
+    </div>
+    <button class="vd-ed-quitar" onclick="vdQuitarEditando()">🗑 Eliminar ítem</button>`
+}
+function vdItemCant(d){
+  const i = vd.items[vd.editando]; if(!i) return
+  i.qty = Math.max(1, (Number(i.qty)||1) + d)
+  vdItemAplica(); vdRender()
+}
+function vdItemTipo(){
+  const i = vd.items[vd.editando]; if(!i) return
+  vdItemLeer()
+  i.descTipo = i.descTipo === '%' ? '$' : '%'
+  vdItemAplica(); vdRender()
+}
+/* toma lo escrito en los campos sin repintar, para no perder el cursor */
+function vdItemLeer(){
+  const i = vd.items[vd.editando]; if(!i) return
+  const p = document.getElementById('vdItemPrecio'), d = document.getElementById('vdItemDesc')
+  if(p) i.base = money2num(p.value)
+  if(d) i.desc = money2num(d.value)
+}
+function vdItemCambia(){
+  vdItemLeer(); vdItemAplica()
+  const i = vd.items[vd.editando]
+  const r = document.querySelector('.vd-ed-resumen')
+  if(r && i){
+    const base = vdItemBase(i), desc = vdDescuentoDe(i), tipo = i.descTipo === '%' ? '%' : '$'
+    r.innerHTML = `<div><span>Precio × ${i.qty||1}</span><strong>${fmtMoney(base*(i.qty||1))}</strong></div>` +
+      (desc?`<div class="vd-ed-desc"><span>Descuento${tipo==='%'?' ('+(Number(i.desc)||0)+'%)':''}</span><strong>−${fmtMoney(desc)}</strong></div>`:'') +
+      `<div class="vd-ed-final"><span>Queda en</span><strong>${fmtMoney(vdItemTotal(i))}</strong></div>`
+  }
+  document.getElementById('vdTotal').textContent = fmtMoney(vdTotal())
+}
+/* el precio que ve el resto del sistema ya viene con el descuento hecho */
+function vdItemAplica(){
+  const i = vd.items[vd.editando]; if(!i) return
+  const q = Number(i.qty)||1
+  i.price = Math.round(vdItemTotal(i) / q)
+}
+function vdQuitarEditando(){
+  vd.items.splice(vd.editando, 1)
+  vd.editando = null
+  vdRender()
+}
+function vdGuardarItem(){
+  vdItemLeer(); vdItemAplica()
+  vd.editando = null
+  vdRender()
+}
+
 function vdQuitar(n){ vd.items.splice(n,1); vdRender() }
 
 /* ── paso 2: el medio de pago ── */
@@ -5344,7 +5464,10 @@ function vdContinuar(){
   if(cfgCuenta.requiereCliente && !vd.clientName){ toast('Elige el cliente antes de cobrar','error'); return }
   vd.paso = 2; vdRender()
 }
-function vdAtras(){ vd.paso = vd.paso === 3 ? 2 : 1; vdRender() }
+function vdAtras(){
+  if(vd.editando != null){ vdGuardarItem(); return }
+  vd.paso = vd.paso === 3 ? 2 : 1; vdRender()
+}
 
 /* ── acciones ── */
 function vdBuscarCliente(){
@@ -5473,7 +5596,7 @@ async function vdCobrar(){
       items: vd.items.map(i=>({ name:i.name, qty:i.qty, price:i.price })),
       total: vd.paso === 3 ? (vd.abono||0) : vdTotal(),
       payment_method: medio,
-      status: 'paid',
+      status: vd.paso === 3 ? 'partial' : 'paid',
       notes: (vd.paso === 3 ? 'Abono de ' + fmtMoney(vd.abono||0) + ' sobre ' + fmtMoney(vdTotal()) + '. ' : '') + (vd.nota || '')
     })
     /* si había un link de cobro enviado, queda saldado (un abono no salda) */
@@ -8083,18 +8206,26 @@ function totalCobrado(a){
     .reduce((t,v) => t + (Number(v.total)||0), 0)
 }
 /* pagada del todo */
+/* Un cobro con descuento suma menos que el precio de lista, así que la
+   cuenta sola no basta: la venta dice si saldó la reserva o fue un abono. */
+function ventasDe(a){
+  if(!a) return []
+  return state.sales.filter(v => v.appointment_id === a.id
+    && v.status !== 'deleted' && v.status !== 'cancelled' && v.status !== 'void')
+}
+function esAbono(v){ return v.status === 'partial' || /^Abono de/.test(String(v.notes||'')) }
 function apptPagada(a){
   if(!a) return false
-  const cobrado = totalCobrado(a)
-  if(cobrado <= 0) return false
-  const precio = money2num(a.price)
-  return precio > 0 ? cobrado >= precio : true
+  const ventas = ventasDe(a)
+  if(!ventas.length) return false
+  if(ventas.some(v => !esAbono(v))) return true      // un cobro que cerró la cuenta
+  const precio = money2num(a.price)                   // solo abonos: hay que sumarlos
+  return precio > 0 ? totalCobrado(a) >= precio : false
 }
 /* pagada solo en parte */
 function apptAbonada(a){
   if(!a) return false
-  const cobrado = totalCobrado(a), precio = money2num(a.price)
-  return cobrado > 0 && precio > 0 && cobrado < precio
+  return totalCobrado(a) > 0 && !apptPagada(a)
 }
 function saldoPendiente(a){ return Math.max(0, money2num(a.price) - totalCobrado(a)) }
 /* reservas cobrables: ya ocurrieron, tienen precio y nadie las pagó */
