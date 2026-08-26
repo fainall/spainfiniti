@@ -564,8 +564,6 @@ label.chk input{width:auto;margin:0}
 .ghost-menu button{display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;border:none;background:#fff;text-align:left;font-size:.83rem;color:var(--dark);cursor:pointer}
 .ghost-menu button:hover{background:var(--cream-2)}
 .ghost-menu button+button{border-top:1px solid var(--border)}
-.now-line{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:4;pointer-events:none}
-.now-line::before{content:'';position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
 .empty-note{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--light);gap:12px;z-index:6;pointer-events:none}
 .empty-note button{pointer-events:auto}
 
@@ -4019,13 +4017,7 @@ function pintarHoraActual(){
   if(min < r.minM || min > r.maxM) return          // fuera del horario mostrado
   const hoy = isoDate(ahora)
   const top = (min - r.minM) / r.paso * r.SP
-  document.querySelectorAll('.dcol[data-date="' + hoy + '"]').forEach(col => {
-    const l = document.createElement('div')
-    l.className = 'now-line'
-    l.style.top = top + 'px'
-    col.appendChild(l)
-  })
-  /* la hora va sobre la columna de las horas, como una etiqueta al margen */
+  /* solo la hora destacada al margen: la línea cruzando la agenda estorba */
   const gut = document.querySelector('#calGrid .gutter')
   if(gut && document.querySelector('.dcol[data-date="' + hoy + '"]')){
     const e = document.createElement('div')
