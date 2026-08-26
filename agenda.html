@@ -521,7 +521,7 @@ label.chk input{width:auto;margin:0}
 .dcol.off{background:repeating-linear-gradient(45deg,#fafafa,#fafafa 8px,#f4f4f4 8px,#f4f4f4 16px)}
 .hr-line{position:absolute;left:0;right:0;border-top:1px solid var(--reja)}
 .hr-line.half{border-top:1px dashed var(--reja-media)}
-.appt{position:absolute;left:2px;right:2px;border-radius:6px;padding:4px 7px;font-size:.7rem;color:#1f2328;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.07);border-left:4px solid rgba(0,0,0,.2)}
+.appt{position:absolute;left:2px;right:2px;border-radius:6px;padding:4px 7px;font-size:.7rem;color:#1f2328;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.07);border-left:4px solid rgba(0,0,0,.2);z-index:2}
 .appt:hover{filter:brightness(.97);box-shadow:0 3px 10px rgba(0,0,0,.13);z-index:3}
 .appt{cursor:grab}
 .appt.dragging{opacity:.3}
@@ -1057,6 +1057,20 @@ body.sin-scroll{overflow:hidden}
 .qv-org{font-size:.8rem;vertical-align:middle;margin-left:4px}
 .re-origen{display:inline-block;margin-left:10px;background:var(--cream);border-radius:20px;
   padding:2px 10px;font-size:.72rem;color:var(--mid)}
+
+/* desglose de comisiones por servicio */
+.fila-abrible{cursor:pointer}
+.fila-abrible:hover{background:var(--cream)}
+.dg-chev{display:inline-block;color:var(--light);font-size:.7rem;transition:transform .15s}
+.dg-fila{display:none}
+.dg-fila.abierto{display:table-row}
+.dg-fila>td{background:var(--cream);padding:0 !important}
+.dg-tabla{width:100%;border-collapse:collapse;font-size:.78rem}
+.dg-tabla th{text-align:left;padding:8px 14px;color:var(--mid);font-weight:600;font-size:.72rem}
+.dg-tabla td{padding:7px 14px;border-top:1px solid var(--border)}
+.dg-tabla .r{text-align:right}
+.dg-tabla tfoot td{border-top:2px solid var(--border);color:var(--mid)}
+.dg-prom{font-size:.68rem;color:var(--light)}
 </style>
 </head>
 <body>
@@ -6856,6 +6870,31 @@ function commDefaultOf(profId){
    Cada profesional puede tener un porcentaje distinto por servicio; usar
    solo el porcentaje general dejaba en cero a quien lo tuviera en cero
    aunque sí cobrara por sus servicios. */
+/* Todo lo que hizo un profesional en el periodo, servicio por servicio.
+   Cada línea lleva su propio porcentaje; la comisión total es la suma
+   de esas líneas, nunca un porcentaje único sobre el total. */
+function detalleComision(profId, ventas){
+  const porItem = {}
+  ventas.filter(s => s.professional_id === profId).forEach(s => {
+    itemsDe(s).forEach(it => {
+      const monto = Number(it.qty||1) * Number(it.price||0)
+      const kind = state.products.some(p=>p.name===it.name) ? 'products'
+        : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
+      const pct = commPctFor(profId, it.name, kind)
+      const k = it.name + '|' + pct
+      porItem[k] = porItem[k] || { name:it.name, pct, veces:0, monto:0, comm:0 }
+      porItem[k].veces += Number(it.qty||1)
+      porItem[k].monto += monto
+      porItem[k].comm  += Math.round(monto * pct / 100)
+    })
+  })
+  return Object.values(porItem).sort((a,b) => b.comm - a.comm)
+}
+function toggleDesglose(profId){
+  const fila = document.getElementById('dg-' + profId)
+  if(fila) fila.classList.toggle('abierto')
+}
+
 function comisionDeVenta(s){
   const items = itemsDe(s)
   let base = 0, comm = 0
@@ -10221,7 +10260,7 @@ function renderComisiones(){
     const d=byProf[p.id]||{sales:0,tips:0,comm:0}
     /* el porcentaje que se muestra es el promedio real de lo cobrado */
     const pct = d.sales ? Math.round(d.comm/d.sales*100) : commDefaultOf(p.id)
-    return {name:p.name, sales:d.sales, tips:d.tips, pct, comm:d.comm}
+    return {id:p.id, name:p.name, sales:d.sales, tips:d.tips, pct, comm:d.comm}
   }).sort((a,b)=>b.comm-a.comm)
 
   const totalSales=rows.reduce((a,r)=>a+r.sales,0)
@@ -10233,13 +10272,29 @@ function renderComisiones(){
   const unassigned=list.filter(s=>!s.professional_id).reduce((a,s)=>a+Number(s.total||0),0)
   el.innerHTML=`${rows.length?`<table class="ctbl">
       <thead><tr><th>Profesional o Staff</th><th style="text-align:right">Ventas totales</th><th style="text-align:right">% Comisión</th><th style="text-align:right">Monto comisión</th><th style="text-align:right">Propinas</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr>
-        <td class="cname">${esc(r.name)}</td>
+      <tbody>${rows.map(r=>{
+        const det = detalleComision(r.id, list)
+        return `<tr class="${det.length?'fila-abrible':''}" ${det.length?`onclick="toggleDesglose('${r.id}')"`:''}>
+        <td class="cname">${det.length?'<span class="dg-chev">▸</span> ':''}${esc(r.name)}</td>
         <td style="text-align:right">${fmtMoney(r.sales)}</td>
-        <td style="text-align:right">${r.pct}%</td>
+        <td style="text-align:right">${r.pct}%${det.length>1?' <span class="dg-prom">prom.</span>':''}</td>
         <td style="text-align:right;font-weight:700">${fmtMoney(r.comm)}</td>
         <td style="text-align:right">${fmtMoney(r.tips)}</td>
-      </tr>`).join('')}</tbody></table>`
+      </tr>
+      ${det.length?`<tr class="dg-fila" id="dg-${r.id}"><td colspan="5">
+        <table class="dg-tabla">
+          <thead><tr><th>Servicio</th><th class="r">Veces</th><th class="r">Vendido</th><th class="r">%</th><th class="r">Comisión</th></tr></thead>
+          <tbody>${det.map(d=>`<tr>
+            <td>${esc(d.name)}</td>
+            <td class="r">${d.veces}</td>
+            <td class="r">${fmtMoney(d.monto)}</td>
+            <td class="r">${d.pct}%</td>
+            <td class="r"><strong>${fmtMoney(d.comm)}</strong></td></tr>`).join('')}
+          </tbody>
+          <tfoot><tr><td colspan="4" class="r">Suma de las ${det.length} líneas</td>
+            <td class="r"><strong>${fmtMoney(det.reduce((a,d)=>a+d.comm,0))}</strong></td></tr></tfoot>
+        </table></td></tr>`:''}`
+      }).join('')}</tbody></table>`
     :'<div class="empty-state">No hay resultados para mostrar</div>'}
     ${unassigned>0?`<p style="color:var(--mid);font-size:.78rem;margin-top:12px">${fmtMoney(unassigned)} en ventas sin profesional asignado (no generan comisión).</p>`:''}`
 }
