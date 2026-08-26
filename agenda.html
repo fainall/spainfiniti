@@ -1158,6 +1158,30 @@ body.sin-scroll{overflow:hidden}
 #calGrid .gutter{position:relative}
 .now-tag{position:absolute;right:4px;transform:translateY(-50%);background:var(--red);color:#fff;
   font-size:.6rem;font-weight:700;padding:2px 5px;border-radius:4px;letter-spacing:.2px;z-index:5;pointer-events:none}
+
+/* buscador del carro */
+.vd-bbusca{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;
+  padding:0 12px;background:#fff;margin-bottom:14px}
+.vd-bbusca span{color:var(--light);font-size:.85rem}
+.vd-bbusca input{flex:1;min-width:0;border:none;outline:none;padding:12px 0;font-size:.88rem;
+  font-family:inherit;background:none;color:var(--dark)}
+.vd-bbusca button{background:none;border:none;color:var(--light);cursor:pointer;font-size:.9rem;padding:4px}
+.vd-bt{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.vd-bt button{border:1px solid var(--border);background:#fff;border-radius:9px;padding:8px 13px;
+  font-size:.8rem;font-family:inherit;color:var(--mid);cursor:pointer;display:flex;align-items:center;gap:7px}
+.vd-bt button.on{border-color:var(--gold);background:var(--gold-pale);color:var(--gold-d);font-weight:600}
+.vd-bt em{font-style:normal;background:var(--gold);color:#fff;border-radius:20px;padding:0 6px;font-size:.68rem;font-weight:700}
+.vd-bt button:not(.on) em{background:var(--cream-2);color:var(--mid)}
+.vd-bh{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:var(--light);
+  font-weight:700;margin:0 0 10px}
+.vd-bfila{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.vd-bfila strong{display:block;font-size:.85rem;color:var(--dark);font-weight:600;margin-bottom:3px}
+.vd-bfila span{font-size:.78rem;color:var(--mid)}
+.vd-bfila i{font-style:normal;color:var(--light)}
+.vd-bmas{width:34px;height:34px;flex-shrink:0;border:1px solid var(--border);background:#fff;border-radius:9px;
+  font-size:1.2rem;line-height:1;color:var(--gold-d);cursor:pointer}
+.vd-bmas:hover{background:var(--gold-pale);border-color:var(--gold)}
 </style>
 </head>
 <body>
@@ -5338,14 +5362,16 @@ function vdRender(){
   }
   const editando = vd.editando != null && vd.items[vd.editando]
   const titulos = { 1:'Nueva venta', 2:'Método de pago', 3:'Abono' }
-  document.getElementById('vdTitulo').textContent = editando ? vd.items[vd.editando].name : (titulos[vd.paso] || 'Nueva venta')
-  document.getElementById('vdLocal').textContent = (!editando && vd.paso === 1) ? localInfo.name : ''
-  document.getElementById('vdAtras').style.display = (editando || vd.paso !== 1) ? 'block' : 'none'
+  document.getElementById('vdTitulo').textContent = vd.buscando ? 'Agrega lo que desees'
+    : editando ? vd.items[vd.editando].name : (titulos[vd.paso] || 'Nueva venta')
+  document.getElementById('vdLocal').textContent = (!editando && !vd.buscando && vd.paso === 1) ? localInfo.name : ''
+  document.getElementById('vdAtras').style.display = (editando || vd.buscando || vd.paso !== 1) ? 'block' : 'none'
   document.getElementById('vdBody').innerHTML =
-    editando ? vdItemPanel() : vd.paso === 1 ? vdCarro() : vd.paso === 3 ? vdAbonoPantalla() : vdMetodos()
+    vd.buscando ? vdBuscaPantalla() : editando ? vdItemPanel() : vd.paso === 1 ? vdCarro() : vd.paso === 3 ? vdAbonoPantalla() : vdMetodos()
   document.getElementById('vdTotal').textContent = fmtMoney(vdTotal())
   const b = document.getElementById('vdBoton')
-  if(editando){ b.textContent = 'Guardar cambios'; b.onclick = vdGuardarItem; b.disabled = false }
+  if(vd.buscando){ b.textContent = 'Ir al carro (' + vd.items.length + ')'; b.onclick = vdCerrarBusca; b.disabled = false }
+  else if(editando){ b.textContent = 'Guardar cambios'; b.onclick = vdGuardarItem; b.disabled = false }
   else if(vd.paso === 1){ b.textContent = 'Continuar'; b.onclick = vdContinuar; b.disabled = !vd.items.length }
   else if(vd.paso === 3){
     b.textContent = vd.metodo ? ('Cobrar ' + fmtMoney(vd.abono||0)) : 'Elige un medio de pago'
@@ -5540,6 +5566,7 @@ function vdContinuar(){
   vd.paso = 2; vdRender()
 }
 function vdAtras(){
+  if(vd.buscando){ vdCerrarBusca(); return }
   if(vd.editando != null){ vdGuardarItem(); return }
   vd.paso = vd.paso === 3 ? 2 : 1; vdRender()
 }
@@ -5558,25 +5585,89 @@ function vdBuscarCliente(){
   const c = enc[(parseInt(n)||1)-1]
   if(c){ vd.clientId=c.id; vd.clientName=c.name; vdRender() }
 }
+/* ══════════ AGREGAR AL CARRO ══════════
+   Un buscador con el catálogo a la vista, en vez de escribir a ciegas
+   en una ventanita del navegador. */
+let vdBusca = '', vdBuscaTab = 'servicios'
 function vdAgregar(){
-  const q = prompt('Escribe el servicio o producto que quieres agregar:')
-  if(!q || !q.trim()) return
-  const t = q.trim().toLowerCase()
-  const sv = state.services.filter(s => (s.name||'').toLowerCase().includes(t))
-  const pr = (state.products||[]).filter(x => (x.name||'').toLowerCase().includes(t))
-  const todos = [...sv.map(s=>({name:s.name, price:money2num(s.price)})),
-                 ...pr.map(x=>({name:x.name, price:Number(x.price)||0, productId:x.id}))]
-  if(!todos.length){ toast('No encontré nada con ese nombre','error'); return }
-  let elegido = todos[0]
-  if(todos.length > 1){
-    const lista = todos.slice(0,9).map((x,i)=>`${i+1}. ${x.name} — ${fmtMoney(x.price)}`).join('\n')
-    const n = prompt('¿Cuál agrego?\n\n'+lista, '1')
-    elegido = todos[(parseInt(n)||1)-1]
-    if(!elegido) return
-  }
-  vd.items.push(Object.assign({ qty:1 }, elegido))
+  vd.buscando = true
+  vdBusca = ''
   vdRender()
+  setTimeout(()=>{ const i = document.getElementById('vdBuscaInput'); if(i) i.focus() }, 60)
 }
+function vdCerrarBusca(){ vd.buscando = false; vdRender() }
+function vdCatalogo(){
+  const q = normalizarBusqueda(vdBusca)
+  const coincide = n => !q || normalizarBusqueda(n).includes(q)
+  return {
+    servicios: state.services.filter(s => coincide(s.name))
+      .map(s => ({ name:s.name, price:money2num(s.price), dur:s.duration||60 })),
+    productos: (state.products||[]).filter(x => coincide(x.name) && x.active!==false)
+      .map(x => ({ name:x.name, price:Number(x.price)||0, productId:x.id, stock:x.stock })),
+    giftcards: (typeof gcCatalogo!=='undefined' ? gcCatalogo : []).filter(g => g.active!==false && coincide(g.name))
+      .map(g => ({ name:g.name, price:money2num(g.price), gift:true }))
+  }
+}
+function vdBuscaEscribe(el){
+  vdBusca = el.value
+  const c = vdCatalogo()
+  /* si lo escrito no aparece en la pestaña abierta, se salta a la que sí trae algo */
+  if(!c[vdBuscaTab].length){
+    const otra = ['servicios','productos','giftcards'].find(k => c[k].length)
+    if(otra) vdBuscaTab = otra
+  }
+  vdPintarBusca()
+}
+function vdBuscaTabSet(t){ vdBuscaTab = t; vdPintarBusca() }
+function vdBuscaLimpia(){ vdBusca = ''; const i=document.getElementById('vdBuscaInput'); if(i){ i.value=''; i.focus() }; vdPintarBusca() }
+/* solo repinta la lista, para no perder lo que se está escribiendo */
+function vdPintarBusca(){
+  const caja = document.getElementById('vdBuscaLista')
+  if(!caja) return vdRender()
+  const c = vdCatalogo()
+  caja.innerHTML = vdBuscaTabs(c) + vdBuscaFilas(c[vdBuscaTab])
+  const b = document.getElementById('vdBoton')
+  if(b) b.textContent = 'Ir al carro (' + vd.items.length + ')'
+}
+function vdBuscaTabs(c){
+  const tabs = [['servicios','Servicios'],['productos','Productos'],['giftcards','Gift cards']]
+  return `<div class="vd-bt">${tabs.map(([k,l]) => `
+    <button class="${vdBuscaTab===k?'on':''}" onclick="vdBuscaTabSet('${k}')">
+      ${l}${c[k].length?` <em>${c[k].length}</em>`:''}</button>`).join('')}</div>`
+}
+function vdBuscaFilas(lista){
+  if(!lista.length) return `<div class="vd-vacio">No hay nada con ese nombre.</div>`
+  return `<h4 class="vd-bh">${vdBuscaTab==='servicios'?'Servicios':vdBuscaTab==='productos'?'Productos':'Gift cards'}</h4>` +
+    lista.slice(0,60).map((x,i) => `<div class="vd-bfila">
+      <div>
+        <strong>${esc(x.name)}</strong>
+        <span>${fmtMoney(x.price)}${x.dur?` <i>| ⏱ ${x.dur} min</i>`:''}${x.stock!=null?` <i>| ${x.stock} en stock</i>`:''}</span>
+      </div>
+      <button class="vd-bmas" title="Agregar al carro" onclick="vdBuscaAgrega(${i})">+</button>
+    </div>`).join('')
+}
+function vdBuscaAgrega(i){
+  const x = vdCatalogo()[vdBuscaTab][i]; if(!x) return
+  /* la misma cosa dos veces sube la cantidad, no repite la línea */
+  const ya = vd.items.find(it => it.name === x.name && (it.productId||null) === (x.productId||null))
+  if(ya) ya.qty = (Number(ya.qty)||1) + 1
+  else vd.items.push({ name:x.name, qty:1, price:x.price, base:x.price, productId:x.productId||null })
+  toast(x.name + ' agregado','success')
+  vdPintarBusca()
+  document.getElementById('vdTotal').textContent = fmtMoney(vdTotal())
+}
+function vdBuscaPantalla(){
+  const c = vdCatalogo()
+  return `
+    <div class="vd-bbusca">
+      <span>🔍</span>
+      <input type="text" id="vdBuscaInput" placeholder="Busca un servicio, producto o gift card"
+        value="${esc(vdBusca)}" oninput="vdBuscaEscribe(this)" autocomplete="off" />
+      ${vdBusca?`<button onclick="vdBuscaLimpia()" title="Limpiar">✕</button>`:''}
+    </div>
+    <div id="vdBuscaLista">${vdBuscaTabs(c)}${vdBuscaFilas(c[vdBuscaTab])}</div>`
+}
+
 function vdMasOpciones(){
   const n = prompt('Nota de la venta (queda guardada en el detalle):', vd.nota || '')
   if(n !== null){ vd.nota = n.trim(); toast('Nota guardada','success') }
