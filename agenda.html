@@ -2271,7 +2271,8 @@ body.sin-scroll{overflow:hidden}
           <label>Color en la agenda</label>
           <div class="swatches" id="proSwatches"></div>
           <div class="row2" style="margin-top:14px">
-            <div><label>Comisión sobre ventas (%)</label><input type="number" id="proComm" min="0" max="100" value="0" /></div>
+            <div><label>Comisión por defecto (%)</label><input type="number" id="proComm" min="0" max="100" value="0" />
+              <p class="rem-note" style="margin:4px 0 0">Se usa cuando el servicio no tiene una comisión propia. Las comisiones por servicio se definen en Administración → Comisiones.</p></div>
             <div><label>Estado</label><select id="proActive"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
           </div>
         </div>
@@ -6851,6 +6852,28 @@ function commDefaultOf(profId){
   return Number((p&&p.commission_pct)||0)
 }
 /* % que se le paga a un profesional por un ítem concreto */
+/* Comisión de una venta, calculada línea por línea.
+   Cada profesional puede tener un porcentaje distinto por servicio; usar
+   solo el porcentaje general dejaba en cero a quien lo tuviera en cero
+   aunque sí cobrara por sus servicios. */
+function comisionDeVenta(s){
+  const items = itemsDe(s)
+  let base = 0, comm = 0
+  items.forEach(it => {
+    const monto = Number(it.qty||1) * Number(it.price||0)
+    const kind = state.products.some(p=>p.name===it.name) ? 'products'
+      : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
+    base += monto
+    comm += Math.round(monto * commPctFor(s.professional_id, it.name, kind) / 100)
+  })
+  /* si la venta no trae el detalle, se usa el porcentaje general sobre el total */
+  if(!items.length){
+    base = Number(s.total||0)
+    comm = Math.round(base * commDefaultOf(s.professional_id) / 100)
+  }
+  return { base, comm }
+}
+
 function commPctFor(profId,itemName,kind){
   const map=(commCfg[kind||'services']||{})[profId]||{}
   if(map[itemName]!==undefined) return Number(map[itemName])
@@ -8464,7 +8487,10 @@ function admProfesionales(){
       <span class="asa" onmousedown="iniciarArrastre(event,this.parentElement)" title="Arrastra para reordenar">⠿</span>${av}
       <span class="ar-name">${esc(p.name)}</span>
       <span class="ar-meta">${(p.work_start||'').slice(0,5)} – ${(p.work_end||'').slice(0,5)} · ${dn||'sin días'}</span>
-      <span class="ar-meta">Comisión ${p.commission_pct||0}%</span>
+      <span class="ar-meta">${(() => {
+        const propias = Object.keys((commCfg.services||{})[p.id]||{}).length
+        return propias ? `Comisión ${propias} servicios · ${commDefaultOf(p.id)}% por defecto` : `Comisión ${commDefaultOf(p.id)}%`
+      })()}</span>
       <span class="adm-dot ${p.active===false?'off':''}">● ${p.active===false?'Inactivo':'Activo'}</span>
       <button class="mini-btn" onclick="openProModal('${p.id}')">✎ Editar</button></div>`}).join('')
   return tabs+`<div class="inv-notice">⭐ <strong>Edita a tu equipo de trabajo.</strong> Puedes cambiar sus horarios, qué servicios realizan, su color en la agenda y su comisión.</div>
@@ -10186,13 +10212,16 @@ function renderComisiones(){
   // por profesional
   const byProf={}
   list.forEach(s=>{ if(!s.professional_id) return
-    byProf[s.professional_id]=byProf[s.professional_id]||{sales:0,tips:0}
+    byProf[s.professional_id]=byProf[s.professional_id]||{sales:0,tips:0,comm:0}
     byProf[s.professional_id].sales+=Number(s.total||0)
-    byProf[s.professional_id].tips+=Number(s.tip||0) })
+    byProf[s.professional_id].tips+=Number(s.tip||0)
+    byProf[s.professional_id].comm+=comisionDeVenta(s).comm })
   const profList=psel && psel.value ? state.professionals.filter(p=>p.id===psel.value) : state.professionals
   const rows=profList.map(p=>{
-    const d=byProf[p.id]||{sales:0,tips:0}, pct=Number(p.commission_pct||0)
-    return {name:p.name, sales:d.sales, tips:d.tips, pct, comm:Math.round(d.sales*pct/100)}
+    const d=byProf[p.id]||{sales:0,tips:0,comm:0}
+    /* el porcentaje que se muestra es el promedio real de lo cobrado */
+    const pct = d.sales ? Math.round(d.comm/d.sales*100) : commDefaultOf(p.id)
+    return {name:p.name, sales:d.sales, tips:d.tips, pct, comm:d.comm}
   }).sort((a,b)=>b.comm-a.comm)
 
   const totalSales=rows.reduce((a,r)=>a+r.sales,0)
@@ -10265,8 +10294,9 @@ function exportComisiones(){
     byProf[s.professional_id].tips+=Number(s.tip||0) })
   const psel=document.getElementById('commProf')
   const profList=psel&&psel.value?state.professionals.filter(p=>p.id===psel.value):state.professionals
-  const rows=profList.map(p=>{ const d=byProf[p.id]||{sales:0,tips:0}, pct=Number(p.commission_pct||0)
-    return [p.name, d.sales, pct, Math.round(d.sales*pct/100), d.tips] })
+  const rows=profList.map(p=>{ const d=byProf[p.id]||{sales:0,tips:0,comm:0}
+    const pct = d.sales ? Math.round(d.comm/d.sales*100) : commDefaultOf(p.id)
+    return [p.name, d.sales, pct, d.comm, d.tips] })
   if(!rows.length){ toast('No hay datos para exportar','error'); return }
   downloadCSV('comisiones.csv', ['Profesional o Staff','Ventas totales','% Comisión','Monto comisión','Propinas'], rows)
 }
