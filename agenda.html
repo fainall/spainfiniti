@@ -1088,6 +1088,22 @@ body.sin-scroll{overflow:hidden}
 .wa-sep{height:1px;background:var(--border);margin:5px 8px}
 .wa-directo{color:#1eb857 !important;font-weight:600}
 @media(max-width:820px){ .wa-menu{right:auto;left:0;min-width:230px} }
+
+/* información del cliente dentro de la reserva */
+.re-info-box{border-top:1px solid var(--border)}
+.re-info-box:empty{border-top:0}
+.re-info-vacio{padding:16px;text-align:center;color:var(--light);font-size:.82rem}
+.re-info-total{padding:12px 15px 4px;font-size:.95rem;font-weight:700;color:var(--gold-d)}
+.re-info-tabla{width:100%;border-collapse:collapse;font-size:.8rem}
+.re-info-tabla th{text-align:left;padding:8px 15px;color:var(--mid);font-weight:600;font-size:.72rem}
+.re-info-tabla td{padding:9px 15px;border-top:1px solid var(--cream-2)}
+.re-info-tabla .r{text-align:right}
+.re-info-sub{display:block;font-size:.72rem;color:var(--light);margin-top:2px}
+.re-sesion{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 15px;border-top:1px solid var(--cream-2)}
+.re-sesion strong{font-size:.85rem}
+.re-sesion.otra{opacity:.72}
+.re-tabs button.on{color:var(--gold-d);font-weight:600;background:#fff}
+.re-info-box .rem-note{padding:0 15px 12px;margin:6px 0 0}
 </style>
 </head>
 <body>
@@ -5387,13 +5403,16 @@ function reservaEditable(a){
           ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}');setTimeout(renderApptTab,700)">Enviar por correo</button>`:''}
         </div>
       </div>
-      <div class="re-tabs">
+      <div class="re-tabs" id="reTabs">
         ${['Planes','Sesiones','Prepago','Recientes'].map(t=>{
           const n = t==='Recientes' ? state.appointments.filter(x=>x.client_id===a.client_id && x.id!==a.id).length
-                  : t==='Planes' ? state.plans.filter(x=>x.client_id===a.client_id && x.status!=='cancelled').length : 0
+                  : t==='Planes' ? bonosDe(a).length
+                  : t==='Sesiones' ? bonosDe(a).reduce((s2,b)=>s2+Math.max(0,(b.total_sessions||0)-(b.used_sessions||0)),0)
+                  : 0
           return `<button onclick="reInfoCliente('${a.id}','${t}')">${t}${n?` <em>${n}</em>`:''}</button>`
         }).join('')}
       </div>
+      <div id="reInfoBox" class="re-info-box"></div>
     </div>
 
     <label class="re-lbl">Profesional</label>
@@ -5495,24 +5514,133 @@ async function reGuardar(id, campo, valor){
   }catch(e){ console.error(e); toast('No se pudo guardar el cambio','error'); renderApptTab() }
 }
 
-/* las pestañitas de información del cliente */
+/* ══════════ INFORMACIÓN DEL CLIENTE EN LA RESERVA ══════════
+   Planes, Sesiones, Prepago y Recientes. Se abre bajo la tarjeta del
+   cliente, sin sacar a nadie de la reserva que está mirando. */
+let reInfoAbierta = ''
+
 function reInfoCliente(id, cual){
-  const a = findAppt(id); if(!a) return
-  if(cual === 'Recientes'){
-    const otras = state.appointments.filter(x=>x.client_id===a.client_id && x.id!==a.id)
-      .sort((x,y)=>y.appt_date.localeCompare(x.appt_date)).slice(0,8)
-    if(!otras.length){ toast('Sin otras reservas de este cliente','success'); return }
-    alert('Otras reservas de ' + a.client_name + ':\n\n' +
-      otras.map(x=>{const [y,m,d]=x.appt_date.split('-');return `${d}/${m}/${y} ${x.start_time.slice(0,5)} — ${x.service_name||''}`}).join('\n'))
-  } else if(cual === 'Planes'){
-    const bonos = state.plans.filter(x=>x.client_id===a.client_id && x.status!=='cancelled')
-    if(!bonos.length){ toast('Este cliente no tiene bonos','success'); return }
-    alert('Bonos de ' + a.client_name + ':\n\n' +
-      bonos.map(b=>`${b.name}: ${b.used_sessions||0}/${b.total_sessions} sesiones`).join('\n'))
-  } else {
-    toast(cual + ': aún no está disponible', 'success')
-  }
+  reInfoAbierta = (reInfoAbierta === cual) ? '' : cual
+  pintarInfoCliente(id)
 }
+function pintarInfoCliente(id){
+  const caja = document.getElementById('reInfoBox'); if(!caja) return
+  const a = findAppt(id); if(!a) return
+  document.querySelectorAll('.re-tabs button').forEach(b=>
+    b.classList.toggle('on', b.textContent.trim().startsWith(reInfoAbierta)))
+  if(!reInfoAbierta){ caja.innerHTML = ''; return }
+  caja.innerHTML =
+    reInfoAbierta === 'Planes'    ? rePlanes(a)
+  : reInfoAbierta === 'Sesiones'  ? reSesiones(a)
+  : reInfoAbierta === 'Prepago'   ? rePrepago(a)
+  : reRecientes(a)
+}
+
+/* los bonos del cliente */
+function bonosDe(a){
+  return state.plans.filter(x => x.client_id === a.client_id && x.status !== 'cancelled')
+}
+function rePlanes(a){
+  const bonos = bonosDe(a)
+  if(!bonos.length) return `<div class="re-info-vacio">Este cliente no tiene bonos.
+    <button class="mini-link" onclick="closeModal('apptDetailModal');switchView('planes')">Vender uno</button></div>`
+  return `<table class="re-info-tabla">
+    <thead><tr><th>Bono</th><th class="r">Usadas</th><th class="r">Quedan</th><th></th></tr></thead>
+    <tbody>${bonos.map(b=>{
+      const usadas = b.used_sessions||0, tot = b.total_sessions||0, quedan = Math.max(0, tot-usadas)
+      return `<tr><td>${esc(b.name)}${b.expires_at?`<span class="re-info-sub">Vence el ${esc(b.expires_at)}</span>`:''}</td>
+        <td class="r">${usadas}/${tot}</td>
+        <td class="r"><strong>${quedan}</strong></td>
+        <td class="r">${quedan>0?`<button class="mini-btn" onclick="usarSesionEnReserva('${b.id}','${a.id}')">Usar aquí</button>`:'<span class="badge paid">Completado</span>'}</td></tr>`
+    }).join('')}</tbody></table>`
+}
+
+/* las sesiones disponibles, que es lo que se descuenta al atender */
+function reSesiones(a){
+  const bonos = bonosDe(a)
+  const conSaldo = bonos.filter(b => (b.total_sessions||0) - (b.used_sessions||0) > 0)
+  const total = conSaldo.reduce((t,b)=> t + ((b.total_sessions||0) - (b.used_sessions||0)), 0)
+  if(!conSaldo.length) return `<div class="re-info-vacio">No le quedan sesiones disponibles.
+    ${bonos.length?'Todos sus bonos están completos.':''}</div>`
+  /* ¿alguno sirve para el servicio de esta reserva? */
+  const sirve = b => !b.service_name || b.service_name === a.service_name
+  return `<div class="re-info-total">${total} ${total===1?'sesión disponible':'sesiones disponibles'}</div>
+    ${conSaldo.map(b=>{
+      const quedan = (b.total_sessions||0) - (b.used_sessions||0)
+      const ok = sirve(b)
+      return `<div class="re-sesion ${ok?'':'otra'}">
+        <div>
+          <strong>${esc(b.name)}</strong>
+          <span class="re-info-sub">${quedan} de ${b.total_sessions} sin usar${b.service_name && b.service_name!==a.service_name?` · es para ${esc(b.service_name)}`:''}</span>
+        </div>
+        <button class="mini-btn" onclick="usarSesionEnReserva('${b.id}','${a.id}')">Descontar una</button>
+      </div>`
+    }).join('')}
+    <p class="rem-note">Al descontar una sesión, la reserva queda saldada con el bono y no aparece en Cobros.</p>`
+}
+
+/* saldo a favor: abonos pagados que todavía no se gastaron */
+function rePrepago(a){
+  const suyas = state.sales.filter(v => v.client_id === a.client_id && v.status !== 'deleted')
+  const abonos = suyas.filter(v => /^Abono de /.test(String(v.notes||'')))
+  const pagado = suyas.reduce((t,v)=> t + Number(v.total||0), 0)
+  const consumido = state.appointments
+    .filter(x => x.client_id === a.client_id && suyas.some(v => v.appointment_id === x.id))
+    .reduce((t,x)=> t + money2num(x.price), 0)
+  const favor = Math.max(0, pagado - consumido)
+  return `<div class="re-info-total">${fmtMoney(favor)} a favor</div>
+    <table class="re-info-tabla">
+      <tbody>
+        <tr><td>Pagado en total</td><td class="r">${fmtMoney(pagado)}</td></tr>
+        <tr><td>Aplicado a reservas</td><td class="r">${fmtMoney(consumido)}</td></tr>
+        <tr><td><strong>Saldo a favor</strong></td><td class="r"><strong>${fmtMoney(favor)}</strong></td></tr>
+      </tbody></table>
+    ${abonos.length?`<p class="rem-note">${abonos.length} abono${abonos.length===1?'':'s'} registrado${abonos.length===1?'':'s'}.</p>`:''}
+    ${favor>0?'<p class="rem-note">Puedes descontarlo al cobrar, escribiendo el monto en la pantalla de Abono.</p>':''}`
+}
+
+/* sus otras reservas */
+function reRecientes(a){
+  const otras = state.appointments
+    .filter(x => x.client_id === a.client_id && x.id !== a.id && x.status !== 'block')
+    .sort((x,y)=> (y.appt_date+y.start_time).localeCompare(x.appt_date+x.start_time))
+    .slice(0,10)
+  if(!otras.length) return '<div class="re-info-vacio">Es su primera reserva.</div>'
+  return `<table class="re-info-tabla">
+    <tbody>${otras.map(x=>{
+      const [y,m,d] = x.appt_date.split('-')
+      return `<tr><td>${d}/${m}/${y} · ${x.start_time.slice(0,5)}</td>
+        <td>${esc(x.service_name||'—')}</td>
+        <td class="r"><span class="cd-tag" style="background:${STATUS_COLORS[x.status]||'#C9CDD4'}">${esc(STATUS_LABEL[x.status]||'')}</span></td>
+        <td class="r"><button class="mini-link" onclick="closeModal('apptDetailModal');openApptDetail('${x.id}')">Ver</button></td></tr>`
+    }).join('')}</tbody></table>`
+}
+
+/* descuenta una sesión del bono y salda la reserva */
+async function usarSesionEnReserva(bonoId, apptId){
+  const b = state.plans.find(x=>x.id===bonoId); if(!b) return
+  const a = findAppt(apptId); if(!a) return
+  const usadas = (b.used_sessions||0) + 1
+  if(usadas > b.total_sessions){ toast('Ese bono ya no tiene sesiones','error'); return }
+  if(!await confirmar('Se descontará una sesión de “' + b.name + '” y la reserva quedará saldada con el bono.',
+      { titulo:'¿Usar una sesión?', ok:'Sí, descontar', suave:true })) return
+  try{
+    await supabase.update('plans', bonoId, { used_sessions: usadas })
+    b.used_sessions = usadas
+    /* la reserva queda pagada con el bono */
+    await supabase.insert('sales', {
+      client_id: a.client_id, client_name: a.client_name, appointment_id: a.id,
+      professional_id: a.professional_id, sale_date: isoDate(new Date()),
+      items: [{ name: a.service_name, qty: 1, price: money2num(a.price) }],
+      total: money2num(a.price), payment_method: 'Bono: ' + b.name, status: 'paid',
+      notes: 'Sesión descontada del bono ' + b.name + ' (' + usadas + '/' + b.total_sessions + ')'
+    })
+    await loadSales(); await cargarCobros(); render()
+    pintarInfoCliente(apptId); renderApptTab()
+    toast(usadas >= b.total_sessions ? '¡Bono completado!' : 'Sesión descontada (' + usadas + '/' + b.total_sessions + ')', 'success')
+  }catch(e){ console.error(e); toast('No se pudo descontar: ' + e.message, 'error') }
+}
+
 
 /* ══════════ FORZAR UNA RESERVA ══════════
    Hay bloqueos que son avisos, no prohibiciones: el box ocupado cuando
