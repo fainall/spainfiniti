@@ -3921,7 +3921,8 @@ function renderSidebar(){
   }
   el.innerHTML=html
 }
-function selectProf(id){ state.profId=id; render() }
+function selectProf(id){
+  /* el horario visible cambia según a quién se mire */ state.profId=id; render() }
 
 /* ── VISTA DÍA: una columna por profesional, como en la agenda de un spa ── */
 /* ── VISTA RECURSOS: una columna por box, camilla o equipo ──
@@ -4087,6 +4088,39 @@ function renderCalendarDia(){
   }
 }
 
+/* Las horas en que no se atiende, en gris rayado.
+   En la vista Día se calcula por profesional; aquí, por día, manda el
+   horario del local, o el del profesional cuando hay uno filtrado. */
+function franjasFueraDeHorario(fecha, minM, maxM, SP, gridH){
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  let desde = null, hasta = null, quien = null   // null = es el horario del local
+
+  /* si se está mirando a un solo profesional, se usa su horario */
+  if(state.profId && state.profId !== 'all'){
+    const hp = profHorarioDia(state.profId, fecha)
+    quien = profName(state.profId) || 'Ese profesional'
+    if(!hp || !hp.trabaja)
+      return `<div class="nodisp" style="top:0;height:${gridH}px"><span>${esc(quien||'No se atiende')} no atiende ese día</span></div>`
+    desde = toMin(hp.desde); hasta = toMin(hp.hasta)
+  } else {
+    const hl = (localInfo.hours||{})[dow] || (localInfo.hours||{})[String(dow)]
+    if(!hl || hl[2] === false)
+      return `<div class="nodisp" style="top:0;height:${gridH}px"><span>Local cerrado</span></div>`
+    desde = toMin(hl[0]); hasta = toMin(hl[1])
+  }
+
+  let out = ''
+  if(desde > minM){
+    const alto = (desde-minM)/slotMin*SP
+    out += `<div class="nodisp" style="top:0;height:${alto}px"><span>${quien ? esc(quien)+' no disponible' : 'Fuera de horario'}<br><small>${toHHMM(minM)} – ${toHHMM(desde)}</small></span></div>`
+  }
+  if(hasta < maxM){
+    const top = (hasta-minM)/slotMin*SP, alto = (maxM-hasta)/slotMin*SP
+    out += `<div class="nodisp" style="top:${top}px;height:${alto}px"><span>${quien ? esc(quien)+' no disponible' : 'Fuera de horario'}<br><small>${toHHMM(hasta)} – ${toHHMM(maxM)}</small></span></div>`
+  }
+  return out
+}
+
 function renderCalendar(){
   if(state.view==='rec') return renderCalendarRec()
   if(state.view==='day') return renderCalendarDia()
@@ -4124,6 +4158,8 @@ function renderCalendar(){
       const isHour=((minM+i*slotMin)%60)===0
       lines+=`<div class="hr-line ${isHour?'':'half'}" style="top:${i*SP}px"></div>`
     }
+    /* franjas grises antes de abrir y después de cerrar, como en la vista Día */
+    lines += franjasFueraDeHorario(isoDate(dd), minM, maxM, SP, gridH)
     // appointments for this day
     const dayAppts=state.appointments.filter(a=>a.appt_date===isoDate(dd) && profInFilter(a.professional_id))
     const blocks=layoutDay(dayAppts).map(a=>{
