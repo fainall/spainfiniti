@@ -2139,6 +2139,18 @@ body.sin-scroll{overflow:hidden}
     </div>
   </div>
 
+  <!-- MODAL: confirmar -->
+  <div class="modal-ov" id="cfModal">
+    <div class="modal" style="width:420px;max-width:94vw">
+      <h2 id="cfTitulo">¿Seguro?</h2>
+      <p id="cfTexto" style="font-size:.88rem;color:var(--mid);line-height:1.55;margin:12px 0 0"></p>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="confirmarResponder(false)">Cancelar</button>
+        <button class="btn-danger" id="cfOk" onclick="confirmarResponder(true)">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: recurso (Administración) -->
   <div class="modal-ov" id="resModal">
     <div class="modal" style="width:820px;max-width:94vw">
@@ -4670,6 +4682,29 @@ function marcaOrigen(a){
   return o && o.icono ? `<span class="org" title="${esc(o.nombre)}">${o.icono}</span>` : ''
 }
 
+/* ══════════ CONFIRMAR ══════════
+   Chrome deja de mostrar los cuadros del navegador si el usuario marca
+   "impedir que esta página cree más diálogos", y entonces borrar dejaba
+   de responder sin decir nada. Este cuadro es nuestro y siempre aparece. */
+let _confirmarResolver = null
+function confirmar(texto, opciones){
+  const o = opciones || {}
+  return new Promise(resolve => {
+    _confirmarResolver = resolve
+    document.getElementById('cfTitulo').textContent = o.titulo || '¿Seguro?'
+    document.getElementById('cfTexto').textContent = texto || ''
+    const b = document.getElementById('cfOk')
+    b.textContent = o.ok || 'Sí, eliminar'
+    b.className = o.suave ? 'btn-primary' : 'btn-danger'
+    openModal('cfModal')
+    setTimeout(()=>b.focus(), 60)
+  })
+}
+function confirmarResponder(si){
+  closeModal('cfModal')
+  if(_confirmarResolver){ _confirmarResolver(si); _confirmarResolver = null }
+}
+
 /* ── VISTA RÁPIDA DE RESERVA (al hacer clic) ── */
 function fmtLongDate(iso){ const [y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d); return `${DOW_FULL[dt.getDay()].toLowerCase()}, ${d} de ${MONTHS[m-1].toLowerCase()}` }
 function openApptQuickView(id){
@@ -4717,7 +4752,9 @@ async function setApptStatus(id,status){
   catch(e){ toast('Error al cambiar estado','error') }
 }
 async function qvDelete(id){
-  if(!confirm('¿Eliminar esta reserva?')) return
+  const a = findAppt(id)
+  const detalle = a ? ((a.client_name||'la reserva') + ' · ' + fmtLongDate(a.appt_date) + ' a las ' + a.start_time.slice(0,5)) : ''
+  if(!await confirmar('Se eliminará ' + detalle + '. Esta acción no se puede deshacer.', { titulo:'¿Eliminar esta reserva?' })) return
   try{ await supabase.delete('appointments',id); closeQuickView(); toast('Reserva eliminada','success'); loadAndRender() }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -4893,7 +4930,7 @@ function referenciaPago(v){
 
 /* deshace el cobro: borra la venta y la reserva vuelve a quedar pendiente */
 async function eliminarPagoReserva(ventaId, apptId){
-  if(!confirm('¿Eliminar este pago? La reserva volverá a aparecer como pendiente de cobro.')) return
+  if(!await confirmar('El pago quedará anulado y la reserva volverá a aparecer como pendiente de cobro.', { titulo:'¿Eliminar este pago?' })) return
   try{
     /* se anula, no se borra: asi queda el rastro de que hubo un cobro */
     await supabase.update('sales', ventaId, { status:'deleted' })
@@ -5348,7 +5385,7 @@ async function reGuardar(id, campo, valor){
     if(sv){
       /* si el precio estaba ajustado a mano, se pregunta antes de pisarlo */
       const ajustado = precioAjustado(a)
-      if(!ajustado || confirm('Esta reserva tiene un precio ajustado a mano (' + a.price + ').\n\n¿Quieres poner el precio de "' + valor + '" (' + (sv.price||'sin precio') + ')?')){
+      if(!ajustado || await confirmar('Esta reserva tiene un precio ajustado a mano (' + a.price + '). ¿Quieres poner el precio de "' + valor + '" (' + (sv.price||'sin precio') + ')?', { titulo:'Cambiar el precio', ok:'Sí, usar el del servicio', suave:true })){
         cambio.service_id = sv.id; cambio.price = sv.price || ''
       } else { cambio.service_id = sv.id }
     }
@@ -5623,7 +5660,8 @@ async function deleteAppt(){
     const _a=state.appointments.find(x=>x.id===_id)
     if(_a && !canEditAppt(_a)){ toast('No puedes borrar la reserva de otro profesional','error'); return } }
   const id=document.getElementById('apptId').value
-  if(!id||!confirm('¿Eliminar esta reserva definitivamente?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar esta reserva definitivamente?')) return
   try{ await supabase.delete('appointments',id); closeModal('apptModal'); toast('Reserva eliminada','success'); loadAndRender() }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -5748,7 +5786,7 @@ async function saveClient(){
   }catch(e){ console.error(e); toast('Error al guardar cliente','error') }
 }
 async function deleteClient(id, name){
-  if(!confirm(`¿Borrar a "${name}"? Sus reservas quedarán sin cliente asociado.`)) return
+  if(!await confirmar('Se borrará a ' + name + '. Sus reservas quedarán sin cliente asociado.', { titulo:'¿Borrar este cliente?' })) return
   try{ await supabase.delete('clients',id); await loadClients(); renderClientList(); toast('Cliente borrado','success') }
   catch(e){ toast('Error al borrar','error') }
 }
@@ -6018,9 +6056,10 @@ async function doImport(){
 
   /* si vienen caracteres dañados, se avisa antes de guardarlos */
   const rotos = todas.filter(r => /[\uFFFD]/.test(r.name + r.email))
-  if(rotos.length && !confirm(rotos.length + ' clientes traen caracteres dañados, por ejemplo:\n\n' +
-      rotos.slice(0,3).map(r=>'• '+r.name).join('\n') +
-      '\n\nEso pasa cuando el archivo se exportó en otra codificación. Lo mejor es volver a exportarlo eligiendo UTF-8.\n\n¿Importar de todas formas?')) return
+  if(rotos.length && !await confirmar(rotos.length + ' clientes traen caracteres dañados, por ejemplo: ' +
+      rotos.slice(0,3).map(r=>r.name).join(', ') +
+      '. Eso pasa cuando el archivo se exportó en otra codificación; lo mejor es volver a exportarlo eligiendo UTF-8.',
+      { titulo:'Hay nombres dañados', ok:'Importar igual', suave:true })) return
 
   /* no duplicar a quien ya está */
   const nuevas = todas.filter(r => !clienteExistente(r))
@@ -6153,7 +6192,7 @@ async function sendCampaign(){
   if(!subj||!msg){ toast('Falta asunto o mensaje','error'); return }
   const list=updateCampAudience()
   if(!list.length){ toast('No hay destinatarios con email para el filtro elegido','error'); return }
-  if(!confirm(`¿Enviar la campaña a ${list.length} cliente${list.length===1?'':'s'}? Esto puede tardar unos segundos.`)) return
+  if(!await confirmar(`¿Enviar la campaña a ${list.length} cliente${list.length===1?'':'s'}? Esto puede tardar unos segundos.`)) return
   const btn=event.target; btn.disabled=true; btn.textContent='Enviando...'
   try{
     const res=await fetch('/api/send-campaign.php',{method:'POST',headers:authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({
@@ -6407,7 +6446,8 @@ async function saveSurvey(){
 }
 async function deleteSurvey(){
   const id=document.getElementById('svId').value
-  if(!id||!confirm('¿Eliminar esta encuesta y sus respuestas?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar esta encuesta y sus respuestas?')) return
   try{ await supabase.delete('surveys',id); await loadSurveys(); closeModal('surveyModal'); toast('Encuesta eliminada','success') }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -6724,7 +6764,8 @@ async function saveSmartRule(){
 }
 async function deleteSmartRule(){
   const id=document.getElementById('spId').value
-  if(!id||!confirm('¿Eliminar esta regla de descuento?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar esta regla de descuento?')) return
   smartRules=smartRules.filter(r=>r.id!==id)
   await persistSmartPricing(); closeModal('spModal'); renderAdmin(); toast('Regla eliminada','success')
 }
@@ -6828,7 +6869,8 @@ async function savePlanTpl(){
 }
 async function deletePlanTpl(){
   const id=document.getElementById('ptId').value
-  if(!id||!confirm('¿Eliminar este plan del catálogo? Los bonos ya vendidos no se tocan.')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar este plan del catálogo? Los bonos ya vendidos no se tocan.')) return
   planTpls=planTpls.filter(t=>t.id!==id)
   await persistPlanTpls(); closeModal('planTplModal'); renderAdmin(); toast('Plan eliminado','success')
 }
@@ -7267,8 +7309,8 @@ function agregarSeccion(){
   plantillaEdit.sections.push({ title:'', fields:[] })
   pintarSecciones()
 }
-function borrarSeccion(i){
-  if(!confirm('¿Borrar esta sección y sus preguntas?')) return
+async function borrarSeccion(i){
+  if(!await confirmar('Se borrará la sección con todas sus preguntas.', { titulo:'¿Borrar la sección?' })) return
   plantillaEdit.sections.splice(i,1); pintarSecciones()
 }
 function moverSeccion(i,d){
@@ -7299,7 +7341,7 @@ async function savePlantilla(){
 
 async function deletePlantilla(){
   if(!plantillaEdit.id) return
-  if(!confirm('¿Borrar la ficha “' + plantillaEdit.name + '”? Las ya completadas se conservan.')) return
+  if(!await confirmar('Se borrará “' + plantillaEdit.name + '”. Las fichas ya completadas se conservan.', { titulo:'¿Borrar esta ficha?' })) return
   try{
     await supabase.delete('record_templates', plantillaEdit.id)
     await cargarPlantillas(); closeModal('ftModal'); renderAdmin(); toast('Ficha borrada','success')
@@ -7431,7 +7473,7 @@ async function saveFichaCliente(){
 
 async function deleteFichaCliente(){
   if(!fichaEdit || !fichaEdit.id) return
-  if(!confirm('¿Borrar esta ficha completada? No se puede deshacer.')) return
+  if(!await confirmar('Se borrará esta ficha completada. No se puede deshacer.', { titulo:'¿Borrar la ficha?' })) return
   try{
     await supabase.delete('client_records', fichaEdit.id)
     await cargarFichasDe(cdCliente.id)
@@ -7538,7 +7580,7 @@ async function saveConsent(){
 }
 async function deleteConsent(){
   if(!consentEdit.id) return
-  if(!confirm('¿Borrar “' + consentEdit.name + '”? Las firmas ya recogidas se conservan.')) return
+  if(!await confirmar('Se borrará “' + consentEdit.name + '”. Las firmas ya recogidas se conservan.', { titulo:'¿Borrar este consentimiento?' })) return
   try{ await supabase.delete('consents', consentEdit.id)
     await cargarConsentimientos(); closeModal('coModal'); renderAdmin(); toast('Consentimiento borrado','success')
   }catch(e){ toast('No se pudo borrar','error') }
@@ -8139,7 +8181,7 @@ async function saveGcCard(){
 }
 async function deleteGcCard(){
   if(!gcEdit.id) return
-  if(!confirm('¿Quitar “' + gcEdit.name + '” del catálogo? Las gift cards ya vendidas siguen válidas.')) return
+  if(!await confirmar('Se quitará “' + gcEdit.name + '” del catálogo. Las gift cards ya vendidas siguen válidas.', { titulo:'¿Quitar del catálogo?', ok:'Sí, quitar' })) return
   gcCatalogo = gcCatalogo.filter(x=>x.id!==gcEdit.id)
   await persistGcCatalogo(); closeModal('gcModal'); renderAdmin(); toast('Gift card quitada','success')
 }
@@ -8481,7 +8523,8 @@ async function saveRes(){
 async function deleteRes(){
   const id=document.getElementById('resId').value
   const r=resources.find(x=>x.id===id)
-  if(!r || !confirm('¿Eliminar el recurso “'+r.name+'”? Las citas ya agendadas no se tocan.')) return
+  if(!r) return
+  if(!await confirmar('Se eliminará “' + r.name + '”. Las citas ya agendadas no se tocan.', { titulo:'¿Eliminar este recurso?' })) return
   resources=resources.filter(x=>x.id!==id)
   await persistResources()
   closeModal('resModal'); renderAdmin(); actualizarSegRec(); render(); toast('Recurso eliminado','success')
@@ -8686,7 +8729,7 @@ async function savePro(){
      si quedaba encendido y el usuario destildó servicios, antes se guardaba 'all' y los perdía */
   const marcados=[...document.querySelectorAll('#proSvcTree .svc-items input:checked')].map(c=>c.value)
   const services = marcados.length===state.services.length ? 'all' : marcados
-  if(!marcados.length && !confirm('No marcaste ningún servicio: este profesional no podrá recibir reservas. ¿Guardar igual?')) return
+  if(!marcados.length && !await confirmar('No marcaste ningún servicio: este profesional no podrá recibir reservas. ¿Guardar igual?', { titulo:'Un momento', ok:'Continuar igual', suave:true })) return
   const id=document.getElementById('proId').value
   try{
     let pid=id
@@ -8707,7 +8750,8 @@ async function savePro(){
 }
 async function deletePro(){
   const id=document.getElementById('proId').value
-  if(!id||!confirm('¿Eliminar este profesional? Sus reservas quedarán sin profesional asignado.')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar este profesional? Sus reservas quedarán sin profesional asignado.')) return
   try{ await supabase.delete('professionals',id); delete profMeta[id]; await persistProfMeta()
     await loadProfessionals(); closeModal('proModal'); renderAdmin(); render(); toast('Profesional eliminado','success') }
   catch(e){ toast('Error al eliminar','error') }
@@ -8736,7 +8780,8 @@ async function saveGroup(){
 }
 async function deleteGroup(){
   const id=document.getElementById('grpId').value
-  if(!id||!confirm('¿Eliminar este grupo?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar este grupo?')) return
   profGroups=profGroups.filter(g=>g.id!==id)
   await persistProfMeta(); closeModal('groupModal'); renderAdmin(); toast('Grupo eliminado','success')
 }
@@ -9016,7 +9061,8 @@ async function saveSvcProfs(name, oldName){
 }
 async function deleteSvc(){
   const id=document.getElementById('svcId').value
-  if(!id||!confirm('¿Eliminar este servicio? También desaparece del sitio web.')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar este servicio? También desaparece del sitio web.')) return
   try{ await supabase.delete('services',id); await reloadServices(); closeModal('svcModal'); renderAdmin(); toast('Servicio eliminado','success') }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -9133,7 +9179,8 @@ async function saveClass(){
 }
 async function deleteClass(){
   const id=document.getElementById('clsId').value
-  if(!id||!confirm('¿Eliminar esta clase?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar esta clase?')) return
   svcClasses=svcClasses.filter(c=>c.id!==id)
   await persistSvcExtras(); closeModal('classModal'); renderAdmin(); toast('Clase eliminada','success')
 }
@@ -9196,7 +9243,8 @@ async function savePack(){
 }
 async function deletePack(){
   const id=document.getElementById('pkId').value
-  if(!id||!confirm('¿Eliminar este paquete?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar este paquete?')) return
   svcPackages=svcPackages.filter(p=>p.id!==id)
   await persistSvcExtras(); closeModal('packModal'); renderAdmin(); toast('Paquete eliminado','success')
 }
@@ -10037,7 +10085,8 @@ async function _saveSale(){
 }
 async function deleteSale(){
   const id=document.getElementById('saleId').value
-  if(!id||!confirm('¿Eliminar esta venta?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar esta venta?')) return
   try{ await supabase.update('sales',id,{status:'deleted'}); await loadSales(); closeModal('saleModal'); toast('Venta eliminada','success'); renderSales() }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -10167,7 +10216,7 @@ async function saveCashMovement(){
   }catch(e){ console.error(e); toast('Error al guardar','error') }
 }
 async function deleteCashMovement(id){
-  if(!confirm('¿Borrar este movimiento?')) return
+  if(!await confirmar('¿Borrar este movimiento?')) return
   try{ await supabase.delete('cash_movements',id); await loadCash(); renderCaja(); toast('Movimiento borrado','success') }
   catch(e){ toast('Error al borrar','error') }
 }
@@ -10479,7 +10528,8 @@ async function savePlan(){
 }
 async function deletePlan(){
   const id=document.getElementById('planId').value
-  if(!id||!confirm('¿Eliminar este bono?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar este bono?')) return
   try{ await supabase.delete('plans',id); await loadPlans(); closeModal('planModal'); toast('Bono eliminado','success'); renderPlanes() }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -10684,7 +10734,8 @@ async function saveProduct(){
 }
 async function deleteProduct(){
   const id=document.getElementById('prodId').value
-  if(!id||!confirm('¿Eliminar este producto?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar este producto?')) return
   try{ await supabase.delete('products',id); await loadProducts(); closeModal('productModal'); toast('Producto eliminado','success'); renderProducts() }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -11222,7 +11273,8 @@ async function saveBlock(){
 }
 async function deleteBlock(){
   const id=document.getElementById('blkId').value
-  if(!id||!confirm('¿Eliminar este bloqueo?')) return
+  if(!id) return
+  if(!await confirmar('¿Eliminar este bloqueo?')) return
   try{ await supabase.delete('appointments',id); closeModal('blockModal'); toast('Bloqueo eliminado','success'); loadAndRender() }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -11285,7 +11337,7 @@ async function saveProf(){
   }catch(e){ console.error(e); toast('Error al guardar','error') }
 }
 async function deleteProf(id,name){
-  if(!confirm(`¿Borrar a "${name}"? Se eliminarán también sus reservas.`)) return
+  if(!await confirmar(`¿Borrar a "${name}"? Se eliminarán también sus reservas.`)) return
   try{ await supabase.delete('professionals',id); await loadProfessionals(); if(state.profId===id) state.profId='all'; renderProfManage(); render(); toast('Profesional borrado','success') }
   catch(e){ toast('Error al borrar','error') }
 }
