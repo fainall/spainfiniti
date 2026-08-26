@@ -578,6 +578,7 @@ label.chk input{width:auto;margin:0}
 .modal input,.modal select,.modal textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem}
 .modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;border-color:var(--gold)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .modal-head-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
 .modal-head-row h2{margin:0}
 .status-wrap{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:20px;padding:5px 12px;background:var(--white)}
@@ -3009,10 +3010,13 @@ body.sin-scroll{overflow:hidden}
       </div>
     </div>
     <input type="hidden" id="apptId" />
-    <div class="row2">
+    <div class="row3">
       <div><label>Fecha</label><input type="date" id="apptDate" /></div>
-      <div><label>Hora inicio</label><input type="time" id="apptStart" step="300" /></div>
+      <div><label>Hora inicio</label><input type="time" id="apptStart" step="300" onchange="inicioCambiado()" /></div>
+      <div><label>Hora término</label><input type="time" id="apptEnd" step="300" onchange="terminoCambiado()" />
+        <p class="rem-note" style="margin:5px 0 0" id="apptDurNota"></p></div>
     </div>
+    <input type="hidden" id="apptDur" value="60" />
     <label>Cliente</label>
     <div class="client-row">
       <div class="client-search-wrap">
@@ -3042,10 +3046,8 @@ body.sin-scroll{overflow:hidden}
     <div class="collapse" id="apptCollapse">
       <button type="button" class="collapse-head" onclick="toggleCollapse('apptCollapse')">Información adicional <span class="chev">▼</span></button>
       <div class="collapse-body">
-        <div class="row2">
-          <div><label>Teléfono</label><input type="text" id="apptPhone" placeholder="+569..." /></div>
-          <div><label>Duración (min)</label><input type="number" id="apptDur" min="5" step="5" value="60" /></div>
-        </div>
+        <label>Teléfono</label>
+        <input type="text" id="apptPhone" placeholder="+569..." />
         <label>Notas</label>
         <textarea id="apptNotes" rows="2" placeholder="Opcional"></textarea>
       </div>
@@ -4602,7 +4604,7 @@ function classHintOnPick(name){
 }
 function onServicePick(){
   const opt=document.getElementById('apptService').selectedOptions[0]
-  if(opt && opt.value){ document.getElementById('apptDur').value=opt.dataset.dur||60 }
+  if(opt && opt.value){ document.getElementById('apptDur').value=opt.dataset.dur||60; pintarTermino() }
 }
 /* buscador de servicios (reserva) con opción de crear */
 function onApptServiceSearch(){
@@ -4617,6 +4619,46 @@ function onApptServiceSearch(){
   if(!list.length && q) html+=`<div class="client-opt empty">Sin servicios — usa “+ Crear servicio”</div>`
   dd.innerHTML=html; dd.classList.add('show')
 }
+/* ══════════ HORA DE TÉRMINO ══════════
+   Se agenda mirando "de tal hora a tal hora", no contando minutos.
+   La duración sigue existiendo por dentro (apptDur, oculto): es lo que
+   se guarda como end_time. Estas tres funciones las mantienen de acuerdo. */
+function minAHora(m){
+  m = Math.max(0, Math.min(24*60 - 5, m))
+  return String(Math.floor(m/60)).padStart(2,'0') + ':' + String(m%60).padStart(2,'0')
+}
+function notaDuracion(){
+  const n = document.getElementById('apptDurNota')
+  if(!n) return
+  const d = parseInt(document.getElementById('apptDur').value) || 0
+  const h = Math.floor(d/60), m = d%60
+  n.textContent = d ? ('Dura ' + (h ? h + ' h ' : '') + (m ? m + ' min' : (h ? '' : '0 min'))).trim() : ''
+}
+/* del inicio + la duración sale el término */
+function pintarTermino(){
+  const ini = document.getElementById('apptStart').value
+  const fin = document.getElementById('apptEnd')
+  if(!fin || !ini) return
+  const d = parseInt(document.getElementById('apptDur').value) || 60
+  fin.value = minAHora(toMin(ini) + d)
+  notaDuracion()
+}
+/* si mueven el inicio, la reserva se corre entera y dura lo mismo */
+function inicioCambiado(){ pintarTermino() }
+/* si escriben el término, cambia la duración */
+function terminoCambiado(){
+  const ini = document.getElementById('apptStart').value
+  const fin = document.getElementById('apptEnd').value
+  if(!ini || !fin) return
+  const d = toMin(fin) - toMin(ini)
+  if(d < 5){                      /* término antes del inicio: se deshace */
+    toast('La hora de término tiene que ser posterior a la de inicio','error')
+    pintarTermino(); return
+  }
+  document.getElementById('apptDur').value = d
+  notaDuracion()
+}
+
 let precioTocadoAMano = false
 function marcarPrecioManual(){
   precioTocadoAMano = true
@@ -4641,6 +4683,7 @@ function selectApptService(id){
   document.getElementById('apptServiceName').value=s.name
   document.getElementById('apptServiceSearch').value=s.name
   document.getElementById('apptDur').value=s.duration||60
+  pintarTermino()
   /* el precio del catálogo, salvo que ya lo hayan cambiado a mano */
   if(!precioTocadoAMano){
     document.getElementById('apptPrecio').value = milesCL(money2num(s.price))
@@ -5801,6 +5844,7 @@ function openApptModal(id,prefill){
     document.getElementById('apptDate').value=a.appt_date
     document.getElementById('apptStart').value=a.start_time.slice(0,5)
     document.getElementById('apptDur').value=(toMin(a.end_time)-toMin(a.start_time))
+    pintarTermino()
     document.getElementById('apptStatus').value=(['reserved','confirmed','attending','no_show','pending','waiting'].includes(a.status)?a.status:'reserved')
     document.getElementById('apptNotes').value=a.notes||''
     del.style.display='block'
@@ -5823,6 +5867,7 @@ function openApptModal(id,prefill){
     // si vino de la columna de un profesional, queda preseleccionado
     if(prefill&&prefill.profId){ const ps=document.getElementById('apptProf'); if([...ps.options].some(o=>o.value===prefill.profId)) ps.value=prefill.profId }
     document.getElementById('apptDur').value=60
+    pintarTermino()
     document.getElementById('apptStatus').value='reserved'
     document.getElementById('apptNotes').value=''
     del.style.display='none'
