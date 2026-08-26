@@ -7517,8 +7517,13 @@ function commDefaultOf(profId){
 function detalleComision(profId, ventas){
   const porItem = {}
   ventas.filter(s => s.professional_id === profId).forEach(s => {
-    itemsDe(s).forEach(it => {
-      const monto = Number(it.qty||1) * Number(it.price||0)
+    const items = itemsDe(s)
+    const cobrado = Number(s.total||0)
+    const lista = items.reduce((t,i)=> t + Number(i.qty||1)*Number(i.price||0), 0)
+    /* en un abono entró solo una parte: cada línea se muestra a prorrata */
+    const parte = (lista > 0 && cobrado > 0 && cobrado !== lista) ? cobrado / lista : 1
+    items.forEach(it => {
+      const monto = Math.round(Number(it.qty||1) * Number(it.price||0) * parte)
       const kind = state.products.some(p=>p.name===it.name) ? 'products'
         : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
       const pct = commPctFor(profId, it.name, kind)
@@ -7538,20 +7543,22 @@ function toggleDesglose(profId){
 
 function comisionDeVenta(s){
   const items = itemsDe(s)
-  let base = 0, comm = 0
+  const cobrado = Number(s.total||0)
+  let lista = 0, comm = 0
   items.forEach(it => {
     const monto = Number(it.qty||1) * Number(it.price||0)
     const kind = state.products.some(p=>p.name===it.name) ? 'products'
       : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
-    base += monto
+    lista += monto
     comm += Math.round(monto * commPctFor(s.professional_id, it.name, kind) / 100)
   })
   /* si la venta no trae el detalle, se usa el porcentaje general sobre el total */
-  if(!items.length){
-    base = Number(s.total||0)
-    comm = Math.round(base * commDefaultOf(s.professional_id) / 100)
-  }
-  return { base, comm }
+  if(!items.length) return { base: cobrado, comm: Math.round(cobrado * commDefaultOf(s.professional_id) / 100) }
+  /* En un abono el detalle trae el servicio completo pero solo entró una
+     parte de la plata. La comisión se gana sobre lo cobrado, no sobre lo
+     que el servicio vale; el resto se comisiona cuando se pague el saldo. */
+  if(lista > 0 && cobrado > 0 && cobrado !== lista) comm = Math.round(comm * cobrado / lista)
+  return { base: cobrado || lista, comm }
 }
 
 function commPctFor(profId,itemName,kind){
@@ -10880,6 +10887,12 @@ function splitSaleItems(s){
     const amount=(i.qty||1)*(i.price||0)
     if(i.productId) prod+=amount; else serv+=amount
   })
+  /* En un abono el detalle vale más que lo que entró en caja. Se reparte
+     lo cobrado a prorrata, para que estos totales cuadren con la caja. */
+  const cobrado=Number(s.total||0), lista=serv+prod
+  if(lista>0 && cobrado>0 && cobrado!==lista){
+    serv=Math.round(serv*cobrado/lista); prod=cobrado-serv
+  }
   return {serv, prod}
 }
 function renderComisiones(){
