@@ -60,6 +60,15 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
   font-size:.86rem;font-weight:700;letter-spacing:.04em;background:var(--gold);color:#fff}
 .btn-ok.sec{background:#fff;color:var(--gold);border:1px solid var(--gold)}
 .btn-ok.wa{background:#25d366;color:#fff}
+
+/* elegir profesional */
+.profs{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:22px}
+.prof{border:1px solid var(--border,#e8e2d6);background:#fff;border-radius:12px;padding:14px 12px;
+  cursor:pointer;font-family:inherit;text-align:center;transition:border-color .15s,box-shadow .15s}
+.prof:hover{border-color:var(--gold,#C5A467)}
+.prof.on{border-color:var(--gold,#C5A467);box-shadow:0 0 0 2px rgba(197,164,103,.28)}
+.prof-nom{display:block;font-size:.88rem;font-weight:600;color:#1f2328}
+.prof-sub{display:block;font-size:.72rem;color:#8a8578;margin-top:3px}
 </style>
 </head>
 <body>
@@ -90,6 +99,7 @@ const DOW_S = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB']
 const MES_S = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
 let servicio = null, config = {}, profesionales = [], citas = []
+let profSel = ''   // '' = cualquiera disponible
 let fechaSel = null, horaSel = null, precioSel = null
 
 const pad = n => String(n).padStart(2,'0')
@@ -166,6 +176,42 @@ function recursosLibres(fecha, ini, dur){
 /* ¿el servicio tiene restricciones propias? (horario especial, cupos, recursos) */
 function reglasServicio(){ return (config.svc_meta || {})[svcId] || {} }
 
+/* el nombre con que se presenta cada profesional en el sitio */
+function nombrePublico(p){
+  const m = (config.prof_publico || {})[p.id] || {}
+  return (m.publicName && m.publicName.trim()) || p.name || 'Profesional'
+}
+/* quiénes aceptan reservas por internet y realizan este servicio */
+function profesionalesElegibles(){
+  return profesionales.filter(p => {
+    if(p.active === false) return false
+    const m = (config.prof_publico || {})[p.id] || {}
+    if(m.online === false) return false
+    return haceElServicio(p.id)
+  })
+}
+/* ¿este profesional puede tomar esta hora? */
+function profPuede(p, fecha, ini, dur){
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  const dias = Array.isArray(p.work_days) ? p.work_days : JSON.parse(p.work_days||'[1,2,3,4,5,6]')
+  if(!dias.includes(dow)) return false
+
+  /* si tiene horario propio para ese día, manda ese */
+  const m = (config.prof_publico || {})[p.id] || {}
+  const hpd = (m.horasPorDia || {})[dow] || (m.horasPorDia || {})[String(dow)]
+  const ws = hpd ? toMin(hpd[0]) : toMin((p.work_start||'10:00').slice(0,5))
+  const we = hpd ? toMin(hpd[1]) : toMin((p.work_end||'20:00').slice(0,5))
+  if(ini < ws || ini + dur > we) return false
+
+  /* descansos */
+  const desc = (m.breaks || {})[dow] || (m.breaks || {})[String(dow)] || []
+  if(desc.some(b => ini < toMin(b[1]) && ini + dur > toMin(b[0]))) return false
+
+  /* que no tenga otra cita encima */
+  return !citas.some(a => a.professional_id === p.id && a.appt_date === fecha && a.status !== 'cancelled'
+    && toMin(a.start_time.slice(0,5)) < ini + dur && toMin((a.end_time||a.start_time).slice(0,5)) > ini)
+}
+
 /* horas libres de un día */
 function horasLibres(fecha){
   const dow = new Date(fecha+'T00:00:00').getDay()
@@ -195,17 +241,11 @@ function horasLibres(fecha){
     // no ofrecer horas pasadas
     if(fecha === iso(ahora) && t <= ahora.getHours()*60 + ahora.getMinutes() + 60) return
 
-    // ¿hay algún profesional libre que trabaje ese día?
-    const disponible = profesionales.filter(haceElServicioWrap).some(p => {
-      const dias = Array.isArray(p.work_days) ? p.work_days : JSON.parse(p.work_days||'[1,2,3,4,5,6]')
-      if(!dias.includes(dow)) return false
-      const ws = toMin((p.work_start||'09:00').slice(0,5)), we = toMin((p.work_end||'20:00').slice(0,5))
-      if(t < ws || t + dur > we) return false
-      const ocupado = citas.some(a => a.professional_id === p.id && a.appt_date === fecha
-        && toMin(a.start_time.slice(0,5)) < t + dur && toMin((a.end_time||a.start_time).slice(0,5)) > t)
-      return !ocupado
-    })
-    if(!disponible) return
+    // ¿hay alguien libre a esa hora? si se eligió profesional, solo cuenta esa persona
+    const candidatos = profSel
+      ? profesionalesElegibles().filter(p => p.id === profSel)
+      : profesionalesElegibles()
+    if(!candidatos.some(p => profPuede(p, fecha, t, dur))) return
 
     // cupos simultáneos del servicio
     if(m.cap && m.cap > 1){
@@ -234,6 +274,23 @@ function pintarDias(){
   }
   return html + '</div>'
 }
+function pintarProfesionales(){
+  const lista = profesionalesElegibles()
+  if(lista.length < 2) return ''   // con una sola persona no hay nada que elegir
+  return '<h3>¿Con quién prefieres atenderte?</h3><div class="profs">' +
+    `<button class="prof ${profSel===''?'on':''}" onclick="elegirProf('')">
+       <span class="prof-nom">Cualquiera</span>
+       <span class="prof-sub">La primera disponible</span></button>` +
+    lista.map(p => `<button class="prof ${profSel===p.id?'on':''}" onclick="elegirProf('${p.id}')">
+       <span class="prof-nom">${esc(nombrePublico(p))}</span></button>`).join('') +
+    '</div>'
+}
+function elegirProf(id){
+  profSel = id
+  horaSel = ''          // al cambiar de profesional cambian las horas
+  render()
+}
+
 function pintarHoras(){
   if(!fechaSel) return ''
   const libres = horasLibres(fechaSel)
@@ -274,6 +331,7 @@ function render(){
       ${m.hourMode === 'range' ? `<span class="sp-tag">Se realiza entre ${m.from} y ${m.to}</span>` : ''}
     </div>
     ${pintarDias()}
+    ${pintarProfesionales()}
     ${pintarHoras()}
     ${pintarFormulario()}`
 }
@@ -298,16 +356,14 @@ async function reservar(){
 
     const dur = durMin(servicio.duration)
     const dow = new Date(fechaSel+'T00:00:00').getDay()
-    const prof = profesionales.filter(haceElServicioWrap).find(p => {
-      const dias = Array.isArray(p.work_days) ? p.work_days : JSON.parse(p.work_days||'[1,2,3,4,5,6]')
-      if(!dias.includes(dow)) return false
-      const t = toMin(horaSel)
-      const ws = toMin((p.work_start||'09:00').slice(0,5)), we = toMin((p.work_end||'20:00').slice(0,5))
-      if(t < ws || t + dur > we) return false
-      return !citas.some(a => a.professional_id === p.id
-        && toMin(a.start_time.slice(0,5)) < t + dur && toMin((a.end_time||a.start_time).slice(0,5)) > t)
-    })
-    if(!prof) throw new Error('Esa hora ya no está disponible. Elige otra, por favor.')
+    const t = toMin(horaSel)
+    const candidatos = profSel
+      ? profesionalesElegibles().filter(p => p.id === profSel)
+      : profesionalesElegibles()
+    const prof = candidatos.find(p => profPuede(p, fechaSel, t, dur))
+    if(!prof) throw new Error(profSel
+      ? 'Justo tomaron esa hora con esa persona. Elige otra hora o marca “Cualquiera”.'
+      : 'Esa hora ya no está disponible. Elige otra, por favor.')
 
     // cliente: reutiliza si ya existe por teléfono
     let clienteId = null
