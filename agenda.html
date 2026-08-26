@@ -4009,7 +4009,7 @@ addEventListener('resize', () => requestAnimationFrame(ajustarReservasAngostas))
    entre lo que ya pasó y lo que viene. Se recoloca sola cada minuto. */
 let _rejaAhora = null
 function pintarHoraActual(){
-  document.querySelectorAll('.now-line, .now-tag').forEach(l => l.remove())
+  document.querySelectorAll('.now-tag').forEach(l => l.remove())
   const r = _rejaAhora
   if(!r) return
   const ahora = new Date()
