@@ -1157,8 +1157,9 @@ body.sin-scroll{overflow:hidden}
 .mini-sep{height:1px;background:var(--border);margin:14px 2px 12px}
 .mini-cal{user-select:none}
 /* la hora actual */
-.now-line::after{content:attr(data-hora);position:absolute;left:3px;top:-8px;background:var(--red);color:#fff;
-  font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:.2px}
+#calGrid .gutter{position:relative}
+.now-tag{position:absolute;right:4px;transform:translateY(-50%);background:var(--red);color:#fff;
+  font-size:.6rem;font-weight:700;padding:2px 5px;border-radius:4px;letter-spacing:.2px;z-index:5;pointer-events:none}
 </style>
 </head>
 <body>
@@ -4010,7 +4011,7 @@ addEventListener('resize', () => requestAnimationFrame(ajustarReservasAngostas))
    entre lo que ya pasó y lo que viene. Se recoloca sola cada minuto. */
 let _rejaAhora = null
 function pintarHoraActual(){
-  document.querySelectorAll('.now-line').forEach(l => l.remove())
+  document.querySelectorAll('.now-line, .now-tag').forEach(l => l.remove())
   const r = _rejaAhora
   if(!r) return
   const ahora = new Date()
@@ -4018,13 +4019,21 @@ function pintarHoraActual(){
   if(min < r.minM || min > r.maxM) return          // fuera del horario mostrado
   const hoy = isoDate(ahora)
   const top = (min - r.minM) / r.paso * r.SP
-  document.querySelectorAll('.dcol[data-date="' + hoy + '"]').forEach((col, n) => {
+  document.querySelectorAll('.dcol[data-date="' + hoy + '"]').forEach(col => {
     const l = document.createElement('div')
     l.className = 'now-line'
     l.style.top = top + 'px'
-    if(n === 0) l.dataset.hora = toHHMM(min)   // la etiqueta, una sola vez
     col.appendChild(l)
   })
+  /* la hora va sobre la columna de las horas, como una etiqueta al margen */
+  const gut = document.querySelector('#calGrid .gutter')
+  if(gut && document.querySelector('.dcol[data-date="' + hoy + '"]')){
+    const e = document.createElement('div')
+    e.className = 'now-tag'
+    e.style.top = top + 'px'
+    e.textContent = toHHMM(min)
+    gut.appendChild(e)
+  }
 }
 setInterval(pintarHoraActual, 60000)
 
