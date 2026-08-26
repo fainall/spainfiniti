@@ -1150,6 +1150,14 @@ body.sin-scroll{overflow:hidden}
   border-radius:9px;color:var(--red);font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit}
 .vd-ed-quitar:hover{background:#fff5f5;border-color:var(--red)}
 .vd-item-pre s{color:var(--light);font-weight:400;margin-right:4px}
+
+/* días de los meses vecinos y separación entre los dos meses */
+.mini-day.fuera{color:var(--light);opacity:.55}
+.mini-sep{height:1px;background:var(--border);margin:14px 2px 12px}
+.mini-cal{user-select:none}
+/* la hora actual */
+.now-line::after{content:attr(data-hora);position:absolute;left:3px;top:-8px;background:var(--red);color:#fff;
+  font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:4px;letter-spacing:.2px}
 </style>
 </head>
 <body>
@@ -3973,6 +3981,7 @@ function render(){
   renderSidebar(); renderMiniCal(); renderRangeLabel(); renderCalendar()
   requestAnimationFrame(ajustarAlturaAgenda)
   requestAnimationFrame(ajustarReservasAngostas)
+  requestAnimationFrame(pintarHoraActual)
   if(typeof bloquearSiSoloLectura==='function') setTimeout(bloquearSiSoloLectura, 30)
   if(document.getElementById('view-cobros') && document.getElementById('view-cobros').classList.contains('on')) renderCobros()
 }
@@ -3983,31 +3992,80 @@ function ajustarReservasAngostas(){
 }
 addEventListener('resize', () => requestAnimationFrame(ajustarReservasAngostas))
 
-function renderMiniCal(){
-  const el=document.getElementById('miniCal'); if(!el) return
-  const m=state.miniMonth, year=m.getFullYear(), month=m.getMonth()
-  const first=new Date(year,month,1)
-  const startOff=(first.getDay()+6)%7
-  const daysInMonth=new Date(year,month+1,0).getDate()
-  const todayIso=isoDate(new Date())
-  const [wf,wt]=visibleRange(); const wfIso=isoDate(wf), wtIso=isoDate(wt)
-  let cells=''
-  ;['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].forEach(d=>cells+=`<div class="mini-dow">${d}</div>`)
-  for(let i=0;i<startOff;i++) cells+=`<div class="mini-day blank"></div>`
-  for(let d=1;d<=daysInMonth;d++){
-    const iso=isoDate(new Date(year,month,d))
-    const isToday=iso===todayIso
-    const inWeek = state.view==='week' ? (iso>=wfIso && iso<=wtIso) : (iso===isoDate(state.anchor))
-    cells+=`<div class="mini-day ${isToday?'today':''} ${inWeek&&!isToday?'inweek':''}" onclick="pickMiniDay(${year},${month},${d})">${d}</div>`
+/* ══════════ LA HORA ACTUAL ══════════
+   Una línea roja cruzando la columna de hoy, para ubicarse de un vistazo
+   entre lo que ya pasó y lo que viene. Se recoloca sola cada minuto. */
+let _rejaAhora = null
+function pintarHoraActual(){
+  document.querySelectorAll('.now-line').forEach(l => l.remove())
+  const r = _rejaAhora
+  if(!r) return
+  const ahora = new Date()
+  const min = ahora.getHours()*60 + ahora.getMinutes()
+  if(min < r.minM || min > r.maxM) return          // fuera del horario mostrado
+  const hoy = isoDate(ahora)
+  const top = (min - r.minM) / r.paso * r.SP
+  document.querySelectorAll('.dcol[data-date="' + hoy + '"]').forEach((col, n) => {
+    const l = document.createElement('div')
+    l.className = 'now-line'
+    l.style.top = top + 'px'
+    if(n === 0) l.dataset.hora = toHHMM(min)   // la etiqueta, una sola vez
+    col.appendChild(l)
+  })
+}
+setInterval(pintarHoraActual, 60000)
+
+/* ══════════ CALENDARIO CHICO ══════════
+   Dos meses a la vista, con los días vecinos en gris para que la semana
+   no quede cortada. La ruedita del mouse cambia de mes. */
+function mesChico(year, month, opciones){
+  const o = opciones || {}
+  const primero = new Date(year, month, 1)
+  const arranque = (primero.getDay()+6)%7            // lunes = 0
+  const dias = new Date(year, month+1, 0).getDate()
+  const previo = new Date(year, month, 0).getDate()
+  const hoyIso = isoDate(new Date())
+  const [wf,wt] = visibleRange(); const wfIso = isoDate(wf), wtIso = isoDate(wt)
+  const celda = (y,m,d,fuera) => {
+    const iso = isoDate(new Date(y,m,d))
+    const hoy = iso === hoyIso
+    const enVista = state.view==='week' ? (iso>=wfIso && iso<=wtIso) : (iso===isoDate(state.anchor))
+    return `<div class="mini-day${hoy?' today':''}${enVista&&!hoy?' inweek':''}${fuera?' fuera':''}"
+      onclick="pickMiniDay(${y},${m},${d})">${d}</div>`
   }
-  el.innerHTML=`
+  let cells = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(d=>`<div class="mini-dow">${d}</div>`).join('')
+  for(let i=arranque; i>0; i--) cells += celda(year, month-1, previo-i+1, true)
+  for(let d=1; d<=dias; d++) cells += celda(year, month, d, false)
+  const faltan = (7 - ((arranque + dias) % 7)) % 7
+  for(let d=1; d<=faltan; d++) cells += celda(year, month+1, d, true)
+  return `
     <div class="mini-cal-head">
-      <button onclick="miniNav(-1)">‹</button>
+      ${o.flechas?`<button onclick="miniNav(-1)" title="Mes anterior">‹</button>`:'<span></span>'}
       <span class="mc-title">${MONTHS[month]} ${year}</span>
-      <button onclick="miniNav(1)">›</button>
+      ${o.flechas?`<button onclick="miniNav(1)" title="Mes siguiente">›</button>`:'<span></span>'}
     </div>
     <div class="mini-grid">${cells}</div>`
 }
+function renderMiniCal(){
+  const el = document.getElementById('miniCal'); if(!el) return
+  const m = state.miniMonth, year = m.getFullYear(), month = m.getMonth()
+  const sig = new Date(year, month+1, 1)
+  el.innerHTML = mesChico(year, month, { flechas:true }) +
+    `<div class="mini-sep"></div>` +
+    mesChico(sig.getFullYear(), sig.getMonth(), { flechas:false })
+  if(!el.dataset.rueda){
+    el.dataset.rueda = '1'
+    let ultima = 0
+    el.addEventListener('wheel', e => {
+      e.preventDefault()
+      ultima += e.deltaY
+      if(Math.abs(ultima) < 40) return
+      miniNav(ultima > 0 ? 1 : -1)
+      ultima = 0
+    }, { passive:false })
+  }
+}
+
 function miniNav(dir){ const m=new Date(state.miniMonth); m.setMonth(m.getMonth()+dir); state.miniMonth=m; renderMiniCal() }
 function pickMiniDay(y,mo,d){ state.anchor=new Date(y,mo,d); state.miniMonth=new Date(y,mo,1); loadAndRender() }
 function renderRangeLabel(){
@@ -4066,6 +4124,7 @@ function renderCalendarRec(){
   const propios = recs.map(r=>parseInt(r.slot)||0).filter(Boolean)
   const paso = propios.length ? Math.min(slotMin, ...propios) : slotMin
   const SP = Math.max(28, HOUR_H*(paso/60)), nSlots = Math.ceil((maxM-minM)/paso), gridH = nSlots*SP
+  _rejaAhora = { minM, maxM, SP, paso }
 
   let head = '<div class="gutter"></div>'
   recs.forEach(r=>{
@@ -4135,6 +4194,7 @@ function renderCalendarDia(){
   const dow = new Date(fecha+'T00:00:00').getDay()
   const [minM,maxM] = hourBounds()
   const SP = slotPx(), nSlots = Math.ceil((maxM-minM)/slotMin), gridH = nSlots*SP
+  _rejaAhora = { minM, maxM, SP, paso:slotMin }
   const profs = state.professionals.filter(p => p.active!==false && profInFilter(p.id))
 
   /* cabecera: foto o inicial + nombre */
@@ -4272,6 +4332,7 @@ function renderCalendar(){
 
   // gutter: una etiqueta por bloque según la granularidad elegida
   const SP=slotPx(), nSlots=Math.ceil((maxM-minM)/slotMin), gridH=nSlots*SP
+  _rejaAhora = { minM, maxM, SP, paso:slotMin }
   let gut=''
   for(let i=0;i<nSlots;i++) gut+=`<div class="hr" style="height:${SP}px"><span>${toHHMM(minM+i*slotMin)}</span></div>`
 
