@@ -327,6 +327,7 @@ async function reservar(){
       service_name: servicio.name, appt_date: fechaSel,
       start_time: horaSel + ':00', end_time: toHHMM(toMin(horaSel)+dur) + ':00',
       status: 'reserved', price: money(p.precio),
+      origen: 'web',
       notes: 'Reservado desde el sitio web' + (nota ? ' — ' + nota : '')
     })
 

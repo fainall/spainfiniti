@@ -1050,6 +1050,13 @@ body.sin-scroll{overflow:hidden}
   font-weight:600;color:var(--dark);background:transparent}
 .re-ajustado{display:inline-block;background:#fdf1e0;color:#8a6318;border-radius:20px;padding:1px 9px;
   font-size:.68rem;font-weight:600;vertical-align:middle}
+
+/* de dónde vino la reserva */
+.org{position:absolute;top:2px;right:3px;font-size:.62rem;line-height:1;opacity:.9}
+.appt.pagada .org,.appt.abonada .org{right:3px}
+.qv-org{font-size:.8rem;vertical-align:middle;margin-left:4px}
+.re-origen{display:inline-block;margin-left:10px;background:var(--cream);border-radius:20px;
+  padding:2px 10px;font-size:.72rem;color:var(--mid)}
 </style>
 </head>
 <body>
@@ -1171,6 +1178,15 @@ body.sin-scroll{overflow:hidden}
           <option value="no_show">No asistió</option>
           <option value="pending">Pendiente</option>
           <option value="waiting">En espera</option>
+        </select>
+      </div>
+      <div class="field">
+        <h3>Origen</h3>
+        <select id="filtroOrigen" onchange="render()">
+          <option value="">Todos</option>
+          <option value="panel">🏠 Tomadas por el equipo</option>
+          <option value="web">🌐 Desde el sitio web</option>
+          <option value="bot">🤖 Por el asistente</option>
         </select>
       </div>
       <div class="field">
@@ -3959,7 +3975,7 @@ function renderCalendarRec(){
     }
     /* citas que ocupan este recurso */
     const suyas = state.appointments.filter(a => a.appt_date===fecha && a.status!=='cancelled' && a.status!=='block'
-      && recursosDe(a.service_name).some(x=>x.id===r.id))
+      && pasaFiltroOrigen(a) && recursosDe(a.service_name).some(x=>x.id===r.id))
     const blocks = layoutDay(suyas).map(a=>{
       const top=(toMin(a.start_time)-minM)/paso*SP
       const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/paso*SP-2)
@@ -3970,7 +3986,7 @@ function renderCalendarRec(){
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
-        <div class="s">${esc(a.service_name||'')}</div></div>`
+        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}</div>`
     }).join('')
     cols += `<div class="dcol pcol" style="height:${gridH}px" data-date="${fecha}" data-rec="${r.id}"
       onclick="onSlotClick(event,this)">${lines}${noDisp}${blocks}</div>`
@@ -4040,7 +4056,7 @@ function renderCalendarDia(){
     }
 
     /* citas de este profesional */
-    const suyas = state.appointments.filter(a => a.appt_date===fecha && a.professional_id===p.id)
+    const suyas = state.appointments.filter(a => a.appt_date===fecha && a.professional_id===p.id && pasaFiltroOrigen(a))
     const blocks = layoutDay(suyas).map(a=>{
       const top=(toMin(a.start_time)-minM)/slotMin*SP
       const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-2)
@@ -4056,7 +4072,7 @@ function renderCalendarDia(){
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
-        <div class="s">${esc(a.service_name||'')}</div></div>`
+        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}</div>`
     }).join('')
 
     cols += `<div class="dcol pcol" style="height:${gridH}px" data-date="${fecha}" data-prof="${p.id}"
@@ -4126,7 +4142,7 @@ function renderCalendar(){
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
-        <div class="s">${esc(a.service_name||'')}</div>
+        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}
         ${profHaceServicio(a.professional_id,a.service_name)?'':'<span class="ojo-ico" title="Este profesional no tiene asignado este servicio">⚠</span>'}</div>`
     }).join('')
     cols+=`<div class="dcol ${working?'':'off'}" style="height:${gridH}px" data-date="${isoDate(dd)}" onclick="onSlotClick(event,this)">
@@ -4574,6 +4590,35 @@ function unaVez(ev, tarea){
     .catch(e => { console.error(e); toast('No se pudo guardar','error') })
     .finally(() => { if(b){ b.disabled = false; b.textContent = b.dataset.txt; b.dataset.ocupado = '0' } })
 }
+/* ══════════ ORIGEN DE LA RESERVA ══════════
+   Saber si la tomó el equipo, si el cliente la hizo solo desde el sitio
+   o si la agendó el asistente por WhatsApp. */
+const ORIGENES = {
+  web:   { icono:'🌐', nombre:'Reservada por el cliente desde el sitio web' },
+  bot:   { icono:'🤖', nombre:'Agendada por el asistente de WhatsApp' },
+  panel: { icono:'',   nombre:'Tomada por el equipo en el panel' }
+}
+function origenDe(a){
+  if(!a) return 'panel'
+  if(a.origen && ORIGENES[a.origen]) return a.origen
+  /* las antiguas no traen el dato: se deduce de la nota */
+  const n = String(a.notes||'').toLowerCase()
+  if(n.includes('sitio web')) return 'web'
+  if(n.includes('asistente')) return 'bot'
+  return 'panel'
+}
+/* el filtro de origen del panel lateral */
+function pasaFiltroOrigen(a){
+  const el = document.getElementById('filtroOrigen')
+  const v = el ? el.value : ''
+  return !v || origenDe(a) === v
+}
+/* el iconito para la tarjeta de la agenda */
+function marcaOrigen(a){
+  const o = ORIGENES[origenDe(a)]
+  return o && o.icono ? `<span class="org" title="${esc(o.nombre)}">${o.icono}</span>` : ''
+}
+
 /* ── VISTA RÁPIDA DE RESERVA (al hacer clic) ── */
 function fmtLongDate(iso){ const [y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d); return `${DOW_FULL[dt.getDay()].toLowerCase()}, ${d} de ${MONTHS[m-1].toLowerCase()}` }
 function openApptQuickView(id){
@@ -4593,7 +4638,8 @@ function openApptQuickView(id){
       <button class="qv-icon" title="Editar" onclick="closeQuickView();openApptDetail('${id}')">✎ Editar</button>
       <button class="qv-icon" onclick="closeQuickView()">✕</button>
     </div>
-    <div class="qv-name">${esc(a.client_name||'Sin cliente')}</div>
+    <div class="qv-name">${esc(a.client_name||'Sin cliente')}
+      ${ORIGENES[origenDe(a)].icono ? `<span class="qv-org" title="${esc(ORIGENES[origenDe(a)].nombre)}">${ORIGENES[origenDe(a)].icono}</span>` : ''}</div>
     ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${a.price?` <span style="color:var(--gold-d);font-weight:600">${esc(a.price)}</span>`:''}${precioAjustado(a)?' <span class="re-ajustado">precio ajustado</span>':''}</div>`:''}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--dark)">${esc(p.name)}</strong></div>`:''}
@@ -5146,7 +5192,8 @@ function reservaEditable(a){
       <div><label>Fin</label>
         <input type="time" id="reFin" value="${fin}" step="300" onchange="reGuardar('${a.id}','fin',this.value)" /></div>
     </div>
-    <p class="re-dur">Duración: <strong>${dur} minutos</strong></p>
+    <p class="re-dur">Duración: <strong>${dur} minutos</strong>
+      <span class="re-origen">${ORIGENES[origenDe(a)].icono || '🏠'} ${esc(ORIGENES[origenDe(a)].nombre)}</span></p>
 
     <div class="re-cliente">
       <div class="re-cli-top">
@@ -5509,7 +5556,7 @@ async function saveAppt(){
     client_name:client,
     client_phone:document.getElementById('apptPhone').value.trim(),
     appt_date:date, start_time:start, end_time:end,
-    forzada,
+    forzada, origen:'panel',
     status:document.getElementById('apptStatus').value,
     notes:document.getElementById('apptNotes').value.trim()
   }

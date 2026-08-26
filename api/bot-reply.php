@@ -304,7 +304,7 @@ function do_book($args) {
     $end=sprintf('%02d:%02d', intdiv($endM,60), $endM%60);
     $row=['professional_id'=>$prof['id'],'client_name'=>$args['client_name'],'client_phone'=>$phone,
         'service_name'=>$args['service_name'],'appt_date'=>$args['date'],'start_time'=>$time,'end_time'=>$end,
-        'status'=>'reserved','notes'=>'Agendado por el asistente de WhatsApp'];
+        'status'=>'reserved','origen'=>'bot','notes'=>'Agendado por el asistente de WhatsApp'];
     $res=supa('POST','appointments',$row);
     if (is_array($res)&&count($res)) return ['ok'=>true,'professional'=>$prof['name'],'appointment'=>$res[0]];
     return ['ok'=>false,'reason'=>'error'];
