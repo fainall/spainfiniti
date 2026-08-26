@@ -10733,8 +10733,11 @@ function inRange(d,from,to){ return (!from||d>=from) && (!to||d<=to) }
 function cajaData(){
   const [from,to]=cajaRange()
   const ventas=state.sales.filter(s=>s.status!=='deleted' && inRange(s.sale_date,from,to))
-  const facturadas=ventas.filter(s=>s.status==='paid')
-  const abonos=ventas.filter(s=>s.status==='partial')
+  /* Los abonos anteriores a este cambio quedaron guardados como 'paid' y
+     se contaban entre las ventas facturadas: se reconocen también por la
+     nota, que dice de cuánto fue el abono y sobre qué monto. */
+  const facturadas=ventas.filter(s=>!esAbono(s))
+  const abonos=ventas.filter(s=>esAbono(s))
   const gcs=(state.giftcards||[]).filter(g=>g.status==='paid' && g.soldAt && inRange(g.soldAt.slice(0,10),from,to))
   const movs=state.cash.filter(m=>inRange(m.move_date,from,to))
   const otros=movs.filter(m=>m.type==='income')
