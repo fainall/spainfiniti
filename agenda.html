@@ -843,6 +843,19 @@ label.chk input{width:auto;margin:0}
 .appt .pag{position:absolute;left:0;top:0;bottom:0;width:15px;display:flex;align-items:center;
   justify-content:center;font-style:normal;font-weight:700;font-size:.72rem;color:#fff;
   text-shadow:0 1px 1px rgba(0,0,0,.18);pointer-events:none;z-index:2}
+
+/* reserva angosta: la barra del cobro se reduce a un filo para dejar leer el nombre */
+.appt.angosta.pagada,.appt.angosta.abonada{padding-left:9px}
+.appt.angosta.pagada::before,.appt.angosta.abonada::before{width:5px}
+.appt.angosta .pag{display:none}
+.appt.angosta{padding-right:4px}
+.appt.angosta .t{font-size:.6rem}
+
+/* reserva corta: no cabe en tres líneas, así que la hora y el nombre van juntos */
+.appt.corta{padding-top:3px;padding-bottom:3px;display:flex;align-items:center;gap:7px;line-height:1.2}
+.appt.corta .t{flex:0 0 auto}
+.appt.corta .n{flex:1 1 auto;min-width:0}
+.appt.corta .s{display:none}
 .cb-acciones{display:flex;gap:6px;flex-wrap:wrap}
 .cb-tag{display:inline-block;border-radius:20px;padding:2px 10px;font-size:.72rem;background:var(--cream-2);color:var(--mid)}
 .cb-tag.pagado{background:#e4f8ef;color:#1d8a5f}
@@ -3929,9 +3942,17 @@ function ajustarAlturaAgenda(){
 function render(){
   renderSidebar(); renderMiniCal(); renderRangeLabel(); renderCalendar()
   requestAnimationFrame(ajustarAlturaAgenda)
+  requestAnimationFrame(ajustarReservasAngostas)
   if(typeof bloquearSiSoloLectura==='function') setTimeout(bloquearSiSoloLectura, 30)
   if(document.getElementById('view-cobros') && document.getElementById('view-cobros').classList.contains('on')) renderCobros()
 }
+/* Cuando varias reservas comparten la hora, cada una queda muy angosta y la
+   barra del cobro se comía el espacio del nombre. Ahí la barra se adelgaza. */
+function ajustarReservasAngostas(){
+  document.querySelectorAll('.appt').forEach(e => e.classList.toggle('angosta', e.offsetWidth < 95))
+}
+addEventListener('resize', () => requestAnimationFrame(ajustarReservasAngostas))
+
 function renderMiniCal(){
   const el=document.getElementById('miniCal'); if(!el) return
   const m=state.miniMonth, year=m.getFullYear(), month=m.getMonth()
@@ -4061,7 +4082,7 @@ function renderCalendarRec(){
       const w=100/a._cols, left=a._col*w
       const prof=state.professionals.find(x=>x.id===a.professional_id)
       const color=STATUS_COLORS[a.status]||(prof&&prof.color)||r.color||'#7E8CE0'
-      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 3px);width:calc(${w}% - 6px);background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${hgt<46?' corta':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 3px);width:calc(${w}% - 6px);background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -4147,7 +4168,7 @@ function renderCalendarDia(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||p.color||'#C5A467'
-      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${hgt<46?' corta':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -4252,7 +4273,7 @@ function renderCalendar(){
           <div class="n">${esc(a.notes||'Bloqueado')}</div></div>`
       }
       const color=STATUS_COLORS[a.status]||(p?p.color:'#C5A467')
-      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${hgt<46?' corta':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
