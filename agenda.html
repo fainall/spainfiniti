@@ -1071,6 +1071,23 @@ body.sin-scroll{overflow:hidden}
 .dg-tabla .r{text-align:right}
 .dg-tabla tfoot td{border-top:2px solid var(--border);color:var(--mid)}
 .dg-prom{font-size:.68rem;color:var(--light)}
+
+/* mensajes por WhatsApp */
+.wa-wrap{position:relative;display:inline-block}
+.wa-btn{background:#25D366;color:#fff;border-color:#25D366}
+.wa-btn:hover{background:#1eb857}
+.wa-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:920;background:#fff;
+  border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.18);
+  padding:6px;min-width:280px}
+.wa-menu.on{display:block}
+.wa-menu button,.wa-menu .wa-directo{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;font-size:.82rem;
+  color:var(--dark);padding:10px 12px;border-radius:8px;text-decoration:none;white-space:nowrap}
+.wa-menu button:hover,.wa-menu .wa-directo:hover{background:var(--cream)}
+.wa-menu i{font-style:normal;color:var(--light);font-size:.8rem}
+.wa-sep{height:1px;background:var(--border);margin:5px 8px}
+.wa-directo{color:#1eb857 !important;font-weight:600}
+@media(max-width:820px){ .wa-menu{right:auto;left:0;min-width:230px} }
 </style>
 </head>
 <body>
@@ -4705,6 +4722,57 @@ function confirmarResponder(si){
   if(_confirmarResolver){ _confirmarResolver(si); _confirmarResolver = null }
 }
 
+/* ══════════ MENSAJES POR WHATSAPP ══════════
+   Las plantillas escritas en Administración → Plantillas de mensajes,
+   listas para mandar desde la reserva con los datos ya reemplazados. */
+function plantillasWhatsapp(){
+  /* aquí se listan todas las de WhatsApp: la marca de activa decide si se
+     envían solas, pero a mano se puede mandar cualquiera. El link de pago
+     queda fuera porque se genera desde el botón Pagar. */
+  return (typeof msgTemplates !== 'undefined' ? msgTemplates : [])
+    .filter(t => t.id !== 'cobro' && (t.canal === 'whatsapp' || t.canal === 'ambos'))
+}
+function menuWhatsapp(id, fono){
+  const wa = waPhone(fono)
+  if(!wa) return ''
+  const tpls = plantillasWhatsapp()
+  return `<div class="wa-wrap">
+    <button class="mini-btn wa-btn" onclick="toggleWaMenu(event,'${id}')">💬 WhatsApp ▾</button>
+    <div class="wa-menu" id="waMenu-${id}">
+      ${tpls.map(t => `<button onclick="enviarWa('${id}','${t.id}')">
+          <span>${esc(t.nombre)}</span><i>➤</i></button>`).join('')}
+      ${tpls.length ? '<div class="wa-sep"></div>' : ''}
+      <a class="wa-directo" href="https://wa.me/${wa}" target="_blank" rel="noopener"
+         onclick="cerrarWaMenus()">💬 Abrir WhatsApp</a>
+    </div>
+  </div>`
+}
+function toggleWaMenu(ev, id){
+  ev.stopPropagation()
+  const m = document.getElementById('waMenu-' + id)
+  const abierto = m && m.classList.contains('on')
+  cerrarWaMenus()
+  if(m && !abierto) m.classList.add('on')
+}
+function cerrarWaMenus(){ document.querySelectorAll('.wa-menu.on').forEach(m=>m.classList.remove('on')) }
+document.addEventListener('click', e => { if(!e.target.closest('.wa-wrap')) cerrarWaMenus() })
+
+/* arma el mensaje con los datos de la reserva y abre WhatsApp */
+function enviarWa(apptId, tplId){
+  cerrarWaMenus()
+  const a = findAppt(apptId); if(!a) return
+  const wa = waPhone(a.client_phone)
+  if(!wa){ toast('Ese cliente no tiene teléfono','error'); return }
+  const datos = datosDeReserva(a)
+  /* la plantilla de cobro necesita el link; si no lo hay, se avisa */
+  if(tplId === 'cobro' && !datos.link){
+    toast('Para el link de pago usa el botón Pagar → Cobrar por WhatsApp','error')
+    return
+  }
+  const texto = armarMensaje(tplId, datos)
+  window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(texto), '_blank')
+}
+
 /* ── VISTA RÁPIDA DE RESERVA (al hacer clic) ── */
 function fmtLongDate(iso){ const [y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d); return `${DOW_FULL[dt.getDay()].toLowerCase()}, ${d} de ${MONTHS[m-1].toLowerCase()}` }
 function openApptQuickView(id){
@@ -4729,7 +4797,7 @@ function openApptQuickView(id){
     ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${a.price?` <span style="color:var(--gold-d);font-weight:600">${esc(a.price)}</span>`:''}${precioAjustado(a)?' <span class="re-ajustado">precio ajustado</span>':''}</div>`:''}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--dark)">${esc(p.name)}</strong></div>`:''}
-    ${phone?`<div class="qv-row">📱 ${esc(phone)} ${waP?`<a href="https://wa.me/${waP}" target="_blank" class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366">WhatsApp</a>`:''}</div>`:''}
+    ${phone?`<div class="qv-row">📱 ${esc(phone)} ${menuWhatsapp(id, phone)}</div>`:''}
     ${email?`<div class="qv-row">✉ ${esc(email)}</div>`:''}
     <div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--dark)">${STATUS_LABEL[a.status]||''}</span></div>
@@ -5291,7 +5359,12 @@ function reservaEditable(a){
           <span>${email?`✉ ${esc(email)}`:''}${email&&fono?'  |  ':''}${fono?`📱 ${esc(fono)}`:''}</span>
         </div>
         <div class="re-cli-acc">
-          ${wa?`<a class="re-ico" href="https://wa.me/${wa}" target="_blank" rel="noopener" title="Hablar por WhatsApp">💬</a>`:''}
+          ${wa?`<div class="wa-wrap"><button class="re-ico" title="Mensajes por WhatsApp" onclick="toggleWaMenu(event,'re${a.id}')">💬</button>
+            <div class="wa-menu" id="waMenu-re${a.id}">
+              ${plantillasWhatsapp().map(t=>`<button onclick="enviarWa('${a.id}','${t.id}')"><span>${esc(t.nombre)}</span><i>➤</i></button>`).join('')}
+              <div class="wa-sep"></div>
+              <a class="wa-directo" href="https://wa.me/${wa}" target="_blank" rel="noopener" onclick="cerrarWaMenus()">💬 Abrir WhatsApp</a>
+            </div></div>`:''}
           ${a.client_id?`<button class="re-ico" title="Editar cliente" onclick="closeModal('apptDetailModal');openClientModal(true,'${a.client_id}')">✎</button>`:''}
         </div>
       </div>
@@ -5502,7 +5575,7 @@ function renderApptTab(){
       <div class="ad-info-row"><span class="k">Estado</span><span>${sent?'<span class="badge paid">Enviado</span>':'<span class="badge" style="background:#eee;color:#888">Pendiente</span>'}</span></div>
       <div class="ad-info-row"><span class="k">Mensaje</span><span style="color:var(--mid)">${esc(buildReminderMsg(a))}</span></div>
       <div style="display:flex;gap:8px;margin-top:16px">
-        ${phone?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="sendReminder('${a.id}');setTimeout(renderApptTab,300)">Enviar WhatsApp</button>`:''}
+        ${phone?menuWhatsapp(a.id, a.client_phone):''}
         ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}');setTimeout(renderApptTab,600)">Enviar Email</button>`:''}
         ${(!phone&&!email)?'<span style="color:var(--light)">El cliente no tiene teléfono ni email.</span>':''}
       </div>`
