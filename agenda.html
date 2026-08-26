@@ -306,9 +306,9 @@ label.chk input{width:auto;margin:0}
 .cat-list li button{background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem}
 .cat-empty{font-size:.78rem;color:var(--light);padding:14px 2px}
 /* bloqueo de horas */
-.blk-datetime{display:flex;gap:8px;align-items:center}
-.blk-datetime input[type=date]{flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit}
-.blk-datetime select{width:78px;padding:10px 8px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit;background:#fff}
+.blk-datetime{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+.blk-datetime input[type=date]{flex:1 1 100%;min-width:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit}
+.blk-datetime select{width:78px;flex:0 0 78px;padding:10px 8px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit;background:#fff}
 .blk-colon{font-weight:700;color:var(--mid)}
 .blk-repeat-row{display:inline-flex!important;align-items:center;gap:10px;width:auto!important;margin-top:18px!important;margin-bottom:0!important;cursor:pointer;text-transform:none!important;letter-spacing:0!important;font-size:.85rem!important;font-weight:500!important;color:var(--dark)!important;justify-content:flex-start!important}
 .blk-repeat-row input[type=checkbox]{width:16px!important;height:16px!important;margin:0!important;padding:0!important;flex:0 0 auto!important;cursor:pointer}
@@ -3074,20 +3074,27 @@ body.sin-scroll{overflow:hidden}
     <input type="text" id="blkReason" placeholder="Ej: Almuerzo, reunión..." />
     <label>Profesional</label>
     <select id="blkProf"></select>
-    <label>Fecha de inicio</label>
-    <div class="blk-datetime">
-      <input type="date" id="blkDate" onchange="syncBlockEnd()" />
-      <select id="blkStartH" onchange="syncBlockEnd()"></select>
-      <span class="blk-colon">:</span>
-      <select id="blkStartM" onchange="syncBlockEnd()"></select>
+    <div class="row2">
+      <div>
+        <label>Desde</label>
+        <div class="blk-datetime">
+          <input type="date" id="blkDate" onchange="syncBlockEnd()" />
+          <select id="blkStartH" onchange="syncBlockEnd()"></select>
+          <span class="blk-colon">:</span>
+          <select id="blkStartM" onchange="syncBlockEnd()"></select>
+        </div>
+      </div>
+      <div>
+        <label>Hasta</label>
+        <div class="blk-datetime">
+          <input type="date" id="blkEndDate" onchange="notaBloqueo()" />
+          <select id="blkEndH" onchange="notaBloqueo()"></select>
+          <span class="blk-colon">:</span>
+          <select id="blkEndM" onchange="notaBloqueo()"></select>
+        </div>
+      </div>
     </div>
-    <label>Fecha de fin</label>
-    <div class="blk-datetime">
-      <input type="date" id="blkEndDate" />
-      <select id="blkEndH"></select>
-      <span class="blk-colon">:</span>
-      <select id="blkEndM"></select>
-    </div>
+    <p class="rem-note" style="margin:6px 0 0" id="blkDurNota"></p>
     <label class="blk-repeat-row">
       <input type="checkbox" id="blkRepeat" onchange="document.getElementById('blkRepeatBox').style.display=this.checked?'block':'none'" />
       <span>Repetir bloqueo</span>
@@ -11490,6 +11497,21 @@ function syncBlockEnd(){
     document.getElementById('blkEndH').value=pad(Math.floor(end/60))
     document.getElementById('blkEndM').value=pad(end%60)
   }
+  notaBloqueo()
+}
+/* cuánto dura el bloqueo, dicho en palabras */
+function notaBloqueo(){
+  const n=document.getElementById('blkDurNota'); if(!n) return
+  const d=document.getElementById('blkDate').value, ed=document.getElementById('blkEndDate').value
+  if(!d||!ed){ n.textContent=''; return }
+  const s=toMin(document.getElementById('blkStartH').value+':'+document.getElementById('blkStartM').value)
+  const e=toMin(document.getElementById('blkEndH').value+':'+document.getElementById('blkEndM').value)
+  const dias=Math.round((new Date(ed+'T00:00')-new Date(d+'T00:00'))/86400000)
+  const mins=dias*24*60 + (e-s)
+  if(mins<=0){ n.textContent=''; return }
+  if(dias>0){ n.textContent='Bloquea '+dias+(dias===1?' día':' días')+' y '+Math.round((e-s+24*60)%(24*60)/60*10)/10+' h'; return }
+  const hh=Math.floor(mins/60), mm=mins%60
+  n.textContent=('Bloquea '+(hh?hh+' h ':'')+(mm?mm+' min':(hh?'':'0 min'))).trim()
 }
 function openBlockModal(prefill, existing){
   fillBlockProf(); fillTimeSelects()
@@ -11518,6 +11540,7 @@ function openBlockModal(prefill, existing){
     document.getElementById('blkReason').value=''
     del.style.display='none'
   }
+  notaBloqueo()
   openModal('blockModal')
 }
 async function saveBlock(){
