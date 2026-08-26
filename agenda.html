@@ -4057,11 +4057,11 @@ function renderCalendarRec(){
       && pasaFiltroOrigen(a) && recursosDe(a.service_name).some(x=>x.id===r.id))
     const blocks = layoutDay(suyas).map(a=>{
       const top=(toMin(a.start_time)-minM)/paso*SP
-      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/paso*SP-2)
+      const hgt=Math.max(20,(toMin(a.end_time)-toMin(a.start_time))/paso*SP-5)
       const w=100/a._cols, left=a._col*w
       const prof=state.professionals.find(x=>x.id===a.professional_id)
       const color=STATUS_COLORS[a.status]||(prof&&prof.color)||r.color||'#7E8CE0'
-      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px);background:${bgSuave(color)};border-left-color:${color}"
+      return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 3px);width:calc(${w}% - 6px);background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(a.client_name||'—')}</div>
@@ -4138,9 +4138,9 @@ function renderCalendarDia(){
     const suyas = state.appointments.filter(a => a.appt_date===fecha && a.professional_id===p.id && pasaFiltroOrigen(a))
     const blocks = layoutDay(suyas).map(a=>{
       const top=(toMin(a.start_time)-minM)/slotMin*SP
-      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-2)
+      const hgt=Math.max(20,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-5)
       const w=100/a._cols, left=a._col*w
-      const pos=`top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px)`
+      const pos=`top:${top}px;height:${hgt}px;left:calc(${left}% + 3px);width:calc(${w}% - 6px)`
       if(a.status==='block'){
         return `<div class="appt block" data-id="${a.id}" style="${pos}" onmousedown="apptMouseDown(event,'${a.id}')">
           <div class="t">🔒 ${a.start_time.slice(0,5)}</div>
@@ -4243,9 +4243,9 @@ function renderCalendar(){
     const blocks=layoutDay(dayAppts).map(a=>{
       const p=state.professionals.find(x=>x.id===a.professional_id)
       const top=(toMin(a.start_time)-minM)/slotMin*SP
-      const hgt=Math.max(22,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-2)
+      const hgt=Math.max(20,(toMin(a.end_time)-toMin(a.start_time))/slotMin*SP-5)
       const w=100/a._cols, left=a._col*w
-      const pos=`top:${top}px;height:${hgt}px;left:calc(${left}% + 2px);width:calc(${w}% - 4px)`
+      const pos=`top:${top}px;height:${hgt}px;left:calc(${left}% + 3px);width:calc(${w}% - 6px)`
       if(a.status==='block'){
         return `<div class="appt block" data-id="${a.id}" style="${pos}" onmousedown="apptMouseDown(event,'${a.id}')">
           <div class="t">🔒 ${a.start_time.slice(0,5)}</div>
