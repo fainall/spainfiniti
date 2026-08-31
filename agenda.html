@@ -1192,6 +1192,11 @@ body.sin-scroll{overflow:hidden}
 .rango-custom input{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:.8rem}
 .rango-custom span{font-size:.78rem;color:var(--mid)}
 @media(max-width:820px){ .rango-custom{width:100%;margin:8px 0 0} .rango-custom input{flex:1;min-width:0} }
+
+/* atajo de período delante de los campos desde/hasta */
+.atajo-fecha{padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;
+  font-size:.82rem;background:var(--white);align-self:end;margin-right:4px}
+@media(max-width:820px){ .atajo-fecha{width:100%;margin:0 0 8px} }
 </style>
 </head>
 <body>
@@ -1510,7 +1515,7 @@ body.sin-scroll{overflow:hidden}
           <div><label>Encuesta</label><select id="svFilter" onchange="renderSurveys()"><option value="">Todos</option></select></div>
           <div><label>Periodo</label>
             <select id="svPeriod" onchange="renderSurveys()">
-              <option value="all">Todos</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option>
+              <option value="hoy">Hoy</option><option value="ayer">Ayer</option><option value="7">Últimos 7 días</option><option value="15">Últimos 15 días</option><option value="30">Últimos 30 días</option><option value="90">Últimos 90 días</option><option value="all" selected>Todos</option>
             </select>
           </div>
           <div><label>Servicios</label><select id="svService" onchange="renderSurveys()"><option value="">Todos</option></select></div>
@@ -6822,7 +6827,7 @@ function switchView(v){
   if(v==='ventas') renderSales()
   if(v==='transacciones') renderTransacciones()
   if(v==='cobros') renderCobros()
-  if(typeof prepararRangosCustom==='function') setTimeout(prepararRangosCustom, 20)
+  if(typeof prepararRangosCustom==='function') setTimeout(()=>{ prepararRangosCustom(); prepararAtajosFecha() }, 20)
   if(v==='giftcards') loadGiftCards()
   if(v==='encuestas') loadSurveys()
   if(v==='caja') renderCaja()
@@ -7091,11 +7096,11 @@ function renderSurveys(){
   }
   const period=document.getElementById('svPeriod').value
   const svcF=ss.value, onlyId=sf.value
-  const lim=period==='all'?null:(()=>{const d=new Date();d.setDate(d.getDate()-parseInt(period));return d})()
+  /* el período se interpreta con la misma función que el resto del panel */
 
   el.innerHTML=state.surveys.filter(s=>!onlyId||s.id===onlyId).map(s=>{
     let resp=state.svResponses.filter(r=>r.survey_id===s.id)
-    if(lim) resp=resp.filter(r=>new Date(r.created_at)>=lim)
+    resp=resp.filter(r=>enPeriodo(String(r.created_at||'').slice(0,10), period))
     if(svcF) resp=resp.filter(r=>r.service_name===svcF)
     const qs=svQuestionsOf(s)
     const avgOf=q=>{ const vals=resp.map(r=>{ const a=typeof r.answers==='string'?JSON.parse(r.answers||'{}'):(r.answers||{}); return Number(a[q]||0) }).filter(v=>v>0)
@@ -10840,12 +10845,61 @@ function fillSaleProf(){
     state.professionals.filter(p=>p.active!==false).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
 }
 /* filtra ventas no eliminadas por período (días o 'all') */
+/* ══════════════ ATAJOS DE FECHA ══════════════
+   Cinco pantallas piden las fechas a mano (desde / hasta). Escribirlas
+   cada vez es lento, así que se les pone delante el mismo desplegable
+   de siempre: al elegir un período, rellena los dos campos y refresca.
+   Los campos siguen ahí para quien quiera afinar el rango. */
+const ATAJOS_FECHA = [
+  { desde:'vpFrom',    hasta:'vpTo',    render:'renderVentaProd' },
+  { desde:'msFrom',    hasta:'msTo',    render:'renderMovStock' },
+  { desde:'miFrom',    hasta:'miTo',    render:'renderMisIngresos' },
+  { desde:'cajaFrom',  hasta:'cajaTo',  render:'renderCaja' },
+  { desde:'commFrom',  hasta:'commTo',  render:'renderComisiones' }
+]
+const OPCIONES_ATAJO = [
+  ['hoy','Hoy'], ['ayer','Ayer'], ['7','Últimos 7 días'], ['15','Últimos 15 días'],
+  ['30','Últimos 30 días'], ['month','Este mes'], ['prevmonth','Mes pasado'], ['custom','Rango personalizado']
+]
+
+function prepararAtajosFecha(){
+  ATAJOS_FECHA.forEach(a=>{
+    const d = document.getElementById(a.desde)
+    if(!d || d.dataset.atajo) return
+    d.dataset.atajo = '1'
+
+    const sel = document.createElement('select')
+    sel.className = 'atajo-fecha'
+    sel.id = a.desde + 'Atajo'
+    sel.innerHTML = OPCIONES_ATAJO.map(([v,t])=>'<option value="'+v+'">'+t+'</option>').join('')
+    sel.value = '7'
+
+    /* va delante del campo "desde", o de su etiqueta si la tiene */
+    const ancla = d.closest('div') && d.closest('div').querySelector('label') ? d.closest('div') : d
+    ancla.insertAdjacentElement('beforebegin', sel)
+
+    sel.addEventListener('change', ()=>{
+      if(sel.value === 'custom') return          // que el usuario escriba las fechas
+      const r = rangoDePeriodo(sel.value)
+      if(!r) return
+      document.getElementById(a.desde).value = r[0]
+      document.getElementById(a.hasta).value = r[1]
+      if(typeof window[a.render] === 'function') window[a.render]()
+    })
+    /* si tocan las fechas a mano, el desplegable pasa a "personalizado" */
+    ;[a.desde, a.hasta].forEach(id=>{
+      const c = document.getElementById(id)
+      if(c) c.addEventListener('change', ()=>{ if(sel.value !== 'custom') sel.value = 'custom' })
+    })
+  })
+}
+
 /* ══════════════ RANGO PERSONALIZADO ══════════════
    Al elegir "Rango personalizado" aparecen dos fechas junto al filtro.
    El rango elegido viaja dentro del propio valor del desplegable
    ("custom:2026-08-01:2026-08-15"), así cada pantalla lo lee igual
    que cualquier otro período y no hace falta tocar sus funciones. */
-const FILTROS_PERIODO = ['salesPeriod','txPeriod','gcPeriod','propPeriod','rvPeriod','rrPeriod']
+const FILTROS_PERIODO = ['salesPeriod','txPeriod','gcPeriod','propPeriod','rvPeriod','rrPeriod','svPeriod']
 
 function prepararRangosCustom(){
   FILTROS_PERIODO.forEach(id=>{
@@ -12238,6 +12292,7 @@ async function boot(){
   loadMsgTemplates()
   loadGcCatalogo()
   prepararRangosCustom()
+  prepararAtajosFecha()
   cargarCobros()
   actualizarSegRec()
   applyRole()
