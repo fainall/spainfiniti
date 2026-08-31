@@ -8293,6 +8293,16 @@ function formularioFicha(tpl, datos, soloLectura){
     </div>`).join('') || '<p class="rem-note">Esta ficha no tiene preguntas todavía.</p>'
 }
 
+/* asegura que el token esté vigente justo antes de una operación que lo exige */
+async function sesionLista(){
+  if(typeof supaAuth === 'undefined') return false
+  if(!supaAuth.session()) return false
+  return await supaAuth.ensureFresh()
+}
+/* además se renueva sola cada 20 minutos mientras el panel esté abierto,
+   para que nunca llegue a caducar en mitad de una subida */
+setInterval(()=>{ if(typeof supaAuth!=='undefined' && supaAuth.session()) supaAuth.ensureFresh() }, 20*60*1000)
+
 /* ── fotos dentro de una ficha (registro fotográfico antes / después) ──
    Se reducen en el navegador antes de subir: una foto de teléfono pesa
    varios megas y no hace falta tanto para ver la evolución de un pie. */
@@ -8304,6 +8314,13 @@ async function subirFotoFicha(clave, input){
   if(!caja) return
   const urls = JSON.parse(caja.dataset.urls || '[]')
 
+  /* sin sesión vigente, Supabase rechaza la subida */
+  if(!await sesionLista()){
+    toast('Tu sesión caducó. Vuelve a entrar y reintenta la foto.','error')
+    input.value = ''
+    return
+  }
+
   for(let i = 0; i < files.length; i++){
     const f = files[i]
     if(!/^image\//.test(f.type)){ toast('Solo se pueden subir imágenes','error'); continue }
@@ -8311,19 +8328,34 @@ async function subirFotoFicha(clave, input){
     try{
       const blob = await reducirImagen(f, 1400, 0.82)
       const nombre = (cdCliente ? cdCliente.id : 'sin-cliente') + '/' + Date.now() + '-' + i + '.jpg'
-      const r = await fetch(SUPABASE_URL + '/storage/v1/object/fichas/' + nombre, {
+      let r = await fetch(SUPABASE_URL + '/storage/v1/object/fichas/' + nombre, {
         method: 'POST',
         headers: { Authorization: supaAuthHeader(), apikey: SUPABASE_ANON_KEY, 'Content-Type': 'image/jpeg' },
         body: blob
       })
+      /* un rechazo por permisos casi siempre es el token vencido: se renueva y se reintenta */
+      if(r.status === 401 || r.status === 403){
+        await supaAuth.ensureFresh()
+        r = await fetch(SUPABASE_URL + '/storage/v1/object/fichas/' + nombre, {
+          method: 'POST',
+          headers: { Authorization: supaAuthHeader(), apikey: SUPABASE_ANON_KEY, 'Content-Type': 'image/jpeg' },
+          body: blob
+        })
+      }
       if(!r.ok) throw new Error(await r.text())
       urls.push(SUPABASE_URL + '/storage/v1/object/public/fichas/' + nombre)
     }catch(e){
       console.error(e)
       /* el fallo más común es la sesión caída: conviene decirlo con claridad */
-      const msg = /row-level security|Unauthorized|401|403/i.test(String(e.message))
-        ? 'Tu sesión expiró. Vuelve a entrar y reintenta la foto.'
-        : 'No se pudo subir la foto: ' + String(e.message).slice(0,70)
+      /* el mensaje dice qué pasó de verdad, para no quedarse adivinando */
+      const txt = String(e.message || '')
+      const msg = /row-level security|Unauthorized|401|403/i.test(txt)
+        ? 'Tu sesión caducó. Cierra sesión, vuelve a entrar y reintenta la foto.'
+        : /NoSuchBucket|Bucket not found/i.test(txt)
+        ? 'Falta la carpeta de fotos en Supabase. Avísame para crearla.'
+        : /Payload too large|413/i.test(txt)
+        ? 'La foto pesa demasiado incluso reducida. Prueba con otra.'
+        : 'No se pudo subir la foto — ' + txt.slice(0,90)
       toast(msg, 'error')
     }
   }
@@ -8512,6 +8544,7 @@ async function subirPdfConsent(input){
   const f = input.files && input.files[0]; if(!f) return
   if(f.size > 5*1024*1024){ toast('El archivo no puede pesar más de 5 MB','error'); return }
   const nombre = Date.now() + '-' + f.name.replace(/[^a-zA-Z0-9._-]/g,'_')
+  if(!await sesionLista()){ toast('Tu sesión caducó. Vuelve a entrar y reintenta.','error'); input.value=''; return }
   try{
     const r = await fetch(SUPABASE_URL + '/storage/v1/object/consentimientos/' + nombre, {
       method:'POST',
