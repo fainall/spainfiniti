@@ -1282,6 +1282,25 @@ body.sin-scroll{overflow:hidden}
   #calGrid .dcol.pcol, .cal-head .dcol.pcol{min-width:150px;flex:0 0 150px}
   .cal-head .dcol.pcol{min-width:150px}
 }
+
+/* selección múltiple en forma de desplegable */
+.ff-multi{position:relative}
+.ff-multi-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--white);
+  font-family:inherit;font-size:.86rem;text-align:left;cursor:pointer;color:var(--texto)}
+.ff-multi-btn:hover{border-color:var(--gold)}
+.ff-multi-btn i{font-style:normal;color:var(--light);transition:transform .15s}
+.ff-multi.abierto .ff-multi-btn{border-color:var(--gold)}
+.ff-multi.abierto .ff-multi-btn i{transform:rotate(180deg)}
+.ff-multi-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ff-multi-txt em{color:var(--light);font-style:normal}
+.ff-multi-panel{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;
+  background:var(--white);border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 14px 40px rgba(0,0,0,.16);padding:6px;max-height:260px;overflow-y:auto}
+.ff-multi.abierto .ff-multi-panel{display:block}
+.ff-multi-panel .chk{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;
+  font-size:.84rem;cursor:pointer;font-weight:400}
+.ff-multi-panel .chk:hover{background:var(--cream-2)}
 </style>
 </head>
 <body>
@@ -8326,9 +8345,7 @@ function formularioFicha(tpl, datos, soloLectura){
             <option value="no" ${v==='no'?'selected':''}>No</option></select>`
         else if(f.type==='opcion') campo = `<select data-fk="${k}"><option value="">—</option>
             ${(f.options||[]).map(o=>`<option value="${esc(o)}" ${v===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`
-        else if(f.type==='varias') campo = `<div class="ff-varias" data-fk="${k}">
-            ${(f.options||[]).map(o=>`<label class="chk"><input type="checkbox" value="${esc(o)}"
-              ${(Array.isArray(v)&&v.includes(o))?'checked':''} /> <span>${esc(o)}</span></label>`).join('')}</div>`
+        else if(f.type==='varias') campo = multiHTML(k, f.options||[], v)
         else if(f.type==='archivo'){
           const urls = Array.isArray(v) ? v : (v ? [v] : [])
           campo = `<div class="ff-fotos" data-fk="${k}" data-urls='${JSON.stringify(urls)}'>
@@ -8459,12 +8476,53 @@ function quitarFotoFicha(clave, indice){
   pintarFotosFicha(clave)
 }
 
+/* ── desplegable de selección múltiple ──
+   Con siete u once opciones, la lista de casillas ocupaba media pantalla.
+   Ahora se ve un campo cerrado que resume lo elegido y se abre al pulsarlo. */
+function multiHTML(clave, opciones, elegidas){
+  const sel = Array.isArray(elegidas) ? elegidas : []
+  return `<div class="ff-multi" data-fk="${clave}" data-sel='${JSON.stringify(sel).replace(/'/g,'&#39;')}'>
+    <button type="button" class="ff-multi-btn" onclick="abrirMulti('${clave}', event)">
+      <span class="ff-multi-txt">${resumenMulti(sel)}</span><i>▾</i>
+    </button>
+    <div class="ff-multi-panel">
+      ${opciones.map(o=>`<label class="chk"><input type="checkbox" value="${esc(o)}"
+        ${sel.includes(o)?'checked':''} onchange="cambiarMulti('${clave}')" /> <span>${esc(o)}</span></label>`).join('')}
+    </div>
+  </div>`
+}
+function resumenMulti(sel){
+  if(!sel.length) return '<em>Selecciona…</em>'
+  if(sel.length === 1) return esc(sel[0])
+  if(sel.length === 2) return esc(sel[0]) + ' y 1 más'
+  return esc(sel[0]) + ' y ' + (sel.length - 1) + ' más'
+}
+function abrirMulti(clave, ev){
+  ev.stopPropagation()
+  const caja = document.querySelector('.ff-multi[data-fk="' + clave + '"]')
+  const abierto = caja.classList.contains('abierto')
+  document.querySelectorAll('.ff-multi.abierto').forEach(c=>c.classList.remove('abierto'))
+  if(!abierto) caja.classList.add('abierto')
+}
+function cambiarMulti(clave){
+  const caja = document.querySelector('.ff-multi[data-fk="' + clave + '"]')
+  const sel = [...caja.querySelectorAll('input:checked')].map(x=>x.value)
+  caja.dataset.sel = JSON.stringify(sel)
+  caja.querySelector('.ff-multi-txt').innerHTML = resumenMulti(sel)
+}
+/* al pulsar fuera, se cierra */
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.ff-multi')) document.querySelectorAll('.ff-multi.abierto').forEach(c=>c.classList.remove('abierto'))
+})
+
 /* recoge lo escrito en el formulario */
 function leerFicha(){
   const d = {}
   document.querySelectorAll('#ffBody [data-fk]').forEach(el=>{
     const k = el.dataset.fk
-    if(el.classList.contains('ff-varias')){
+    if(el.classList.contains('ff-multi')){
+      try{ d[k] = JSON.parse(el.dataset.sel || '[]') }catch(e){ d[k] = [] }
+    } else if(el.classList.contains('ff-varias')){
       d[k] = [...el.querySelectorAll('input:checked')].map(x=>x.value)
     } else if(el.classList.contains('ff-fotos')){
       try{ d[k] = JSON.parse(el.dataset.urls || '[]') }catch(e){ d[k] = [] }
