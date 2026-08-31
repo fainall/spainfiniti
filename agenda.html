@@ -8168,7 +8168,7 @@ function admFichas(){
 
 /* tipos de pregunta que admite una ficha */
 const TIPOS_CAMPO = [['texto','Texto corto'],['parrafo','Texto largo'],['numero','Número'],
-  ['fecha','Fecha'],['si_no','Sí / No'],['opcion','Elegir una opción'],['varias','Elegir varias'],
+  ['decimal','Número con decimales'],['fecha','Fecha'],['si_no','Sí / No'],['opcion','Elegir una opción'],['varias','Elegir varias'],
   ['archivo','Foto o archivo'],['nota','Solo texto informativo']]
 
 function openPlantilla(id){
@@ -8319,6 +8319,7 @@ function formularioFicha(tpl, datos, soloLectura){
           }
         } else if(f.type==='parrafo') campo = `<textarea data-fk="${k}" rows="3">${esc(v||'')}</textarea>`
         else if(f.type==='numero') campo = `<input type="number" data-fk="${k}" value="${esc(v||'')}" />`
+        else if(f.type==='decimal') campo = `<input type="number" step="0.01" inputmode="decimal" data-fk="${k}" value="${esc(v||'')}" />`
         else if(f.type==='fecha') campo = `<input type="date" data-fk="${k}" value="${esc(v||'')}" />`
         else if(f.type==='si_no') campo = `<select data-fk="${k}"><option value="">—</option>
             <option value="si" ${v==='si'?'selected':''}>Sí</option>
