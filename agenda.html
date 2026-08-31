@@ -2227,7 +2227,7 @@ body.sin-scroll{overflow:hidden}
       </div>
       <div class="modal-actions">
         <button class="btn-danger" id="ftDelBtn" onclick="deletePlantilla()" style="display:none">Eliminar</button>
-        <button class="btn-ghost" onclick="closeModal('ftModal')">Cerrar</button>
+        <button class="btn-ghost" onclick="_volverAlCliente=null;closeModal('ftModal')">Cerrar</button>
         <button class="btn-primary" onclick="savePlantilla()">Guardar</button>
       </div>
     </div>
@@ -8250,6 +8250,13 @@ const TIPOS_CAMPO = [['texto','Texto corto'],['parrafo','Texto largo'],['numero'
   ['decimal','Número con decimales'],['fecha','Fecha'],['si_no','Sí / No'],['opcion','Elegir una opción'],['varias','Elegir varias'],
   ['archivo','Foto o archivo'],['nota','Solo texto informativo']]
 
+/* crea un tipo de ficha sin salir del cliente: el constructor se abre
+   encima y, al guardar, la lista de fichas del cliente se refresca sola */
+let _volverAlCliente = null
+function nuevaFichaDesdeCliente(){
+  _volverAlCliente = cdCliente ? cdCliente.id : null
+  openPlantilla()
+}
 function openPlantilla(id){
   const t = id ? plantillas.find(x=>x.id===id) : null
   plantillaEdit = t ? JSON.parse(JSON.stringify(t)) : { name:'', description:'', sections:[], services:'all', active:true }
@@ -8399,7 +8406,12 @@ async function savePlantilla(){
   try{
     if(plantillaEdit.id) await supabase.update('record_templates', plantillaEdit.id, row)
     else await supabase.insert('record_templates', Object.assign({}, row, { sort_order: plantillas.length }))
-    await cargarPlantillas(); closeModal('ftModal'); renderAdmin(); toast('Ficha guardada','success')
+    await cargarPlantillas(); closeModal('ftModal')
+    if(_volverAlCliente){
+      _volverAlCliente = null
+      if(document.getElementById('clientDetailModal').classList.contains('open')) renderClientDetail()
+    } else renderAdmin()
+    toast('Ficha guardada','success')
   }catch(e){ console.error(e); toast('No se pudo guardar: ' + e.message,'error') }
 }
 
@@ -8775,8 +8787,14 @@ function cdFichas(){
   }).join('') : '<div class="empty-state">Este cliente todavía no tiene fichas completadas.</div>'
   const nuevas = activas.length
     ? `<div class="cd-nuevas">${activas.map(t=>
-        `<button class="btn-g" onclick="openFichaCliente('','${t.id}')">+ ${esc(t.name)}</button>`).join('')}</div>`
-    : `<p class="rem-note">No hay fichas creadas. Créalas en Administración → Fichas médicas.</p>`
+        `<button class="btn-g" onclick="openFichaCliente('','${t.id}')">+ ${esc(t.name)}</button>`).join('')}
+        <button class="mini-link" onclick="nuevaFichaDesdeCliente()">⚙ Crear otro tipo de ficha</button></div>`
+    : `<div class="empty-state" style="padding:22px">
+        <div style="font-size:2rem;margin-bottom:6px">🩺</div>
+        Todavía no hay ningún tipo de ficha creado.
+        <div style="font-size:.8rem;color:var(--light);margin:6px 0 12px">Arma el formulario una vez y lo completas con cada paciente.</div>
+        <button class="btn-primary" onclick="nuevaFichaDesdeCliente()">+ Crear una ficha</button>
+      </div>`
   return `<h3 class="cd-h3">Completar una ficha</h3>${nuevas}
     <h3 class="cd-h3">Fichas completadas</h3>${lista}`
 }
