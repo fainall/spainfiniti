@@ -1182,6 +1182,10 @@ body.sin-scroll{overflow:hidden}
 .vd-bmas{width:34px;height:34px;flex-shrink:0;border:1px solid var(--border);background:#fff;border-radius:9px;
   font-size:1.2rem;line-height:1;color:var(--gold-d);cursor:pointer}
 .vd-bmas:hover{background:var(--gold-pale);border-color:var(--gold)}
+
+/* el cuadro de confirmar va por encima de cualquier otro modal */
+#cfModal{z-index:1200}
+#cfModal .modal{box-shadow:0 26px 80px rgba(0,0,0,.4)}
 </style>
 </head>
 <body>
@@ -4954,6 +4958,8 @@ function marcaOrigen(a){
 let _confirmarResolver = null
 function confirmar(texto, opciones){
   const o = opciones || {}
+  /* si quedó una pregunta anterior sin responder, se da por cancelada */
+  if(_confirmarResolver){ const viejo=_confirmarResolver; _confirmarResolver=null; viejo(false) }
   return new Promise(resolve => {
     _confirmarResolver = resolve
     document.getElementById('cfTitulo').textContent = o.titulo || '¿Seguro?'
@@ -12077,7 +12083,17 @@ async function deleteProf(id,name){
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
 function openModal(id){ document.getElementById(id).classList.add('open') }
 function closeModal(id){ document.getElementById(id).classList.remove('open') }
-document.querySelectorAll('.modal-ov').forEach(ov=>ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('open') }))
+document.querySelectorAll('.modal-ov').forEach(ov=>ov.addEventListener('click',e=>{
+  if(e.target!==ov) return
+  if(ov.id==='cfModal'){ confirmarResponder(false); return }   // cerrar por fuera = cancelar
+  ov.classList.remove('open')
+}))
+/* Escape cierra el cuadro de confirmar respondiendo que no */
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return
+  const cf=document.getElementById('cfModal')
+  if(cf && cf.classList.contains('open')) confirmarResponder(false)
+})
 let toastT
 function toast(msg,type){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+(type||''); clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast',2600) }
 
