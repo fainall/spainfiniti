@@ -1308,6 +1308,20 @@ body.sin-scroll{overflow:hidden}
 .ff-op:hover{background:var(--cream-2)}
 .ff-op.elegida{background:#faf7f0;color:var(--gold-d);font-weight:600}
 @media(max-width:820px){ .ff-op{padding:13px 11px} }
+
+/* editor de opciones de un campo */
+.ft-ops{white-space:nowrap}
+.ft-ops.vacio{border-color:var(--gold);color:var(--gold-d)}
+.op-nueva{display:flex;gap:8px}
+.op-nueva input{flex:1}
+.op-fila{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--cream-2)}
+.op-fila input{flex:1}
+.op-mover{display:flex;flex-direction:column;line-height:1}
+.op-mover .mini-link{padding:0 4px;font-size:.8rem}
+.op-mover .mini-link[disabled]{opacity:.25;cursor:default}
+.op-borrar{color:var(--red)}
+#opLista{max-height:320px;overflow-y:auto}
+@media(max-width:820px){ .op-nueva{flex-direction:column} .op-nueva .btn-primary{width:100%} }
 </style>
 </head>
 <body>
@@ -2397,6 +2411,33 @@ body.sin-scroll{overflow:hidden}
       <div class="modal-actions">
         <button class="btn-ghost" onclick="confirmarResponder(false)">Cancelar</button>
         <button class="btn-danger" id="cfOk" onclick="confirmarResponder(true)">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: opciones de un campo de la ficha -->
+  <div class="modal-ov" id="opModal">
+    <div class="modal" style="width:560px;max-width:94vw">
+      <h2>Opciones del campo</h2>
+      <span class="cd-since">Campo: <strong id="opCampo"></strong></span>
+      <div class="fbox" style="margin-top:14px">
+        <label>Agregar una opción</label>
+        <div class="op-nueva">
+          <input type="text" id="opNueva" placeholder="Escribe la opción y pulsa Agregar"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();agregarOpcion()}" />
+          <button class="btn-primary" onclick="agregarOpcion()">+ Agregar</button>
+        </div>
+        <p class="rem-note" style="margin:8px 0 0">Estas son las opciones entre las que podrá elegir el profesional al completar la ficha.</p>
+      </div>
+      <div class="fbox">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h3 style="font-size:.95rem;font-weight:600;margin:0">Opciones</h3>
+          <span class="ar-meta" id="opCuenta"></span>
+        </div>
+        <div id="opLista"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="cerrarOpciones()">Listo</button>
       </div>
     </div>
   </div>
@@ -8231,9 +8272,10 @@ function pintarSecciones(){
         <select onchange="plantillaEdit.sections[${i}].fields[${j}].type=this.value;pintarSecciones()">
           ${TIPOS_CAMPO.map(([v,n])=>`<option value="${v}" ${f.type===v?'selected':''}>${n}</option>`).join('')}
         </select>
-        ${['opcion','varias'].includes(f.type)?`<input type="text" value="${esc((f.options||[]).join(', '))}"
-          placeholder="Opciones separadas por coma"
-          oninput="plantillaEdit.sections[${i}].fields[${j}].options=this.value.split(',').map(x=>x.trim()).filter(Boolean)" />`:''}
+        ${['opcion','varias'].includes(f.type)?`<button class="btn-g ft-ops${(f.options||[]).length?'':' vacio'}"
+          onclick="abrirOpciones(${i},${j})" title="Configurar las opciones de este campo">⚙ ${(f.options||[]).length
+            ? (f.options.length===1 ? '1 opción' : f.options.length+' opciones')
+            : 'Definir opciones'}</button>`:''}
         <label class="chk"><input type="checkbox" ${f.required?'checked':''}
           onchange="plantillaEdit.sections[${i}].fields[${j}].required=this.checked" /> <span>Obligatorio</span></label>
         <button class="mini-link" style="color:var(--red)" onclick="borrarCampo(${i},${j})">✕</button>
@@ -8263,6 +8305,78 @@ function agregarCampo(i){
   pintarSecciones()
 }
 function borrarCampo(i,j){ plantillaEdit.sections[i].fields.splice(j,1); pintarSecciones() }
+
+/* ── editor de opciones de un campo ──
+   Antes las opciones se escribían separadas por coma, en una sola línea:
+   con once patologías era ilegible y cualquier coma dentro de un nombre
+   partía la opción en dos. Ahora se agregan de a una, se borran y se
+   ordenan, igual que en AgendaPro. */
+let opEdit = null   // { i, j }  sección y campo que se está configurando
+
+function abrirOpciones(i, j){
+  opEdit = { i, j }
+  const f = plantillaEdit.sections[i].fields[j]
+  document.getElementById('opCampo').textContent = f.label || 'Campo sin nombre'
+  document.getElementById('opNueva').value = ''
+  pintarOpciones()
+  openModal('opModal')
+  setTimeout(()=>document.getElementById('opNueva').focus(), 120)
+}
+
+function opsActuales(){
+  if(!opEdit) return []
+  const f = plantillaEdit.sections[opEdit.i].fields[opEdit.j]
+  f.options = f.options || []
+  return f.options
+}
+
+function pintarOpciones(){
+  const lista = opsActuales()
+  const box = document.getElementById('opLista')
+  box.innerHTML = lista.length ? lista.map((o,n)=>`<div class="op-fila">
+      <span class="op-mover">
+        <button class="mini-link" onclick="moverOpcion(${n},-1)" title="Subir"${n===0?' disabled':''}>↑</button>
+        <button class="mini-link" onclick="moverOpcion(${n},1)" title="Bajar"${n===lista.length-1?' disabled':''}>↓</button>
+      </span>
+      <input type="text" value="${esc(o)}" oninput="renombrarOpcion(${n}, this.value)" />
+      <button class="mini-btn op-borrar" onclick="borrarOpcion(${n})" title="Quitar">🗑</button>
+    </div>`).join('')
+    : '<div class="empty-state" style="padding:20px">Este campo todavía no tiene opciones.<div style="font-size:.8rem;color:var(--light);margin-top:6px">Agrégalas arriba: son las que podrá elegir el profesional al completar la ficha.</div></div>'
+  const n = lista.length
+  document.getElementById('opCuenta').textContent = n === 1 ? '1 opción' : n + ' opciones'
+}
+
+function agregarOpcion(){
+  const inp = document.getElementById('opNueva')
+  const v = inp.value.trim()
+  if(!v){ inp.focus(); return }
+  const lista = opsActuales()
+  if(lista.some(o => o.toLowerCase() === v.toLowerCase())){
+    toast('Esa opción ya está en la lista','error'); inp.select(); return
+  }
+  lista.push(v)
+  inp.value = ''
+  pintarOpciones()
+  inp.focus()
+}
+function renombrarOpcion(n, v){ opsActuales()[n] = v }
+function borrarOpcion(n){ opsActuales().splice(n,1); pintarOpciones() }
+function moverOpcion(n, d){
+  const l = opsActuales(), m = n + d
+  if(m < 0 || m >= l.length) return
+  const t = l[n]; l[n] = l[m]; l[m] = t
+  pintarOpciones()
+}
+/* al cerrar se limpian las vacías y se refresca el constructor */
+function cerrarOpciones(){
+  if(opEdit){
+    const f = plantillaEdit.sections[opEdit.i].fields[opEdit.j]
+    f.options = (f.options||[]).map(o=>String(o).trim()).filter(Boolean)
+  }
+  opEdit = null
+  closeModal('opModal')
+  pintarSecciones()
+}
 
 async function savePlantilla(){
   const name = document.getElementById('ftName').value.trim()
