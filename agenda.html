@@ -1203,6 +1203,11 @@ body.sin-scroll{overflow:hidden}
   text-align:left;border-bottom:1px solid var(--gold);line-height:1.2}
 .link-cliente:hover{color:var(--gold-d);border-bottom-color:var(--gold-d)}
 .qv-name .link-cliente{font-weight:700;font-size:1.05rem}
+
+/* aviso de cuándo se actualizó la agenda */
+.refresco{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--light);white-space:nowrap}
+.refresco .icon-btn{font-size:.9rem;padding:3px 6px}
+@media(max-width:820px){ .refresco span{display:none} }
 </style>
 </head>
 <body>
@@ -1301,6 +1306,10 @@ body.sin-scroll{overflow:hidden}
       <div class="slot-menu" id="slotMenu"></div>
     </div>
     <div class="range-label" id="rangeLabel"></div>
+    <span class="refresco" id="refrescoBox" title="La agenda se actualiza sola cada 30 segundos">
+      <button class="icon-btn" onclick="refrescarAgenda(true)" title="Actualizar ahora">⟳</button>
+      <span id="refrescoTxt">Actualizado recién</span>
+    </span>
     <div class="spacer"></div>
     <button class="btn-g" onclick="openProfManager()">Profesionales</button>
     <button class="btn-primary" onclick="openApptModal()">+ Nuevo</button>
@@ -4645,7 +4654,71 @@ function actualizarSegRec(){
 function setView(v){ state.view=v; setTimeout(()=>requestAnimationFrame(ajustarAlturaAgenda),80); document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
 function navDate(dir){ state.anchor=addDays(state.anchor, (state.view==='day'||state.view==='rec')?dir:dir*7); state.miniMonth=new Date(state.anchor); loadAndRender() }
 function goToday(){ state.anchor=new Date(); state.miniMonth=new Date(); loadAndRender() }
-async function loadAndRender(){ await loadAppointments(); render() }
+/* ══════════════ REFRESCO AUTOMÁTICO DE LA AGENDA ══════════════
+   Las reservas que entran por el sitio web o por el bot no aparecían
+   hasta recargar la página. Ahora la agenda se vuelve a consultar
+   sola cada medio minuto, y también al volver a la pestaña.
+
+   Cuidados: no refresca si hay un modal abierto, si se está
+   arrastrando una cita o si la pestaña está en segundo plano, para
+   no interrumpir lo que se esté haciendo ni gastar batería. */
+let refrescoTimer = null, ultimoRefresco = Date.now(), refrescando = false
+
+function hayAlgoAbierto(){
+  if(document.querySelector('.modal-ov.open')) return true
+  if(document.getElementById('apptQV')) return true
+  if(typeof arrastrando !== 'undefined' && arrastrando) return true
+  if(typeof dragState !== 'undefined' && dragState) return true
+  return false
+}
+
+async function refrescarAgenda(forzado){
+  if(refrescando) return
+  if(!forzado){
+    if(document.visibilityState !== 'visible') return
+    if(!document.getElementById('view-agenda').classList.contains('on')) return
+    if(hayAlgoAbierto()) return
+  }
+  refrescando = true
+  try{
+    const antes = state.appointments.length
+    const antesIds = new Set(state.appointments.map(a=>a.id))
+    await loadAppointments()
+    const nuevas = state.appointments.filter(a=>!antesIds.has(a.id))
+    ultimoRefresco = Date.now()
+    render()
+    if(nuevas.length && antes){
+      /* solo se avisa de lo que llegó solo, no de lo que uno acaba de crear */
+      const dedondeviene = nuevas.filter(a=>/sitio web|bot|whatsapp/i.test(a.notes||''))
+      if(dedondeviene.length)
+        toast(dedondeviene.length===1
+          ? 'Entró una reserva nueva: ' + (dedondeviene[0].client_name||'')
+          : 'Entraron ' + dedondeviene.length + ' reservas nuevas', 'success')
+    }
+  }catch(e){ console.warn('refresco:', e.message) }
+  finally{ refrescando = false; pintarUltimoRefresco() }
+}
+
+function pintarUltimoRefresco(){
+  const el = document.getElementById('refrescoTxt'); if(!el) return
+  const min = Math.floor((Date.now() - ultimoRefresco) / 60000)
+  el.textContent = min < 1 ? 'Actualizado recién'
+                 : min === 1 ? 'Actualizado hace 1 min'
+                 : 'Actualizado hace ' + min + ' min'
+}
+
+function iniciarRefresco(){
+  if(refrescoTimer) return
+  refrescoTimer = setInterval(refrescarAgenda, 30000)
+  setInterval(pintarUltimoRefresco, 20000)
+  /* al volver a la pestaña, refresca de inmediato: es cuando más falta hace */
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'visible') refrescarAgenda()
+  })
+  window.addEventListener('focus', ()=>refrescarAgenda())
+}
+
+async function loadAndRender(){ await loadAppointments(); ultimoRefresco=Date.now(); render(); pintarUltimoRefresco() }
 
 /* ══════════════════════════════════════════════════════════════
    REGLAS DEL SERVICIO AL AGENDAR
@@ -12318,6 +12391,7 @@ async function boot(){
   ajustarVistaMovil()
   render()
   if(isPro()) switchView('agenda')
+  iniciarRefresco()
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=0 }, 100)
 }
