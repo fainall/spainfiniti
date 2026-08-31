@@ -1197,6 +1197,12 @@ body.sin-scroll{overflow:hidden}
 .atajo-fecha{padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;
   font-size:.82rem;background:var(--white);align-self:end;margin-right:4px}
 @media(max-width:820px){ .atajo-fecha{width:100%;margin:0 0 8px} }
+
+/* el nombre del cliente, cuando lleva a su ficha */
+.link-cliente{background:none;border:none;padding:0;font:inherit;color:inherit;cursor:pointer;
+  text-align:left;border-bottom:1px solid var(--gold);line-height:1.2}
+.link-cliente:hover{color:var(--gold-d);border-bottom-color:var(--gold-d)}
+.qv-name .link-cliente{font-weight:700;font-size:1.05rem}
 </style>
 </head>
 <body>
@@ -3852,7 +3858,7 @@ function renderMisIngresos(){
   const proxHtml = prox.length
     ? `<table class="ctbl"><thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Estado</th></tr></thead>
        <tbody>${prox.map(a=>`<tr><td>${a.appt_date.slice(8)}/${a.appt_date.slice(5,7)}</td><td>${a.start_time.slice(0,5)}</td>
-         <td class="cname">${esc(a.client_name||'—')}</td><td>${esc(a.service_name||'—')}</td>
+         <td class="cname">${a.client_id?`<button class="link-cliente" onclick="abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'—')}</button>`:esc(a.client_name||'—')}</td><td>${esc(a.service_name||'—')}</td>
          <td><span class="badge" style="background:${STATUS_COLORS[a.status]||'#eee'};color:#fff">${STATUS_LABEL[a.status]||a.status}</span></td></tr>`).join('')}</tbody></table>`
     : '<p class="rem-note" style="margin:0">No tienes horas agendadas por delante en este período.</p>'
   const detalle = rows.length
@@ -5072,7 +5078,10 @@ function openApptQuickView(id){
       <button class="qv-icon" title="Editar" onclick="closeQuickView();openApptDetail('${id}')">✎ Editar</button>
       <button class="qv-icon" onclick="closeQuickView()">✕</button>
     </div>
-    <div class="qv-name">${esc(a.client_name||'Sin cliente')}
+    <div class="qv-name">${a.client_id
+        ? `<button class="link-cliente" title="Ver la ficha de ${esc(a.client_name||'')}"
+             onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'Sin cliente')}</button>`
+        : esc(a.client_name||'Sin cliente')}
       ${ORIGENES[origenDe(a)].icono ? `<span class="qv-org" title="${esc(ORIGENES[origenDe(a)].nombre)}">${ORIGENES[origenDe(a)].icono}</span>` : ''}</div>
     ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${a.price?` <span style="color:var(--gold-d);font-weight:600">${esc(a.price)}</span>`:''}${precioAjustado(a)?' <span class="re-ajustado">precio ajustado</span>':''}</div>`:''}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
@@ -5083,7 +5092,7 @@ function openApptQuickView(id){
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--texto)">${STATUS_LABEL[a.status]||''}</span></div>
     <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
       ${botonPagar(id)}
-      ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();switchView('clientes');openClientDetail('${a.client_id}')">Ficha</button>`:''}
+      ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">Ver ficha completa</button>`:''}
     </div>`
   document.body.appendChild(qv)
   const el=document.querySelector(`.appt[data-id="${id}"]`)
@@ -5876,7 +5885,9 @@ function reservaEditable(a){
       <div class="re-cli-top">
         <span class="re-ava">${esc((a.client_name||'?').split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase())}</span>
         <div class="re-cli-datos">
-          <strong>${esc(a.client_name||'Sin cliente')}</strong>
+          <strong>${a.client_id
+            ? `<button class="link-cliente" title="Ver su historial" onclick="closeModal('apptDetailModal');abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'')}</button>`
+            : esc(a.client_name||'Sin cliente')}</strong>
           <span>${email?`✉ ${esc(email)}`:''}${email&&fono?'  |  ':''}${fono?`📱 ${esc(fono)}`:''}</span>
         </div>
         <div class="re-cli-acc">
@@ -5886,7 +5897,7 @@ function reservaEditable(a){
               <div class="wa-sep"></div>
               <a class="wa-directo" href="https://wa.me/${wa}" target="_blank" rel="noopener" onclick="cerrarWaMenus()">💬 Abrir WhatsApp</a>
             </div></div>`:''}
-          ${a.client_id?`<button class="re-ico" title="Editar cliente" onclick="closeModal('apptDetailModal');openClientModal(true,'${a.client_id}')">✎</button>`:''}
+          ${a.client_id?`<button class="re-ico" title="Editar sus datos" onclick="closeModal('apptDetailModal');openClientModal(true,'${a.client_id}')">✎</button>`:''}
         </div>
       </div>
       <button class="re-plegable" onclick="this.parentElement.classList.toggle('abierto')">
@@ -6514,6 +6525,14 @@ async function deleteClient(id, name){
   catch(e){ toast('Error al borrar','error') }
 }
 
+/* abre la ficha del cliente venga de donde venga: agenda, ventas o cobros */
+function abrirFichaCliente(id){
+  if(!id) return
+  const c = state.clients.find(x=>x.id===id)
+  if(!c){ toast('Ese cliente ya no está en la base','error'); return }
+  if(!document.getElementById('view-clientes').classList.contains('on')) switchView('clientes')
+  openClientDetail(id)
+}
 /* ══════════ FICHA DEL CLIENTE ══════════
    Todo lo que sabemos de una persona, repartido en pestañas:
    qué reservó, si asistió, cuánto pagó y qué bonos tiene. */
@@ -7033,7 +7052,7 @@ function renderClientList(){
     <thead><tr><th>Nombre</th><th>Apellido</th><th>Correo</th><th>Teléfono</th><th>RUT</th><th style="text-align:right">Opciones</th></tr></thead>
     <tbody>${slice.map(c=>{ const n=splitName(c.name)
       return `<tr>
-      <td class="cname">${esc(n.first)}</td>
+      <td class="cname"><button class="link-cliente" onclick="openClientDetail('${c.id}')">${esc(n.first)}</button></td>
       <td>${esc(n.last||'—')}</td>
       <td>${esc(c.email||'—')}</td>
       <td>${esc(c.phone||'—')}</td>
@@ -7263,7 +7282,7 @@ async function renderReportes(){
   const today=cur.filter(a=>a.appt_date===hoy && a.status!=='block').sort((a,b)=>a.start_time.localeCompare(b.start_time))
   document.getElementById('rsToday').innerHTML=today.length?`<table class="ctbl">
     <thead><tr><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Profesional</th><th>Estado</th></tr></thead>
-    <tbody>${today.map(a=>`<tr><td>${a.start_time.slice(0,5)}</td><td class="cname">${esc(a.client_name||'—')}</td>
+    <tbody>${today.map(a=>`<tr><td>${a.start_time.slice(0,5)}</td><td class="cname">${a.client_id?`<button class="link-cliente" onclick="abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'—')}</button>`:esc(a.client_name||'—')}</td>
       <td>${esc(a.service_name||'—')}</td><td>${esc((state.professionals.find(p=>p.id===a.professional_id)||{}).name||'—')}</td>
       <td><span class="badge" style="background:${STATUS_COLORS[a.status]||'#eee'};color:#fff">${STATUS_LABEL[a.status]||a.status}</span></td></tr>`).join('')}</tbody></table>`
     : '<div class="empty-state" style="padding:20px 0">No hay reservas para hoy.</div>'
@@ -8459,7 +8478,7 @@ function renderCobros(){
         : '<span class="cb-tag pend">Enviado</span>'
       return `<tr>
         <td>${d.toLocaleDateString('es-CL')}</td>
-        <td>${esc(c.client_name||'—')}</td>
+        <td>${c.client_id?`<button class="link-cliente" onclick="abrirFichaCliente('${c.client_id}')">${esc(c.client_name||'—')}</button>`:esc(c.client_name||'—')}</td>
         <td>${esc(c.service_name||'—')}</td>
         <td>${fmtMoney(c.amount||0)}</td>
         <td>${esc(c.channel||'—')}</td>
@@ -8479,7 +8498,7 @@ function renderCobros(){
     const [y,m,d] = a.appt_date.split('-')
     return `<tr>
       <td>${d}/${m}/${y} · ${a.start_time.slice(0,5)}</td>
-      <td>${esc(a.client_name||'—')}</td>
+      <td>${a.client_id?`<button class="link-cliente" onclick="abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'—')}</button>`:esc(a.client_name||'—')}</td>
       <td>${esc(a.service_name||'—')}</td>
       <td>${esc(profName(a.professional_id))}</td>
       <td><strong>${esc(a.price||'')}</strong></td>
@@ -10304,7 +10323,7 @@ function rrHistorial(cur){
       <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Estado de la reserva</th><th>Estado de pago</th><th>Origen</th></tr></thead>
       <tbody>${slice.map(a=>{ const [y,m,d]=a.appt_date.split('-')
         return `<tr><td>${d}/${m}/${y} · ${a.start_time.slice(0,5)}</td>
-        <td class="cname">${esc(a.client_name||'—')}</td><td>${esc(a.service_name||'—')}</td>
+        <td class="cname">${a.client_id?`<button class="link-cliente" onclick="abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'—')}</button>`:esc(a.client_name||'—')}</td><td>${esc(a.service_name||'—')}</td>
         <td><span class="badge" style="background:${STATUS_COLORS[a.status]||'#eee'};color:#fff">${STATUS_LABEL[a.status]||a.status}</span></td>
         <td>${pagado(a)}</td>
         <td>${/asistente de whatsapp/i.test(a.notes||'')?'Asistente WhatsApp':'Panel / mostrador'}</td></tr>`}).join('')}</tbody>
@@ -12020,7 +12039,7 @@ function renderRecordatorios(){
       return `<tr>
         <td>${d}/${m}</td>
         <td>${a.start_time.slice(0,5)}</td>
-        <td class="cname">${esc(a.client_name||'—')}${a.client_phone?`<div style="font-size:.7rem;color:var(--light)">${esc(a.client_phone)}</div>`:''}</td>
+        <td class="cname">${a.client_id?`<button class="link-cliente" onclick="abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'—')}</button>`:esc(a.client_name||'—')}${a.client_phone?`<div style="font-size:.7rem;color:var(--light)">${esc(a.client_phone)}</div>`:''}</td>
         <td>${esc(a.service_name||'—')}</td>
         <td>${a.reminded_at
           ? '<span class="badge paid">Enviado'+(a.reminded_channel==='whatsapp'?' · WhatsApp':a.reminded_channel==='email'?' · Email':'')+'</span>'
