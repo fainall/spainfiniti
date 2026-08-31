@@ -1226,6 +1226,10 @@ body.sin-scroll{overflow:hidden}
 .ff-quitar{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;
   background:var(--red);color:#fff;font-size:.7rem;line-height:1;cursor:pointer}
 .ff-subiendo{font-size:.76rem;color:var(--mid)}
+
+/* línea de la hora actual, cruzando el día de hoy */
+.now-line{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:4;pointer-events:none}
+.now-line.primera::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
 </style>
 </head>
 <body>
@@ -4073,7 +4077,9 @@ function render(){
   renderSidebar(); renderMiniCal(); renderRangeLabel(); renderCalendar()
   requestAnimationFrame(ajustarAlturaAgenda)
   requestAnimationFrame(ajustarReservasAngostas)
-  requestAnimationFrame(pintarHoraActual)
+  /* con setTimeout y no requestAnimationFrame: los frames se pausan cuando
+     la ventana no está a la vista, y la línea quedaba sin dibujar al volver */
+  setTimeout(pintarHoraActual, 30)
   if(typeof bloquearSiSoloLectura==='function') setTimeout(bloquearSiSoloLectura, 30)
   if(document.getElementById('view-cobros') && document.getElementById('view-cobros').classList.contains('on')) renderCobros()
 }
@@ -4099,7 +4105,7 @@ addEventListener('resize', () => requestAnimationFrame(ajustarReservasAngostas))
    entre lo que ya pasó y lo que viene. Se recoloca sola cada minuto. */
 let _rejaAhora = null
 function pintarHoraActual(){
-  document.querySelectorAll('.now-tag').forEach(l => l.remove())
+  document.querySelectorAll('.now-tag, .now-line').forEach(l => l.remove())
   const r = _rejaAhora
   if(!r) return
   const ahora = new Date()
@@ -4107,9 +4113,19 @@ function pintarHoraActual(){
   if(min < r.minM || min > r.maxM) return          // fuera del horario mostrado
   const hoy = isoDate(ahora)
   const top = (min - r.minM) / r.paso * r.SP
-  /* solo la hora destacada al margen: la línea cruzando la agenda estorba */
+  const columnas = document.querySelectorAll('.dcol[data-date="' + hoy + '"]')
+  if(!columnas.length) return
+  /* la línea cruza todas las columnas del día de hoy: en la vista Día son
+     las de cada profesional, así que se ve como una sola línea continua */
+  columnas.forEach((col, i) => {
+    const l = document.createElement('div')
+    l.className = 'now-line' + (i === 0 ? ' primera' : '')
+    l.style.top = top + 'px'
+    col.appendChild(l)
+  })
+  /* y la hora, destacada al margen */
   const gut = document.querySelector('#calGrid .gutter')
-  if(gut && document.querySelector('.dcol[data-date="' + hoy + '"]')){
+  if(gut){
     const e = document.createElement('div')
     e.className = 'now-tag'
     e.style.top = top + 'px'
