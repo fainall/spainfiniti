@@ -13,8 +13,9 @@
   --navy:       #1A2436;
   --navy-2:     #2C3E50;
   --dark:       #1A2436;
-  --mid:        #6A6D73;
-  --light:      #999999;
+  --texto:      #000000;
+  --mid:        #23272C;
+  --light:      #43484F;
   --border:     rgba(0,0,0,0.06);
   --white:      #FFFFFF;
   --sh-sm:      0 4px 16px rgba(0,0,0,0.04);
@@ -27,7 +28,7 @@
 /* RESET */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; font-size: 16px; -webkit-font-smoothing: antialiased; }
-body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--dark); overflow-x: hidden; }
+body { font-family: 'Montserrat', sans-serif; background: var(--cream); color: var(--texto); overflow-x: hidden; }
 a { text-decoration: none; color: inherit; }
 ul { list-style: none; }
 img { max-width: 100%; display: block; }
@@ -155,7 +156,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .nav-links a {
   font-size: 0.68rem; font-weight: 500;
   letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--dark);
+  color: var(--texto);
   transition: color var(--tr);
   position: relative;
 }
@@ -262,7 +263,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .nav-dd-cat-link svg { color: var(--light); transition: color 0.2s; }
 .nav-dd-cat:hover > .nav-dd-cat-link {
   background: var(--cream);
-  color: var(--dark);
+  color: var(--texto);
 }
 .nav-dd-cat:hover > .nav-dd-cat-link svg { color: var(--gold); }
 .nav-dd-cat-name { flex: 1; }
@@ -317,7 +318,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   font-family: 'Montserrat', sans-serif;
   font-size: 0.68rem;
   font-weight: 500;
-  color: var(--dark);
+  color: var(--texto);
   line-height: 1.4;
 }
 .nav-dd-svc-price {
@@ -340,7 +341,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   color: var(--gold-d);
   transition: color 0.2s;
 }
-.nav-dd-svc-all:hover { color: var(--dark); }
+.nav-dd-svc-all:hover { color: var(--texto); }
 
 /* footer link */
 .nav-dd-footer {
@@ -355,7 +356,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   color: var(--gold-d);
   transition: color 0.2s;
 }
-.nav-dd-footer:hover { color: var(--dark); }
+.nav-dd-footer:hover { color: var(--texto); }
 
 /* scrollbar for flyout */
 .nav-dd-svcs::-webkit-scrollbar { width: 4px; }
@@ -389,7 +390,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 /* Main panel links */
 .mob-link {
   font-size: 2rem; font-family: 'Cormorant Garamond', serif;
-  font-weight: 500; color: var(--dark);
+  font-weight: 500; color: var(--texto);
   transition: color var(--tr);
   text-decoration: none;
 }
@@ -413,7 +414,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .mob-panel-title {
   font-family: 'Playfair Display', serif;
   font-size: 1.6rem; font-weight: 700;
-  color: var(--dark); margin-bottom: 4px;
+  color: var(--texto); margin-bottom: 4px;
 }
 
 /* Panel list (scrollable) */
@@ -430,7 +431,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   border-bottom: 1px solid var(--border);
   font-family: 'Montserrat', sans-serif;
   font-size: 0.88rem; font-weight: 500;
-  color: var(--dark); text-decoration: none;
+  color: var(--texto); text-decoration: none;
   transition: color 0.3s;
 }
 .mob-cat-item:hover { color: var(--gold); }
@@ -466,7 +467,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .mob-svc-name {
   font-family: 'Montserrat', sans-serif;
   font-size: 0.82rem; font-weight: 500;
-  color: var(--dark);
+  color: var(--texto);
 }
 .mob-svc-dur {
   font-family: 'Montserrat', sans-serif;
@@ -545,7 +546,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   font-family: 'Montserrat', sans-serif;
   font-size: 0.78rem;
   font-weight: 500;
-  color: var(--dark);
+  color: var(--texto);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -800,7 +801,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .svc-card-body h3 {
   font-size: 1.2rem; font-weight: 700;
   line-height: 1.3; margin-bottom: 12px;
-  color: var(--dark);
+  color: var(--texto);
 }
 .svc-card-body p {
   font-size: 0.78rem; line-height: 1.72;
@@ -880,7 +881,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .svc-detail-price-row .dur-value {
   font-family: 'Cormorant Garamond', serif;
   font-size: 1.6rem; font-weight: 500;
-  color: var(--dark); line-height: 1;
+  color: var(--texto); line-height: 1;
 }
 .svc-includes {
   margin-bottom: 40px;
@@ -1276,7 +1277,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   font-family: 'Playfair Display', serif;
   font-size: 2.2rem;
   font-weight: 700;
-  color: var(--dark);
+  color: var(--texto);
   line-height: 1.15;
   margin-bottom: 12px;
 }
@@ -1302,7 +1303,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   color: var(--light);
   font-weight: 500;
 }
-.card-meta-value { font-size: 0.95rem; font-weight: 600; color: var(--dark); }
+.card-meta-value { font-size: 0.95rem; font-weight: 600; color: var(--texto); }
 .card-meta-value.gold { color: var(--gold); }
 
 /* ── PARALLELOGRAM BUTTON (global) ──────────────────── */
@@ -1534,7 +1535,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 }
 .promo-popup-text {
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.92rem; color: var(--dark);
+  font-size: 0.92rem; color: var(--texto);
   line-height: 1.7; margin-bottom: 20px;
 }
 .promo-popup-btn {
@@ -1585,7 +1586,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .seo-dir-title {
   font-family: 'Playfair Display', serif;
   font-size: clamp(1.8rem, 4vw, 2.6rem);
-  font-weight: 700; color: var(--dark);
+  font-weight: 700; color: var(--texto);
   margin: 0 0 18px; line-height: 1.2; letter-spacing: -0.01em;
 }
 .seo-dir-title em { font-style: italic; font-weight: 400; color: var(--gold); }
@@ -1628,7 +1629,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .seo-dir-cat-name {
   font-family: 'Playfair Display', serif;
   font-size: 1.2rem; font-weight: 700;
-  color: var(--dark); letter-spacing: -0.01em;
+  color: var(--texto); letter-spacing: -0.01em;
 }
 .seo-dir-cat-meta {
   font-family: 'Montserrat', sans-serif;
