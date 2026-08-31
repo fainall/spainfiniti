@@ -620,7 +620,7 @@ label.chk input{width:auto;margin:0}
 .btn-newclient:hover{background:var(--gold);color:#fff}
 
 /* toast */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:#fff;padding:12px 22px;border-radius:10px;font-size:.82rem;opacity:0;transition:.3s;z-index:1100;pointer-events:none}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:#fff;padding:12px 22px;border-radius:10px;font-size:.82rem;opacity:0;transition:.3s;z-index:2000;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.success{background:var(--green)} .toast.error{background:var(--red)}
 
@@ -12693,8 +12693,22 @@ async function deleteProf(id,name){
 
 /* ── UTIL ── */
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
-function openModal(id){ document.getElementById(id).classList.add('open') }
-function closeModal(id){ document.getElementById(id).classList.remove('open') }
+let _zModal = 900
+function openModal(id){
+  const el = document.getElementById(id); if(!el) return
+  /* cada modal que se abre queda por encima del anterior: un contador que
+     solo sube evita empates, que dejaban al de abajo tapando al de arriba */
+  _zModal += 10
+  el.style.zIndex = _zModal
+  el.classList.add('open')
+}
+function closeModal(id){
+  const el = document.getElementById(id); if(!el) return
+  el.classList.remove('open')
+  el.style.zIndex = ''
+  /* si no queda ninguno abierto, el contador vuelve al principio */
+  if(!document.querySelector('.modal-ov.open')) _zModal = 900
+}
 document.querySelectorAll('.modal-ov').forEach(ov=>ov.addEventListener('click',e=>{
   if(e.target!==ov) return
   if(ov.id==='cfModal'){ confirmarResponder(false); return }   // cerrar por fuera = cancelar
