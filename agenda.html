@@ -6786,7 +6786,9 @@ async function openClientDetail(id){
   renderClientDetail()
   openModal('clientDetailModal')
   /* las fichas y consentimientos se traen aparte, para que el modal abra al tiro */
-  if(!plantillas.length) await cargarPlantillas()
+  /* estas tablas exigen sesión: se renueva antes de pedirlas */
+  if(typeof sesionLista === 'function') await sesionLista()
+  if(!plantillas.length || errorPlantillas) await cargarPlantillas()
   if(!consentimientos.length) await cargarConsentimientos()
   await cargarFichasDe(id)
   await cargarFirmasDe(id)
@@ -8222,12 +8224,30 @@ let profMeta={}, profGroups=[], admProfTab='profesionales'
    Son datos de salud: solo se leen y escriben con sesión iniciada. */
 let plantillas = [], plantillaEdit = null
 
+let errorPlantillas = null   // motivo del último fallo al cargarlas
 async function cargarPlantillas(){
-  try{ plantillas = await supabase.fetch('record_templates',{order:'sort_order.asc'}) || [] }
-  catch(e){ console.warn('fichas:', e.message); plantillas = [] }
+  try{
+    plantillas = await supabase.fetch('record_templates',{order:'sort_order.asc'}) || []
+    errorPlantillas = null
+  }catch(e){
+    console.warn('fichas:', e.message)
+    plantillas = []
+    /* el motivo más habitual es la sesión caducada: estas tablas la exigen */
+    errorPlantillas = /401|403|JWT|row-level|permission/i.test(String(e.message))
+      ? 'sesion' : 'red'
+  }
+}
+async function reintentarPlantillas(){
+  if(typeof sesionLista === 'function') await sesionLista()
+  await cargarPlantillas()
+  renderClientDetail()
+  if(errorPlantillas) toast('Sigue sin poder cargarlas. Cierra sesión y vuelve a entrar.','error')
 }
 
 function admFichas(){
+  if(errorPlantillas) return `<div class="inv-notice aviso">⚠ <strong>No se pudieron cargar las fichas.</strong>
+    ${errorPlantillas === 'sesion' ? 'Tu sesión caducó: cierra sesión y vuelve a entrar.' : 'Hubo un problema de conexión.'}
+    <button class="mini-link" onclick="cargarPlantillas().then(renderAdmin)">Reintentar</button></div>`
   const filas = plantillas.length ? plantillas.map(t=>{
     const nCampos = (t.sections||[]).reduce((a,sec)=>a+(sec.fields||[]).length,0)
     return `<div class="adm-row">
@@ -8789,6 +8809,15 @@ function cdFichas(){
     ? `<div class="cd-nuevas">${activas.map(t=>
         `<button class="btn-g" onclick="openFichaCliente('','${t.id}')">+ ${esc(t.name)}</button>`).join('')}
         <button class="mini-link" onclick="nuevaFichaDesdeCliente()">⚙ Crear otro tipo de ficha</button></div>`
+    : errorPlantillas
+    ? `<div class="empty-state" style="padding:22px">
+        <div style="font-size:2rem;margin-bottom:6px">⚠</div>
+        No se pudieron cargar las fichas.
+        <div style="font-size:.8rem;color:var(--light);margin:6px 0 12px">${errorPlantillas === 'sesion'
+          ? 'Tu sesión caducó: las fichas médicas solo se leen con la sesión abierta.'
+          : 'Hubo un problema de conexión con el servidor.'}</div>
+        <button class="btn-primary" onclick="reintentarPlantillas()">Reintentar</button>
+      </div>`
     : `<div class="empty-state" style="padding:22px">
         <div style="font-size:2rem;margin-bottom:6px">🩺</div>
         Todavía no hay ningún tipo de ficha creado.
