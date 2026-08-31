@@ -1322,6 +1322,14 @@ body.sin-scroll{overflow:hidden}
 .op-borrar{color:var(--red)}
 #opLista{max-height:320px;overflow-y:auto}
 @media(max-width:820px){ .op-nueva{flex-direction:column} .op-nueva .btn-primary{width:100%} }
+
+/* fecha y hora de la ficha */
+.ff-fecha{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;
+  background:var(--cream);border-radius:10px}
+.ff-fecha label{font-size:.78rem;font-weight:600;color:var(--mid);white-space:nowrap}
+.ff-fecha input{flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 10px;
+  font-family:inherit;font-size:.85rem;background:var(--white)}
+@media(max-width:820px){ .ff-fecha{flex-direction:column;align-items:stretch;gap:6px} }
 </style>
 </head>
 <body>
@@ -2230,6 +2238,10 @@ body.sin-scroll{overflow:hidden}
     <div class="modal" style="width:720px;max-width:94vw">
       <h2 id="ffTitle" style="margin-bottom:2px">Ficha</h2>
       <span class="cd-since" id="ffSub"></span>
+      <div class="ff-fecha">
+        <label for="ffFecha">Fecha y hora</label>
+        <input type="datetime-local" id="ffFecha" />
+      </div>
       <div id="ffBody" style="margin-top:16px"></div>
       <div class="modal-actions">
         <button class="btn-danger" id="ffDelBtn" onclick="deleteFichaCliente()" style="display:none">Eliminar</button>
@@ -8431,7 +8443,7 @@ let fichasCliente = [], fichaEdit = null
 
 async function cargarFichasDe(clientId){
   try{ fichasCliente = await supabase.fetch('client_records',
-    { filters:'client_id=eq.' + clientId, order:'created_at.desc' }) || [] }
+    { filters:'client_id=eq.' + clientId, order:'record_date.desc' }) || [] }
   catch(e){ console.warn('fichas cliente:', e.message); fichasCliente = [] }
 }
 
@@ -8684,6 +8696,12 @@ function leerFicha(){
   return d
 }
 
+/* el campo datetime-local espera 'AAAA-MM-DDTHH:MM' en hora local */
+function paraCampoFechaHora(d){
+  const p2 = n => String(n).padStart(2,'0')
+  return d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) +
+         'T' + p2(d.getHours()) + ':' + p2(d.getMinutes())
+}
 function openFichaCliente(recordId, templateId){
   const tpl = plantillas.find(t=>t.id===templateId) ||
               plantillas.find(t=>t.id===(fichasCliente.find(r=>r.id===recordId)||{}).template_id)
@@ -8693,11 +8711,14 @@ function openFichaCliente(recordId, templateId){
   const nombre = (tpl && tpl.name) || (rec && rec.template_name) || 'Ficha'
   document.getElementById('ffTitle').textContent = nombre
   document.getElementById('ffSub').textContent = rec
-    ? 'Completada el ' + new Date(rec.created_at).toLocaleDateString('es-CL') : 'Nueva ficha de ' + (cdCliente?cdCliente.name:'')
+    ? 'Ficha de ' + (cdCliente?cdCliente.name:'') : 'Nueva ficha de ' + (cdCliente?cdCliente.name:'')
   document.getElementById('ffBody').innerHTML = tpl
     ? formularioFicha(tpl, rec ? rec.data : {}, false)
     : '<p class="rem-note">La plantilla de esta ficha ya no existe. Solo se puede consultar lo guardado.</p>' +
       formularioFicha({sections:[]}, rec?rec.data:{}, true)
+  /* fecha de la ficha: la guardada, o el momento actual si es nueva */
+  const f = new Date(rec ? (rec.record_date || rec.created_at) : Date.now())
+  document.getElementById('ffFecha').value = paraCampoFechaHora(f)
   document.getElementById('ffDelBtn').style.display = rec ? 'block' : 'none'
   openModal('ffModal')
 }
@@ -8717,11 +8738,14 @@ async function saveFichaCliente(){
         }
       }
   }
+  const cuando = document.getElementById('ffFecha').value
+  const record_date = cuando ? new Date(cuando).toISOString() : new Date().toISOString()
   const row = { client_id: cdCliente.id, template_id: tpl ? tpl.id : null,
-    template_name: tpl ? tpl.name : (fichaEdit.record||{}).template_name, data,
+    template_name: tpl ? tpl.name : (fichaEdit.record||{}).template_name, data, record_date,
     professional_id: isPro() ? myProfId() : null }
   try{
-    if(fichaEdit.id) await supabase.update('client_records', fichaEdit.id, { data, updated_at:new Date().toISOString() })
+    if(fichaEdit.id) await supabase.update('client_records', fichaEdit.id,
+      { data, record_date, updated_at:new Date().toISOString() })
     else await supabase.insert('client_records', row)
     await cargarFichasDe(cdCliente.id)
     closeModal('ffModal'); renderClientDetail(); toast('Ficha guardada','success')
@@ -8742,7 +8766,7 @@ async function deleteFichaCliente(){
 function cdFichas(){
   const activas = plantillas.filter(t=>t.active!==false)
   const lista = fichasCliente.length ? fichasCliente.map(r=>{
-    const f = new Date(r.created_at)
+    const f = new Date(r.record_date || r.created_at)
     return `<div class="adm-row">
       <span class="ar-name">${esc(r.template_name||'Ficha')}</span>
       <span class="ar-meta">${f.toLocaleDateString('es-CL')} · ${f.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</span>
