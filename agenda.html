@@ -11837,19 +11837,42 @@ function exportPropinas(){
   downloadCSV('propinas.csv', ['Profesional','Ventas con propina','Total propinas'], rows)
 }
 function exportComisiones(){
-  const list=commSales()
-  const byProf={}
-  list.forEach(s=>{ if(!s.professional_id) return
-    byProf[s.professional_id]=byProf[s.professional_id]||{sales:0,tips:0}
-    byProf[s.professional_id].sales+=Number(s.total||0)
-    byProf[s.professional_id].tips+=Number(s.tip||0) })
-  const psel=document.getElementById('commProf')
-  const profList=psel&&psel.value?state.professionals.filter(p=>p.id===psel.value):state.professionals
-  const rows=profList.map(p=>{ const d=byProf[p.id]||{sales:0,tips:0,comm:0}
-    const pct = d.sales ? Math.round(d.comm/d.sales*100) : commDefaultOf(p.id)
-    return [p.name, d.sales, pct, d.comm, d.tips] })
+  const list = commSales()
+  const [desde, hasta] = commRange()
+
+  /* mismo cálculo que la tabla: si no, el archivo dice una cosa y la pantalla otra */
+  const byProf = {}
+  list.forEach(s => {
+    if(!s.professional_id) return
+    byProf[s.professional_id] = byProf[s.professional_id] || { sales:0, tips:0, comm:0 }
+    byProf[s.professional_id].sales += Number(s.total||0)
+    byProf[s.professional_id].tips  += Number(s.tip||0)
+    byProf[s.professional_id].comm  += comisionDeVenta(s).comm
+  })
+
+  const psel = document.getElementById('commProf')
+  const profList = psel && psel.value ? state.professionals.filter(p=>p.id===psel.value) : state.professionals
+
+  const rows = []
+  let tSales=0, tComm=0, tTips=0
+  profList.forEach(p => {
+    const d = byProf[p.id] || { sales:0, tips:0, comm:0 }
+    const pct = d.sales ? Math.round(d.comm / d.sales * 100) : commDefaultOf(p.id)
+    rows.push([p.name, d.sales, pct + '%', d.comm, d.tips, '', '', ''])
+    tSales += d.sales; tComm += d.comm; tTips += d.tips
+    /* debajo de cada profesional, en qué servicios ganó esa comisión */
+    detalleComision(p.id, list).forEach(x => {
+      rows.push(['', '', '', '', '', x.name, x.veces, x.monto, x.pct + '%', x.comm])
+    })
+  })
   if(!rows.length){ toast('No hay datos para exportar','error'); return }
-  downloadCSV('comisiones.csv', ['Profesional o Staff','Ventas totales','% Comisión','Monto comisión','Propinas'], rows)
+  rows.push(['TOTAL', tSales, '', tComm, tTips, '', '', ''])
+
+  const nombre = 'comisiones-' + (desde||'') + '-a-' + (hasta||'') + '.csv'
+  downloadCSV(nombre,
+    ['Profesional o Staff','Ventas totales','% Comisión','Monto comisión','Propinas',
+     'Servicio','Veces','Vendido','% del servicio','Comisión del servicio'],
+    rows)
 }
 
 /* ── PLANES / BONOS ── */
