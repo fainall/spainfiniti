@@ -1594,7 +1594,10 @@ body.sin-scroll{overflow:hidden}
         </div>
         <div class="sales-filters">
           <select id="salesPeriod" onchange="renderSales()">
+            <option value="hoy">Período Hoy</option>
+            <option value="ayer">Período Ayer</option>
             <option value="7">Período Últimos 7 días</option>
+            <option value="15">Período Últimos 15 días</option>
             <option value="30">Período Últimos 30 días</option>
             <option value="all">Período Todo</option>
           </select>
@@ -1651,7 +1654,10 @@ body.sin-scroll{overflow:hidden}
         </div>
         <div class="sales-filters">
           <select id="txPeriod" onchange="txPage=1;renderTransacciones()">
+            <option value="hoy">Período Hoy</option>
+            <option value="ayer">Período Ayer</option>
             <option value="7">Período Últimos 7 días</option>
+            <option value="15">Período Últimos 15 días</option>
             <option value="30">Período Últimos 30 días</option>
             <option value="all">Período Todo</option>
           </select>
@@ -1693,6 +1699,9 @@ body.sin-scroll{overflow:hidden}
       <div class="sales-panel">
         <div class="sales-filters">
           <select id="gcPeriod" onchange="gcPage=1;renderGiftCards()">
+            <option value="hoy">Período Hoy</option>
+            <option value="ayer">Período Ayer</option>
+            <option value="7">Período Últimos 7 días</option>
             <option value="30">Período Últimos 30 días</option>
             <option value="90">Período Últimos 90 días</option>
             <option value="all" selected>Período Todo</option>
@@ -1811,7 +1820,7 @@ body.sin-scroll{overflow:hidden}
         <div><h2>Propinas</h2><span class="view-sub">Propinas por profesional.</span></div>
         <div style="display:flex;gap:10px;align-items:center">
           <select id="propPeriod" onchange="renderPropinas()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px">
-            <option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="all">Todo</option>
+            <option value="hoy">Hoy</option><option value="ayer">Ayer</option><option value="7">Últimos 7 días</option><option value="15">Últimos 15 días</option><option value="30">Últimos 30 días</option><option value="all">Todo</option>
           </select>
           <button class="btn-g" onclick="exportPropinas()">⬇ Exportar</button>
         </div>
@@ -2905,7 +2914,10 @@ body.sin-scroll{overflow:hidden}
       </div>
       <div class="rr-filters" style="border-radius:12px">
         <div><label>Período</label><select id="rvPeriod" onchange="renderRepVentas()">
+          <option value="hoy">Hoy</option>
+          <option value="ayer">Ayer</option>
           <option value="7">Últimos 7 días</option>
+          <option value="15">Últimos 15 días</option>
           <option value="28" selected>Últimas 4 semanas</option>
           <option value="month">Este mes</option>
           <option value="prevmonth">Mes pasado</option>
@@ -2952,7 +2964,10 @@ body.sin-scroll{overflow:hidden}
       </div>
       <div class="rr-filters">
         <div><label>Periodo</label><select id="rrPeriod" onchange="renderRepReservas()">
+          <option value="hoy">Hoy</option>
+          <option value="ayer">Ayer</option>
           <option value="7">Últimos 7 días</option>
+          <option value="15">Últimos 15 días</option>
           <option value="30" selected>Últimos 30 días</option>
           <option value="month">Este mes</option>
           <option value="prevmonth">Mes pasado</option>
@@ -10034,6 +10049,8 @@ function rvRange(){
   const t=new Date(); t.setHours(0,0,0,0)
   if(v==='month') return [new Date(t.getFullYear(),t.getMonth(),1), new Date(t.getFullYear(),t.getMonth()+1,0)]
   if(v==='prevmonth') return [new Date(t.getFullYear(),t.getMonth()-1,1), new Date(t.getFullYear(),t.getMonth(),0)]
+  if(v==='hoy') return [t, t]
+  if(v==='ayer'){ const a=addDays(t,-1); return [a, a] }
   return [addDays(t,-(parseInt(v)-1)), t]
 }
 /* clasifica cada ítem de una venta: producto, bono, gift card o servicio */
@@ -10155,6 +10172,8 @@ function rrRange(){
   const t=new Date(); t.setHours(0,0,0,0)
   if(v==='month') return [new Date(t.getFullYear(),t.getMonth(),1), new Date(t.getFullYear(),t.getMonth()+1,0)]
   if(v==='prevmonth') return [new Date(t.getFullYear(),t.getMonth()-1,1), new Date(t.getFullYear(),t.getMonth(),0)]
+  if(v==='hoy') return [t, t]
+  if(v==='ayer'){ const a=addDays(t,-1); return [a, a] }
   return [addDays(t,-(parseInt(v)-1)), t]
 }
 function fmtShort(d){ return `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}` }
@@ -10449,7 +10468,7 @@ function txFiltered(){
   const st=document.getElementById('txStatus').value
   const today=new Date(); today.setHours(0,0,0,0)
   let list=state.sales.filter(s=>s.status!=='deleted')
-  if(period!=='all'){ const lim=new Date(today); lim.setDate(lim.getDate()-parseInt(period)); list=list.filter(s=>new Date(s.sale_date+'T00:00:00')>=lim) }
+  list=list.filter(s=>enPeriodo(s.sale_date, period))
   if(prof) list=list.filter(s=>s.professional_id===prof)
   if(pay) list=list.filter(s=>s.payment_method===pay)
   if(st) list=list.filter(s=>s.status===st)
@@ -10807,10 +10826,28 @@ function fillSaleProf(){
     state.professionals.filter(p=>p.active!==false).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
 }
 /* filtra ventas no eliminadas por período (días o 'all') */
+/* traduce el filtro de período a un par de fechas (ambas incluidas).
+   Devuelve null cuando es "todo", que no filtra nada. */
+function rangoDePeriodo(v){
+  const hoy = new Date(); hoy.setHours(0,0,0,0)
+  if(v === 'all' || !v) return null
+  if(v === 'hoy')  return [isoDate(hoy), isoDate(hoy)]
+  if(v === 'ayer'){ const a = addDays(hoy,-1); return [isoDate(a), isoDate(a)] }
+  if(v === 'month')     return [isoDate(new Date(hoy.getFullYear(),hoy.getMonth(),1)), isoDate(hoy)]
+  if(v === 'prevmonth') return [isoDate(new Date(hoy.getFullYear(),hoy.getMonth()-1,1)),
+                                isoDate(new Date(hoy.getFullYear(),hoy.getMonth(),0))]
+  const dias = parseInt(v) || 7
+  return [isoDate(addDays(hoy, -(dias-1))), isoDate(hoy)]
+}
+/* ¿esa fecha cae dentro del período elegido? */
+function enPeriodo(fecha, v){
+  const r = rangoDePeriodo(v)
+  if(!r) return true
+  const f = String(fecha||'').slice(0,10)
+  return f >= r[0] && f <= r[1]
+}
 function salesInPeriod(days){
-  let list=state.sales.filter(s=>s.status!=='deleted')
-  if(days!=='all'){ const t=new Date(); t.setHours(0,0,0,0); const lim=new Date(t); lim.setDate(lim.getDate()-parseInt(days)); list=list.filter(s=>new Date(s.sale_date+'T00:00:00')>=lim) }
-  return list
+  return state.sales.filter(s => s.status!=='deleted' && enPeriodo(s.sale_date, days))
 }
 function profName(id){ const p=state.professionals.find(x=>x.id===id); return p?p.name:'Sin asignar' }
 
