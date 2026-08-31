@@ -1230,6 +1230,58 @@ body.sin-scroll{overflow:hidden}
 /* línea de la hora actual, cruzando el día de hoy */
 .now-line{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:4;pointer-events:none}
 .now-line.primera::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
+
+/* ── REPASO MÓVIL ── */
+@media(max-width:820px){
+  /* Las pestañas de la ficha del cliente son seis y no caben en una línea:
+     se reparten en varias en vez de salirse de la pantalla. */
+  .mtabs{flex-wrap:wrap;gap:2px;row-gap:0}
+  .mtabs button{padding:9px 11px;font-size:.78rem;flex:1 1 auto;white-space:nowrap}
+
+  /* Las tablas anchas se desplazan dentro de su caja, nunca empujan la página */
+  .cd-scroll{max-height:none}
+  .cd-tbl{min-width:420px}
+
+  /* La ficha del cliente ocupa casi toda la pantalla */
+  #clientDetailModal .modal{padding:18px 14px}
+  .cd-head{gap:10px}
+  .cd-ava{width:36px;height:36px;font-size:.9rem}
+  #cdName{font-size:1.05rem}
+
+  /* Fichas médicas: las miniaturas y el constructor, cómodos con el dedo */
+  .ff-mini img{width:76px;height:76px}
+  .ff-fotos .btn-g{width:100%}
+  .ft-sec-head{flex-wrap:wrap}
+  .ft-sec-head input{flex:1 1 100%;margin-bottom:6px}
+
+  /* Cobros: los tres botones de cada fila, uno debajo de otro y bien altos */
+  .cb-acciones{flex-direction:column;align-items:stretch}
+  .cb-acciones .mini-btn{width:100%;padding:9px 10px}
+
+  /* Catálogo de gift cards y perfiles: una columna */
+  .gc-grid{grid-template-columns:1fr 1fr}
+  .rol-cards{grid-template-columns:1fr}
+
+  /* Plantillas de mensajes: la burbuja y las variables */
+  .mt-vars .mini-btn{flex:1 1 auto}
+
+  /* Todo lo que se pulsa, con altura suficiente para el dedo */
+  .mini-btn,.btn-g,.icon-act{min-height:36px}
+  .modal-actions button{min-height:42px}
+}
+@media(max-width:430px){
+  .gc-grid{grid-template-columns:1fr}
+  .mtabs button{font-size:.74rem;padding:8px 9px}
+  .cd-nums{grid-template-columns:repeat(3,1fr)}
+}
+
+@media(max-width:820px){
+  /* columnas de la agenda en el teléfono: con tres profesionales caben a 106px
+     y no se lee nada, así que se fija un ancho cómodo y la agenda se desplaza
+     de lado. La cabecera va dentro del mismo contenedor, así que acompaña. */
+  #calGrid .dcol.pcol, .cal-head .dcol.pcol{min-width:150px;flex:0 0 150px}
+  .cal-head .dcol.pcol{min-width:150px}
+}
 </style>
 </head>
 <body>
@@ -8599,16 +8651,22 @@ function openFirma(consentId){
 
 function prepararFirma(){
   firmaCanvas = document.getElementById('fmCanvas'); if(!firmaCanvas) return
+  /* si el modal aún no tiene ancho medible, se reintenta en el siguiente ciclo */
   const caja = firmaCanvas.parentElement.getBoundingClientRect()
-  firmaCanvas.width = Math.max(280, caja.width - 4)
+  if(caja.width < 40){ setTimeout(prepararFirma, 80); return }
+  firmaCanvas.width = Math.max(260, Math.floor(caja.width) - 4)
   firmaCanvas.height = 150
   firmaCtx = firmaCanvas.getContext('2d')
   firmaCtx.lineWidth = 2; firmaCtx.lineCap = 'round'; firmaCtx.strokeStyle = '#1f2733'
   firmaVacia = true
+  /* el lienzo puede mostrarse a un tamaño distinto del que tiene por dentro:
+     sin esta proporción el trazo no seguiría al dedo */
   const punto = ev => {
     const r = firmaCanvas.getBoundingClientRect()
     const t = ev.touches ? ev.touches[0] : ev
-    return [t.clientX - r.left, t.clientY - r.top]
+    const fx = firmaCanvas.width / (r.width || 1)
+    const fy = firmaCanvas.height / (r.height || 1)
+    return [(t.clientX - r.left) * fx, (t.clientY - r.top) * fy]
   }
   const empezar = ev => { firmando = true; firmaVacia = false; firmaCtx.beginPath(); firmaCtx.moveTo(...punto(ev)); ev.preventDefault() }
   const trazar  = ev => { if(!firmando) return; firmaCtx.lineTo(...punto(ev)); firmaCtx.stroke(); ev.preventDefault() }
