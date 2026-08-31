@@ -1213,6 +1213,19 @@ body.sin-scroll{overflow:hidden}
 .inv-notice.aviso{background:#fdf4e7;border-color:#f0d9ae;color:#7a5a12}
 .ar-meta.falta{color:var(--red);font-weight:600}
 .ar-meta .falta{color:var(--red);font-weight:600}
+
+/* modales que se abren desde dentro de otro: siempre por encima */
+#ffModal,#fmModal,#clientModal{z-index:1000}
+#ffModal .modal,#fmModal .modal{box-shadow:0 26px 80px rgba(0,0,0,.4)}
+
+/* registro fotográfico dentro de una ficha */
+.ff-fotos{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.ff-miniaturas{display:flex;flex-wrap:wrap;gap:8px}
+.ff-mini{position:relative;display:inline-block}
+.ff-mini img{width:88px;height:88px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block}
+.ff-quitar{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;
+  background:var(--red);color:#fff;font-size:.7rem;line-height:1;cursor:pointer}
+.ff-subiendo{font-size:.76rem;color:var(--mid)}
 </style>
 </head>
 <body>
@@ -6611,7 +6624,7 @@ function abrirFichaCliente(id){
   if(!id) return
   const c = state.clients.find(x=>x.id===id)
   if(!c){ toast('Ese cliente ya no está en la base','error'); return }
-  if(!document.getElementById('view-clientes').classList.contains('on')) switchView('clientes')
+  /* la ficha es un modal: se abre encima de donde estés, sin sacarte de la agenda */
   openClientDetail(id)
 }
 /* ══════════ FICHA DEL CLIENTE ══════════
@@ -8088,7 +8101,7 @@ function admFichas(){
 /* tipos de pregunta que admite una ficha */
 const TIPOS_CAMPO = [['texto','Texto corto'],['parrafo','Texto largo'],['numero','Número'],
   ['fecha','Fecha'],['si_no','Sí / No'],['opcion','Elegir una opción'],['varias','Elegir varias'],
-  ['nota','Solo texto informativo']]
+  ['archivo','Foto o archivo'],['nota','Solo texto informativo']]
 
 function openPlantilla(id){
   const t = id ? plantillas.find(x=>x.id===id) : null
@@ -8227,8 +8240,15 @@ function formularioFicha(tpl, datos, soloLectura){
         const req = f.required ? ' <span style="color:var(--red)">*</span>' : ''
         let campo = ''
         if(soloLectura){
-          const txt = Array.isArray(v) ? v.join(', ') : (v===true?'Sí':v===false?'No':(v||'—'))
-          campo = `<div class="ff-valor">${esc(String(txt))}</div>`
+          if(f.type==='archivo'){
+            const urls = Array.isArray(v) ? v : (v ? [v] : [])
+            campo = urls.length
+              ? `<div class="ff-miniaturas">${urls.map(u=>`<span class="ff-mini"><a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" /></a></span>`).join('')}</div>`
+              : '<div class="ff-valor">Sin fotos</div>'
+          } else {
+            const txt = Array.isArray(v) ? v.join(', ') : (v===true?'Sí':v===false?'No':(v||'—'))
+            campo = `<div class="ff-valor">${esc(String(txt))}</div>`
+          }
         } else if(f.type==='parrafo') campo = `<textarea data-fk="${k}" rows="3">${esc(v||'')}</textarea>`
         else if(f.type==='numero') campo = `<input type="number" data-fk="${k}" value="${esc(v||'')}" />`
         else if(f.type==='fecha') campo = `<input type="date" data-fk="${k}" value="${esc(v||'')}" />`
@@ -8240,10 +8260,102 @@ function formularioFicha(tpl, datos, soloLectura){
         else if(f.type==='varias') campo = `<div class="ff-varias" data-fk="${k}">
             ${(f.options||[]).map(o=>`<label class="chk"><input type="checkbox" value="${esc(o)}"
               ${(Array.isArray(v)&&v.includes(o))?'checked':''} /> <span>${esc(o)}</span></label>`).join('')}</div>`
+        else if(f.type==='archivo'){
+          const urls = Array.isArray(v) ? v : (v ? [v] : [])
+          campo = `<div class="ff-fotos" data-fk="${k}" data-urls='${JSON.stringify(urls)}'>
+            <div class="ff-miniaturas">${urls.map((u,n)=>`<span class="ff-mini">
+              <a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" /></a>
+              <button class="ff-quitar" title="Quitar" onclick="quitarFotoFicha('${k}',${n})">✕</button></span>`).join('')}</div>
+            <button class="btn-g" onclick="document.getElementById('file-${k}').click()">📷 Agregar foto</button>
+            <input type="file" id="file-${k}" accept="image/*" multiple style="display:none" onchange="subirFotoFicha('${k}',this)" />
+            <span class="ff-subiendo" id="sub-${k}"></span>
+          </div>`
+        }
         else campo = `<input type="text" data-fk="${k}" value="${esc(v||'')}" />`
         return `<div class="ff-campo"><label>${esc(f.label||'')}${req}</label>${campo}</div>`
       }).join('')}
     </div>`).join('') || '<p class="rem-note">Esta ficha no tiene preguntas todavía.</p>'
+}
+
+/* ── fotos dentro de una ficha (registro fotográfico antes / después) ──
+   Se reducen en el navegador antes de subir: una foto de teléfono pesa
+   varios megas y no hace falta tanto para ver la evolución de un pie. */
+async function subirFotoFicha(clave, input){
+  const files = [...(input.files || [])]
+  if(!files.length) return
+  const caja = document.querySelector('.ff-fotos[data-fk="' + clave + '"]')
+  const aviso = document.getElementById('sub-' + clave)
+  if(!caja) return
+  const urls = JSON.parse(caja.dataset.urls || '[]')
+
+  for(let i = 0; i < files.length; i++){
+    const f = files[i]
+    if(!/^image\//.test(f.type)){ toast('Solo se pueden subir imágenes','error'); continue }
+    if(aviso) aviso.textContent = 'Subiendo ' + (i+1) + ' de ' + files.length + '…'
+    try{
+      const blob = await reducirImagen(f, 1400, 0.82)
+      const nombre = (cdCliente ? cdCliente.id : 'sin-cliente') + '/' + Date.now() + '-' + i + '.jpg'
+      const r = await fetch(SUPABASE_URL + '/storage/v1/object/fichas/' + nombre, {
+        method: 'POST',
+        headers: { Authorization: supaAuthHeader(), apikey: SUPABASE_ANON_KEY, 'Content-Type': 'image/jpeg' },
+        body: blob
+      })
+      if(!r.ok) throw new Error(await r.text())
+      urls.push(SUPABASE_URL + '/storage/v1/object/public/fichas/' + nombre)
+    }catch(e){
+      console.error(e)
+      /* el fallo más común es la sesión caída: conviene decirlo con claridad */
+      const msg = /row-level security|Unauthorized|401|403/i.test(String(e.message))
+        ? 'Tu sesión expiró. Vuelve a entrar y reintenta la foto.'
+        : 'No se pudo subir la foto: ' + String(e.message).slice(0,70)
+      toast(msg, 'error')
+    }
+  }
+
+  caja.dataset.urls = JSON.stringify(urls)
+  pintarFotosFicha(clave)
+  if(aviso) aviso.textContent = ''
+  input.value = ''
+}
+
+/* baja el tamaño y el peso sin que se note en pantalla */
+function reducirImagen(file, maxLado, calidad){
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader()
+    lector.onerror = () => reject(new Error('No se pudo leer el archivo'))
+    lector.onload = e => {
+      const img = new Image()
+      img.onerror = () => reject(new Error('El archivo no es una imagen válida'))
+      img.onload = () => {
+        const escala = Math.min(1, maxLado / Math.max(img.width, img.height))
+        const c = document.createElement('canvas')
+        c.width = Math.round(img.width * escala)
+        c.height = Math.round(img.height * escala)
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height)
+        c.toBlob(b => b ? resolve(b) : reject(new Error('No se pudo procesar')), 'image/jpeg', calidad)
+      }
+      img.src = e.target.result
+    }
+    lector.readAsDataURL(file)
+  })
+}
+
+function pintarFotosFicha(clave){
+  const caja = document.querySelector('.ff-fotos[data-fk="' + clave + '"]')
+  if(!caja) return
+  const urls = JSON.parse(caja.dataset.urls || '[]')
+  caja.querySelector('.ff-miniaturas').innerHTML = urls.map((u, n) =>
+    '<span class="ff-mini"><a href="' + esc(u) + '" target="_blank" rel="noopener"><img src="' + esc(u) + '" alt="" /></a>' +
+    '<button class="ff-quitar" title="Quitar" onclick="quitarFotoFicha(\'' + clave + '\',' + n + ')">✕</button></span>').join('')
+}
+
+function quitarFotoFicha(clave, indice){
+  const caja = document.querySelector('.ff-fotos[data-fk="' + clave + '"]')
+  if(!caja) return
+  const urls = JSON.parse(caja.dataset.urls || '[]')
+  urls.splice(indice, 1)
+  caja.dataset.urls = JSON.stringify(urls)
+  pintarFotosFicha(clave)
 }
 
 /* recoge lo escrito en el formulario */
@@ -8253,6 +8365,8 @@ function leerFicha(){
     const k = el.dataset.fk
     if(el.classList.contains('ff-varias')){
       d[k] = [...el.querySelectorAll('input:checked')].map(x=>x.value)
+    } else if(el.classList.contains('ff-fotos')){
+      try{ d[k] = JSON.parse(el.dataset.urls || '[]') }catch(e){ d[k] = [] }
     } else d[k] = el.value
   })
   return d
