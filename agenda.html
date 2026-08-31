@@ -1208,6 +1208,11 @@ body.sin-scroll{overflow:hidden}
 .refresco{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--light);white-space:nowrap}
 .refresco .icon-btn{font-size:.9rem;padding:3px 6px}
 @media(max-width:820px){ .refresco span{display:none} }
+
+/* avisos que piden atención */
+.inv-notice.aviso{background:#fdf4e7;border-color:#f0d9ae;color:#7a5a12}
+.ar-meta.falta{color:var(--red);font-weight:600}
+.ar-meta .falta{color:var(--red);font-weight:600}
 </style>
 </head>
 <body>
@@ -2447,8 +2452,9 @@ body.sin-scroll{overflow:hidden}
           <label>Color en la agenda</label>
           <div class="swatches" id="proSwatches"></div>
           <div class="row2" style="margin-top:14px">
-            <div><label>Comisión por defecto (%)</label><input type="number" id="proComm" min="0" max="100" value="0" />
-              <p class="rem-note" style="margin:4px 0 0">Se usa cuando el servicio no tiene una comisión propia. Las comisiones por servicio se definen en Administración → Comisiones.</p></div>
+            <div><label>Comisión por defecto (%)</label><input type="number" id="proComm" min="0" max="100" value="0" oninput="avisarComisionCero(this)" />
+              <p class="rem-note" style="margin:4px 0 0">Se usa cuando el servicio no tiene una comisión propia. Las comisiones por servicio se definen en Administración → Comisiones.</p>
+              <p class="rem-note" id="proCommNota" style="margin:4px 0 0"></p></div>
             <div><label>Estado</label><select id="proActive"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
           </div>
         </div>
@@ -3862,6 +3868,8 @@ function renderMisIngresos(){
   const tips=rows.reduce((a,r)=>a+r.tip,0)
   const comm=rows.reduce((a,r)=>a+r.comm,0)
   const kpi=(l,v,s)=>`<div class="rr-kpi"><h5>${l}</h5><div class="k-num">${v}</div><div class="k-sub">${s}</div></div>`
+  const avisoCero = (!comm && ventas) ? `<div class="inv-notice aviso">⚠ <strong>Tus ventas no tienen comisión asignada.</strong>
+    Aparecen ${fmtMoney(ventas)} facturados pero 0 de comisión: falta que el administrador configure tu porcentaje.</div>` : ''
   const hoy=isoDate(new Date())
   const prox=citas.filter(a=>a.appt_date>=hoy).sort((a,b)=>(a.appt_date+a.start_time).localeCompare(b.appt_date+b.start_time)).slice(0,10)
   const proxHtml = prox.length
@@ -3880,7 +3888,7 @@ function renderMisIngresos(){
        <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700;padding:12px 16px">Total</td>
          <td style="text-align:right;font-weight:700;padding:12px 16px">${fmtMoney(comm)}</td></tr></tfoot></table>`
     : '<div class="empty-state">Todavía no hay ventas registradas a tu nombre en este período.</div>'
-  el.innerHTML = `<div class="rr-kpis" style="grid-template-columns:repeat(4,1fr)">
+  el.innerHTML = avisoCero + `<div class="rr-kpis" style="grid-template-columns:repeat(4,1fr)">
       ${kpi('Citas en el período', citas.length, atendidas+' marcadas como asistidas')}
       ${kpi('Ventas generadas', fmtMoney(ventas), 'Lo facturado por tu trabajo')}
       ${kpi('Tu comisión', fmtMoney(comm-tips), 'Según el % de cada servicio')}
@@ -9402,7 +9410,9 @@ function admProfesionales(){
       <span class="ar-meta">${(p.work_start||'').slice(0,5)} – ${(p.work_end||'').slice(0,5)} · ${dn||'sin días'}</span>
       <span class="ar-meta">${(() => {
         const propias = Object.keys((commCfg.services||{})[p.id]||{}).length
-        return propias ? `Comisión ${propias} servicios · ${commDefaultOf(p.id)}% por defecto` : `Comisión ${commDefaultOf(p.id)}%`
+        const cero = !Number(commDefaultOf(p.id))
+        const txt = propias ? `Comisión ${propias} servicios · ${commDefaultOf(p.id)}% por defecto` : `Comisión ${commDefaultOf(p.id)}%`
+        return cero ? `<span class="falta" title="Sin porcentaje por defecto: las ventas sin detalle se pagan a cero">${txt} ⚠</span>` : txt
       })()}</span>
       <span class="adm-dot ${p.active===false?'off':''}">● ${p.active===false?'Inactivo':'Activo'}</span>
       <button class="mini-btn" onclick="openProModal('${p.id}')">✎ Editar</button></div>`}).join('')
@@ -9528,10 +9538,18 @@ function openProModal(id){
   document.getElementById('proSwatches').innerHTML=PRO_COLORS.map(c=>
     `<button class="swatch${c===color?' on':''}" style="background:${c}" data-color="${c}" onclick="document.querySelectorAll('#proSwatches .swatch').forEach(b=>b.classList.remove('on'));this.classList.add('on')"></button>`).join('')
   document.getElementById('proComm').value=(p&&p.commission_pct)||0
+  avisarComisionCero(document.getElementById('proComm'))
   document.getElementById('proActive').value=p&&p.active===false?'0':'1'
   document.getElementById('proDelBtn').style.display=p?'block':'none'
   proTab('basicos')
   openModal('proModal')
+}
+/* explica el 0% mientras se escribe, para que no pase inadvertido */
+function avisarComisionCero(inp){
+  const nota=document.getElementById('proCommNota'); if(!nota) return
+  const v=parseInt(inp.value)||0
+  nota.textContent = v ? '' : 'Con 0% no se le paga comisión, salvo lo que definas servicio por servicio en Administración → Comisiones.'
+  nota.style.color = v ? '' : 'var(--red)'
 }
 async function savePro(){
   const name=document.getElementById('proName').value.trim()
@@ -11220,6 +11238,20 @@ function renderPropinas(){
 
 /* ── COMISIONES ── */
 /* rango de fechas del reporte de comisiones (por defecto: últimos 7 días) */
+/* profesionales activos con 0% general: sus ventas sin detalle, o de un
+   servicio no configurado, se pagarían a cero sin avisar */
+function sinComisionConfigurada(){
+  return state.professionals.filter(p => p.active!==false && !Number(commDefaultOf(p.id)))
+}
+function avisoComisionFaltante(){
+  const faltan = sinComisionConfigurada()
+  if(!faltan.length) return ''
+  const nombres = faltan.map(p=>esc(p.name)).join(', ')
+  return `<div class="inv-notice aviso">⚠ <strong>${faltan.length===1?'Falta el porcentaje de comisión de':'Faltan los porcentajes de comisión de'} ${nombres}.</strong>
+    Mientras esté en 0%, sus ventas sin detalle o de servicios no configurados se pagan a cero.
+    Ponlo en <button class="mini-link" onclick="switchView('admin');admSec('profesionales')">Administración → Profesionales</button>,
+    o define el porcentaje servicio por servicio más abajo.</div>`
+}
 function commRange(){
   const f=document.getElementById('commFrom'), t=document.getElementById('commTo')
   if(f && !f.value){ const d=new Date(); d.setDate(d.getDate()-7); f.value=isoDate(d) }
@@ -11253,6 +11285,10 @@ function splitSaleItems(s){
 }
 function renderComisiones(){
   const el=document.getElementById('commBody'); if(!el) return
+  if(!document.getElementById('commAviso')){
+    const d=document.createElement('div'); d.id='commAviso'
+    el.parentElement.insertBefore(d, el)
+  }
   // poblar profesionales
   const psel=document.getElementById('commProf')
   if(psel){ const cur=psel.value
@@ -11261,6 +11297,8 @@ function renderComisiones(){
 
   const list=commSales()
   const [from,to]=commRange()
+  const cajaAviso=document.getElementById('commAviso')
+  if(cajaAviso) cajaAviso.innerHTML=avisoComisionFaltante()
 
   // KPIs por tipo de venta
   let vServ=0, vProd=0, tips=0
