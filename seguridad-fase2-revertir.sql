@@ -12,7 +12,7 @@ begin
     'surveys','survey_responses',
     'professionals','clients','products','plans',
     'bot_config','cash_movements','gift_card_uses','stock_movements',
-    'campaigns','email_suppressions','appointments','sales'
+    'campaigns','email_suppressions','appointments','sales','gift_cards'
   ] loop
     -- quitar todas las políticas que existan en la tabla
     execute (

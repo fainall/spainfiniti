@@ -349,7 +349,7 @@ async function reservar(){
   btn.disabled = true; btn.textContent = 'Reservando…'
   try{
     // relee las citas por si alguien tomó la hora mientras completabas
-    citas = await supabase.fetch('appointments', { filters: `appt_date=eq.${fechaSel}` }) || []
+    citas = await supabase.fetch('public_busy', { filters: `appt_date=eq.${fechaSel}` }) || []
     if(!horasLibres(fechaSel).includes(horaSel)) throw new Error('Justo tomaron esa hora. Elige otra, por favor.')
     if(!recursosLibres(fechaSel, toMin(horaSel), durMin(servicio.duration)))
       throw new Error('Justo ocuparon la sala o el equipo de esa hora. Elige otra, por favor.')
@@ -365,26 +365,25 @@ async function reservar(){
       ? 'Justo tomaron esa hora con esa persona. Elige otra hora o marca “Cualquiera”.'
       : 'Esa hora ya no está disponible. Elige otra, por favor.')
 
-    // cliente: reutiliza si ya existe por teléfono
-    let clienteId = null
-    const digits = fono.replace(/\D/g,'').slice(-8)
-    try{
-      const ex = await supabase.fetch('clients', { filters: `phone=ilike.*${digits}` })
-      if(ex && ex.length) clienteId = ex[0].id
-    }catch(e){}
-    if(!clienteId){
-      const nuevo = await supabase.insert('clients', { name: nombre, phone: fono, email: mail })
-      clienteId = (Array.isArray(nuevo) ? nuevo[0] : nuevo).id
-    }
+    /* La ficha del cliente y la reserva las crea la base, no el navegador:
+       así el sitio nunca necesita leer ni escribir esas tablas, y la hora
+       se comprueba de nuevo del lado del servidor justo antes de guardar. */
+    const clienteId = await supabase.rpc('reservar_cliente', {
+      p_nombre: nombre, p_fono: fono, p_email: mail || null
+    })
 
     const p = precioEn(fechaSel, horaSel)
-    await supabase.insert('appointments', {
-      professional_id: prof.id, client_id: clienteId, client_name: nombre, client_phone: fono,
-      service_name: servicio.name, appt_date: fechaSel,
-      start_time: horaSel + ':00', end_time: toHHMM(toMin(horaSel)+dur) + ':00',
-      status: 'reserved', price: money(p.precio),
-      origen: 'web',
-      notes: 'Reservado desde el sitio web' + (nota ? ' — ' + nota : '')
+    await supabase.rpc('reservar_hora', {
+      p_profesional: prof.id,
+      p_cliente:     clienteId,
+      p_nombre:      nombre,
+      p_fono:        fono,
+      p_servicio:    servicio.name,
+      p_fecha:       fechaSel,
+      p_inicio:      horaSel + ':00',
+      p_fin:         toHHMM(toMin(horaSel)+dur) + ':00',
+      p_precio:      money(p.precio),
+      p_nota:        'Reservado desde el sitio web' + (nota ? ' — ' + nota : '')
     })
 
     const d = new Date(fechaSel+'T00:00:00')
@@ -427,13 +426,13 @@ async function init(){
 
     const [cfg, pros] = await Promise.all([
       supabase.fetch('public_pricing').catch(()=>[]),
-      supabase.fetch('professionals', { filters: 'active=eq.true' }).catch(()=>[])
+      supabase.fetch('public_professionals').catch(()=>[])
     ])
     config = (cfg && cfg[0]) || {}
     profesionales = pros || []
 
     const hoy = new Date(), fin = new Date(); fin.setDate(fin.getDate()+14)
-    citas = await supabase.fetch('appointments', { filters: `appt_date=gte.${iso(hoy)}&appt_date=lte.${iso(fin)}` }) || []
+    citas = await supabase.fetch('public_busy', { filters: `appt_date=gte.${iso(hoy)}&appt_date=lte.${iso(fin)}` }) || []
 
     if(!profesionales.length){ body.innerHTML = '<p class="empty">Por ahora no hay horas publicadas. Escríbenos por WhatsApp y te ayudamos.</p>'; return }
     render()

@@ -63,6 +63,27 @@ const supabase = {
     return res.json()
   },
 
+  /* llama a una función de la base (RPC). Se usa para las operaciones
+     que el sitio público no puede hacer tocando tablas directamente. */
+  async rpc(fn, params) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': supaAuthHeader(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(params || {})
+    })
+    const txt = await res.text()
+    if (!res.ok) {
+      let msg = txt
+      try { const j = JSON.parse(txt); msg = j.message || j.hint || txt } catch (e) {}
+      throw new Error(msg)
+    }
+    try { return JSON.parse(txt) } catch (e) { return txt }
+  },
+
   async delete(table, id) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
       method: 'DELETE',
