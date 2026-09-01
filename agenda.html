@@ -1359,6 +1359,40 @@ body.sin-scroll{overflow:hidden}
 /* la camara solo tiene sentido donde se toca la pantalla */
 .ff-camara{display:none}
 @media (pointer:coarse){ .ff-camara{display:inline-flex} }
+
+/* ficha en modo lectura: cabecera, secciones plegables y fotos grandes */
+.ff-volver{background:none;border:none;padding:0 0 10px;font-family:inherit;font-size:.8rem;
+  color:var(--mid);cursor:pointer}
+.ff-volver:hover{color:var(--texto)}
+.ff-acciones{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+details.ff-sec{border:1px solid var(--cream-2);border-radius:10px;padding:0;margin-bottom:12px}
+details.ff-sec>summary{cursor:pointer;padding:12px 14px;font-weight:600;font-size:.82rem;
+  letter-spacing:.04em;text-transform:uppercase;color:var(--texto);list-style:none}
+details.ff-sec>summary::-webkit-details-marker{display:none}
+details.ff-sec>summary::after{content:'⌃';float:right;transform:rotate(180deg);color:var(--light)}
+details.ff-sec[open]>summary::after{transform:none}
+details.ff-sec>summary+*{margin-top:0}
+details.ff-sec .ff-campo{padding:0 14px 12px}
+.ff-galeria{display:flex;flex-wrap:wrap;gap:14px;margin-top:6px}
+.ff-galeria figure{margin:0;max-width:320px}
+.ff-galeria img{width:100%;border-radius:10px;border:1px solid var(--cream-2);display:block}
+.ff-galeria figcaption{margin-top:5px;font-size:.78rem}
+.ff-galeria figcaption a{color:var(--mid);text-decoration:underline}
+@media(max-width:820px){ .ff-galeria figure{max-width:100%} }
+
+/* al imprimir, solo la ficha */
+@media print{
+  body.imprimiendo-ficha *{visibility:hidden}
+  body.imprimiendo-ficha #ffModal,
+  body.imprimiendo-ficha #ffModal *{visibility:visible}
+  body.imprimiendo-ficha #ffModal{position:absolute;inset:0;background:#fff;display:block;padding:0}
+  body.imprimiendo-ficha #ffPapel{width:100%;max-width:100%;box-shadow:none;border-radius:0;
+    max-height:none;overflow:visible}
+  body.imprimiendo-ficha .ff-volver,
+  body.imprimiendo-ficha .ff-acciones,
+  body.imprimiendo-ficha .modal-actions{display:none}
+  body.imprimiendo-ficha details.ff-sec{break-inside:avoid}
+}
 </style>
 </head>
 <body>
@@ -2264,19 +2298,17 @@ body.sin-scroll{overflow:hidden}
 
   <!-- MODAL: ficha del paciente (rellenar) -->
   <div class="modal-ov" id="ffModal">
-    <div class="modal" style="width:720px;max-width:94vw">
+    <div class="modal" id="ffPapel" style="width:720px;max-width:94vw">
+      <button class="ff-volver" onclick="closeModal('ffModal')">‹ Volver a las fichas del cliente</button>
+      <div class="ff-acciones" id="ffAcciones"></div>
       <h2 id="ffTitle" style="margin-bottom:2px">Ficha</h2>
       <span class="cd-since" id="ffSub"></span>
-      <div class="ff-fecha">
+      <div class="ff-fecha" id="ffFechaCaja">
         <label for="ffFecha">Fecha y hora</label>
         <input type="datetime-local" id="ffFecha" />
       </div>
       <div id="ffBody" style="margin-top:16px"></div>
-      <div class="modal-actions">
-        <button class="btn-danger" id="ffDelBtn" onclick="deleteFichaCliente()" style="display:none">Eliminar</button>
-        <button class="btn-ghost" onclick="closeModal('ffModal')">Cerrar</button>
-        <button class="btn-primary" onclick="unaVez(event,saveFichaCliente)">Guardar ficha</button>
-      </div>
+      <div class="modal-actions" id="ffBotones"></div>
     </div>
   </div>
 
@@ -8531,9 +8563,13 @@ async function cargarFichasDe(clientId){
 /* dibuja el formulario de una ficha para rellenar o consultar */
 function formularioFicha(tpl, datos, soloLectura){
   const d = datos || {}
+  /* leyendo, cada seccion se puede plegar: las fichas son largas */
+  const abre   = soloLectura ? '<details class="ff-sec" open>' : '<div class="ff-sec">'
+  const cierra = soloLectura ? '</details>' : '</div>'
   return (tpl.sections||[]).map((sec,i)=>`
-    <div class="ff-sec">
-      ${sec.title?`<h4>${esc(sec.title)}</h4>`:''}
+    ${abre}
+      ${sec.title ? (soloLectura ? `<summary>${esc(sec.title)}</summary>`
+                                 : `<h4>${esc(sec.title)}</h4>`) : ''}
       ${(sec.fields||[]).map((f,j)=>{
         const k = 's'+i+'c'+j
         const v = d[k]
@@ -8544,7 +8580,10 @@ function formularioFicha(tpl, datos, soloLectura){
           if(f.type==='archivo'){
             const urls = Array.isArray(v) ? v : (v ? [v] : [])
             campo = urls.length
-              ? `<div class="ff-miniaturas">${urls.map(u=>`<span class="ff-mini"><a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" /></a></span>`).join('')}</div>`
+              ? `<div class="ff-galeria">${urls.map((u,n)=>`<figure>
+                  <a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" loading="lazy" /></a>
+                  <figcaption><a href="${esc(u)}" target="_blank" rel="noopener" download>Descargar</a></figcaption>
+                </figure>`).join('')}</div>`
               : '<div class="ff-valor">Sin fotos</div>'
           } else {
             const txt = Array.isArray(v) ? v.join(', ')
@@ -8576,7 +8615,7 @@ function formularioFicha(tpl, datos, soloLectura){
         else campo = `<input type="text" data-fk="${k}" value="${esc(v||'')}" />`
         return `<div class="ff-campo"><label>${esc(f.label||'')}${req}</label>${campo}</div>`
       }).join('')}
-    </div>`).join('') || '<p class="rem-note">Esta ficha no tiene preguntas todavía.</p>'
+    ${cierra}`).join('') || '<p class="rem-note">Esta ficha no tiene preguntas todavía.</p>'
 }
 
 /* asegura que el token esté vigente justo antes de una operación que lo exige */
@@ -8785,25 +8824,72 @@ function paraCampoFechaHora(d){
   return d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) +
          'T' + p2(d.getHours()) + ':' + p2(d.getMinutes())
 }
-function openFichaCliente(recordId, templateId){
+/* Una ficha ya completada se abre para leerla, no para editarla: es lo
+   que se hace casi siempre, y evita tocarla sin querer. Desde ahi se
+   pasa a editar o se imprime. Una ficha nueva se abre para rellenar. */
+let fichaModo = 'ver'
+
+function openFichaCliente(recordId, templateId, modo){
   const tpl = plantillas.find(t=>t.id===templateId) ||
               plantillas.find(t=>t.id===(fichasCliente.find(r=>r.id===recordId)||{}).template_id)
   const rec = recordId ? fichasCliente.find(r=>r.id===recordId) : null
   if(!tpl && !rec){ toast('No encuentro esa ficha','error'); return }
   fichaEdit = { id: rec ? rec.id : null, template: tpl, record: rec }
-  const nombre = (tpl && tpl.name) || (rec && rec.template_name) || 'Ficha'
-  document.getElementById('ffTitle').textContent = nombre
-  document.getElementById('ffSub').textContent = rec
-    ? 'Ficha de ' + (cdCliente?cdCliente.name:'') : 'Nueva ficha de ' + (cdCliente?cdCliente.name:'')
-  document.getElementById('ffBody').innerHTML = tpl
-    ? formularioFicha(tpl, rec ? rec.data : {}, false)
-    : '<p class="rem-note">La plantilla de esta ficha ya no existe. Solo se puede consultar lo guardado.</p>' +
-      formularioFicha({sections:[]}, rec?rec.data:{}, true)
-  /* fecha de la ficha: la guardada, o el momento actual si es nueva */
-  const f = new Date(rec ? (rec.record_date || rec.created_at) : Date.now())
-  document.getElementById('ffFecha').value = paraCampoFechaHora(f)
-  document.getElementById('ffDelBtn').style.display = rec ? 'block' : 'none'
+  fichaModo = modo || (rec ? 'ver' : 'editar')
+  pintarFicha()
   openModal('ffModal')
+}
+
+function pintarFicha(){
+  if(!fichaEdit) return
+  const tpl = fichaEdit.template, rec = fichaEdit.record
+  const leyendo = fichaModo === 'ver'
+  const nombre = (tpl && tpl.name) || (rec && rec.template_name) || 'Ficha'
+  const f = new Date(rec ? (rec.record_date || rec.created_at) : Date.now())
+
+  document.getElementById('ffTitle').textContent = nombre
+  document.getElementById('ffSub').textContent = leyendo
+    ? f.toLocaleDateString('es-CL',{day:'2-digit',month:'long',year:'numeric'}) + ' · ' +
+      f.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) +
+      (rec.professional_id ? ' · ' + profName(rec.professional_id) : '')
+    : (rec ? 'Ficha de ' : 'Nueva ficha de ') + (cdCliente ? cdCliente.name : '')
+
+  /* la fecha solo se toca al editar; leyendo va en el subtitulo */
+  document.getElementById('ffFechaCaja').style.display = leyendo ? 'none' : ''
+  document.getElementById('ffFecha').value = paraCampoFechaHora(f)
+
+  document.getElementById('ffBody').innerHTML = tpl
+    ? formularioFicha(tpl, rec ? rec.data : {}, leyendo)
+    : '<p class="rem-note">La plantilla de esta ficha ya no existe. Solo se puede consultar lo guardado.</p>' +
+      formularioFicha({sections:[]}, rec ? rec.data : {}, true)
+
+  document.getElementById('ffAcciones').innerHTML = leyendo
+    ? `<button class="mini-btn" onclick="editarFichaActual()">✎ Editar ficha</button>
+       <button class="mini-btn" onclick="imprimirFicha()">🖨 Imprimir ficha</button>`
+    : ''
+
+  document.getElementById('ffBotones').innerHTML = leyendo
+    ? `<button class="btn-ghost" onclick="closeModal('ffModal')">Cerrar</button>`
+    : `${rec ? '<button class="btn-danger" onclick="deleteFichaCliente()">Eliminar</button>' : ''}
+       <button class="btn-ghost" onclick="cancelarEdicionFicha()">Cancelar</button>
+       <button class="btn-primary" onclick="unaVez(event,saveFichaCliente)">Guardar ficha</button>`
+}
+
+function editarFichaActual(){ fichaModo = 'editar'; pintarFicha() }
+
+/* al cancelar, una ficha ya guardada vuelve a su vista de lectura;
+   una nueva no tiene a donde volver, asi que se cierra */
+function cancelarEdicionFicha(){
+  if(fichaEdit && fichaEdit.record){ fichaModo = 'ver'; pintarFicha() }
+  else closeModal('ffModal')
+}
+
+/* imprime solo la ficha: el resto del panel se oculta desde el CSS */
+function imprimirFicha(){
+  document.body.classList.add('imprimiendo-ficha')
+  const limpiar = () => document.body.classList.remove('imprimiendo-ficha')
+  window.addEventListener('afterprint', limpiar, { once:true })
+  setTimeout(()=>{ window.print(); setTimeout(limpiar, 800) }, 60)
 }
 
 async function saveFichaCliente(){
@@ -8854,7 +8940,7 @@ function cdFichas(){
       <span class="ar-name">${esc(r.template_name||'Ficha')}</span>
       <span class="ar-meta">${f.toLocaleDateString('es-CL')} · ${f.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</span>
       <span class="ar-meta">${esc(profName(r.professional_id)||'')}</span>
-      <button class="mini-btn" onclick="openFichaCliente('${r.id}')">Ver / editar</button></div>`
+      <button class="mini-btn" onclick="openFichaCliente('${r.id}')">Ver ficha</button></div>`
   }).join('') : '<div class="empty-state">Este cliente todavía no tiene fichas completadas.</div>'
   const nuevas = activas.length
     ? `<div class="add-ficha" id="addFicha">
