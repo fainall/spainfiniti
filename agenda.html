@@ -1067,7 +1067,8 @@ body.sin-scroll{overflow:hidden}
   font-size:.68rem;font-weight:600;vertical-align:middle}
 
 /* de dónde vino la reserva */
-.org{position:absolute;top:2px;right:3px;font-size:.62rem;line-height:1;opacity:.9}
+.org{position:absolute;top:2px;right:3px;font-size:.7rem;line-height:1;
+  background:rgba(255,255,255,.9);border-radius:20px;padding:1px 3px}
 .appt.pagada .org,.appt.abonada .org{right:3px}
 .qv-org{font-size:.8rem;vertical-align:middle;margin-left:4px}
 .re-origen{display:inline-block;margin-left:10px;background:var(--cream);border-radius:20px;
@@ -5244,7 +5245,7 @@ function unaVez(ev, tarea){
 const ORIGENES = {
   web:   { icono:'🌐', nombre:'Reservada por el cliente desde el sitio web' },
   bot:   { icono:'🤖', nombre:'Agendada por el asistente de WhatsApp' },
-  panel: { icono:'',   nombre:'Tomada por el equipo en el panel' }
+  panel: { icono:'🏠', nombre:'Tomada por el equipo en el mostrador' }
 }
 function origenDe(a){
   if(!a) return 'panel'
