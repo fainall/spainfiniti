@@ -675,8 +675,12 @@ label.chk input{width:auto;margin:0}
 
   /* tablas: se deslizan dentro de su tarjeta en vez de romper la pantalla */
   .rr-panel,.inv-local,.adm-main,.sales-panel,.caja-panel,.plan-panel,
-  #clientTable,#salesTable,#prodTable,#msTable,#vpTable,#remTable,#liqBody,#rrBody,#cajaBody{
+  #clientTable,#salesTable,#prodTable,#msTable,#vpTable,#remTable,#liqBody,#rrBody,#cajaBody,
+  #commBody,#rsToday{
     overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* y cualquier otra: mantener la lista a mano es lo que dejo fuera a
+     la de comisiones, asi que se cubre tambien por la forma */
+  div:has(> .ctbl){overflow-x:auto;-webkit-overflow-scrolling:touch}
   .ctbl{min-width:620px}
   .ctbl th,.ctbl td{padding:10px 12px;font-size:.82rem}
 
