@@ -1354,6 +1354,10 @@ body.sin-scroll{overflow:hidden}
   background:#FEF3C7;color:#78350F;padding:9px 16px;font-size:.82rem;border-bottom:1px solid #FDE68A}
 .sin-cuenta .mini-link{color:#78350F;font-weight:600;text-decoration:underline}
 @media(max-width:820px){ .sin-cuenta{font-size:.76rem;padding:8px 12px} }
+
+/* la camara solo tiene sentido donde se toca la pantalla */
+.ff-camara{display:none}
+@media (pointer:coarse){ .ff-camara{display:inline-flex} }
 </style>
 </head>
 <body>
@@ -8561,7 +8565,9 @@ function formularioFicha(tpl, datos, soloLectura){
             <div class="ff-miniaturas">${urls.map((u,n)=>`<span class="ff-mini">
               <a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" /></a>
               <button class="ff-quitar" title="Quitar" onclick="quitarFotoFicha('${k}',${n})">✕</button></span>`).join('')}</div>
-            <button class="btn-g" onclick="document.getElementById('file-${k}').click()">📷 Agregar foto</button>
+            <button class="btn-g ff-camara" onclick="document.getElementById('cam-${k}').click()">📷 Tomar foto</button>
+            <button class="btn-g" onclick="document.getElementById('file-${k}').click()">🖼 Subir foto</button>
+            <input type="file" id="cam-${k}" accept="image/*" capture="environment" style="display:none" onchange="subirFotoFicha('${k}',this)" />
             <input type="file" id="file-${k}" accept="image/*" multiple style="display:none" onchange="subirFotoFicha('${k}',this)" />
             <span class="ff-subiendo" id="sub-${k}"></span>
           </div>`
