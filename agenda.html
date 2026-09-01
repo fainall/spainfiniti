@@ -1394,18 +1394,13 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   body.imprimiendo-ficha details.ff-sec{break-inside:avoid}
 }
 
-/* la ficha ocupa casi toda la pantalla */
-#ffModal{padding:18px 14px}
-#ffPapel{width:1240px;max-width:96vw;min-height:calc(100vh - 36px);padding:26px 30px}
-/* editando, los campos no se estiran de lado a lado */
-#ffPapel:not(.leyendo) #ffBody{max-width:860px}
-/* leyendo, las respuestas se reparten en las columnas que quepan;
-   las fotos y los textos largos ocupan la fila entera */
-#ffPapel.leyendo details.ff-sec[open]{display:grid;grid-template-columns:1fr;gap:0 24px}
-@media(min-width:900px){ #ffPapel.leyendo details.ff-sec[open]{grid-template-columns:1fr 1fr} }
-#ffPapel.leyendo details.ff-sec>summary{grid-column:1/-1}
-#ffPapel.leyendo .ff-campo:has(.ff-galeria){grid-column:1/-1}
-@media(max-width:820px){ #ffModal{padding:10px 8px} #ffPapel{min-height:0;padding:20px 16px} }
+/* la ficha se lee en una ventana amplia, pero el texto no se estira:
+   una linea muy larga cansa. El ancho extra es para las fotos. */
+#ffModal{padding:24px 14px}
+#ffPapel{width:920px;max-width:94vw;padding:26px 30px}
+#ffPapel.leyendo .ff-campo:has(.ff-galeria){max-width:none}
+#ffPapel.leyendo .ff-galeria figure{max-width:400px}
+@media(max-width:820px){ #ffModal{padding:12px 8px} #ffPapel{padding:20px 16px} }
 </style>
 </head>
 <body>
