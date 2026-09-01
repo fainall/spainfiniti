@@ -1330,6 +1330,24 @@ body.sin-scroll{overflow:hidden}
 .ff-fecha input{flex:1;border:1px solid var(--border);border-radius:8px;padding:8px 10px;
   font-family:inherit;font-size:.85rem;background:var(--white)}
 @media(max-width:820px){ .ff-fecha{flex-direction:column;align-items:stretch;gap:6px} }
+
+/* botón Agregar ficha, con su lista desplegable */
+.add-ficha{position:relative;display:inline-block;margin-bottom:4px}
+.add-ficha-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:30;min-width:320px;max-width:92vw;
+  background:var(--white);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 16px 44px rgba(0,0,0,.18);padding:6px}
+.add-ficha.abierto .add-ficha-panel{display:block}
+.add-ficha-buscar{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--cream-2);margin-bottom:4px}
+.add-ficha-buscar span{color:var(--light);font-size:.85rem}
+.add-ficha-buscar input{flex:1;border:none;outline:none;padding:6px 0;font-family:inherit;font-size:.85rem;background:transparent}
+.add-ficha-op{display:block;width:100%;text-align:left;background:none;border:none;padding:10px 11px;
+  border-radius:8px;font-family:inherit;font-size:.85rem;color:var(--texto);cursor:pointer}
+.add-ficha-op:hover{background:var(--cream-2)}
+.add-ficha-op.nueva{color:var(--gold-d);font-weight:600}
+.add-ficha-sep{height:1px;background:var(--cream-2);margin:4px 0}
+.add-ficha-vacio{padding:12px 11px;font-size:.8rem;color:var(--light)}
+#addFichaLista{max-height:240px;overflow-y:auto}
+@media(max-width:820px){ .add-ficha,.add-ficha .btn-primary{width:100%} .add-ficha-panel{min-width:0;left:0;right:0} }
 </style>
 </head>
 <body>
@@ -8806,9 +8824,19 @@ function cdFichas(){
       <button class="mini-btn" onclick="openFichaCliente('${r.id}')">Ver / editar</button></div>`
   }).join('') : '<div class="empty-state">Este cliente todavía no tiene fichas completadas.</div>'
   const nuevas = activas.length
-    ? `<div class="cd-nuevas">${activas.map(t=>
-        `<button class="btn-g" onclick="openFichaCliente('','${t.id}')">+ ${esc(t.name)}</button>`).join('')}
-        <button class="mini-link" onclick="nuevaFichaDesdeCliente()">⚙ Crear otro tipo de ficha</button></div>`
+    ? `<div class="add-ficha" id="addFicha">
+        <button type="button" class="btn-primary" onclick="abrirAddFicha(event)">+ Agregar ficha</button>
+        <div class="add-ficha-panel">
+          <div class="add-ficha-buscar"><span>🔍</span>
+            <input type="text" id="addFichaQ" placeholder="Búsqueda rápida" oninput="filtrarAddFicha(this.value)" />
+          </div>
+          <div id="addFichaLista">${activas.map(t=>
+            `<button type="button" class="add-ficha-op" data-n="${esc((t.name||'').toLowerCase())}"
+              onclick="cerrarAddFicha();openFichaCliente('','${t.id}')">${esc(t.name)}</button>`).join('')}</div>
+          <div class="add-ficha-sep"></div>
+          <button type="button" class="add-ficha-op nueva" onclick="cerrarAddFicha();nuevaFichaDesdeCliente()">+ Agregar nueva ficha</button>
+        </div>
+      </div>`
     : errorPlantillas
     ? `<div class="empty-state" style="padding:22px">
         <div style="font-size:2rem;margin-bottom:6px">⚠</div>
@@ -8827,6 +8855,41 @@ function cdFichas(){
   return `<h3 class="cd-h3">Completar una ficha</h3>${nuevas}
     <h3 class="cd-h3">Fichas completadas</h3>${lista}`
 }
+
+/* despliega la lista de fichas disponibles para completar */
+function abrirAddFicha(ev){
+  ev.stopPropagation()
+  const caja = document.getElementById('addFicha'); if(!caja) return
+  const abierto = caja.classList.contains('abierto')
+  caja.classList.toggle('abierto', !abierto)
+  if(!abierto){
+    const q = document.getElementById('addFichaQ')
+    if(q){ q.value=''; filtrarAddFicha(''); setTimeout(()=>q.focus(), 80) }
+  }
+}
+function cerrarAddFicha(){
+  const caja = document.getElementById('addFicha')
+  if(caja) caja.classList.remove('abierto')
+}
+function filtrarAddFicha(texto){
+  const q = String(texto||'').trim().toLowerCase()
+  let visibles = 0
+  document.querySelectorAll('#addFichaLista .add-ficha-op').forEach(b=>{
+    const cabe = !q || (b.dataset.n||'').includes(q)
+    b.style.display = cabe ? 'block' : 'none'
+    if(cabe) visibles++
+  })
+  const vacio = document.getElementById('addFichaVacio')
+  if(vacio) vacio.remove()
+  if(!visibles){
+    const d = document.createElement('div')
+    d.id = 'addFichaVacio'; d.className = 'add-ficha-vacio'
+    d.textContent = 'Ninguna ficha coincide con “' + texto + '”'
+    document.getElementById('addFichaLista').appendChild(d)
+  }
+}
+/* al pulsar fuera, se cierra */
+document.addEventListener('click', e=>{ if(!e.target.closest('#addFicha')) cerrarAddFicha() })
 
 /* ══════════════ CONSENTIMIENTOS ══════════════
    Un documento que el cliente acepta y firma antes de un tratamiento.
