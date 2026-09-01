@@ -1429,6 +1429,10 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   .inv-new-menu{position:fixed;left:10px;right:10px;top:auto;bottom:10px;width:auto;
     max-height:70vh;overflow-y:auto;border-radius:16px;z-index:3000}
 }
+
+/* copia de seguridad */
+.resp-fila{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.resp-estado{font-size:.82rem;color:var(--mid)}
 </style>
 </head>
 <body>
@@ -9060,6 +9064,52 @@ function filtrarAddFicha(texto){
 /* al pulsar fuera, se cierra */
 document.addEventListener('click', e=>{ if(!e.target.closest('#addFicha')) cerrarAddFicha() })
 
+/* ══════════════ COPIA DE SEGURIDAD ══════════════
+   El plan de Supabase en uso no guarda copias. Esto baja todas las
+   tablas a un archivo, usando la sesion de quien lo pide. */
+const TABLAS_RESPALDO = ['appointments','clients','professionals','services','categories',
+  'sales','products','stock_movements','cash_movements','plans','record_templates',
+  'client_records','consents','client_consents','payment_links','panel_users','bot_config',
+  'surveys','survey_responses','campaigns','gift_card_uses']
+
+async function descargarRespaldo(){
+  const btn = document.getElementById('respBtn'), est = document.getElementById('respEstado')
+  const avisar = t => { if(est) est.textContent = t }
+  if(btn){ btn.disabled = true; btn.textContent = 'Preparando…' }
+
+  /* estas tablas piden sesion; sin ella la copia saldria vacia y nadie se enteraria */
+  if(typeof sesionLista === 'function') await sesionLista()
+  if(typeof supaAuth !== 'undefined' && !supaAuth.session()){
+    avisar('Necesitas haber iniciado sesión para bajar la copia.')
+    if(btn){ btn.disabled = false; btn.textContent = '⬇ Descargar copia de seguridad' }
+    return
+  }
+
+  const copia = { hecha: new Date().toISOString(), local: (localInfo||{}).name || '', tablas: {} }
+  const fallaron = []
+  for(let i = 0; i < TABLAS_RESPALDO.length; i++){
+    const t = TABLAS_RESPALDO[i]
+    avisar('Copiando ' + t + '… (' + (i+1) + ' de ' + TABLAS_RESPALDO.length + ')')
+    try{ copia.tablas[t] = await supabase.fetch(t) || [] }
+    catch(e){ fallaron.push(t + ': ' + e.message); copia.tablas[t] = null }
+  }
+  copia.no_copiadas = fallaron
+
+  const filas = Object.values(copia.tablas).reduce((a,v)=> a + (Array.isArray(v) ? v.length : 0), 0)
+  const blob = new Blob([JSON.stringify(copia, null, 1)], { type:'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'spa-infinity-respaldo-' + new Date().toISOString().slice(0,10) + '.json'
+  a.click()
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000)
+
+  avisar(filas + ' registros guardados' + (fallaron.length ? ' · ' + fallaron.length + ' tabla(s) sin copiar' : ''))
+  if(fallaron.length) console.warn('respaldo, sin copiar:', fallaron)
+  if(btn){ btn.disabled = false; btn.textContent = '⬇ Descargar copia de seguridad' }
+  toast(fallaron.length ? 'Copia hecha, pero faltaron ' + fallaron.length + ' tabla(s)' : 'Copia descargada',
+        fallaron.length ? 'error' : 'success')
+}
+
 /* ══════════════ CONSENTIMIENTOS ══════════════
    Un documento que el cliente acepta y firma antes de un tratamiento.
    Puede ser texto escrito aquí o un PDF subido. La firma se dibuja
@@ -9504,6 +9554,18 @@ function admConfig(){
       <p class="rem-note" style="margin:2px 0 8px">Separados por coma. Son los que aparecen al registrar un pago.</p>
       <input type="text" value="${esc((cfgCuenta.medios||[]).join(', '))}"
         onchange="cfgCuenta.medios=this.value.split(',').map(x=>x.trim()).filter(Boolean);guardarCfgCuenta()" />
+    </div>
+
+    <h3 class="cd-h3">Copia de seguridad</h3>
+    <div class="fbox">
+      <p class="rem-note" style="margin:0 0 10px">Baja todo lo que hay guardado —agenda, clientes, fichas,
+      ventas, caja, inventario— a un solo archivo. Guárdalo fuera del computador del local.</p>
+      <div class="resp-fila">
+        <button class="btn-primary" id="respBtn" onclick="descargarRespaldo()">⬇ Descargar copia de seguridad</button>
+        <span class="resp-estado" id="respEstado"></span>
+      </div>
+      <p class="rem-note" style="margin:10px 0 0"><strong>Cuidado:</strong> el archivo lleva datos de salud
+      y de contacto de los pacientes. No lo dejes en el escritorio ni lo mandes por WhatsApp.</p>
     </div>`
 }
 
