@@ -4270,9 +4270,6 @@ function hourBounds(){
         a quien llega antes o se pasa de la hora (Administración → Configuración) */
   const margen = (typeof cfgCuenta !== 'undefined' && cfgCuenta.margenAgenda != null)
     ? Number(cfgCuenta.margenAgenda) : 60
-  mn = Math.max(0, mn - margen)
-  mx = Math.min(24*60, mx + margen)
-
   /* 5. nunca cortar una reserva que ya existe en los días visibles */
   const dIni = isoDate(desde), dFin = isoDate(hasta)
   state.appointments.forEach(a => {
@@ -4280,6 +4277,11 @@ function hourBounds(){
     mn = Math.min(mn, toMin(a.start_time))
     mx = Math.max(mx, toMin(a.end_time || a.start_time))
   })
+
+  /* el margen va al final, sobre el dia completo: si se cuenta antes, una
+     cita que se pasa del cierre se lo come y el dia queda sin aire abajo */
+  mn = Math.max(0, mn - margen)
+  mx = Math.min(24*60, mx + margen)
 
   return [Math.floor(mn/60)*60, Math.ceil(mx/60)*60]
 }
