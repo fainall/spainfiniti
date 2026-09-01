@@ -507,13 +507,19 @@ label.chk input{width:auto;margin:0}
 
 /* ── CALENDAR ── */
 .cal-wrap{flex:1;overflow:auto;position:relative;background:var(--white)}
-.cal-head{display:flex;position:sticky;top:0;z-index:5;background:var(--white);border-bottom:1px solid var(--reja)}
+/* la cabecera se queda fija al desplazar. En Android, sin capa propia,
+   el navegador deja restos de lo que pasa por detras (franjas grises,
+   citas) pintados sobre las fotos y los nombres. */
+.cal-head{display:flex;position:sticky;top:0;z-index:20;background:var(--white);border-bottom:1px solid var(--reja);
+  will-change:transform}
 .cal-head .gutter{width:var(--gutter-w);flex-shrink:0;border-right:1px solid var(--reja)}
-.cal-head .dcol{flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--reja);min-width:0}
+/* fondo propio: si una celda queda transparente, lo que pasa por detras al
+   desplazar (franjas grises, citas) asoma sobre la foto y el nombre */
+.cal-head .dcol{flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--reja);min-width:0;background:var(--white)}
 .cal-head .dcol .dow{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);font-weight:600}
 .cal-head .dcol .dnum{font-size:1.05rem;font-weight:600;margin-top:2px}
 .cal-head .dcol.today .dnum{background:var(--gold);color:#fff;width:30px;height:30px;line-height:30px;border-radius:50%;display:inline-block;margin-top:0}
-.cal-grid{display:flex;position:relative}
+.cal-grid{display:flex;position:relative;z-index:0}
 .gutter{width:var(--gutter-w);flex-shrink:0;border-right:1px solid var(--border)}
 .gutter .hr{height:var(--hour-h);position:relative}
 .gutter .hr span{position:absolute;top:-7px;right:7px;font-size:.64rem;color:#6b7280;font-weight:500}
