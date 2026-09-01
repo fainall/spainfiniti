@@ -262,10 +262,17 @@ function horasLibres(fecha){
 }
 
 /* ── pantallas ── */
+/* cuantos dias por delante se pueden reservar; lo decide el local */
+function diasQueSeOfrecen(){
+  const n = Math.round(Number((config.local_info || {}).maxDias))
+  if(!isFinite(n) || n < 1) return 14
+  return Math.min(n, 365)
+}
+
 function pintarDias(){
   const hoy = new Date(); hoy.setHours(0,0,0,0)
   let html = '<h3>Elige el día</h3><div class="days">'
-  for(let i=0;i<14;i++){
+  for(let i=0;i<diasQueSeOfrecen();i++){
     const d = new Date(hoy); d.setDate(d.getDate()+i)
     const f = iso(d)
     const hay = horasLibres(f).length

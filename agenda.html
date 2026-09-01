@@ -1407,6 +1407,11 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
 #ffPapel.leyendo .ff-campo:has(.ff-galeria){max-width:none}
 #ffPapel.leyendo .ff-galeria figure{max-width:400px}
 @media(max-width:820px){ #ffModal{padding:12px 8px} #ffPapel{padding:20px 16px} }
+
+/* plazo de reserva anticipada */
+.lc-dias{display:flex;align-items:center;gap:10px}
+.lc-dias input{width:110px}
+.lc-dias span{font-size:.85rem;color:var(--mid)}
 </style>
 </head>
 <body>
@@ -3144,6 +3149,12 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <label class="chk"><input type="checkbox" id="lcOnline" checked /> <span>Permitir que mis clientes agenden en línea desde el sitio web</span></label>
           <label class="chk" style="margin-top:10px"><input type="checkbox" id="lcShowPrice" checked /> <span>Mostrar el precio de los servicios en el sitio web</span></label>
           <label class="chk" style="margin-top:10px"><input type="checkbox" id="lcShowDur" checked /> <span>Mostrar la duración de los servicios en el sitio web</span></label>
+          <label style="margin-top:16px" for="lcMaxDias">Se puede reservar con cuánta anticipación</label>
+          <div class="lc-dias">
+            <input type="number" id="lcMaxDias" min="1" max="365" step="1" />
+            <span>días por delante</span>
+          </div>
+          <p class="rem-note" style="margin-top:4px">En el sitio web solo se ofrecen días dentro de ese plazo. Hoy cuenta como el primero.</p>
           <label style="margin-top:16px">Descripción del local</label>
           <textarea id="lcDesc" rows="3" placeholder="Centro Podológico & Spa en Santiago Centro…"></textarea>
         </div>
@@ -10828,6 +10839,7 @@ function openLocalModal(){
   document.getElementById('lcWa').checked=!!localInfo.wa
   document.getElementById('lcEmail').value=localInfo.email||''
   document.getElementById('lcOnline').checked=localInfo.online!==false
+  document.getElementById('lcMaxDias').value = localInfo.maxDias || 14
   document.getElementById('lcShowPrice').checked=localInfo.showPrice!==false
   document.getElementById('lcShowDur').checked=localInfo.showDur!==false
   document.getElementById('lcDesc').value=localInfo.desc||''
@@ -10851,6 +10863,13 @@ function copyHoursToAll(){
   })
   toast('Horario copiado a todos los días','success')
 }
+/* el plazo se guarda como numero entero y dentro de limites razonables:
+   un cero dejaria el sitio sin dias que ofrecer */
+function diasValidos(v){
+  const n = Math.round(Number(v))
+  if(!isFinite(n) || n < 1) return 14
+  return Math.min(n, 365)
+}
 async function saveLocal(){
   const name=document.getElementById('lcName').value.trim()
   if(!name){ toast('Falta el nombre del local','error'); return }
@@ -10862,6 +10881,7 @@ async function saveLocal(){
   localInfo={ name, address:document.getElementById('lcAddress').value.trim(), extra:document.getElementById('lcExtra').value.trim(),
     tz:document.getElementById('lcTz').value, phone:document.getElementById('lcPhone').value.trim(),
     wa:document.getElementById('lcWa').checked, email:document.getElementById('lcEmail').value.trim(), hours,
+    maxDias:diasValidos(document.getElementById('lcMaxDias').value),
     online:document.getElementById('lcOnline').checked, showPrice:document.getElementById('lcShowPrice').checked,
     showDur:document.getElementById('lcShowDur').checked, desc:document.getElementById('lcDesc').value.trim() }
   localStorage.setItem('spa_local_info',JSON.stringify(localInfo))
