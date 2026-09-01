@@ -1348,6 +1348,12 @@ body.sin-scroll{overflow:hidden}
 .add-ficha-vacio{padding:12px 11px;font-size:.8rem;color:var(--light)}
 #addFichaLista{max-height:240px;overflow-y:auto}
 @media(max-width:820px){ .add-ficha,.add-ficha .btn-primary{width:100%} .add-ficha-panel{min-width:0;left:0;right:0} }
+
+/* aviso de panel abierto sin cuenta */
+.sin-cuenta{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;
+  background:#FEF3C7;color:#78350F;padding:9px 16px;font-size:.82rem;border-bottom:1px solid #FDE68A}
+.sin-cuenta .mini-link{color:#78350F;font-weight:600;text-decoration:underline}
+@media(max-width:820px){ .sin-cuenta{font-size:.76rem;padding:8px 12px} }
 </style>
 </head>
 <body>
@@ -3955,6 +3961,21 @@ async function forgotPassword(){
   }catch(e){ toast(e.message,'error') }
 }
 function doLogout(){ supaAuth.signOut(); localStorage.removeItem('spa_admin_auth'); location.reload() }
+
+/* el panel se puede abrir sin cuenta por una marca antigua del navegador.
+   Todo lo que exige sesion (fichas, consentimientos) se ve vacio y sin avisar,
+   asi que conviene decirlo una vez, arriba y a la vista. */
+function avisoSinCuenta(){
+  const previo = document.getElementById('sinCuenta'); if(previo) previo.remove()
+  if(supaAuth.session()) return
+  const d = document.createElement('div')
+  d.id = 'sinCuenta'; d.className = 'sin-cuenta'
+  d.innerHTML = '<span>⚠ <strong>Estás entrando sin cuenta.</strong> ' +
+    'Las fichas médicas y los consentimientos no se abren así: guardan datos de salud y piden usuario y contraseña.</span>' +
+    '<button class="mini-link" onclick="doLogout()">Crear o iniciar sesión</button>'
+  const app = document.getElementById('app')
+  app.insertBefore(d, app.children[1] || null)
+}
 
 /* carga el perfil de quien inició sesión */
 async function loadMe(){
@@ -8244,6 +8265,8 @@ let plantillas = [], plantillaEdit = null
 
 let errorPlantillas = null   // motivo del último fallo al cargarlas
 async function cargarPlantillas(){
+  /* sin sesion la respuesta llega vacia y sin error: hay que mirarlo antes */
+  if(!supaAuth.session()){ plantillas = []; errorPlantillas = 'sinsesion'; return }
   try{
     plantillas = await supabase.fetch('record_templates',{order:'sort_order.asc'}) || []
     errorPlantillas = null
@@ -8263,6 +8286,9 @@ async function reintentarPlantillas(){
 }
 
 function admFichas(){
+  if(errorPlantillas === 'sinsesion') return `<div class="inv-notice aviso">⚠ <strong>Las fichas médicas necesitan sesión.</strong>
+    Estás en el panel sin cuenta. Guardan datos de salud de los pacientes, así que solo se abren con usuario y contraseña.
+    <button class="mini-link" onclick="doLogout()">Iniciar sesión</button></div>`
   if(errorPlantillas) return `<div class="inv-notice aviso">⚠ <strong>No se pudieron cargar las fichas.</strong>
     ${errorPlantillas === 'sesion' ? 'Tu sesión caducó: cierra sesión y vuelve a entrar.' : 'Hubo un problema de conexión.'}
     <button class="mini-link" onclick="cargarPlantillas().then(renderAdmin)">Reintentar</button></div>`
@@ -8839,12 +8865,17 @@ function cdFichas(){
       </div>`
     : errorPlantillas
     ? `<div class="empty-state" style="padding:22px">
-        <div style="font-size:2rem;margin-bottom:6px">⚠</div>
-        No se pudieron cargar las fichas.
-        <div style="font-size:.8rem;color:var(--light);margin:6px 0 12px">${errorPlantillas === 'sesion'
+        <div style="font-size:2rem;margin-bottom:6px">${errorPlantillas === 'sinsesion' ? '🔒' : '⚠'}</div>
+        ${errorPlantillas === 'sinsesion' ? 'Las fichas médicas necesitan sesión.' : 'No se pudieron cargar las fichas.'}
+        <div style="font-size:.8rem;color:var(--light);margin:6px 0 12px">${
+          errorPlantillas === 'sinsesion'
+          ? 'Entraste al panel sin cuenta. Las fichas médicas guardan datos de salud, así que solo se abren con un usuario y contraseña.'
+          : errorPlantillas === 'sesion'
           ? 'Tu sesión caducó: las fichas médicas solo se leen con la sesión abierta.'
           : 'Hubo un problema de conexión con el servidor.'}</div>
-        <button class="btn-primary" onclick="reintentarPlantillas()">Reintentar</button>
+        ${errorPlantillas === 'sinsesion'
+          ? '<button class="btn-primary" onclick="doLogout()">Iniciar sesión</button>'
+          : '<button class="btn-primary" onclick="reintentarPlantillas()">Reintentar</button>'}
       </div>`
     : `<div class="empty-state" style="padding:22px">
         <div style="font-size:2rem;margin-bottom:6px">🩺</div>
@@ -13030,6 +13061,7 @@ async function boot(){
   cargarCobros()
   actualizarSegRec()
   applyRole()
+  avisoSinCuenta()
   ajustarVistaMovil()
   render()
   if(isPro()) switchView('agenda')
