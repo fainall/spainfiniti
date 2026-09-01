@@ -1393,6 +1393,19 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   body.imprimiendo-ficha .modal-actions{display:none}
   body.imprimiendo-ficha details.ff-sec{break-inside:avoid}
 }
+
+/* la ficha ocupa casi toda la pantalla */
+#ffModal{padding:18px 14px}
+#ffPapel{width:1240px;max-width:96vw;min-height:calc(100vh - 36px);padding:26px 30px}
+/* editando, los campos no se estiran de lado a lado */
+#ffPapel:not(.leyendo) #ffBody{max-width:860px}
+/* leyendo, las respuestas se reparten en las columnas que quepan;
+   las fotos y los textos largos ocupan la fila entera */
+#ffPapel.leyendo details.ff-sec[open]{display:grid;grid-template-columns:1fr;gap:0 24px}
+@media(min-width:900px){ #ffPapel.leyendo details.ff-sec[open]{grid-template-columns:1fr 1fr} }
+#ffPapel.leyendo details.ff-sec>summary{grid-column:1/-1}
+#ffPapel.leyendo .ff-campo:has(.ff-galeria){grid-column:1/-1}
+@media(max-width:820px){ #ffModal{padding:10px 8px} #ffPapel{min-height:0;padding:20px 16px} }
 </style>
 </head>
 <body>
@@ -2298,7 +2311,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
 
   <!-- MODAL: ficha del paciente (rellenar) -->
   <div class="modal-ov" id="ffModal">
-    <div class="modal" id="ffPapel" style="width:720px;max-width:94vw">
+    <div class="modal" id="ffPapel">
       <button class="ff-volver" onclick="closeModal('ffModal')">‹ Volver a las fichas del cliente</button>
       <div class="ff-acciones" id="ffAcciones"></div>
       <h2 id="ffTitle" style="margin-bottom:2px">Ficha</h2>
@@ -8855,6 +8868,7 @@ function pintarFicha(){
     : (rec ? 'Ficha de ' : 'Nueva ficha de ') + (cdCliente ? cdCliente.name : '')
 
   /* la fecha solo se toca al editar; leyendo va en el subtitulo */
+  document.getElementById('ffPapel').classList.toggle('leyendo', leyendo)
   document.getElementById('ffFechaCaja').style.display = leyendo ? 'none' : ''
   document.getElementById('ffFecha').value = paraCampoFechaHora(f)
 
