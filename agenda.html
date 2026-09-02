@@ -1439,6 +1439,9 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
      que es lo que antes hacia falta del contenedor */
   .adm-main table{display:block;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 }
+
+/* cuando un servicio se repite, se marca junto a su nombre */
+.dg-veces{color:var(--light);font-size:.78rem;font-weight:600}
 </style>
 </head>
 <body>
@@ -12159,15 +12162,15 @@ function renderComisiones(){
       </tr>
       ${det.length?`<tr class="dg-fila" id="dg-${r.id}"><td colspan="5">
         <table class="dg-tabla">
-          <thead><tr><th>Servicio</th><th class="r">Veces</th><th class="r">Vendido</th><th class="r">%</th><th class="r">Comisión</th></tr></thead>
+          <thead><tr><th>Servicio</th><th class="r">Vendido</th><th class="r">%</th><th class="r">Comisión</th></tr></thead>
           <tbody>${det.map(d=>`<tr>
-            <td>${esc(d.name)}</td>
-            <td class="r">${d.veces}</td>
+            <td>${esc(d.name)}${d.veces>1?` <span class="dg-veces">×${d.veces}</span>`:''}</td>
             <td class="r">${fmtMoney(d.monto)}</td>
             <td class="r">${d.pct}%</td>
             <td class="r"><strong>${fmtMoney(d.comm)}</strong></td></tr>`).join('')}
           </tbody>
-          <tfoot><tr><td colspan="4" class="r">Suma de las ${det.length} líneas</td>
+          <tfoot><tr><td colspan="3" class="r">${(()=>{const n=det.reduce((a,d)=>a+d.veces,0)
+              return n + (n===1 ? ' servicio realizado' : ' servicios realizados')})()}</td>
             <td class="r"><strong>${fmtMoney(det.reduce((a,d)=>a+d.comm,0))}</strong></td></tr></tfoot>
         </table></td></tr>`:''}`
       }).join('')}</tbody></table>`
