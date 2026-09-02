@@ -4151,8 +4151,9 @@ function renderMisIngresos(){
   const rows=[]
   state.sales.filter(s=>s.status!=='deleted' && s.professional_id===pid && inRange(s.sale_date,desde,hasta)).forEach(s=>{
     const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+    const parte=parteCobrada(s, items)
     items.forEach(it=>{
-      const monto=Number(it.qty||1)*Number(it.price||0)
+      const monto=Math.round(Number(it.qty||1)*Number(it.price||0)*parte)
       const kind = state.products.some(p=>p.name===it.name) ? 'products'
         : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
       const pct=commPctFor(pid,it.name,kind)
@@ -5758,7 +5759,9 @@ async function eliminarPagoReserva(ventaId, apptId){
   if(!await confirmar('El pago quedará anulado y la reserva volverá a aparecer como pendiente de cobro.', { titulo:'¿Eliminar este pago?' })) return
   try{
     /* se anula, no se borra: asi queda el rastro de que hubo un cobro */
+    const venta = state.sales.find(x=>x.id===ventaId)
     await supabase.update('sales', ventaId, { status:'deleted' })
+    await devolverStock(venta)
     const l = cobrosEnviados.find(c => c.appointment_id === apptId && c.status === 'paid')
     if(l) await supabase.update('payment_links', l.id, { status:'sent', paid_at:null })
     await loadSales(); await cargarCobros(); render()
@@ -6012,6 +6015,8 @@ function vdContinuar(){
 function vdAtras(){
   if(vd.buscando){ vdCerrarBusca(); return }
   if(vd.editando != null){ vdGuardarItem(); return }
+  /* se sale del abono: si no, el boton mostraria el saldo pero se guardaria el total */
+  if(vd.paso === 3) vd.abono = 0
   vd.paso = vd.paso === 3 ? 2 : 1; vdRender()
 }
 
@@ -6203,7 +6208,7 @@ async function vdCobrar(){
       professional_id: a ? a.professional_id : null,
       appointment_id: vd.apptId || null,
       sale_date: isoDate(new Date()),
-      items: vd.items.map(i=>({ name:i.name, qty:i.qty, price:i.price })),
+      items: vd.items.map(i=>({ name:i.name, qty:i.qty, price:i.price, productId:i.productId })),
       total: vd.paso === 3 ? (vd.abono||0) : vdTotal(),
       payment_method: medio,
       status: vd.paso === 3 ? 'partial' : 'paid',
@@ -8110,6 +8115,14 @@ function comisionDeVenta(s){
   return { base: cobrado || lista, comm }
 }
 
+/* En un abono el detalle trae el servicio completo pero entro solo una
+   parte de la plata: todo lo que se calcule por linea se escala a lo
+   cobrado. Es la misma regla que usa comisionDeVenta. */
+function parteCobrada(s, items){
+  const cobrado = Number(s.total||0)
+  const lista = (items||[]).reduce((t,it)=> t + Number(it.qty||1)*Number(it.price||0), 0)
+  return (lista > 0 && cobrado > 0 && cobrado !== lista) ? cobrado/lista : 1
+}
 function commPctFor(profId,itemName,kind){
   const map=(commCfg[kind||'services']||{})[profId]||{}
   if(map[itemName]!==undefined) return Number(map[itemName])
@@ -8203,8 +8216,9 @@ function liqData(){
   const rows=[]
   state.sales.filter(s=>s.status!=='deleted' && s.professional_id===profId && inRange(s.sale_date,f.value,t.value)).forEach(s=>{
     const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
+    const parte=parteCobrada(s, items)
     items.forEach(it=>{
-      const monto=Number(it.qty||1)*Number(it.price||0)
+      const monto=Math.round(Number(it.qty||1)*Number(it.price||0)*parte)
       const kind = state.products.some(p=>p.name===it.name) ? 'products'
         : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
       const pct=commPctFor(profId,it.name,kind)
@@ -9369,7 +9383,7 @@ function apptPagada(a){
   const ventas = ventasDe(a)
   if(!ventas.length) return false
   if(ventas.some(v => !esAbono(v))) return true      // un cobro que cerró la cuenta
-  const precio = money2num(a.price)                   // solo abonos: hay que sumarlos
+  const precio = montoAcordado(a)                     // solo abonos: hay que sumarlos
   return precio > 0 ? totalCobrado(a) >= precio : false
 }
 /* pagada solo en parte */
@@ -9377,7 +9391,22 @@ function apptAbonada(a){
   if(!a) return false
   return totalCobrado(a) > 0 && !apptPagada(a)
 }
-function saldoPendiente(a){ return Math.max(0, money2num(a.price) - totalCobrado(a)) }
+/* lo que se acordo cobrar por la reserva: si hubo abono, el monto sobre el
+   que se abono (ya con el descuento aplicado); si no, el precio de la cita */
+function montoAcordado(a){
+  if(!a) return 0
+  const abonos = ventasDe(a).filter(esAbono)
+    .sort((x,y)=>String(x.created_at||'').localeCompare(String(y.created_at||'')))
+  for(const v of abonos){
+    const m = String(v.notes||'').match(/sobre \$?\s*([\d.]+)/)
+    if(m){ const n = money2num(m[1]); if(n > 0) return n }
+    const items = Array.isArray(v.items) ? v.items : JSON.parse(v.items||'[]')
+    const lista = items.reduce((t,it)=> t + Number(it.qty||1)*Number(it.price||0), 0)
+    if(lista > 0) return lista
+  }
+  return money2num(a.price)
+}
+function saldoPendiente(a){ return Math.max(0, montoAcordado(a) - totalCobrado(a)) }
 /* reservas cobrables: ya ocurrieron, tienen precio y nadie las pagó */
 function reservasPorCobrar(){
   const hoy = isoDate(new Date())
@@ -11755,7 +11784,7 @@ function editSale(id){
   document.getElementById('saleClientSearch').value=s.client_name||''
   document.getElementById('saleClientId').value=s.client_id||''
   document.getElementById('saleNotes').value=s.notes||''
-  saleItemsArr=(Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')).map(i=>({name:i.name,qty:i.qty||1,price:i.price||0}))
+  saleItemsArr=(Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')).map(i=>({name:i.name,qty:i.qty||1,price:i.price||0,productId:i.productId}))
   renderSaleItems(); updateSaleDot()
   document.getElementById('saleDelBtn').style.display='block'
   openModal('saleModal')
@@ -11782,6 +11811,10 @@ async function _saveSale(){
     appointment_id: ventaDeReserva || null
   }
   const id=document.getElementById('saleId').value
+  /* un abono guarda como total lo que entro, no lo que valen los items:
+     al editarlo no se recalcula, o pasaria a cobro completo */
+  const orig = id ? state.sales.find(x=>x.id===id) : null
+  if(orig && orig.status==='partial' && row.status==='partial') row.total = Number(orig.total||0)
   try{
     if(id) await supabase.update('sales',id,row)
     else {
@@ -11808,11 +11841,26 @@ async function _saveSale(){
     }
   }catch(e){ console.error(e); toast('Error al guardar la venta','error') }
 }
+/* al anular una venta, lo que salio de stock vuelve. Solo se conoce con
+   certeza en las lineas que guardaron el id del producto: las demas no se
+   tocan, antes que sumar stock que nunca se resto. */
+async function devolverStock(venta){
+  if(!venta || venta.status==='deleted') return
+  const items = Array.isArray(venta.items) ? venta.items : JSON.parse(venta.items||'[]')
+  for(const it of items){
+    if(!it.productId) continue
+    const p = state.products.find(x=>x.id===it.productId); if(!p) continue
+    const ns = (Number(p.stock)||0) + (Number(it.qty)||1)
+    try{ await supabase.update('products', p.id, { stock: ns }); p.stock = ns }
+    catch(e){ console.warn('stock no devuelto:', e.message) }
+  }
+}
 async function deleteSale(){
   const id=document.getElementById('saleId').value
   if(!id) return
   if(!await confirmar('¿Eliminar esta venta?')) return
-  try{ await supabase.update('sales',id,{status:'deleted'}); await loadSales(); closeModal('saleModal'); toast('Venta eliminada','success'); renderSales() }
+  const venta = state.sales.find(x=>x.id===id)
+  try{ await supabase.update('sales',id,{status:'deleted'}); await devolverStock(venta); await loadSales(); closeModal('saleModal'); toast('Venta eliminada','success'); renderSales() }
   catch(e){ toast('Error al eliminar','error') }
 }
 function fillSaleProf(){
@@ -11966,9 +12014,12 @@ function cajaRange(){
   return [f?f.value:'', t?t.value:'']
 }
 function inRange(d,from,to){ return (!from||d>=from) && (!to||d<=to) }
+const esPagoConBono = s => /^Bono:/.test(String((s&&s.payment_method)||''))
 function cajaData(){
   const [from,to]=cajaRange()
-  const ventas=state.sales.filter(s=>s.status!=='deleted' && inRange(s.sale_date,from,to))
+  /* una sesion descontada de un bono se registra como venta para que la
+     reserva quede saldada, pero la plata entro cuando se vendio el bono */
+  const ventas=state.sales.filter(s=>s.status!=='deleted' && !esPagoConBono(s) && inRange(s.sale_date,from,to))
   /* Los abonos anteriores a este cambio quedaron guardados como 'paid' y
      se contaban entre las ventas facturadas: se reconocen también por la
      nota, que dice de cuánto fue el abono y sobre qué monto. */
@@ -12252,14 +12303,6 @@ function exportSales(){
     return [`${d}/${m}/${y}`, s.client_name||'', s.professional_id?profName(s.professional_id):'Sin asignar', detail, s.payment_method||'', s.status==='paid'?'Pagada':'Pago parcial', Number(s.tip||0), Number(s.total||0)]
   })
   downloadCSV('ventas.csv', ['Fecha','Cliente','Profesional','Detalle','Método','Estado','Propina','Total'], rows)
-}
-function exportCaja(){
-  const day=document.getElementById('cajaDate').value
-  const list=state.sales.filter(s=>s.status!=='deleted'&&s.sale_date===day)
-  const methods=['Efectivo','Débito','Crédito','Transferencia']; const bm={}; methods.forEach(m=>bm[m]=0); let tips=0,total=0
-  list.forEach(s=>{ if(bm[s.payment_method]!=null) bm[s.payment_method]+=Number(s.total||0); tips+=Number(s.tip||0); total+=Number(s.total||0) })
-  const rows=methods.map(m=>[m,bm[m]]); rows.push(['Propinas',tips]); rows.push(['TOTAL',total])
-  downloadCSV('caja_'+day+'.csv', ['Método de pago','Monto'], rows)
 }
 function exportPropinas(){
   const list=salesInPeriod(document.getElementById('propPeriod').value).filter(s=>Number(s.tip||0)>0)
