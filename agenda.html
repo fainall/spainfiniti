@@ -3981,8 +3981,9 @@ const ROLES = {
   pro_ro:       { nombre:'Profesional (sin edición)', desc:'Solo mira su agenda. No puede crear ni cambiar reservas.',
                   vistas:['agenda','misingresos'], edita:false, soloSuyo:true }
 }
-function rolDe(){ return ROLES[(me && me.role) || 'admin'] || ROLES.admin }
-function puedeEditar(){ return !me || rolDe().edita !== false }
+/* sin perfil, el rol mas restringido: nunca administrador por omision */
+function rolDe(){ return ROLES[(me && me.role) || 'pro_ro'] || ROLES.pro_ro }
+function puedeEditar(){ return !!me && rolDe().edita !== false }
 function vePantalla(v){
   const r = rolDe()
   return r.vistas === 'all' || r.vistas.includes(v)
@@ -4002,7 +4003,7 @@ function bloquearSiSoloLectura(){
   })
 }
 
-const isAdmin = () => !me || me.role === 'admin'
+const isAdmin = () => !!me && me.role === 'admin'
 const isPro   = () => !!me && (me.role === 'pro' || me.role === 'pro_ro')
 const myProfId = () => (me && me.professional_id) || null
 
@@ -4095,7 +4096,12 @@ async function loadMe(){
   try{
     const rows=await supabase.fetch('panel_users',{filters:'id=eq.'+s.user.id})
     me = rows && rows[0] ? rows[0] : { id:s.user.id, email:s.user.email, name:s.user.email, role:'pro', professional_id:null }
-  }catch(e){ me=null }
+  }catch(e){
+    /* si no se pudo leer el perfil, se entra con lo minimo, no con todo */
+    me = { id:s.user.id, email:s.user.email, name:s.user.email, role:'pro_ro', professional_id:null }
+    console.warn('perfil no cargado:', e.message)
+    if(typeof toast==='function') toast('No se pudo cargar tu perfil. Recarga la página.','error')
+  }
 }
 /* adapta la interfaz al rol */
 function applyRole(){
@@ -7288,7 +7294,7 @@ function renderAsistente(){
   document.getElementById('botHandoff').value=botCfg.handoff_keywords||''
   renderFaq()
   // estado de conexión
-  fetch('/api/bot-reply.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:'ping'}]})})
+  fetch('/api/bot-reply.php',{method:'POST',headers:{'Content-Type':'application/json','Authorization':supaAuthHeader()},body:JSON.stringify({messages:[{role:'user',content:'ping'}]})})
     .then(r=>r.json()).then(j=>{
       const el=document.getElementById('botStatus')
       if(j.error==='not_configured'||j.error==='no_key') el.innerHTML='⚠️ <strong>Falta la API key de Anthropic</strong> en <code>api/bot-config.php</code> para que el bot piense. Mientras tanto puedes configurar el entrenamiento.'
@@ -7387,7 +7393,7 @@ async function botSimSend(){
   inp.value=''; botChatMsg('user',text); botSim.push({role:'user',content:text})
   const typing=document.createElement('div'); typing.className='bot-msg bot'; typing.textContent='…'; document.getElementById('botChat').appendChild(typing)
   try{
-    const res=await fetch('/api/bot-reply.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:botSim, phone:''})})
+    const res=await fetch('/api/bot-reply.php',{method:'POST',headers:{'Content-Type':'application/json','Authorization':supaAuthHeader()},body:JSON.stringify({messages:botSim, phone:''})})
     const j=await res.json()
     typing.remove()
     const reply=j.reply||'(sin respuesta)'
@@ -13340,7 +13346,12 @@ async function boot(){
   // sesión: si hay cuenta, refrescar token y cargar perfil
   const _sess = supaAuth.session()
   if(_sess){ const ok = await supaAuth.ensureFresh(); if(!ok){ doLogout(); return } await loadMe() }
-  else { me = null }
+  else {
+    /* sin sesión no se entra: la marca antigua del navegador abría el panel
+       entero, y sin perfil el sistema asumía que eras administrador */
+    localStorage.removeItem('spa_admin_auth')
+    return
+  }
   document.getElementById('loginScreen').style.display='none'
   document.getElementById('app').style.display='flex'
   if(typeof initSupabaseData==='function'){ try{ await initSupabaseData() }catch(e){} }

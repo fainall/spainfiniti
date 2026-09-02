@@ -17,6 +17,17 @@ $KEY = $cfg['openaiKey'] ?? ($cfg['apiKey'] ?? '');
 if (!$KEY || strpos($KEY,'sk-')!==0) { echo json_encode(['reply'=>'⚙️ Falta la API key de OpenAI en la configuración.','error'=>'no_key']); exit; }
 $MODEL = $cfg['model'] ?? 'gpt-4o-mini';
 
+/* Quién puede pedirle al cerebro: el panel (con su sesión) o el webhook de
+   WhatsApp (con la clave interna). Antes era público: cualquiera creaba
+   reservas reales a nombre del teléfono que quisiera y gastaba créditos. */
+$INTERNAL_KEY = hash('sha256', ($cfg['openaiKey'] ?? '') . '|spa-internal');
+$hdrKey = (string)($_SERVER['HTTP_X_INTERNAL_KEY'] ?? '');
+$esWebhook = ($hdrKey !== '' && hash_equals($INTERNAL_KEY, $hdrKey));
+if (!$esWebhook) {
+    require_once __DIR__ . '/require-auth.php';
+    require_panel_user(false);
+}
+
 $SUPA_URL = 'https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
 $SUPA_KEY = supa_key();
 
@@ -231,7 +242,8 @@ $tools = [
 ];
 
 $input = json_decode(file_get_contents('php://input'), true);
-$phone = $input['phone'] ?? '';
+/* el teléfono solo lo aporta el webhook, que lo lee del mensaje de Meta */
+$phone = $esWebhook ? preg_replace('/\D/', '', (string)($input['phone'] ?? '')) : '';
 
 /* ¿el profesional tiene asignado ese servicio? (Administración → Profesionales) */
 function prof_hace_servicio($profId, $serviceName) {
@@ -244,20 +256,22 @@ function prof_hace_servicio($profId, $serviceName) {
     return in_array($serviceName, (array)$m['services']);
 }
 
-function weekdayIso(){ return (int)date('N', strtotime($date)); }
+function weekdayIso($date){ return (int)date('N', strtotime($date)); }
 
 function do_check($args) {
     global $pros;
     $date=$args['date']; $time=substr($args['time'],0,5); $dur=$args['duration']??60;
     $wd = weekdayIso($date);
     $startM=(int)substr($time,0,2)*60+(int)substr($time,3,2); $endM=$startM+$dur;
-    $appts = supa('GET', 'appointments?select=professional_id,start_time,end_time&appt_date=eq.'.$date) ?: [];
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$date)) return ['available'=>false,'professionals'=>[],'motivo'=>'fecha no válida'];
+    $appts = supa('GET', 'appointments?select=professional_id,start_time,end_time&appt_date=eq.'.$date.'&or=(status.is.null,status.neq.cancelled)') ?: [];
     $free=[];
     $svcPedido = $args['service_name'] ?? '';
     foreach ($pros as $p) {
         if ($svcPedido && !prof_hace_servicio($p['id'], $svcPedido)) continue;   // no lo tiene asignado
         $days = is_string($p['work_days']) ? json_decode($p['work_days'],true) : $p['work_days'];
-        if (!in_array($wd, $days ?: [1,2,3,4,5,6])) continue;
+        /* el panel guarda el domingo como 0; un gestor antiguo como 7 */
+        if (!in_array($wd, $days ?: [1,2,3,4,5,6]) && !in_array($wd % 7, $days ?: [1,2,3,4,5,6])) continue;
         $ws=(int)substr($p['work_start'],0,2)*60+(int)substr($p['work_start'],3,2);
         $we=(int)substr($p['work_end'],0,2)*60+(int)substr($p['work_end'],3,2);
         if ($startM<$ws || $endM>$we) continue;
@@ -310,8 +324,14 @@ function do_book($args) {
     return ['ok'=>false,'reason'=>'error'];
 }
 
-$convo = $input['messages'] ?? [];
-if (!is_array($convo) || !count($convo)) { echo json_encode(['reply'=>'Hola 👋 ¿En qué puedo ayudarte?']); exit; }
+/* solo mensajes de usuario y asistente: nadie mete instrucciones de sistema desde fuera */
+$convo = array_values(array_filter(array_map(function ($m) {
+    if (!is_array($m)) return null;
+    $r = $m['role'] ?? ''; $c = $m['content'] ?? '';
+    if (!in_array($r, ['user','assistant'], true) || !is_string($c)) return null;
+    return ['role' => $r, 'content' => mb_substr($c, 0, 2000)];
+}, is_array($input['messages'] ?? null) ? $input['messages'] : [])));
+if (!count($convo)) { echo json_encode(['reply'=>'Hola 👋 ¿En qué puedo ayudarte?']); exit; }
 
 $messages = array_merge([['role'=>'system','content'=>$system]], $convo);
 
@@ -328,7 +348,8 @@ $booked=null;
 for ($i=0; $i<4; $i++) {
     list($code,$resp)=openai($KEY,$MODEL,$tools,$messages);
     if ($code!==200 || !isset($resp['choices'][0]['message'])) {
-        echo json_encode(['reply'=>'Disculpa, tuve un problema. ¿Puedes repetirlo? 🙏','error'=>'api_'.$code, 'detail'=>($resp['error']['message']??'')]); exit;
+        error_log('bot-reply openai '.$code.': '.($resp['error']['message'] ?? ''));
+        echo json_encode(['reply'=>'Disculpa, tuve un problema. ¿Puedes repetirlo? 🙏','error'=>'api_'.$code]); exit;
     }
     $m = $resp['choices'][0]['message'];
     $messages[] = $m;

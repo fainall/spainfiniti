@@ -341,5 +341,5 @@ const supaAuth = {
     return true
   },
 
-  signOut() { SUPA_TOKEN = null; localStorage.removeItem('spa_session') }
+  signOut() { SUPA_TOKEN = null; localStorage.removeItem('spa_session'); localStorage.removeItem('spa_admin_auth') }
 }
