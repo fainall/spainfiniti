@@ -1399,17 +1399,28 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
 @media(max-width:820px){ .ff-galeria figure{max-width:100%} }
 
 /* al imprimir, solo la ficha */
+@page{ margin:14mm }
 @media print{
-  body.imprimiendo-ficha *{visibility:hidden}
-  body.imprimiendo-ficha #ffModal,
-  body.imprimiendo-ficha #ffModal *{visibility:visible}
-  body.imprimiendo-ficha #ffModal{position:absolute;inset:0;background:#fff;display:block;padding:0}
-  body.imprimiendo-ficha #ffPapel{width:100%;max-width:100%;box-shadow:none;border-radius:0;
-    max-height:none;overflow:visible}
+  body.imprimiendo-ficha{background:#fff;height:auto;overflow:visible}
+  /* la ficha cuelga del body: todo lo demas se quita del papel */
+  body.imprimiendo-ficha > *{display:none !important}
+  body.imprimiendo-ficha > #ffModal{display:block !important;position:static;padding:0;
+    background:#fff;overflow:visible;z-index:auto}
+  body.imprimiendo-ficha #ffPapel{position:static;width:auto;max-width:100%;min-height:0;
+    max-height:none;overflow:visible;box-shadow:none;border-radius:0;padding:0}
+  /* botones y navegacion no van al papel */
   body.imprimiendo-ficha .ff-volver,
   body.imprimiendo-ficha .ff-acciones,
-  body.imprimiendo-ficha .modal-actions{display:none}
-  body.imprimiendo-ficha details.ff-sec{break-inside:avoid}
+  body.imprimiendo-ficha .modal-actions,
+  body.imprimiendo-ficha .ff-quitar{display:none}
+  /* nada se parte por la mitad entre dos hojas */
+  body.imprimiendo-ficha details.ff-sec{break-inside:avoid;border:1px solid #ddd}
+  body.imprimiendo-ficha .ff-campo{break-inside:avoid}
+  body.imprimiendo-ficha .ff-galeria figure{break-inside:avoid}
+  /* una foto a tamano completo se comia una hoja entera */
+  body.imprimiendo-ficha .ff-galeria img{max-height:8cm;width:auto}
+  body.imprimiendo-ficha .ff-galeria figcaption{display:none}
+  body.imprimiendo-ficha h2{font-size:1.1rem}
 }
 
 /* la ficha se lee en una ventana amplia, pero el texto no se estira:
@@ -8942,12 +8953,32 @@ function cancelarEdicionFicha(){
   else closeModal('ffModal')
 }
 
-/* imprime solo la ficha: el resto del panel se oculta desde el CSS */
+/* Imprime solo la ficha. La ventana vive dentro del panel, asi que
+   esconder lo demas dejaba su hueco y salia una hoja en blanco: se saca
+   la ficha del panel, se imprime, y se devuelve a su sitio. */
 function imprimirFicha(){
+  const ficha = document.getElementById('ffModal')
+  const marca = document.createComment('ficha')
+  ficha.parentNode.insertBefore(marca, ficha)
+  document.body.appendChild(ficha)
   document.body.classList.add('imprimiendo-ficha')
-  const limpiar = () => document.body.classList.remove('imprimiendo-ficha')
+
+  /* una seccion plegada no se imprimiria: se abren todas y luego se
+     dejan como estaban */
+  const plegadas = [...ficha.querySelectorAll('details:not([open])')]
+  plegadas.forEach(d => d.open = true)
+
+  let hecho = false
+  const limpiar = () => {
+    if(hecho) return
+    hecho = true
+    document.body.classList.remove('imprimiendo-ficha')
+    plegadas.forEach(d => d.open = false)
+    marca.parentNode.insertBefore(ficha, marca)
+    marca.remove()
+  }
   window.addEventListener('afterprint', limpiar, { once:true })
-  setTimeout(()=>{ window.print(); setTimeout(limpiar, 800) }, 60)
+  setTimeout(()=>{ window.print(); setTimeout(limpiar, 1200) }, 80)
 }
 
 async function saveFichaCliente(){
