@@ -42,6 +42,10 @@ drop policy if exists "fichas_sube" on storage.objects;
 create policy "fichas_lee"  on storage.objects for select using (bucket_id = 'fichas');
 create policy "fichas_sube" on storage.objects for insert to authenticated
   with check (bucket_id = 'fichas' and is_panel_user());
+-- borrar fotos de fichas: tambien solo el equipo (cualquier autenticado podia)
+drop policy if exists "fichas_borra" on storage.objects;
+create policy "fichas_borra" on storage.objects for delete to authenticated
+  using (bucket_id = 'fichas' and is_panel_user());
 
 -- ── 2. la reserva del sitio, con todas sus comprobaciones ──────
 -- "60 min", "1 hr 30 min", "1hr30min", "2 Hrs" -> minutos
