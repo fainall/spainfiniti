@@ -1453,6 +1453,14 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
 
 /* cuando un servicio se repite, se marca junto a su nombre */
 .dg-veces{color:var(--light);font-size:.78rem;font-weight:600}
+
+@media(max-width:820px){
+  /* la ficha rapida se centra: junto a la cita no cabe */
+  .qv{left:50% !important;top:50% !important;transform:translate(-50%,-50%);
+    width:calc(100vw - 24px);max-width:none;max-height:86vh;overflow-y:auto}
+  /* un velo detras, para que se lea sobre la agenda */
+  .qv-velo{position:fixed;inset:0;background:rgba(26,36,54,.45);z-index:849}
+}
 </style>
 </head>
 <body>
@@ -5480,13 +5488,23 @@ function openApptQuickView(id){
       ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">Ver ficha completa</button>`:''}
     </div>`
   document.body.appendChild(qv)
+  /* en el telefono la ficha va centrada, con un velo detras */
+  if(window.innerWidth <= 820){
+    const velo = document.createElement('div')
+    velo.className = 'qv-velo'; velo.id = 'apptQVVelo'
+    velo.onclick = closeQuickView
+    document.body.appendChild(velo)
+  }
   const el=document.querySelector(`.appt[data-id="${id}"]`)
   const r=el?el.getBoundingClientRect():{right:window.innerWidth/2,left:window.innerWidth/2,top:120}
   let left=r.right+8; if(left+352>window.innerWidth) left=Math.max(8, r.left-352)
   let top=r.top; if(top+360>window.innerHeight) top=Math.max(8, window.innerHeight-370)
   qv.style.left=left+'px'; qv.style.top=top+'px'
 }
-function closeQuickView(){ const q=document.getElementById('apptQV'); if(q) q.remove() }
+function closeQuickView(){
+  const q=document.getElementById('apptQV'); if(q) q.remove()
+  const v=document.getElementById('apptQVVelo'); if(v) v.remove()
+}
 async function setApptStatus(id,status){
   const a=findAppt(id); if(!a) return
   a.status=status
