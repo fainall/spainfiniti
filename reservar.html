@@ -69,6 +69,12 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .prof.on{border-color:var(--gold,#C5A467);box-shadow:0 0 0 2px rgba(197,164,103,.28)}
 .prof-nom{display:block;font-size:.88rem;font-weight:600;color:#1f2328}
 .prof-sub{display:block;font-size:.72rem;color:#43484F;margin-top:3px}
+
+    /* el dia en curso se distingue aunque no este elegido */
+    .day.hoy:not(.on){border-color:var(--gold)}
+    .day.hoy:not(.on) .dw{color:var(--gold-d);font-weight:700}
+    .day.off.hoy{border-color:var(--border)}
+    .day.off.hoy .dw{color:var(--light)}
 </style>
 </head>
 <body>
@@ -276,8 +282,9 @@ function pintarDias(){
     const d = new Date(hoy); d.setDate(d.getDate()+i)
     const f = iso(d)
     const hay = horasLibres(f).length
-    html += `<div class="day ${fechaSel===f?'on':''} ${hay?'':'off'}" ${hay?`onclick="elegirDia('${f}')"`:''}>
-      <div class="dw">${DOW_S[d.getDay()]}</div><div class="dd">${d.getDate()}</div><div class="dm">${MES_S[d.getMonth()]}</div></div>`
+    const etq = i===0 ? 'HOY' : i===1 ? 'MAÑ' : DOW_S[d.getDay()]
+    html += `<div class="day ${fechaSel===f?'on':''} ${hay?'':'off'} ${i===0?'hoy':''}" ${hay?`onclick="elegirDia('${f}')"`:''}>
+      <div class="dw">${etq}</div><div class="dd">${d.getDate()}</div><div class="dm">${MES_S[d.getMonth()]}</div></div>`
   }
   return html + '</div>'
 }
@@ -341,6 +348,16 @@ function render(){
     ${pintarProfesionales()}
     ${pintarHoras()}
     ${pintarFormulario()}`
+}
+/* deja elegido el dia en curso; si a hoy ya no le quedan horas, el
+   primero que tenga, para que la lista no aparezca toda apagada */
+function elegirPrimerDiaConHoras(){
+  const hoy = new Date(); hoy.setHours(0,0,0,0)
+  for(let i = 0; i < diasQueSeOfrecen(); i++){
+    const d = new Date(hoy); d.setDate(d.getDate() + i)
+    const f = iso(d)
+    if(horasLibres(f).length){ fechaSel = f; return }
+  }
 }
 function elegirDia(f){ fechaSel = f; horaSel = null; render() }
 function elegirHora(h){ horaSel = h; render(); document.getElementById('nombre').focus() }
@@ -442,6 +459,7 @@ async function init(){
     citas = await supabase.fetch('public_busy', { filters: `appt_date=gte.${iso(hoy)}&appt_date=lte.${iso(fin)}` }) || []
 
     if(!profesionales.length){ body.innerHTML = '<p class="empty">Por ahora no hay horas publicadas. Escríbenos por WhatsApp y te ayudamos.</p>'; return }
+    elegirPrimerDiaConHoras()
     render()
   }catch(e){
     console.error(e)
