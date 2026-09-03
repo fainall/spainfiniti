@@ -120,9 +120,11 @@ $tips = trim($bot['local_tips'] ?? '');
 
 /* varias bienvenidas (una por línea) para no saludar siempre igual */
 $bienvenidas = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', (string)($bot['welcome'] ?? '')))));
+/* el saludo se sortea aqui: si se le pasan todos al modelo elige
+   siempre el mismo, y todos los clientes reciben la misma frase */
 $bienvenidasTxt = $bienvenidas
-    ? "\nCuando saludes por primera vez usa UNA de estas, variando entre conversaciones (no siempre la misma):\n- " . implode("\n- ", $bienvenidas)
-    : "\nAl saludar por primera vez preséntate: \"Hola, soy $botName, asistente de $negocio. ¿En qué puedo ayudarte?\", variando las palabras cada vez.";
+    ? "\nSi es tu primer mensaje de la conversacion, saluda con esta frase (puedes ajustar alguna palabra, no la cambies entera):\n" . $bienvenidas[array_rand($bienvenidas)]
+    : "\nAl saludar por primera vez presentate: \"Hola, soy $botName, asistente de $negocio. En que puedo ayudarte?\"";
 
 $system = "Eres $botName, la asistente de $negocio, un centro podológico y spa en $direccion.
 Hoy es $dow $today. Atiendes por WhatsApp.
