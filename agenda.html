@@ -7434,7 +7434,8 @@ async function botSimSend(){
     const res=await fetch('/api/bot-reply.php',{method:'POST',headers:{'Content-Type':'application/json','Authorization':supaAuthHeader()},body:JSON.stringify({messages:botSim, phone:''})})
     const j=await res.json()
     typing.remove()
-    const reply=j.reply||'(sin respuesta)'
+    /* si el servidor rechazo la peticion, se dice por que: '(sin respuesta)' no ayudaba a nadie */
+    const reply=j.reply || (j.error ? '⚠ '+j.error : '(sin respuesta del asistente)')
     botChatMsg('bot',reply); botSim.push({role:'assistant',content:reply})
     if(j.booked&&j.booked.ok){ botChatSys('✅ El bot creó una reserva de prueba. Refresca la agenda para verla.'); loadAppointments() }
   }catch(e){ typing.remove(); botChatSys('No se pudo contactar al bot (¿estás en la versión en vivo?).') }

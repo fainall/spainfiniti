@@ -55,11 +55,18 @@ function require_panel_user($adminOnly = true) {
     }
 
     // 2. ¿tiene perfil activo en el panel?
-    list($c2, $rows) = _http_get(
-        supa_url() . '/rest/v1/panel_users?select=id,name,email,role,active&id=eq.' . urlencode($user['id']),
-        ['apikey: ' . supa_key(), 'Authorization: Bearer ' . supa_key()]
-    );
+    $ruta = supa_url() . '/rest/v1/panel_users?select=id,name,email,role,active&id=eq.' . urlencode($user['id']);
+    list($c2, $rows) = _http_get($ruta, ['apikey: ' . supa_key(), 'Authorization: Bearer ' . supa_key()]);
     $perfil = (is_array($rows) && count($rows)) ? $rows[0] : null;
+
+    /* Sin la llave de servicio configurada, supa_key() es la llave publica y
+       las reglas de la base no dejan ver ningun perfil: nadie entraria. En ese
+       caso se pregunta con la sesion de la propia persona, que si puede leer
+       la suya. La sesion ya quedo verificada contra Supabase en el paso 1. */
+    if (!$perfil) {
+        list($c3, $rows2) = _http_get($ruta, ['apikey: ' . $anon, 'Authorization: Bearer ' . $token]);
+        $perfil = (is_array($rows2) && count($rows2)) ? $rows2[0] : null;
+    }
     if (!$perfil || $perfil['active'] === false) {
         http_response_code(403);
         echo json_encode(['error' => 'Tu cuenta no tiene acceso al panel']);
