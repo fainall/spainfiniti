@@ -28,7 +28,7 @@ if (!$esWebhook) {
     require_panel_user(false);
 }
 
-$SUPA_URL = 'https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
+$SUPA_URL = supa_url() . '/rest/v1/';
 $SUPA_KEY = supa_key();
 
 function supa($method, $path, $body = null) {

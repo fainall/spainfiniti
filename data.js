@@ -5,11 +5,14 @@
 /* Base URL de imágenes locales del sitio */
 const IMG = '/images/'
 
+/* Los datos del negocio salen de config-cliente.js; si no cargara,
+   se usan los de siempre. */
+const _C = (typeof CLIENTE !== 'undefined') ? CLIENTE : {}
 const SITE = {
-  name: 'Spa Infinity',
-  tagline: 'Centro Podológico & Spa',
-  address: 'Santo Domingo 1083, of. 502, Santiago',
-  phone: '+56 9 8668 8771',
+  name: _C.nombre    || 'Spa Infinity',
+  tagline: _C.rubro  || 'Centro Podológico & Spa',
+  address: _C.direccion || 'Santo Domingo 1083, of. 502, Santiago',
+  phone: _C.telefono || '+56 9 8668 8771',
   email: 'reservainfinity@spainfinity.cl',
   booking: 'https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20una%20cita',
   hours: 'Lun–Vie 10:00–20:00 · Sáb 11:00–18:00'

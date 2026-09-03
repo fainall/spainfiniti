@@ -24,4 +24,28 @@ function supa_key() {
     return $key;
 }
 
-function supa_url() { return 'https://bxwamppamqxtncvfdycy.supabase.co'; }
+function supa_url() {
+    static $url = null;
+    if ($url !== null) return $url;
+    /* la identidad del cliente, si está puesta; si no, la de siempre */
+    $f = __DIR__ . '/cliente-config.php';
+    if (file_exists($f)) {
+        $c = require $f;
+        if (!empty($c['supabaseUrl'])) { $url = rtrim($c['supabaseUrl'], '/'); return $url; }
+    }
+    $url = 'https://bxwamppamqxtncvfdycy.supabase.co';
+    return $url;
+}
+
+/* la llave anónima, para las peticiones que van a nombre del visitante */
+function supa_anon() {
+    static $k = null;
+    if ($k !== null) return $k;
+    $f = __DIR__ . '/cliente-config.php';
+    if (file_exists($f)) {
+        $c = require $f;
+        if (!empty($c['supabaseAnon'])) { $k = $c['supabaseAnon']; return $k; }
+    }
+    $k = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA';
+    return $k;
+}

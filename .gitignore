@@ -8,3 +8,4 @@ api/reviews-config.php
 api/cache/
 api/bot-config.php
 api/bot-sessions/
+api/cliente-config.php

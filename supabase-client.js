@@ -2,8 +2,15 @@
    SPA INFINITY — Supabase Client
    ═══════════════════════════════════════════ */
 
-const SUPABASE_URL = 'https://bxwamppamqxtncvfdycy.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA'
+/* La dirección y la llave salen de config-cliente.js, que es lo único
+   que cambia de un negocio a otro. Si esa configuración no cargara, se
+   usan los valores de siempre para que nada deje de funcionar. */
+const SUPABASE_URL = (typeof CLIENTE !== 'undefined' && CLIENTE.supabaseUrl)
+  ? CLIENTE.supabaseUrl
+  : 'https://bxwamppamqxtncvfdycy.supabase.co'
+const SUPABASE_ANON_KEY = (typeof CLIENTE !== 'undefined' && CLIENTE.supabaseKey)
+  ? CLIENTE.supabaseKey
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA'
 
 /* ── Lightweight Supabase REST wrapper ──── */
 /* Token de sesión (Supabase Auth). Si no hay sesión se usa la clave anónima. */

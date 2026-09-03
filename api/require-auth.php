@@ -43,7 +43,7 @@ function require_panel_user($adminOnly = true) {
     }
 
     // 1. ¿la sesión es válida?
-    $anon = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA';
+    $anon = supa_anon();
     list($code, $user) = _http_get(supa_url() . '/auth/v1/user', [
         'apikey: ' . $anon,
         'Authorization: Bearer ' . $token,
