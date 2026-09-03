@@ -43,7 +43,7 @@ function supa($method, $path, $body = null) {
 }
 
 /* ── Contexto ── */
-$botRows = supa('GET', 'bot_config?id=eq.1');
+$botRows = supa('GET', 'bot_config?id=eq.1&select=*');
 $bot = (is_array($botRows) && count($botRows)) ? $botRows[0] : [];
 $services = supa('GET', 'services?select=name,price,duration') ?: [];
 $pros = supa('GET', 'professionals?select=id,name,work_start,work_end,work_days&active=eq.true') ?: [];
@@ -100,19 +100,61 @@ if (!empty($bot['faq'])) {
 $today = date('Y-m-d');
 $dow = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][date('w')];
 
-$system = "Eres el asistente de reservas de ".($cfg['businessName']??'Spa Infinity').", un centro podológico y spa en ".($cfg['address']??'Santiago').".
-Hoy es $dow $today. Atiendes por WhatsApp de forma cálida, breve y clara (emojis con moderación).
-Objetivo: responder dudas y AGENDAR citas. Pide lo que falte (servicio, día, hora y nombre del cliente).
-Antes de confirmar SIEMPRE usa la función check_availability. Solo agenda con create_booking cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
-Si no hay disponibilidad, ofrece alternativas cercanas. No inventes servicios ni precios: usa solo esta lista.
+/* ── quién es y cómo habla ── */
+$botName = trim($bot['bot_name'] ?? '') ?: 'Julia';
+$negocio = $cfg['businessName'] ?? 'Spa Infinity';
 
-TONO/INSTRUCCIONES DEL NEGOCIO:
-".($bot['tone'] ?? 'Amable y profesional.')."
-".(!empty($bot['welcome']) ? "\nBienvenida sugerida: ".$bot['welcome'] : '')."
+/* datos del local, para responder dónde están y cómo llegar */
+$li = $bot['local_info'] ?? [];
+if (is_string($li)) $li = json_decode($li, true);
+if (!is_array($li)) $li = [];
+$direccion = trim(($li['address'] ?? ($cfg['address'] ?? 'Santiago')) . ' ' . ($li['extra'] ?? ''));
+$DIAS_ES = [1=>'Lunes',2=>'Martes',3=>'Miércoles',4=>'Jueves',5=>'Viernes',6=>'Sábado',0=>'Domingo'];
+$horarioTxt = '';
+foreach ([1,2,3,4,5,6,0] as $d) {
+    $hd = ($li['hours'][$d] ?? ($li['hours'][(string)$d] ?? null));
+    if (!is_array($hd)) continue;
+    $horarioTxt .= "\n- {$DIAS_ES[$d]}: " . ((($hd[2] ?? true) === false || empty($hd[0])) ? 'cerrado' : ($hd[0].' a '.$hd[1]));
+}
+$tips = trim($bot['local_tips'] ?? '');
+
+/* varias bienvenidas (una por línea) para no saludar siempre igual */
+$bienvenidas = array_values(array_filter(array_map('trim', preg_split('/\r?\n/', (string)($bot['welcome'] ?? '')))));
+$bienvenidasTxt = $bienvenidas
+    ? "\nCuando saludes por primera vez usa UNA de estas, variando entre conversaciones (no siempre la misma):\n- " . implode("\n- ", $bienvenidas)
+    : "\nAl saludar por primera vez preséntate: \"Hola, soy $botName, asistente de $negocio. ¿En qué puedo ayudarte?\", variando las palabras cada vez.";
+
+$system = "Eres $botName, la asistente de $negocio, un centro podológico y spa en $direccion.
+Hoy es $dow $today. Atiendes por WhatsApp.
+
+CÓMO HABLAS:
+- Natural y profesional, como una recepcionista con experiencia. Nunca robótica ni con frases hechas repetidas.
+- Te presentas por tu nombre la primera vez y luego ya no repites la presentación.
+- Frases cortas, de tú, en español de Chile. Un emoji de vez en cuando, no en cada mensaje.
+- No repitas la misma fórmula ni el mismo saludo dos veces en la conversación.
+- Una pregunta a la vez: no pidas todos los datos de golpe.
+$bienvenidasTxt
+
+QUÉ HACES:
+- Resuelves dudas y AGENDAS citas. Pide lo que falte (servicio, día, hora y nombre).
+- Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
+- Si no hay disponibilidad, ofrece alternativas cercanas.
+
+LO QUE NO HACES:
+- No inventas servicios, precios, promociones ni horarios: usa solo lo que aparece aquí abajo.
+- Si te preguntan algo que no está en esta información (estacionamiento, metro cercano, formas de pago, convenios), NO lo adivines. Di con naturalidad que lo confirmas con el equipo y ofrece que alguien le escriba.
+- No das diagnósticos ni indicaciones médicas. Para eso, invitas a evaluación con la podóloga.
+
+DÓNDE ESTAMOS:
+$direccion
+HORARIO DEL LOCAL:$horarioTxt
+" . ($tips ? "\nDATOS PRÁCTICOS (cómo llegar, estacionamiento, accesos):\n$tips\n" : '') . "
+INSTRUCCIONES DEL NEGOCIO:
+" . ($bot['tone'] ?? 'Cercana, resolutiva y profesional.') . "
 
 SERVICIOS:
 $svcText$smartText
-".($faq ? "\nPREGUNTAS FRECUENTES:$faq" : '');
+" . ($faq ? "\nPREGUNTAS FRECUENTES:$faq" : '');
 
 
 /* ── Reglas del servicio (horario especial, cupos y recursos) ── */

@@ -3375,15 +3375,23 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <div>
           <div class="rep-block">
             <h3>Entrenamiento</h3>
-            <label>Mensaje de bienvenida</label>
-            <textarea id="botWelcome" rows="2" placeholder="¡Hola! Soy el asistente de Spa Infinity 💆 ¿Te ayudo a agendar?"></textarea>
-            <label>Personalidad / instrucciones</label>
-            <textarea id="botTone" rows="3" placeholder="Cálido, breve y resolutivo. Trata de tú. Ofrece siempre agendar."></textarea>
+            <label>¿Cómo se llama tu asistente?</label>
+            <input type="text" id="botName" placeholder="Julia" />
+            <p class="rem-note" style="margin:4px 0 0">Se presenta con este nombre: "Hola, soy Julia, asistente de Spa Infinity".</p>
+            <label style="margin-top:14px">Saludos de bienvenida</label>
+            <textarea id="botWelcome" rows="5" placeholder="Hola, soy Julia, asistente de Spa Infinity. ¿En qué puedo ayudarte?"></textarea>
+            <p class="rem-note" style="margin:4px 0 0">Uno por línea. Va alternando entre ellos para no saludar siempre igual.</p>
+            <label style="margin-top:14px">Personalidad / instrucciones</label>
+            <textarea id="botTone" rows="3" placeholder="Cálida, breve y resolutiva. Trata de tú. Ofrece siempre agendar."></textarea>
+            <label style="margin-top:14px">Cómo llegar y datos prácticos</label>
+            <textarea id="botTips" rows="4" placeholder="Metro más cercano, estacionamiento, cómo entrar al edificio, piso, timbre…"></textarea>
+            <p class="rem-note" style="margin:4px 0 0">Lo que suelen preguntar antes de venir. Si algo no está aquí, la asistente dice que lo confirma con el equipo en vez de inventarlo.</p>
             <label>Palabras para derivar a una persona</label>
             <input type="text" id="botHandoff" placeholder="reclamo, urgente, hablar con alguien" />
             <label style="margin-top:14px">Preguntas frecuentes</label>
             <div id="botFaq"></div>
             <button class="mini-btn" onclick="addFaqRow()">+ Agregar pregunta</button>
+            <button class="btn-g" onclick="agregarFaqTipicas()">✨ Preguntas típicas</button>
             <div style="text-align:right;margin-top:16px"><button class="btn-primary" onclick="saveBotConfig()">Guardar entrenamiento</button></div>
           </div>
         </div>
@@ -7289,8 +7297,10 @@ async function loadBotConfig(){
 }
 function renderAsistente(){
   document.getElementById('botActive').checked=!!botCfg.active
+  document.getElementById('botName').value=botCfg.bot_name||''
   document.getElementById('botWelcome').value=botCfg.welcome||''
   document.getElementById('botTone').value=botCfg.tone||''
+  document.getElementById('botTips').value=botCfg.local_tips||''
   document.getElementById('botHandoff').value=botCfg.handoff_keywords||''
   renderFaq()
   // estado de conexión
@@ -7309,6 +7319,27 @@ function renderFaq(){
     <button onclick="botCfg.faq.splice(${i},1);renderFaq()">✕</button></div>`).join('')
 }
 function addFaqRow(){ botCfg.faq=botCfg.faq||[]; botCfg.faq.push({q:'',a:''}); renderFaq() }
+/* las que preguntan casi todos los clientes antes de venir; se agregan
+   con la respuesta en blanco para que el equipo la escriba, porque la
+   asistente no debe inventarse estas cosas */
+const FAQ_TIPICAS = [
+  '¿Dónde están ubicados?',
+  '¿Hay estacionamiento cerca?',
+  '¿Cuál es el metro más cercano?',
+  '¿Cómo entro al edificio? ¿En qué piso están?',
+  '¿Qué formas de pago aceptan?',
+  '¿Atienden con convenio o emiten boleta?',
+  '¿Qué pasa si no puedo llegar a mi hora?',
+  '¿Puedo ir con acompañante?'
+]
+function agregarFaqTipicas(){
+  botCfg.faq = botCfg.faq || []
+  const yaEstan = botCfg.faq.map(x => (x.q||'').toLowerCase())
+  let n = 0
+  FAQ_TIPICAS.forEach(q => { if(!yaEstan.includes(q.toLowerCase())){ botCfg.faq.push({q, a:''}); n++ } })
+  renderFaq()
+  toast(n ? ('Se agregaron ' + n + ' preguntas. Escribe la respuesta de cada una.') : 'Ya estaban todas', n?'success':'error')
+}
 
 
 /* ── EMAIL MARKETING (Campañas) ── */
@@ -7378,10 +7409,17 @@ async function renderCampaigns(){
   }catch(e){ el.innerHTML='<div style="color:var(--light)">Historial no disponible.</div>' }
 }
 async function saveBotConfig(){
-  const row={ active:document.getElementById('botActive').checked, welcome:document.getElementById('botWelcome').value.trim(),
-    tone:document.getElementById('botTone').value.trim(), handoff_keywords:document.getElementById('botHandoff').value.trim(),
+  const row={ active:document.getElementById('botActive').checked,
+    bot_name:document.getElementById('botName').value.trim() || 'Julia',
+    welcome:document.getElementById('botWelcome').value.trim(),
+    tone:document.getElementById('botTone').value.trim(),
+    local_tips:document.getElementById('botTips').value.trim(),
+    handoff_keywords:document.getElementById('botHandoff').value.trim(),
     faq:(botCfg.faq||[]).filter(q=>q.q&&q.a), updated_at:new Date().toISOString() }
-  try{ await supabase.update('bot_config','1',row); botCfg={...botCfg,...row}; toast('Entrenamiento guardado','success') }
+  /* una pregunta sin respuesta no se guarda: conviene decirlo */
+  const aMedias=(botCfg.faq||[]).filter(q=>q.q&&!q.a).length
+  try{ await supabase.update('bot_config','1',row); botCfg={...botCfg,...row}
+    toast(aMedias ? ('Guardado. '+aMedias+' pregunta(s) sin respuesta no se guardaron') : 'Entrenamiento guardado', aMedias?'error':'success') }
   catch(e){ console.error(e); toast('Error al guardar','error') }
 }
 /* simulador */
