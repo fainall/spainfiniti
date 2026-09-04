@@ -164,6 +164,36 @@ async function loadFromSupabase() {
 /* ── Convert JS service object → DB row ──
    Note: sort_order is preserved if present on the object. New services
    should get sort_order assigned BEFORE calling insert (see admin). */
+/* Guarda solo los campos que de verdad cambiaron.
+   El panel de la web arma el registro completo y lo manda entero, asi que
+   un campo vacio en su formulario borraba lo que hubiera puesto la agenda.
+   Ademas, al comparar contra lo que hay guardado en ese momento, dos
+   personas pueden editar cosas distintas del mismo servicio sin pisarse. */
+async function updateSoloCambios(tabla, id, row) {
+  let actual = null
+  try { actual = (await supabase.fetch(tabla, { filters: 'id=eq.' + encodeURIComponent(id) }))[0] } catch (e) {}
+  if (!actual) return supabase.update(tabla, id, row)   // no se pudo comparar: se guarda todo
+  const igual = (a, b) => {
+    const norm = v => {
+      if (v === null || v === undefined) return ''
+      if (typeof v === 'string') {
+        try { const p = JSON.parse(v); if (p && typeof p === 'object') return JSON.stringify(p) } catch (e) {}
+        return v.trim()
+      }
+      if (typeof v === 'object') return JSON.stringify(v)
+      return String(v)
+    }
+    return norm(a) === norm(b)
+  }
+  const cambios = {}
+  Object.keys(row).forEach(k => {
+    if (k === 'id') return
+    if (!igual(actual[k], row[k])) cambios[k] = row[k]
+  })
+  if (!Object.keys(cambios).length) return { sinCambios: true }
+  return supabase.update(tabla, id, cambios)
+}
+
 function serviceToRow(svc) {
   const row = {
     id: svc.id,

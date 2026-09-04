@@ -1316,7 +1316,7 @@ function saveCategory(catId) {
 
   // Sync to Supabase
   if (typeof supabase !== 'undefined') {
-    supabase.update('categories', catId, categoryToRow(cat))
+    updateSoloCambios('categories', catId, categoryToRow(cat))
       .then(() => console.log('✓ Category synced:', catId))
       .catch(e => { console.error('Supabase cat sync fail:', e); toast('Error sincronizando con servidor', 'error') })
   }
@@ -1791,7 +1791,7 @@ function saveService(catId, svcId) {
 
   // Sync to Supabase
   if (typeof supabase !== 'undefined') {
-    supabase.update('services', svcId, serviceToRow(svc))
+    updateSoloCambios('services', svcId, serviceToRow(svc))
       .then(() => console.log('✓ Service synced:', svcId))
       .catch(e => { console.error('Supabase svc sync fail:', e); toast('Error sincronizando con servidor', 'error') })
   }
