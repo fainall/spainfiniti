@@ -82,8 +82,9 @@ alter table registro_cambios enable row level security;
 drop policy if exists "registro_lee" on registro_cambios;
 create policy "registro_lee" on registro_cambios for select to authenticated using (is_panel_user());
 
--- prueba en seco: un cambio y se deshace, pero se ve que el registro funciona
-begin;
-update services set tag = coalesce(tag,'') || ' ' where id = (select id from services limit 1);
-select accion, tabla, nombre, quien, cambios from registro_cambios order by id desc limit 1;
-rollback;
+-- Refresca la cache de la API para que la tabla nueva sea visible al instante
+notify pgrst, 'reload schema';
+
+-- OJO: no anadir aqui una prueba con begin/rollback. El editor de Supabase
+-- ejecuta el script entero como una sola transaccion, y el rollback
+-- deshace tambien las tablas y los triggers creados arriba.
