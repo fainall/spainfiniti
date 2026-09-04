@@ -4,7 +4,7 @@ require_once __DIR__ . '/supa-key.php';
 $email = trim($_GET['e'] ?? '');
 $ok = false;
 if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $SUPA='https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
+    $SUPA=supa_url() . '/rest/v1/';
     $KEY=supa_key();
     $ch=curl_init($SUPA.'email_suppressions');
     curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_HTTPHEADER=>['apikey: '.$KEY,'Authorization: Bearer '.$KEY,'Content-Type: application/json','Prefer: resolution=ignore-duplicates'],CURLOPT_POSTFIELDS=>json_encode(['email'=>$email]),CURLOPT_TIMEOUT=>15]);

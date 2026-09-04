@@ -12,7 +12,7 @@ $cfg = file_exists($cfgFile) ? require $cfgFile : [];
 $secret = $cfg['cronKey'] ?? 'spa-cron-2026';
 if (($_GET['key'] ?? '') !== $secret) { http_response_code(403); echo json_encode(['error'=>'forbidden']); exit; }
 
-$SUPA = 'https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
+$SUPA = supa_url() . '/rest/v1/';
 $KEY  = supa_key();
 function supa($m,$p,$b=null){ global $SUPA,$KEY; $ch=curl_init($SUPA.$p); $h=['apikey: '.$KEY,'Authorization: Bearer '.$KEY,'Content-Type: application/json']; if($m!=='GET')$h[]='Prefer: return=representation'; curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$m,CURLOPT_HTTPHEADER=>$h,CURLOPT_TIMEOUT=>15]); if($b!==null)curl_setopt($ch,CURLOPT_POSTFIELDS,json_encode($b)); $r=curl_exec($ch); curl_close($ch); return json_decode($r,true); }
 

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/cliente.php';
 /**
  * Llave de acceso a Supabase para los scripts del servidor.
  *
@@ -33,7 +34,7 @@ function supa_url() {
         $c = require $f;
         if (!empty($c['supabaseUrl'])) { $url = rtrim($c['supabaseUrl'], '/'); return $url; }
     }
-    $url = 'https://bxwamppamqxtncvfdycy.supabase.co';
+    $url = cliente('supabaseUrl', 'https://bxwamppamqxtncvfdycy.supabase.co');
     return $url;
 }
 

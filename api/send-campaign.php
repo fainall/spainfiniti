@@ -27,7 +27,7 @@ if (!$subject || !$message) { http_response_code(400); echo json_encode(['error'
 if (!is_array($ids) || !count($ids)) { echo json_encode(['sent'=>0,'skipped'=>0,'note'=>'sin destinatarios']); exit; }
 $ids = array_slice($ids, 0, 300); // tope de seguridad
 
-$SUPA='https://bxwamppamqxtncvfdycy.supabase.co/rest/v1/';
+$SUPA=supa_url() . '/rest/v1/';
 $KEY=supa_key();
 function supa($m,$p,$b=null){ global $SUPA,$KEY; $ch=curl_init($SUPA.$p); $h=['apikey: '.$KEY,'Authorization: Bearer '.$KEY,'Content-Type: application/json']; if($m!=='GET')$h[]='Prefer: return=representation'; curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_CUSTOMREQUEST=>$m,CURLOPT_HTTPHEADER=>$h,CURLOPT_TIMEOUT=>20]); if($b!==null)curl_setopt($ch,CURLOPT_POSTFIELDS,json_encode($b)); $r=curl_exec($ch); curl_close($ch); return json_decode($r,true); }
 
