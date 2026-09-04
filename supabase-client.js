@@ -30,9 +30,26 @@ const SUPABASE_ANON_KEY = (typeof CLIENTE !== 'undefined' && CLIENTE.supabaseKey
   : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4d2FtcHBhbXF4dG5jdmZkeWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzg1MjAsImV4cCI6MjA5MzkxNDUyMH0.UiSFfFCU8GusDWqfgf3c9PL10ctHwZtaWvHFY8VghzA'
 
 /* ── Lightweight Supabase REST wrapper ──── */
-/* Token de sesión (Supabase Auth). Si no hay sesión se usa la clave anónima. */
+/* Token de sesión (Supabase Auth). Si no hay sesión se usa la clave anónima.
+
+   OJO con lo que costo encontrar esto: aqui se tomaba el token guardado sin
+   mirar si seguia vivo. El token del panel dura una hora. Pasada esa hora, a
+   quien hubiera entrado alguna vez al panel en ese navegador —o sea, Luis y
+   cualquiera del equipo— la base le respondia 401 a TODO, tambien en las
+   paginas publicas: el catalogo se caia al respaldo (precios viejos) y la
+   pagina de reserva decia "No pudimos cargar las horas". Desde otro navegador,
+   sin sesion, el mismo enlace andaba perfecto.
+
+   Ahora un token vencido sencillamente no se usa: se lee con la clave publica,
+   que es lo que necesita el sitio. El panel renueva su sesion aparte, con
+   supaAuth.ensureFresh(). */
 let SUPA_TOKEN = null
-try { const sess = JSON.parse(localStorage.getItem('spa_session') || 'null'); if (sess && sess.access_token) SUPA_TOKEN = sess.access_token } catch (e) {}
+try {
+  const sess = JSON.parse(localStorage.getItem('spa_session') || 'null')
+  /* 60 segundos de margen, por si el reloj del equipo va adelantado */
+  const vivo = sess && sess.access_token && (!sess.expires_at || sess.expires_at - Date.now() > 60000)
+  if (vivo) SUPA_TOKEN = sess.access_token
+} catch (e) {}
 function supaAuthHeader() { return 'Bearer ' + (SUPA_TOKEN || SUPABASE_ANON_KEY) }
 
 const supabase = {
@@ -59,6 +76,14 @@ const supabase = {
     }
     if (res.status >= 500) {
       await new Promise(r => setTimeout(r, 700))
+      res = await pedir()
+    }
+    /* El token puede morir mientras la pagina esta abierta, o haber sido
+       revocado. Antes de darse por vencida, la lectura se repite con la clave
+       publica: para el sitio es lo unico que hace falta. */
+    if (res.status === 401 && SUPA_TOKEN) {
+      console.warn('La sesion del panel ya no sirve; se lee con la clave publica')
+      SUPA_TOKEN = null
       res = await pedir()
     }
     if (!res.ok) throw new Error(`Supabase ${table}: ${res.status}`)
