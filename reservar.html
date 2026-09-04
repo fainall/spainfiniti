@@ -93,7 +93,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
     ¿Prefieres escribirnos? <a href="https://wa.me/56986688771" target="_blank" rel="noopener">WhatsApp +56 9 8668 8771</a></p>
 </div>
 
-<script src="/supabase-client.js?v=13"></script>
+<script src="/supabase-client.js?v=14"></script>
 <script src="/data.js?v=7"></script>
 <script>
 /* ═══════════════════════════════════════════
@@ -463,8 +463,12 @@ async function init(){
     elegirPrimerDiaConHoras()
     render()
   }catch(e){
+    /* el motivo se muestra en letra chica: sin eso, cada vez que pasaba habia
+       que adivinar si era la red, la base o un servicio mal configurado */
     console.error(e)
-    body.innerHTML = '<p class="empty">No pudimos cargar las horas. Escríbenos por WhatsApp y te ayudamos.</p>'
+    const motivo = (e && (e.message || e)) + ''
+    body.innerHTML = '<p class="empty">No pudimos cargar las horas. Escríbenos por WhatsApp y te ayudamos.'
+      + '<br><small style="opacity:.55">' + esc(motivo).slice(0, 120) + '</small></p>'
   }
 }
 init()

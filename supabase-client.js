@@ -40,13 +40,27 @@ const supabase = {
     let url = `${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}`
     if (filters) url += `&${filters}`
     if (order) url += `&order=${order}`
-    const res = await fetch(url, {
+    const pedir = () => fetch(url, {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': supaAuthHeader(),
         'Content-Type': 'application/json'
       }
     })
+    /* En el celular una peticion se corta de vez en cuando y la pagina se caia
+       entera por eso. Se intenta una segunda vez, esperando un momento, cuando
+       el fallo es de red o del servidor. Si la respuesta es un 4xx no se
+       reintenta: ese error no se arregla repitiendolo. */
+    let res
+    try { res = await pedir() }
+    catch (e) {
+      await new Promise(r => setTimeout(r, 700))
+      res = await pedir()
+    }
+    if (res.status >= 500) {
+      await new Promise(r => setTimeout(r, 700))
+      res = await pedir()
+    }
     if (!res.ok) throw new Error(`Supabase ${table}: ${res.status}`)
     return res.json()
   },
@@ -151,15 +165,10 @@ window.CATALOGO_ORIGEN = 'estatico'
 /* ── Load categories + services from Supabase ── */
 async function loadFromSupabase() {
   try {
-    /* en el celular una peticion se corta de vez en cuando: se reintenta una vez
-       antes de dar el catalogo por perdido */
-    const pedir = async () => Promise.all([
+    const [cats, svcs] = await Promise.all([
       supabase.fetch('categories', { order: 'sort_order.asc' }),
       supabase.fetch('services', { order: 'sort_order.asc' })
     ])
-    let cats, svcs
-    try { [cats, svcs] = await pedir() }
-    catch (e1) { console.warn('Reintentando el catalogo:', e1.message || e1); [cats, svcs] = await pedir() }
 
     // Transform DB rows → JS format matching data.js structure
     const categories = cats.map(c => ({

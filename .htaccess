@@ -50,8 +50,8 @@ RewriteRule ^(.+)\.html$ /$1 [R=301,L]
 # ── PERFORMANCE: CACHE HEADERS ──
 <IfModule mod_expires.c>
   ExpiresActive On
-  # HTML — corto (puede cambiar)
-  ExpiresByType text/html "access plus 1 hour"
+  # HTML — el navegador pregunta siempre si cambio (ver Cache-Control abajo)
+  ExpiresByType text/html "access plus 0 seconds"
   # CSS / JS — mediano (usamos ?v=N para cache-bust)
   ExpiresByType text/css "access plus 1 month"
   ExpiresByType application/javascript "access plus 1 month"
@@ -79,7 +79,12 @@ RewriteRule ^(.+)\.html$ /$1 [R=301,L]
     Header set Cache-Control "public, max-age=2592000"
   </FilesMatch>
   <FilesMatch "\.(html|php)$">
-    Header set Cache-Control "public, max-age=3600, must-revalidate"
+    # El HTML se guardaba una hora en el navegador, y dentro del HTML va el
+    # numero de version de los scripts: alguien podia quedarse hasta una hora
+    # con la pagina vieja, pidiendo scripts viejos y viendo precios que ya no
+    # eran. Ahora pregunta siempre; si nada cambio el servidor responde "igual
+    # que antes" y no se descarga de nuevo, asi que no se pierde velocidad.
+    Header set Cache-Control "public, max-age=0, must-revalidate"
   </FilesMatch>
 </IfModule>
 
