@@ -44,5 +44,17 @@ function waLink(texto){
          (texto ? '?text=' + encodeURIComponent(texto) : '')
 }
 
+
+/* Adelanta el saludo al servidor de la base para que la primera consulta
+   llegue antes. Se hace desde aqui, y no con una etiqueta escrita en cada
+   pagina, para que apunte a la base de este cliente y no a otra. */
+if (typeof document !== 'undefined' && CLIENTE.supabaseUrl) {
+  const _pre = document.createElement('link')
+  _pre.rel = 'preconnect'
+  _pre.href = CLIENTE.supabaseUrl
+  _pre.crossOrigin = ''
+  ;(document.head || document.documentElement).appendChild(_pre)
+}
+
 /* Para que también funcione si algún día esto se carga como módulo */
 if (typeof module !== 'undefined' && module.exports) module.exports = { CLIENTE, waLink }
