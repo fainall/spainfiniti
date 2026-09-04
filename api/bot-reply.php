@@ -45,12 +45,30 @@ function supa($method, $path, $body = null) {
 /* ── Contexto ── */
 $botRows = supa('GET', 'bot_config?id=eq.1&select=*');
 $bot = (is_array($botRows) && count($botRows)) ? $botRows[0] : [];
-$services = supa('GET', 'services?select=name,price,duration') ?: [];
+$services = supa('GET', 'services?select=name,price,duration,short_desc,long_desc,cat_id') ?: [];
+$categorias = supa('GET', 'categories?select=id,name') ?: [];
+$nombreCat = [];
+foreach ($categorias as $c) $nombreCat[$c['id']] = $c['name'];
 $pros = supa('GET', 'professionals?select=id,name,work_start,work_end,work_days&active=eq.true') ?: [];
 
 $svcLines = [];
-foreach ($services as $s) $svcLines[] = '- '.$s['name'].' ('.($s['price']?:'consultar').', '.($s['duration']?:'').')';
-$svcText = implode("\n", array_slice($svcLines, 0, 80));
+/* La descripcion es lo que de verdad distingue un servicio de otro: dice,
+   por ejemplo, que un tratamiento es para 1 a 4 unas y el otro para 5 a 10.
+   Sin ella el asistente se inventaba la diferencia. */
+function limpiaTexto($t) {
+    $t = preg_replace('/<br\s*\/?>/i', ' ', (string)$t);
+    $t = strip_tags($t);
+    $t = html_entity_decode($t, ENT_QUOTES, 'UTF-8');
+    return trim(preg_replace('/\s+/', ' ', $t));
+}
+foreach ($services as $s) {
+    $linea = '- ' . $s['name'] . ' (' . ($s['price'] ?: 'consultar') . ', ' . ($s['duration'] ?: '') . ')';
+    if (!empty($nombreCat[$s['cat_id'] ?? ''])) $linea .= ' [' . $nombreCat[$s['cat_id']] . ']';
+    $desc = limpiaTexto($s['long_desc'] ?? '') ?: limpiaTexto($s['short_desc'] ?? '');
+    if ($desc !== '') $linea .= "\n    " . mb_substr($desc, 0, 300);
+    $svcLines[] = $linea;
+}
+$svcText = implode("\n", $svcLines);
 
 /* ── Precios inteligentes: descuentos por franja horaria ── */
 $smart = $bot['smart_pricing'] ?? null;
@@ -138,7 +156,14 @@ CÓMO HABLAS:
 $bienvenidasTxt
 
 QUÉ HACES:
-- Resuelves dudas y AGENDAS citas. Pide lo que falte (servicio, día, hora y nombre).
+- Resuelves dudas y AGENDAS citas. Pide lo que falte, de a una cosa por mensaje.
+- Antes de agendar necesitas: servicio, día, hora, NOMBRE Y APELLIDO y CORREO.
+- Pregunta siempre si viene con acompañante; si dice que sí, pide su nombre y teléfono.
+- Cuando dos servicios se parecen, la diferencia está en su descripción de aquí abajo
+  (por ejemplo, cuántas uñas afectadas cubre cada uno). Léela y pregunta lo que haga
+  falta para recomendar el correcto: nunca supongas cuál le corresponde.
+- Si el precio depende de algo (cantidad de uñas, zona, largo), pregúntalo antes de
+  dar un valor.
 - Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
 - Si no hay disponibilidad, ofrece alternativas cercanas.
 
@@ -281,8 +306,13 @@ $tools = [
   ['type'=>'function','function'=>['name'=>'create_booking','description'=>'Crea la reserva cuando el cliente confirma los datos.',
     'parameters'=>['type'=>'object','properties'=>[
       'service_name'=>['type'=>'string'],'date'=>['type'=>'string'],'time'=>['type'=>'string'],
-      'duration'=>['type'=>'integer'],'client_name'=>['type'=>'string']
-    ],'required'=>['service_name','date','time','client_name']]]],
+      'duration'=>['type'=>'integer'],
+      'client_name'=>['type'=>'string','description'=>'Nombre y apellido de quien se atiende'],
+      'client_email'=>['type'=>'string','description'=>'Correo del cliente'],
+      'acompanante'=>['type'=>'string','description'=>'Nombre del acompanante, si viene con alguien'],
+      'acompanante_telefono'=>['type'=>'string','description'=>'Telefono del acompanante'],
+      'detalle'=>['type'=>'string','description'=>'Lo que conviene que sepa el equipo: cuantas unas afectadas, molestias, etc.']
+    ],'required'=>['service_name','date','time','client_name','client_email']]]],
 ];
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -350,6 +380,31 @@ function do_check($args) {
     }
     return $out;
 }
+/* Busca al cliente por los ultimos 8 digitos del telefono; si no esta, lo
+   crea. Devuelve su id para que la reserva quede ligada a su ficha. */
+function ficha_de_cliente($nombre, $telefono, $correo) {
+    $dig = preg_replace('/\D/', '', (string)$telefono);
+    if (strlen($dig) >= 8) {
+        $ult = substr($dig, -8);
+        $hay = supa('GET', 'clients?select=id,name,email&phone=like.*' . $ult . '&limit=1');
+        if (is_array($hay) && count($hay)) {
+            $c = $hay[0];
+            /* si llega un correo y la ficha no lo tenia, se completa */
+            if ($correo && empty($c['email'])) {
+                supa('PATCH', 'clients?id=eq.' . urlencode($c['id']), ['email' => $correo]);
+            }
+            return $c['id'];
+        }
+    }
+    $nuevo = supa('POST', 'clients', [
+        'name'  => trim($nombre),
+        'phone' => $telefono,
+        'email' => $correo ?: null,
+        'notes' => 'Creado por el asistente de WhatsApp',
+    ]);
+    return (is_array($nuevo) && count($nuevo) && !empty($nuevo[0]['id'])) ? $nuevo[0]['id'] : null;
+}
+
 function do_book($args) {
     global $phone;
     $chk=do_check($args);
@@ -360,9 +415,19 @@ function do_book($args) {
     $time=substr($args['time'],0,5); $dur=$args['duration']??60;
     $endM=(int)substr($time,0,2)*60+(int)substr($time,3,2)+$dur;
     $end=sprintf('%02d:%02d', intdiv($endM,60), $endM%60);
+    /* la ficha del cliente: si ya existe se reutiliza, y si no se crea, para
+       que la reserva no quede suelta y el equipo tenga sus datos */
+    $clientId = ficha_de_cliente($args['client_name'], $phone, $args['client_email'] ?? '');
+
+    $nota = 'Agendado por el asistente de WhatsApp';
+    if (!empty($args['detalle']))              $nota .= '. ' . trim($args['detalle']);
+    if (!empty($args['acompanante']))          $nota .= '. Viene con ' . trim($args['acompanante']);
+    if (!empty($args['acompanante_telefono'])) $nota .= ' (tel. ' . trim($args['acompanante_telefono']) . ')';
+
     $row=['professional_id'=>$prof['id'],'client_name'=>$args['client_name'],'client_phone'=>$phone,
         'service_name'=>$args['service_name'],'appt_date'=>$args['date'],'start_time'=>$time,'end_time'=>$end,
-        'status'=>'reserved','origen'=>'bot','notes'=>'Agendado por el asistente de WhatsApp'];
+        'status'=>'reserved','origen'=>'bot','notes'=>$nota];
+    if ($clientId) $row['client_id'] = $clientId;
     $res=supa('POST','appointments',$row);
     if (is_array($res)&&count($res)) return ['ok'=>true,'professional'=>$prof['name'],'appointment'=>$res[0]];
     return ['ok'=>false,'reason'=>'error'];
