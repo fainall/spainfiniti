@@ -2545,6 +2545,14 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   </div>
 
   <!-- MODAL: confirmar -->
+  <div class="modal-ov" id="hcModal">
+    <div class="modal" style="width:860px;max-width:96vw">
+      <h2 style="margin-bottom:4px">Historial de cambios</h2>
+      <span class="cd-since">Quién cambió qué en servicios y categorías. Se registra solo desde que existe este historial.</span>
+      <div id="hcBody" style="margin-top:14px;max-height:60vh;overflow:auto"></div>
+      <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('hcModal')">Cerrar</button></div>
+    </div>
+  </div>
   <div class="modal-ov" id="cfModal">
     <div class="modal" style="width:420px;max-width:94vw">
       <h2 id="cfTitulo">¿Seguro?</h2>
@@ -10626,10 +10634,46 @@ async function loadSvcCats(){
 }
 function catName(id){ return (svcCats.find(c=>c.id===id)||{}).name || 'Otros' }
 function admSvcSetTab(t){ admSvcTab=t; renderAdmin() }
+/* ══════════════ HISTORIAL DE CAMBIOS DEL CATALOGO ══════════════
+   Lo escribe la base sola (un trigger en services y categories); aqui
+   solo se lee y se muestra en lenguaje normal. */
+const HC_CAMPOS = { name:'nombre', price:'precio', duration:'duración', img:'imagen', tag:'etiqueta',
+  link:'enlace de reserva', short_desc:'descripción corta', long_desc:'descripción larga', cat_id:'categoría',
+  highlighted:'destacado', has_discount:'descuento', discount_label:'texto del descuento', original_price:'precio original',
+  sort_order:'orden', includes:'incluye', process_steps:'pasos', gc_discount_enabled:'descuento gift card',
+  gc_discount_percent:'% gift card', gc_price:'precio gift card', discount_text:'detalle del descuento',
+  tagline:'lema', card_img:'imagen de tarjeta', hero_img:'imagen de portada' }
+function hcValor(v){
+  if(v===null || v===undefined || v==='') return '<em style="color:var(--light)">vacío</em>'
+  if(typeof v==='boolean') return v ? 'sí' : 'no'
+  const t = typeof v==='object' ? JSON.stringify(v) : String(v)
+  return esc(t.length>70 ? t.slice(0,67)+'…' : t)
+}
+async function abrirHistorialCambios(){
+  openModal('hcModal')
+  const el=document.getElementById('hcBody'); el.innerHTML='<div class="empty-state">Cargando…</div>'
+  let filas=[]
+  try{ filas = await supabase.fetch('registro_cambios',{ order:'id.desc', filters:'limit=150' }) || [] }
+  catch(e){ el.innerHTML='<div class="inv-notice aviso">⚠ No se pudo leer el historial: '+esc(e.message)+'</div>'; return }
+  if(!filas.length){ el.innerHTML='<div class="empty-state">Todavía no hay cambios registrados. A partir de ahora, cada alta, cambio o borrado quedará aquí.</div>'; return }
+  el.innerHTML = '<table class="ctbl"><thead><tr><th>Cuándo</th><th>Quién</th><th>Qué</th><th>Cambio</th></tr></thead><tbody>' +
+    filas.map(r=>{
+      const f=new Date(r.cuando)
+      const cuando=f.toLocaleDateString('es-CL')+' '+f.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})
+      const que=(r.tabla==='services'?'Servicio':'Categoría')+' · <strong>'+esc(r.nombre||r.fila_id)+'</strong>'
+      let detalle=''
+      if(r.accion==='cambio'){
+        detalle = Object.entries(r.cambios||{}).map(([k,v])=>
+          '<div><span style="color:var(--mid)">'+esc(HC_CAMPOS[k]||k)+':</span> '+hcValor(v.antes)+' <span style="color:var(--light)">→</span> '+hcValor(v.despues)+'</div>').join('')
+      } else detalle = r.accion==='alta' ? '<span style="color:#1d8a5f;font-weight:600">creado</span>' : '<span style="color:var(--red);font-weight:600">eliminado</span>'
+      return '<tr><td style="white-space:nowrap">'+cuando+'</td><td>'+esc(r.quien||'—')+'</td><td>'+que+'</td><td style="font-size:.82rem">'+detalle+'</td></tr>'
+    }).join('') + '</tbody></table>'
+}
 function admServicios(){
-  const tabs=`<div class="mtabs" style="margin-bottom:14px">
+  const tabs=`<div class="mtabs" style="margin-bottom:14px;display:flex;align-items:center;gap:6px">
     ${[['servicios','Servicios'],['clases','Clases'],['paquetes','Paquetes']].map(([k,l])=>
-      `<button class="${admSvcTab===k?'on':''}" onclick="admSvcSetTab('${k}')">${l}</button>`).join('')}</div>`
+      `<button class="${admSvcTab===k?'on':''}" onclick="admSvcSetTab('${k}')">${l}</button>`).join('')}
+    <button class="mini-btn" style="margin-left:auto" onclick="abrirHistorialCambios()">🕓 Historial de cambios</button></div>`
   if(admSvcTab==='clases'){
     const byCat={}
     svcClasses.forEach(c=>{ (byCat[c.cat||'Otros']=byCat[c.cat||'Otros']||[]).push(c) })
