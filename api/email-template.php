@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/cliente.php';
 /**
  * Email template — Gift Card
  * Reutilizable: flow-confirm.php y preview-giftcard-email.php usan esto.
@@ -155,7 +156,7 @@ MSG;
                 <td style="padding:20px;text-align:center">
                   <div style="font-family:Georgia,serif;font-size:15px;color:#1a2436;font-weight:700;margin-bottom:8px">¿Cómo canjeo mi Gift Card?</div>
                   <div style="font-size:13px;color:#555;line-height:1.6;margin-bottom:14px">Reserva tu cita por WhatsApp indicando tu código de canje.</div>
-                  <a href="https://wa.me/56986688771?text=Hola,%20quiero%20agendar%20mi%20Gift%20Card.%20Código:%20{$code}" style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:0.5px">💬 Reservar por WhatsApp</a>
+                  <a href="https://wa.me/' . cliente_whatsapp() . '?text=Hola,%20quiero%20agendar%20mi%20Gift%20Card.%20Código:%20{$code}" style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:13px;font-weight:600;letter-spacing:0.5px">💬 Reservar por WhatsApp</a>
                 </td>
               </tr>
             </table>

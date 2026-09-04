@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/cliente.php';
 /**
  * POST /api/cobro-link.php
  * Crea un link de pago en Flow para cobrar una reserva.
@@ -48,7 +49,7 @@ $servicio = trim((string)($data['service_name'] ?? 'Servicio'));
 $email = trim((string)($data['client_email'] ?? ''));
 /* Flow exige un correo; si el cliente no tiene, se usa el del local */
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    $email = $config['contactEmail'] ?? 'reservainfinity@spainfinity.cl';
+    $email = $config['contactEmail'] ?? cliente_correo();
 }
 
 $commerceOrder = 'RES-' . date('YmdHis') . '-' . substr(uniqid(), -5);

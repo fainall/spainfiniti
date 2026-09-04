@@ -13,8 +13,10 @@ const SITE = {
   tagline: _C.rubro  || 'Centro Podológico & Spa',
   address: _C.direccion || 'Santo Domingo 1083, of. 502, Santiago',
   phone: _C.telefono || '+56 9 8668 8771',
-  email: 'reservainfinity@spainfinity.cl',
-  booking: 'https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20una%20cita',
+  email: _C.correo || 'reservainfinity@spainfinity.cl',
+  booking: (typeof waLink === 'function')
+    ? waLink('Hola, quiero reservar una cita')
+    : 'https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20una%20cita',
   hours: 'Lun–Vie 10:00–20:00 · Sáb 11:00–18:00'
 }
 

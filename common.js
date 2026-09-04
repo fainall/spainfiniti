@@ -535,3 +535,53 @@ window.addEventListener('categories-updated', () => {
   navEl.innerHTML = renderNavbar(activePage)
   initShared()
 })
+
+/* ═══════════════════════════════════════════════════════════════
+   IDENTIDAD DEL CLIENTE EN EL HTML
+   El telefono y el correo estan escritos a mano en muchas paginas.
+   En vez de buscarlos y reemplazarlos uno por uno al montar el sistema
+   para otro negocio, aqui se ponen al dia solos a partir de
+   config-cliente.js. Si los valores coinciden no se toca nada, asi que
+   para el negocio actual esto no cambia absolutamente nada.
+   ═══════════════════════════════════════════════════════════════ */
+const IDENTIDAD_ORIGINAL = {
+  whatsapp: '56986688771',
+  correo:   'reservainfinity@spainfinity.cl',
+  telefono: '+56 9 8668 8771'
+}
+
+function aplicarIdentidad(){
+  if (typeof CLIENTE === 'undefined') return
+  const wa   = CLIENTE.whatsapp || IDENTIDAD_ORIGINAL.whatsapp
+  const mail = CLIENTE.correo   || IDENTIDAD_ORIGINAL.correo
+  const tel  = CLIENTE.telefono || IDENTIDAD_ORIGINAL.telefono
+
+  /* enlaces: siempre al numero y correo de este negocio */
+  document.querySelectorAll('a[href*="wa.me/"]').forEach(a => {
+    a.setAttribute('href', a.getAttribute('href').replace(/wa\.me\/[0-9]+/, 'wa.me/' + wa))
+  })
+  document.querySelectorAll('a[href^="mailto:"]').forEach(a => {
+    a.setAttribute('href', 'mailto:' + mail)
+  })
+  document.querySelectorAll('a[href^="tel:"]').forEach(a => {
+    a.setAttribute('href', 'tel:' + tel.replace(/[^0-9+]/g, ''))
+  })
+
+  /* textos a la vista: solo si de verdad cambiaron */
+  const cambios = []
+  if (wa   !== IDENTIDAD_ORIGINAL.whatsapp) cambios.push([IDENTIDAD_ORIGINAL.whatsapp, wa])
+  if (mail !== IDENTIDAD_ORIGINAL.correo)   cambios.push([IDENTIDAD_ORIGINAL.correo, mail])
+  if (tel  !== IDENTIDAD_ORIGINAL.telefono) cambios.push([IDENTIDAD_ORIGINAL.telefono, tel])
+  if (!cambios.length) return
+
+  const paseo = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  const nodos = []
+  while (paseo.nextNode()) nodos.push(paseo.currentNode)
+  nodos.forEach(n => {
+    let t = n.nodeValue
+    cambios.forEach(([viejo, nuevo]) => { if (t.includes(viejo)) t = t.split(viejo).join(nuevo) })
+    if (t !== n.nodeValue) n.nodeValue = t
+  })
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', aplicarIdentidad)
+else aplicarIdentidad()

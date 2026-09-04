@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/cliente.php';
 /**
  * Webhook server-to-server de Flow.
  * Flow POSTea aquí con el token cuando el pago se completa (éxito o falla).
@@ -103,7 +104,7 @@ function marcarLinkPagado(array $order): void
 
 function notificarCobroReserva(array $order, array $config): void
 {
-    $to = $config['notifyEmail'] ?? 'reservainfinity@spainfinity.cl';
+    $to = $config['notifyEmail'] ?? cliente_correo();
     $monto = '$' . number_format((int)($order['amount'] ?? 0), 0, ',', '.');
     $body = "<h2>Pago recibido por link de cobro</h2>"
         . "<p><strong>Cliente:</strong> " . h($order['client_name'] ?? '') . "</p>"
@@ -127,7 +128,7 @@ function sendGiftCardEmail(array $order, array $config): void
         'MIME-Version: 1.0',
         'Content-Type: text/html; charset=UTF-8',
         'From: Spa Infinity <noreply@spainfinity.cl>',
-        'Reply-To: ' . ($config['notifyEmail'] ?? 'reservainfinity@spainfinity.cl'),
+        'Reply-To: ' . ($config['notifyEmail'] ?? cliente_correo()),
     ];
     @mail($to, '🎁 Recibiste una Gift Card de Spa Infinity', $body, implode("\r\n", $headers));
 }
@@ -135,7 +136,7 @@ function sendGiftCardEmail(array $order, array $config): void
 function sendBusinessNotification(array $order, array $config): void
 {
     $d = $order['data'] ?? [];
-    $to = $config['notifyEmail'] ?? 'reservainfinity@spainfinity.cl';
+    $to = $config['notifyEmail'] ?? cliente_correo();
     $svcNames = array_map(fn($s) => (string)($s['name'] ?? ''), (array)($d['services'] ?? []));
 
     $body = "<h2>Nueva Gift Card vendida</h2>"
