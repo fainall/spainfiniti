@@ -10793,7 +10793,8 @@ async function saveSvc(){
     duration:(parseInt(document.getElementById('svcDur').value)||60)+' min',
     short_desc:document.getElementById('svcShort').value.trim(),
     long_desc:document.getElementById('svcLong').value.trim(),
-    img:document.getElementById('svcImg').value.trim(),
+    /* un campo vacio no borra la imagen que ya tenia: asi se perdieron tres */
+    img:document.getElementById('svcImg').value.trim() || ((id && (state.services.find(x=>x.id===id)||{}).img) || ''),
     tag:document.getElementById('svcTag').value.trim(),
     link:document.getElementById('svcLink').value.trim(),
     highlighted:document.getElementById('svcHigh').checked,
