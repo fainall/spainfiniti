@@ -9,3 +9,6 @@ api/cache/
 api/bot-config.php
 api/bot-sessions/
 api/cliente-config.php
+
+# fotos subidas desde el panel: viven en el servidor, no en el repositorio
+images/subidas/

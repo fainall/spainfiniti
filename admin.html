@@ -2749,18 +2749,44 @@ function handlePackImg(e, inputEl) {
   })
 }
 
+/* Sube la foto al servidor y devuelve su direccion (/images/subidas/...).
+   Antes la imagen entera quedaba guardada como texto dentro de la fila del
+   servicio: con 16 fotos el catalogo pesaba 1,2 MB y en el celular la
+   descarga se cortaba. Ahora la base guarda solo la direccion. */
+async function subirImagen(dataUrl, nombre) {
+  const s = (typeof supaAuth !== 'undefined') ? supaAuth.session() : null
+  const res = await fetch('/api/subir-imagen.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (s && s.access_token || '') },
+    body: JSON.stringify({ imagen: dataUrl, nombre: nombre || 'foto' })
+  })
+  const j = await res.json().catch(() => ({}))
+  if (!res.ok || !j.url) throw new Error(j.error || ('HTTP ' + res.status))
+  return j.url
+}
+
 function resizeAndStore(file, maxW, cb, quality) {
   const q = (typeof quality === 'number') ? quality : 0.8
   const reader = new FileReader()
   reader.onload = () => {
     const img = new Image()
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement('canvas')
       let w = img.width, h = img.height
       if (w > maxW) { h = h * maxW / w; w = maxW }
       canvas.width = w; canvas.height = h
       canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-      cb(canvas.toDataURL('image/jpeg', q))
+      const dataUrl = canvas.toDataURL('image/jpeg', q)
+      /* se guarda como archivo; si la subida falla se avisa y se sigue con la
+         imagen incrustada, para no dejar a nadie sin poder guardar */
+      try {
+        if (typeof supaAuth !== 'undefined' && supaAuth.session()) await supaAuth.ensureFresh()
+        cb(await subirImagen(dataUrl, (file.name || 'foto').replace(/\.[^.]+$/, '')))
+      } catch (e) {
+        console.warn('No se pudo subir la foto como archivo:', e)
+        toast('La foto quedó guardada dentro de la base (no se pudo subir como archivo). Avísale a Camilo.', 'error')
+        cb(dataUrl)
+      }
     }
     img.onerror = () => toast('Error procesando la imagen. Probá con otra.', 'error')
     img.src = reader.result
