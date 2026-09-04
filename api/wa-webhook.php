@@ -38,6 +38,19 @@ if (!hash_equals('sha256=' . hash_hmac('sha256', $raw, $secret), $firma)) {
     http_response_code(403); exit('bad signature');
 }
 
+/* ── ¿Está encendido el asistente? ──
+   La casilla "Activo" del panel se guardaba pero no la miraba nadie: el bot
+   habria seguido respondiendo aunque se apagara. Se consulta aqui, no en
+   bot-reply.php, para que el simulador del panel siga sirviendo para probar
+   aunque el asistente este apagado de cara a los clientes. */
+require_once __DIR__ . '/supa-key.php';
+$ch = curl_init(supa_url() . '/rest/v1/bot_config?select=active&id=eq.1');
+curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>8,
+    CURLOPT_HTTPHEADER=>['apikey: ' . supa_key(), 'Authorization: Bearer ' . supa_key()]]);
+$cfgBot = json_decode(curl_exec($ch), true); curl_close($ch);
+$encendido = is_array($cfgBot) && count($cfgBot) ? ($cfgBot[0]['active'] ?? false) : false;
+if (!$encendido) { http_response_code(200); exit('ok'); }   // apagado: no se contesta
+
 /* ── Mensaje entrante ── */
 $body = json_decode($raw, true);
 $msg = $body['entry'][0]['changes'][0]['value']['messages'][0] ?? null;
