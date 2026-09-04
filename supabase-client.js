@@ -122,13 +122,44 @@ const supabase = {
   }
 }
 
+/* ── El catalogo que vio este navegador la ultima vez ──
+   Si la base no responde, el sitio se quedaba con la lista escrita a mano en
+   data.js, que es la que habia el dia que se escribio ese archivo: precios y
+   descripciones de hace meses, mostrados sin avisar. Ahora se guarda aqui la
+   ultima version buena y esa es la que se usa cuando falla la conexion. */
+const RESPALDO_CATALOGO = 'catalogo-visto-v1'
+const RESPALDO_DIAS = 30
+
+function guardarCatalogo(cats) {
+  try { localStorage.setItem(RESPALDO_CATALOGO, JSON.stringify({ cuando: Date.now(), cats })) } catch (e) {}
+}
+function catalogoGuardado() {
+  try {
+    const j = JSON.parse(localStorage.getItem(RESPALDO_CATALOGO) || 'null')
+    if (!j || !Array.isArray(j.cats) || !j.cats.length) return null
+    /* si lleva mas de un mes sin poder actualizarse, tampoco es de fiar */
+    if (Date.now() - (j.cuando || 0) > RESPALDO_DIAS * 24 * 3600 * 1000) return null
+    return j.cats
+  } catch (e) { return null }
+}
+
+/* De donde salieron los precios que se estan mostrando: 'base' (al dia),
+   'respaldo' (lo ultimo que vio este navegador) o 'estatico' (data.js).
+   Se puede mirar desde la consola con CATALOGO_ORIGEN. */
+window.CATALOGO_ORIGEN = 'estatico'
+
 /* ── Load categories + services from Supabase ── */
 async function loadFromSupabase() {
   try {
-    const [cats, svcs] = await Promise.all([
+    /* en el celular una peticion se corta de vez en cuando: se reintenta una vez
+       antes de dar el catalogo por perdido */
+    const pedir = async () => Promise.all([
       supabase.fetch('categories', { order: 'sort_order.asc' }),
       supabase.fetch('services', { order: 'sort_order.asc' })
     ])
+    let cats, svcs
+    try { [cats, svcs] = await pedir() }
+    catch (e1) { console.warn('Reintentando el catalogo:', e1.message || e1); [cats, svcs] = await pedir() }
 
     // Transform DB rows → JS format matching data.js structure
     const categories = cats.map(c => ({
@@ -171,9 +202,18 @@ async function loadFromSupabase() {
         }))
     }))
 
+    window.CATALOGO_ORIGEN = 'base'
+    guardarCatalogo(categories)
     return categories
   } catch (err) {
-    console.warn('Supabase load failed, using static data:', err)
+    const guardado = catalogoGuardado()
+    if (guardado) {
+      console.warn('No se pudo leer el catalogo; se usa el que vio este navegador la ultima vez:', err)
+      window.CATALOGO_ORIGEN = 'respaldo'
+      return guardado
+    }
+    console.warn('No se pudo leer el catalogo ni hay respaldo; quedan los precios de data.js, que pueden estar viejos:', err)
+    window.CATALOGO_ORIGEN = 'estatico'
     return null
   }
 }
