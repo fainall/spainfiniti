@@ -327,7 +327,7 @@ function renderCats(list) {
         <div class="cat-acc-services">
           ${matchingSvcs.map(svc => `
             <a href="/servicio/${svc.id}" class="svc-row">
-              <img class="svc-row-img" src="${svc.img}" alt="${svc.name}" loading="lazy" />
+              <img class="svc-row-img" src="${imgServicio(svc)}" alt="${svc.name}" loading="lazy" />
               <div class="svc-row-info">
                 <div class="svc-row-name">${svc.name}</div>
                 <div class="svc-row-desc">${svc.shortDesc}</div>

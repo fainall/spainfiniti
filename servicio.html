@@ -566,7 +566,7 @@ if (!result) {
   document.getElementById('svcTagline').textContent = svc.tag
   document.getElementById('svcTitle').textContent = svc.name
   document.getElementById('svcDesc').textContent = svc.longDesc
-  document.getElementById('svcImg').src = svc.img
+  document.getElementById('svcImg').src = imgServicio(svc)
   document.getElementById('svcImg').alt = svc.name
 
   const waLink = `https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20${encodeURIComponent(svc.name)}`
@@ -692,7 +692,7 @@ if (!result) {
     <div class="svc-card-new reveal" style="transition-delay:${i * 0.12}s; cursor:pointer"
          onclick="window.location='/servicio/${s.id}'">
       <div class="card-img-box" style="height:220px; margin-bottom:20px">
-        <img src="${s.img}" alt="${s.name}" loading="lazy" />
+        <img src="${imgServicio(s)}" alt="${s.name}" loading="lazy" />
       </div>
       <span class="card-subtitle">${s.tag}</span>
       <h3 class="card-title" style="font-size:1.5rem; margin-bottom:8px">${s.name}</h3>

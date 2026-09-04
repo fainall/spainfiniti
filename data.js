@@ -810,6 +810,9 @@ const PROMOS = []
 function getCategoryById(id) {
   return CATEGORIES.find(c => c.id === id)
 }
+/* la foto que se muestra de un servicio: la suya, o la de su categoria */
+function imgServicio(s) { return (s && (s.img || s.imgCat)) || '' }
+
 function getServiceById(id) {
   for (const cat of CATEGORIES) {
     const svc = cat.services.find(s => s.id === id)

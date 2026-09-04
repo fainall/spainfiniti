@@ -388,7 +388,7 @@ const catId = catPathMatch ? catPathMatch[1] : new URLSearchParams(location.sear
           ? `<span class="card-badge" style="background:linear-gradient(135deg,#1A2436,#2C3E50)">${getActivePromoForService(svc.id).discount}</span>`
           : svc.highlighted ? `<span class="card-badge">Destacado</span>` : ''}
       <div class="card-img-box">
-        <img src="${svc.img}" alt="${svc.name}" loading="lazy" />
+        <img src="${imgServicio(svc)}" alt="${svc.name}" loading="lazy" />
       </div>
       <span class="card-subtitle">${svc.tag}</span>
       <h3 class="card-title">${svc.name}</h3>
@@ -466,7 +466,7 @@ window.addEventListener('categories-updated', () => {
           ? `<span class="card-badge" style="background:linear-gradient(135deg,#1A2436,#2C3E50)">${getActivePromoForService(svc.id).discount}</span>`
           : svc.highlighted ? `<span class="card-badge">Destacado</span>` : ''}
       <div class="card-img-box">
-        <img src="${svc.img}" alt="${svc.name}" loading="lazy" />
+        <img src="${imgServicio(svc)}" alt="${svc.name}" loading="lazy" />
       </div>
       <span class="card-subtitle">${svc.tag}</span>
       <h3 class="card-title">${svc.name}</h3>

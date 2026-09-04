@@ -135,8 +135,10 @@ async function loadFromSupabase() {
           duration: s.duration,
           shortDesc: s.short_desc,
           longDesc: s.long_desc,
-          /* sin imagen propia se usa la de la categoria: nunca una imagen rota */
-          img: (s.img && String(s.img).trim()) || c.card_img || c.hero_img || '',
+          img: s.img || '',
+          /* respaldo solo para mostrar: si el servicio no tiene foto propia se
+             usa la de su categoria. No se guarda: el campo real sigue vacio */
+          imgCat: c.card_img || c.hero_img || '',
           link: s.link,
           includes: typeof s.includes === 'string' ? JSON.parse(s.includes) : (s.includes || []),
           processSteps: typeof s.process_steps === 'string' ? JSON.parse(s.process_steps) : (s.process_steps || []),

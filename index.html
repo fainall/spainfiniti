@@ -2362,7 +2362,7 @@ function renderFeatured() {
     card.className = 'feat-card fu vis'
     card.style.textDecoration = 'none'
     card.innerHTML = `
-      <img class="feat-card-img" src="${svc.img}" alt="${svc.name}" loading="lazy">
+      <img class="feat-card-img" src="${imgServicio(svc)}" alt="${svc.name}" loading="lazy">
       <div class="feat-card-body">
         <div class="feat-card-cat">${cat.name}</div>
         <div class="feat-card-name">${svc.name}</div>

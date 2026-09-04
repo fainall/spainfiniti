@@ -1339,7 +1339,7 @@ function renderServices(catId) {
     return `
     <div class="gc-svc-item${selectedServices.some(s => s.id === svc.id) ? ' selected' : ''}"
          data-id="${svc.id}" onclick="toggleService('${svc.id}')">
-      <img class="gc-svc-item-img" src="${svc.img}" alt="${svc.name}" loading="lazy" />
+      <img class="gc-svc-item-img" src="${imgServicio(svc)}" alt="${svc.name}" loading="lazy" />
       <div class="gc-svc-info">
         <div class="gc-svc-item-name">${svc.name}</div>
         <div class="gc-svc-item-dur">${svc.duration}</div>
