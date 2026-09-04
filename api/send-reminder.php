@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/cliente.php';
 /**
  * Recordatorio de cita por email — Spa Infinity
  * Recibe POST JSON { email, name, message } y envía el recordatorio al cliente.
@@ -46,7 +47,7 @@ $headers = [];
 $headers[] = 'MIME-Version: 1.0';
 $headers[] = 'Content-Type: text/html; charset=UTF-8';
 $headers[] = 'From: Spa Infinity <noreply@spainfinity.cl>';
-$headers[] = 'Reply-To: reservainfinity@spainfinity.cl';
+$headers[] = 'Reply-To: ' . cliente_correo();
 $headers[] = 'X-Mailer: PHP/' . phpversion();
 
 $sent = @mail($email, '=?UTF-8?B?' . base64_encode($subject) . '?=', $bodyHTML, implode("\r\n", $headers));

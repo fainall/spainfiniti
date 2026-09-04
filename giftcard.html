@@ -1257,7 +1257,7 @@
 
 <script src="/supabase-client.js?v=12"></script>
 <script src="/data.js?v=6"></script>
-<script src="/common.js?v=17"></script>
+<script src="/common.js?v=18"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('Gift Cards')
 document.getElementById('footerContainer').innerHTML = renderFooter()
@@ -1593,7 +1593,7 @@ function showSuccess() {
       <p>El pago no pudo ser procesado. Puedes intentarlo nuevamente o contactarnos.</p>
       <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
         <a href="/giftcard.html" class="gc-btn gc-btn-gold">Intentar nuevamente</a>
-        <a href="https://wa.me/56986688771" target="_blank" class="gc-btn gc-btn-outline">Contactar por WhatsApp</a>
+        <a href="${waLink('')}" target="_blank" class="gc-btn gc-btn-outline">Contactar por WhatsApp</a>
       </div>
     `
     document.querySelector('.gc-steps-bar').style.display = 'none'

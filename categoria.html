@@ -338,7 +338,7 @@
 
 <script src="/supabase-client.js?v=12"></script>
 <script src="/data.js?v=6"></script>
-<script src="/common.js?v=17"></script>
+<script src="/common.js?v=18"></script>
 <script src="/smart-pricing.js?v=1"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('Servicios')
@@ -375,7 +375,7 @@ const catId = catPathMatch ? catPathMatch[1] : new URLSearchParams(location.sear
   document.getElementById('countBar').style.display = 'block'
   document.getElementById('svcCount').textContent = cat.services.length
   document.getElementById('bookBtn').href =
-    `https://wa.me/56986688771?text=Hola,%20me%20interesa%20${encodeURIComponent(cat.name)}`
+    waLink('Hola, me interesa ' + cat.name)
 
   /* Service cards */
   document.getElementById('svcGrid').innerHTML = cat.services.map((svc, i) => `
