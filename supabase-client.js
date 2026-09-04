@@ -68,6 +68,10 @@ const supabase = {
        entera por eso. Se intenta una segunda vez, esperando un momento, cuando
        el fallo es de red o del servidor. Si la respuesta es un 4xx no se
        reintenta: ese error no se arregla repitiendolo. */
+    /* si esta lectura salio con el token, hay que recordarlo: dos lecturas en
+       paralelo pueden recibir 401 a la vez, y la primera en reaccionar deja el
+       token en nulo antes de que la segunda mire */
+    const saliaConToken = !!SUPA_TOKEN
     let res
     try { res = await pedir() }
     catch (e) {
@@ -81,7 +85,7 @@ const supabase = {
     /* El token puede morir mientras la pagina esta abierta, o haber sido
        revocado. Antes de darse por vencida, la lectura se repite con la clave
        publica: para el sitio es lo unico que hace falta. */
-    if (res.status === 401 && SUPA_TOKEN) {
+    if (res.status === 401 && saliaConToken) {
       console.warn('La sesion del panel ya no sirve; se lee con la clave publica')
       SUPA_TOKEN = null
       res = await pedir()
