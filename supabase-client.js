@@ -133,7 +133,7 @@ const supabase = {
   /* llama a una función de la base (RPC). Se usa para las operaciones
      que el sitio público no puede hacer tocando tablas directamente. */
   async rpc(fn, params) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    const pedir = () => fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -142,6 +142,16 @@ const supabase = {
       },
       body: JSON.stringify(params || {})
     })
+    const saliaConToken = !!SUPA_TOKEN
+    let res = await pedir()
+    /* misma proteccion que en fetch(): si el token del panel guardado en este
+       navegador ya no sirve, la reserva se hace con la clave publica, que es
+       con la que esta pensada la funcion de la base */
+    if (res.status === 401 && saliaConToken) {
+      console.warn('La sesion del panel ya no sirve; la llamada se repite con la clave publica')
+      SUPA_TOKEN = null
+      res = await pedir()
+    }
     const txt = await res.text()
     if (!res.ok) {
       let msg = txt

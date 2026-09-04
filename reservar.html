@@ -93,7 +93,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
     ¿Prefieres escribirnos? <a href="https://wa.me/56986688771" target="_blank" rel="noopener">WhatsApp +56 9 8668 8771</a></p>
 </div>
 
-<script src="/supabase-client.js?v=16"></script>
+<script src="/supabase-client.js?v=17"></script>
 <script src="/data.js?v=7"></script>
 <script>
 /* ═══════════════════════════════════════════
@@ -432,10 +432,26 @@ async function reservar(){
         </div>
       </div>`
   }catch(e){
-    err.textContent = e.message || 'No pudimos completar la reserva. Intenta de nuevo.'
-    err.style.display = 'block'
-    btn.disabled = false; btn.textContent = 'Confirmar mi reserva'
+    /* Aqui habia un error que costo ver: se escribia el mensaje y acto seguido
+       se llamaba a render(), que rehace toda la pantalla. El mensaje
+       desaparecia, el formulario quedaba en blanco y la persona veia que
+       "ingresaba los datos y no pasaba nada". Se vuelve a pintar (por si la
+       hora ya no esta), pero despues se reponen los datos escritos y el
+       mensaje, y se lleva la vista hasta el. */
+    console.error(e)
+    const motivo = (e && e.message) || 'No pudimos completar la reserva. Intenta de nuevo.'
     render()
+    const f = { nombre, fono, mail, nota }
+    Object.keys(f).forEach(id => { const el = document.getElementById(id); if(el) el.value = f[id] })
+    let caja = document.getElementById('err')
+    if(!caja){
+      /* la hora ya no se ofrece: el formulario no se pinto, el aviso va arriba */
+      caja = document.createElement('div'); caja.className = 'err'; caja.id = 'err'
+      document.getElementById('body').prepend(caja)
+    }
+    caja.textContent = motivo
+    caja.style.display = 'block'
+    caja.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 }
 
