@@ -1692,6 +1692,1073 @@ function saveService(catId, svcId) {
      - If no discount: svc.price = base; no originalPrice
      - svc.gcPrice = base × (1 - gcPct/100) if GC enabled
      ───────────────────────────────────────────────── */
+  /* mismo formato que en la agenda: los dos paneles escriben en la misma
+     tabla, y si cada uno guarda a su manera el sitio los muestra distinto */
+  function precioNormal(v){
+    const t = String(v == null ? '' : v).trim()
+    if(!t) return ''
+    const n = parseInt(t.replace(/[^0-9]/g, ''), 10)
+    if(!n) return t
+    return '
+  const baseNum = parseInt(basePriceStr.replace(/[^0-9]/g, '')) || 0
+
+  const hasDiscount = document.getElementById('svc-hasDiscount').checked
+  ov.hasDiscount = hasDiscount
+  svc.hasDiscount = hasDiscount
+
+  if (hasDiscount && baseNum > 0) {
+    const pct = parseInt(document.getElementById('svc-discountPercent').value) || 0
+    if (pct > 0 && pct < 100) {
+      const discounted = Math.round(baseNum * (1 - pct / 100))
+      const discountedStr = '$' + discounted.toLocaleString('es-CL')
+      ov.price = discountedStr
+      svc.price = discountedStr
+      ov.originalPrice = precioNormal(basePriceStr)
+      svc.originalPrice = ov.originalPrice
+      ov.discountLabel = pct + '% DCTO'
+      svc.discountLabel = ov.discountLabel
+      ov.discountPercent = pct
+      svc.discountPercent = pct
+    } else {
+      // discount toggle on but % invalid — treat as no discount
+      ov.price = precioNormal(basePriceStr)
+      svc.price = ov.price
+      delete ov.originalPrice; delete svc.originalPrice
+      delete ov.discountLabel; delete svc.discountLabel
+      delete ov.discountPercent; delete svc.discountPercent
+    }
+    ov.discountText = document.getElementById('svc-discountText').value.trim()
+    svc.discountText = ov.discountText
+  } else {
+    ov.price = precioNormal(basePriceStr)
+    svc.price = ov.price
+    delete ov.originalPrice; delete svc.originalPrice
+    delete ov.discountLabel; delete svc.discountLabel
+    delete ov.discountPercent; delete svc.discountPercent
+    delete ov.discountText; delete svc.discountText
+  }
+
+  // Gift Card — also based on the BASE price (precio final)
+  const gcEnabled = document.getElementById('svc-gcEnabled').checked
+  ov.gcDiscountEnabled = gcEnabled
+  svc.gcDiscountEnabled = gcEnabled
+  if (gcEnabled && baseNum > 0) {
+    const gcPct = parseInt(document.getElementById('svc-gcPercent').value) || 0
+    if (gcPct > 0 && gcPct < 100) {
+      const gcDisc = Math.round(baseNum * (1 - gcPct / 100))
+      const gcStr = '$' + gcDisc.toLocaleString('es-CL')
+      ov.gcPrice = gcStr
+      svc.gcPrice = gcStr
+      ov.gcDiscountPercent = gcPct
+      svc.gcDiscountPercent = gcPct
+    } else {
+      ov.gcPrice = ''
+      svc.gcPrice = ''
+      ov.gcDiscountPercent = 0
+      svc.gcDiscountPercent = 0
+    }
+  } else {
+    ov.gcDiscountPercent = 0
+    ov.gcPrice = ''
+    svc.gcDiscountPercent = 0
+    svc.gcPrice = ''
+  }
+
+  // Highlighted
+  const hl = document.getElementById('svc-highlighted').value === 'true'
+  ov.highlighted = hl
+  svc.highlighted = hl
+
+  // Process Steps
+  const stepTitles = document.querySelectorAll('.process-step-title')
+  const stepTexts = document.querySelectorAll('.process-step-text')
+  const processSteps = []
+  stepTitles.forEach((el, i) => {
+    const title = el.value.trim()
+    const text = stepTexts[i] ? stepTexts[i].value.trim() : ''
+    if (title) processSteps.push({ title, text })
+  })
+  ov.processSteps = processSteps
+  svc.processSteps = processSteps
+
+  saveAdminData()
+  renderDashboard()
+  toast('Servicio actualizado', 'success')
+  backToSvcList(catId)
+
+  // Sync to Supabase
+  if (typeof supabase !== 'undefined') {
+    supabase.update('services', svcId, serviceToRow(svc))
+      .then(() => console.log('✓ Service synced:', svcId))
+      .catch(e => { console.error('Supabase svc sync fail:', e); toast('Error sincronizando con servidor', 'error') })
+  }
+}
+
+function closeSvcList() {
+  document.getElementById('svcCatList').style.display = 'block'
+  document.getElementById('svcListPanel').style.display = 'none'
+  document.getElementById('svcEditPanel').style.display = 'none'
+}
+function backToSvcList(catId) {
+  document.getElementById('svcEditPanel').style.display = 'none'
+  showSvcList(catId)
+}
+
+/* ── HERO SLIDES ──────────────── */
+function renderHeroSlides() {
+  const slides = adminData.hero?.slides || []
+  if (!slides.length) {
+    document.getElementById('heroSlides').innerHTML = `
+      <p style="color:var(--mid);font-size:0.85rem">No hay diapositivas personalizadas. El slider muestra las diapositivas por defecto del sitio.</p>
+    `
+    return
+  }
+
+  document.getElementById('heroSlides').innerHTML = slides.map((s, i) => `
+    <div class="edit-panel" style="margin-bottom:16px;border:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="font-size:0.9rem;font-weight:600">Diapositiva ${i + 1}</h3>
+        <button class="btn btn-danger btn-sm" onclick="removeHeroSlide(${i})">Eliminar</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Título</label>
+          <input type="text" value="${esc(s.title || '')}" onchange="updateHeroSlide(${i},'title',this.value)" />
+        </div>
+        <div class="form-group">
+          <label>Subtítulo</label>
+          <input type="text" value="${esc(s.subtitle || '')}" onchange="updateHeroSlide(${i},'subtitle',this.value)" />
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Descripción</label>
+          <textarea onchange="updateHeroSlide(${i},'desc',this.value)">${esc(s.desc || '')}</textarea>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Imagen de fondo</label>
+        <div class="img-uploader">
+          <img class="img-preview" id="hero-img-${i}" src="${s.img || ''}" style="${s.img ? '' : 'background:var(--cream)'}" />
+          <div class="img-upload-area">
+            <span class="icon">📷</span>
+            <p>Cambiar imagen</p>
+            <input type="file" accept="image/*" onchange="handleHeroImg(event, ${i})" />
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('')
+}
+
+function addHeroSlide() {
+  if (!adminData.hero) adminData.hero = { slides: [] }
+  adminData.hero.slides.push({ title: '', subtitle: '', desc: '', img: '' })
+  saveAdminData()
+  renderHeroSlides()
+}
+
+function removeHeroSlide(i) {
+  if (!confirm('¿Eliminar esta diapositiva?')) return
+  adminData.hero.slides.splice(i, 1)
+  saveAdminData()
+  renderHeroSlides()
+  toast('Diapositiva eliminada', 'success')
+}
+
+function updateHeroSlide(i, key, val) {
+  adminData.hero.slides[i][key] = val
+  saveAdminData()
+}
+
+function handleHeroImg(e, i) {
+  const file = e.target.files[0]
+  if (!file) return
+  resizeAndStore(file, 1200, (dataUrl) => {
+    adminData.hero.slides[i].img = dataUrl
+    document.getElementById('hero-img-' + i).src = dataUrl
+    saveAdminData()
+  })
+}
+
+/* ── NOSOTROS PAGE ────────────── */
+let _nosotrosData = null
+
+async function renderNosotros() {
+  try {
+    _nosotrosData = await loadPageContent('nosotros')
+  } catch (e) {
+    _nosotrosData = null
+  }
+  if (!_nosotrosData) {
+    document.querySelector('#sec-nosotros .edit-panel').innerHTML += '<p style="color:var(--red);margin-top:12px">No se encontró contenido en Supabase. Verifica la tabla page_content.</p>'
+    return
+  }
+  const d = _nosotrosData
+
+  // Hero
+  document.getElementById('nos-hero-tag').value = d.hero?.tag || ''
+  document.getElementById('nos-hero-title').value = d.hero?.title || ''
+  document.getElementById('nos-hero-p1').value = d.hero?.paragraphs?.[0] || ''
+  document.getElementById('nos-hero-p2').value = d.hero?.paragraphs?.[1] || ''
+  document.getElementById('nos-hero-img').value = d.hero?.image || ''
+
+  // Values
+  document.getElementById('nos-val-tag').value = d.values?.tag || ''
+  document.getElementById('nos-val-title').value = d.values?.title || ''
+  document.getElementById('nos-val-subtitle').value = d.values?.subtitle || ''
+  renderNosValCards(d.values?.cards || [])
+
+  // Gallery
+  document.getElementById('nos-gal-tag').value = d.gallery?.tag || ''
+  document.getElementById('nos-gal-title').value = d.gallery?.title || ''
+  document.getElementById('nos-gal-subtitle').value = d.gallery?.subtitle || ''
+  renderNosGallery(d.gallery?.images || [])
+
+  // CTA
+  document.getElementById('nos-cta-title').value = d.cta?.title || ''
+  document.getElementById('nos-cta-subtitle').value = d.cta?.subtitle || ''
+  document.getElementById('nos-cta-btn').value = d.cta?.buttonText || ''
+  document.getElementById('nos-cta-link').value = d.cta?.buttonLink || ''
+}
+
+function renderNosValCards(cards) {
+  const box = document.getElementById('nosValuesCards')
+  box.innerHTML = cards.map((c, i) => `
+    <div style="background:var(--cream);padding:16px;border-radius:8px;margin-bottom:12px;border:1px solid var(--border)">
+      <div style="font-weight:600;font-size:0.8rem;margin-bottom:8px;color:var(--gold)">Valor ${i + 1}</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Icono</label>
+          <input type="text" id="nos-vc-icon-${i}" value="${c.icon || ''}" style="width:60px" />
+        </div>
+        <div class="form-group" style="flex:3">
+          <label>Título</label>
+          <input type="text" id="nos-vc-title-${i}" value="${c.title || ''}" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <textarea id="nos-vc-desc-${i}" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:0.85rem;resize:vertical">${c.desc || ''}</textarea>
+      </div>
+    </div>
+  `).join('')
+}
+
+function renderNosGallery(images) {
+  const box = document.getElementById('nosGalleryImages')
+  box.innerHTML = images.map((img, i) => `
+    <div style="background:var(--cream);padding:16px;border-radius:8px;margin-bottom:12px;border:1px solid var(--border)">
+      <div style="font-weight:600;font-size:0.8rem;margin-bottom:8px;color:var(--gold)">Imagen ${i + 1}</div>
+      <div class="form-row">
+        <div class="form-group" style="flex:3">
+          <label>URL imagen</label>
+          <input type="text" id="nos-gi-src-${i}" value="${img.src || ''}" />
+        </div>
+        <div class="form-group">
+          <label>Alt text</label>
+          <input type="text" id="nos-gi-alt-${i}" value="${img.alt || ''}" />
+        </div>
+      </div>
+    </div>
+  `).join('')
+}
+
+async function saveNosotros() {
+  const cards = (_nosotrosData?.values?.cards || []).map((_, i) => ({
+    icon: document.getElementById('nos-vc-icon-' + i)?.value || '',
+    title: document.getElementById('nos-vc-title-' + i)?.value || '',
+    desc: document.getElementById('nos-vc-desc-' + i)?.value || ''
+  }))
+
+  const images = (_nosotrosData?.gallery?.images || []).map((_, i) => ({
+    src: document.getElementById('nos-gi-src-' + i)?.value || '',
+    alt: document.getElementById('nos-gi-alt-' + i)?.value || ''
+  }))
+
+  const content = {
+    hero: {
+      tag: document.getElementById('nos-hero-tag').value,
+      title: document.getElementById('nos-hero-title').value,
+      paragraphs: [
+        document.getElementById('nos-hero-p1').value,
+        document.getElementById('nos-hero-p2').value
+      ],
+      image: document.getElementById('nos-hero-img').value
+    },
+    values: {
+      tag: document.getElementById('nos-val-tag').value,
+      title: document.getElementById('nos-val-title').value,
+      subtitle: document.getElementById('nos-val-subtitle').value,
+      cards
+    },
+    gallery: {
+      tag: document.getElementById('nos-gal-tag').value,
+      title: document.getElementById('nos-gal-title').value,
+      subtitle: document.getElementById('nos-gal-subtitle').value,
+      images
+    },
+    cta: {
+      title: document.getElementById('nos-cta-title').value,
+      subtitle: document.getElementById('nos-cta-subtitle').value,
+      buttonText: document.getElementById('nos-cta-btn').value,
+      buttonLink: document.getElementById('nos-cta-link').value
+    }
+  }
+
+  try {
+    await savePageContent('nosotros', content)
+    _nosotrosData = content
+    toast('Página Nosotros guardada en Supabase', 'success')
+    const st = document.getElementById('nos-save-status')
+    st.style.display = 'inline'
+    setTimeout(() => st.style.display = 'none', 3000)
+  } catch (e) {
+    toast('Error al guardar: ' + e.message, 'error')
+  }
+}
+
+/* ── EXPORT / IMPORT ──────────── */
+function exportData() {
+  const json = JSON.stringify(adminData, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `spa-infinity-admin-${new Date().toISOString().slice(0,10)}.json`
+  a.click()
+  toast('Datos exportados', 'success')
+}
+
+function importData(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result)
+      adminData = data
+      saveAdminData()
+      toast('Datos importados — recargando...', 'success')
+      setTimeout(() => location.reload(), 1500)
+    } catch (err) {
+      toast('Error: archivo JSON inválido', 'error')
+    }
+  }
+  reader.readAsText(file)
+}
+
+function resetAll() {
+  if (!confirm('¿Estás seguro? Se eliminarán TODOS los cambios realizados.')) return
+  if (!confirm('Esta acción no se puede deshacer. ¿Continuar?')) return
+  localStorage.removeItem('spa_admin_data')
+  toast('Datos restablecidos — recargando...', 'success')
+  setTimeout(() => location.reload(), 1500)
+}
+
+/* ── PROMO EVENTS (Supabase-backed) ── */
+let _promoEvents = []
+
+async function renderPromos() {
+  const main = document.getElementById('promoEventMain')
+  main.innerHTML = '<p style="color:var(--mid);padding:20px">Cargando eventos...</p>'
+  try {
+    _promoEvents = await loadAllPromoEvents()
+  } catch(e) {
+    _promoEvents = []
+  }
+
+  if (!_promoEvents.length) {
+    main.innerHTML = `
+      <div class="edit-panel">
+        <h2>Eventos Promocionales</h2>
+        <p style="font-size:0.85rem;color:var(--mid);line-height:1.8;margin-bottom:20px">
+          No hay eventos creados. Crea tu primer evento promocional — podrás configurar packs, precios, fotos y el botón flotante.
+        </p>
+        <button class="btn btn-primary" onclick="editPromoEvent(-1)">+ Nuevo Evento</button>
+      </div>`
+    return
+  }
+
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.3rem">Eventos Promocionales</h2>
+      <button class="btn btn-primary" onclick="editPromoEvent(-1)">+ Nuevo Evento</button>
+    </div>
+    ${_promoEvents.map((evt, i) => {
+      const c = evt.config || {}
+      const packCount = c.packs ? c.packs.length : 0
+      return `
+      <div class="edit-panel" style="margin-bottom:16px;border-left:4px solid ${evt.active ? 'var(--green)' : 'var(--light)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <strong style="font-size:1.05rem">${esc(c.eventName || 'Sin nombre')}</strong>
+            <span style="font-size:0.7rem;padding:3px 10px;border-radius:100px;margin-left:10px;font-weight:600;${evt.active ? 'background:#E8F5E9;color:#27AE60' : 'background:#F5F5F5;color:var(--light)'}">${evt.active ? 'ACTIVO' : 'INACTIVO'}</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label class="toggle">
+              <input type="checkbox" ${evt.active ? 'checked' : ''} onchange="togglePromoEvent(${evt.id}, this.checked)" />
+              <span class="toggle-slider"></span>
+            </label>
+            <button class="btn btn-sm" onclick="editPromoEvent(${evt.id})">Editar</button>
+            <button class="btn btn-danger btn-sm" onclick="deletePromoEvt(${evt.id})">Eliminar</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:24px;font-size:0.78rem;color:var(--mid);flex-wrap:wrap">
+          <span><strong>Packs:</strong> ${packCount}</span>
+          <span><strong>Precio desde:</strong> ${esc(c.minPrice || '—')}</span>
+          <span><strong>Botón flotante:</strong> ${esc(c.floatText || '—')}</span>
+          <span><strong>Pop-up:</strong> ${c.popupEnabled ? '✅ Activo' : '❌ Inactivo'}</span>
+          <a href="${promoPageUrl(c)}" target="_blank" style="color:var(--gold);font-weight:600">Ver página →</a>
+        </div>
+      </div>`
+    }).join('')}`
+}
+
+async function togglePromoEvent(id, active) {
+  try {
+    await savePromoEvent(id, { active })
+    toast(active ? 'Evento activado' : 'Evento desactivado', 'success')
+    renderPromos()
+  } catch(e) { toast('Error: ' + e.message, 'error') }
+}
+
+async function deletePromoEvt(id) {
+  if (!confirm('¿Eliminar este evento permanentemente?')) return
+  try {
+    await deletePromoEvent(id)
+    toast('Evento eliminado', 'success')
+    renderPromos()
+  } catch(e) { toast('Error: ' + e.message, 'error') }
+}
+
+function addNewPromo() { editPromoEvent(-1) }
+
+async function editPromoEvent(id) {
+  const isNew = id === -1
+  let evt = isNew ? { active: true, config: { eventName:'', year:'', heroBadge:'', heroSubtitle:'', heroTitle:'', heroTagline:'', heroDescription:'', heroImage:'', minPrice:'', floatText:'', floatIcon:'♡', bottomUrgency:'Cupos limitados!', bottomTitle:'Agenda hoy, sorprende manana.', popupEnabled:false, popupImage:'', popupText:'', popupButtonText:'Ver Promoción', popupButtonLink:'', packs:[] } } : _promoEvents.find(e => e.id === id)
+  if (!evt) { toast('Evento no encontrado','error'); return }
+  const c = evt.config
+
+  document.getElementById('promoEventMain').style.display = 'none'
+  const panel = document.getElementById('promoEventEdit')
+  panel.style.display = 'block'
+
+  // Build packs HTML
+  function packHTML(p, i) {
+    return `
+    <div class="edit-panel" style="margin-bottom:16px;border-left:3px solid var(--gold)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <strong style="font-size:0.9rem">Pack ${i+1}: ${esc(p.name || 'Nuevo Pack')}</strong>
+        <button class="btn btn-danger btn-sm" onclick="removePromoPack(${i})">Eliminar pack</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre</label><input type="text" class="pk-name" value="${esc(p.name||'')}" /></div>
+        <div class="form-group"><label>Subtítulo</label><input type="text" class="pk-subtitle" value="${esc(p.subtitle||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Precio</label><input type="text" class="pk-price" value="${esc(p.price||'')}" placeholder="$50.000 — $62.000" /></div>
+        <div class="form-group">
+          <label>Imagen banner</label>
+          <input type="hidden" class="pk-img" value="${esc(p.bannerImage||'')}" />
+          <div class="img-uploader">
+            <img class="img-preview pk-img-preview" src="${p.bannerImage || ''}" style="${p.bannerImage ? '' : 'background:var(--cream)'}" />
+            <div class="img-upload-area">
+              <span class="icon">📷</span>
+              <p>Cambiar imagen banner</p>
+              <input type="file" accept="image/*" onchange="handlePackImg(event, this)" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Título en banner</label><input type="text" class="pk-btitle" value="${esc(p.bannerTitle||'')}" /></div>
+        <div class="form-group"><label>Subtítulo banner</label><input type="text" class="pk-bsub" value="${esc(p.bannerSub||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Ornamento banner</label><input type="text" class="pk-born" value="${esc(p.bannerOrnament||'')}" placeholder="★ EDICION ESPECIAL ★" /></div>
+        <div class="form-group"><label>Overlay (2 colores rgba)</label><input type="text" class="pk-overlay" value="${esc(p.bannerOverlay||'')}" placeholder="rgba(45,19,25,0.75),rgba(26,11,15,0.7)" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Etiqueta "Para" (opcional)</label><input type="text" class="pk-for" value="${esc(p.forLabel||'')}" /></div>
+        <div class="form-group"><label>Variantes (opcional)</label><input type="text" class="pk-variants" value="${esc(p.variants||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Decoración (emoji/símbolo)</label><input type="text" class="pk-deco" value="${esc(p.deco||'∞')}" style="font-size:1.3rem;text-align:center" /></div>
+        <div class="form-group"><label>Mensaje WhatsApp</label><input type="text" class="pk-wamsg" value="${esc(p.whatsappMsg||'')}" /></div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Servicios incluidos (uno por línea)</label>
+          <textarea class="pk-services" rows="4" style="font-family:inherit;font-size:0.85rem;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical">${(p.services||[]).join('\n')}</textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+        <label style="font-size:0.82rem;cursor:pointer;display:flex;align-items:center;gap:6px">
+          <input type="checkbox" class="pk-featured" ${p.featured ? 'checked' : ''} style="accent-color:var(--gold-d)" /> Destacado (borde dorado)
+        </label>
+      </div>
+    </div>`
+  }
+
+  panel.innerHTML = `
+    <span class="back-btn" onclick="closePromoEventEdit()">← Volver a eventos</span>
+    <div class="edit-panel">
+      <h2>${isNew ? 'Nuevo Evento Promocional' : 'Editar: ' + esc(c.eventName)}</h2>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Información General</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre del evento</label><input type="text" id="pe-name" value="${esc(c.eventName||'')}" placeholder="Día de la Madre" /></div>
+        <div class="form-group"><label>Año</label><input type="text" id="pe-year" value="${esc(c.year||'')}" placeholder="2025" /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Hero (Cabecera)</h3>
+      <div class="form-row full">
+        <div class="form-group"><label>Badge superior</label><input type="text" id="pe-badge" value="${esc(c.heroBadge||'')}" placeholder="ESPECIAL · DIA DE LA MADRE · 2025" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Subtítulo hero</label><input type="text" id="pe-hsub" value="${esc(c.heroSubtitle||'')}" /></div>
+        <div class="form-group"><label>Título hero</label><input type="text" id="pe-htitle" value="${esc(c.heroTitle||'')}" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Tagline</label><input type="text" id="pe-tagline" value="${esc(c.heroTagline||'')}" /></div>
+        <div class="form-group">
+          <label>Imagen hero</label>
+          <input type="hidden" id="pe-himg" value="${esc(c.heroImage||'')}" />
+          <div class="img-uploader">
+            <img class="img-preview" id="pe-himg-preview" src="${c.heroImage || ''}" style="${c.heroImage ? '' : 'background:var(--cream)'}" />
+            <div class="img-upload-area">
+              <span class="icon">📷</span>
+              <p>Cambiar imagen hero</p>
+              <input type="file" accept="image/*" onchange="handlePromoImg(event, 'pe-himg', 'pe-himg-preview')" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label>Descripción</label><textarea id="pe-hdesc" rows="3" style="font-family:inherit;font-size:0.85rem;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical">${esc(c.heroDescription||'')}</textarea></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Precio mínimo (badge)</label><input type="text" id="pe-minprice" value="${esc(c.minPrice||'')}" placeholder="$24.900" /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Botón Flotante</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Texto flotante</label><input type="text" id="pe-ftxt" value="${esc(c.floatText||'')}" placeholder="Promo Dia de la Madre" /></div>
+        <div class="form-group"><label>Icono flotante</label><input type="text" id="pe-ficon" value="${esc(c.floatIcon||'♡')}" style="font-size:1.3rem;text-align:center" /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Pop-up de Entrada</h3>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <label class="toggle">
+          <input type="checkbox" id="pe-popup-on" ${c.popupEnabled ? 'checked' : ''} />
+          <span class="toggle-slider"></span>
+        </label>
+        <span style="font-size:0.82rem;color:var(--mid)">Activar pop-up (aparece una vez al entrar al sitio)</span>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Imagen del pop-up</label>
+          <input type="hidden" id="pe-popup-img" value="${esc(c.popupImage||'')}" />
+          <div class="img-uploader">
+            <img class="img-preview" id="pe-popup-img-preview" src="${c.popupImage || ''}" style="${c.popupImage ? '' : 'background:var(--cream)'}" />
+            <div class="img-upload-area">
+              <span class="icon">📷</span>
+              <p>Cambiar imagen pop-up</p>
+              <input type="file" accept="image/*" onchange="handlePromoImg(event, 'pe-popup-img', 'pe-popup-img-preview')" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group"><label>Texto del pop-up</label><textarea id="pe-popup-text" rows="3" style="font-family:inherit;font-size:0.85rem;padding:10px;border:1px solid var(--border);border-radius:8px;resize:vertical">${esc(c.popupText||'')}</textarea></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Texto del botón</label><input type="text" id="pe-popup-btn" value="${esc(c.popupButtonText||'Ver Promoción')}" /></div>
+        <div class="form-group"><label>Enlace del botón <span style="font-weight:400;color:var(--light)">(vacío = página del evento, automático)</span></label><input type="text" id="pe-popup-link" value="${esc((c.popupButtonLink||'').includes('promocion-dia-de-la-madre') ? '' : (c.popupButtonLink||''))}" placeholder="Automático: ${promoPageUrl(c)}" /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:20px 0 12px;text-transform:uppercase;letter-spacing:0.1em">CTA Final</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Texto urgencia</label><input type="text" id="pe-burg" value="${esc(c.bottomUrgency||'')}" placeholder="Cupos limitados!" /></div>
+        <div class="form-group"><label>Título CTA</label><input type="text" id="pe-btitle" value="${esc(c.bottomTitle||'')}" placeholder="Agenda hoy, sorprende manana." /></div>
+      </div>
+
+      <h3 style="font-size:0.82rem;font-weight:600;color:var(--gold-d);margin:24px 0 12px;text-transform:uppercase;letter-spacing:0.1em">Packs</h3>
+      <div id="packsContainer">${(c.packs||[]).map((p,i) => packHTML(p,i)).join('')}</div>
+      <button class="btn" onclick="addPromoPack()" style="margin-top:12px">+ Agregar Pack</button>
+
+      <div style="display:flex;gap:12px;margin-top:32px;padding-top:20px;border-top:1px solid var(--border)">
+        <button class="btn btn-primary" onclick="savePromoEvt(${isNew ? -1 : evt.id})">${isNew ? 'Crear Evento' : 'Guardar Cambios'}</button>
+        <button class="btn" onclick="closePromoEventEdit()">Cancelar</button>
+      </div>
+    </div>`
+
+  window._currentPackHTML = packHTML
+}
+
+function addPromoPack() {
+  const container = document.getElementById('packsContainer')
+  const idx = container.children.length
+  const p = { name:'', subtitle:'', price:'', bannerImage:'', bannerTitle:'', bannerSub:'', bannerOrnament:'', bannerOverlay:'', forLabel:'', variants:'', services:[], whatsappMsg:'', featured:false, deco:'∞' }
+  container.insertAdjacentHTML('beforeend', window._currentPackHTML(p, idx))
+}
+
+function removePromoPack(idx) {
+  const container = document.getElementById('packsContainer')
+  if (container.children[idx]) container.children[idx].remove()
+}
+
+function collectPacks() {
+  const container = document.getElementById('packsContainer')
+  const packs = []
+  container.querySelectorAll('.edit-panel').forEach(el => {
+    packs.push({
+      name: el.querySelector('.pk-name').value.trim(),
+      subtitle: el.querySelector('.pk-subtitle').value.trim(),
+      price: el.querySelector('.pk-price').value.trim(),
+      bannerImage: el.querySelector('.pk-img').value.trim(),
+      bannerTitle: el.querySelector('.pk-btitle').value.trim(),
+      bannerSub: el.querySelector('.pk-bsub').value.trim(),
+      bannerOrnament: el.querySelector('.pk-born').value.trim(),
+      bannerOverlay: el.querySelector('.pk-overlay').value.trim(),
+      forLabel: el.querySelector('.pk-for').value.trim(),
+      variants: el.querySelector('.pk-variants').value.trim(),
+      deco: el.querySelector('.pk-deco').value.trim() || '∞',
+      whatsappMsg: el.querySelector('.pk-wamsg').value.trim(),
+      services: el.querySelector('.pk-services').value.split('\n').map(s=>s.trim()).filter(Boolean),
+      featured: el.querySelector('.pk-featured').checked
+    })
+  })
+  return packs
+}
+
+async function savePromoEvt(id) {
+  const name = document.getElementById('pe-name').value.trim()
+  if (!name) { toast('El nombre del evento es obligatorio','error'); return }
+
+  const config = {
+    eventName: name,
+    year: document.getElementById('pe-year').value.trim(),
+    heroBadge: document.getElementById('pe-badge').value.trim(),
+    heroSubtitle: document.getElementById('pe-hsub').value.trim(),
+    heroTitle: document.getElementById('pe-htitle').value.trim(),
+    heroTagline: document.getElementById('pe-tagline').value.trim(),
+    heroDescription: document.getElementById('pe-hdesc').value.trim(),
+    heroImage: document.getElementById('pe-himg').value.trim(),
+    minPrice: document.getElementById('pe-minprice').value.trim(),
+    floatText: document.getElementById('pe-ftxt').value.trim(),
+    floatIcon: document.getElementById('pe-ficon').value.trim() || '♡',
+    popupEnabled: document.getElementById('pe-popup-on').checked,
+    popupImage: document.getElementById('pe-popup-img').value.trim(),
+    popupText: document.getElementById('pe-popup-text').value.trim(),
+    popupButtonText: document.getElementById('pe-popup-btn').value.trim() || 'Ver Promoción',
+    popupButtonLink: document.getElementById('pe-popup-link').value.trim(),
+    bottomUrgency: document.getElementById('pe-burg').value.trim(),
+    bottomTitle: document.getElementById('pe-btitle').value.trim(),
+    packs: collectPacks()
+  }
+
+  // Verificar tamaño del payload antes de enviar
+  const payloadSize = JSON.stringify(config).length
+  console.log('Promo config size:', Math.round(payloadSize / 1024), 'KB')
+  if (payloadSize > 4 * 1024 * 1024) {
+    toast('El evento es demasiado grande. Reduce el tamaño de las imágenes.', 'error')
+    return
+  }
+
+  const btn = document.querySelector('#promoEventEdit button.btn-primary')
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...' }
+
+  try {
+    if (id === -1) {
+      await savePromoEvent(null, { active: true, config })
+    } else {
+      await savePromoEvent(id, { config })
+    }
+    toast(id === -1 ? 'Evento creado' : 'Evento actualizado', 'success')
+    closePromoEventEdit()
+    renderPromos()
+  } catch(e) {
+    console.error('savePromoEvt failed:', e)
+    toast('Error al guardar: ' + (e.message || 'verifica la consola'), 'error')
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar evento' }
+  }
+}
+
+function closePromoEventEdit() {
+  document.getElementById('promoEventEdit').style.display = 'none'
+  document.getElementById('promoEventEdit').innerHTML = ''
+  document.getElementById('promoEventMain').style.display = ''
+}
+
+
+/* ── ADD NEW CATEGORY ─────────── */
+function addNewCategory() {
+  document.getElementById('catList').style.display = 'none'
+  const panel = document.getElementById('catEditPanel')
+  panel.style.display = 'block'
+
+  panel.innerHTML = `
+    <span class="back-btn" onclick="closeCatEdit()">← Volver a categorías</span>
+    <div class="edit-panel">
+      <h2>Nueva Categoría</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" id="newcat-name" placeholder="Ej: Masajes Relajantes" />
+        </div>
+        <div class="form-group">
+          <label>Tagline</label>
+          <input type="text" id="newcat-tagline" placeholder="Ej: Bienestar y Relax" />
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Descripción corta</label>
+          <textarea id="newcat-shortDesc" placeholder="Breve descripción para tarjetas"></textarea>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Descripción larga</label>
+          <textarea id="newcat-longDesc" placeholder="Descripción detallada de la categoría"></textarea>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Imagen de categoría</label>
+          <div class="img-uploader">
+            <img class="img-preview" id="newcat-img-preview" src="" style="background:var(--cream)" />
+            <div class="img-upload-area">
+              <span class="icon">📷</span>
+              <p>Click o arrastra para subir imagen</p>
+              <input type="file" accept="image/*" onchange="handleNewCatImg(event)" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:24px">
+        <button class="btn btn-primary" onclick="saveNewCategory()">Crear categoría</button>
+        <button class="btn" onclick="closeCatEdit()">Cancelar</button>
+      </div>
+    </div>
+  `
+}
+
+let _newCatImg = ''
+function handleNewCatImg(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  resizeAndStore(file, 800, (dataUrl) => {
+    document.getElementById('newcat-img-preview').src = dataUrl
+    _newCatImg = dataUrl
+  })
+}
+
+function saveNewCategory() {
+  const name = document.getElementById('newcat-name').value.trim()
+  if (!name) { toast('El nombre es obligatorio', 'error'); return }
+
+  const id = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
+  if (CATEGORIES.find(c => c.id === id)) { toast('Ya existe una categoría con ese nombre', 'error'); return }
+
+  const newCat = {
+    id,
+    name,
+    tagline: document.getElementById('newcat-tagline').value.trim() || '',
+    shortDesc: document.getElementById('newcat-shortDesc').value.trim() || '',
+    longDesc: document.getElementById('newcat-longDesc').value.trim() || '',
+    cardImg: _newCatImg || 'images/placeholder.jpg',
+    heroImg: _newCatImg || 'images/placeholder.jpg',
+    link: '#',
+    services: []
+  }
+
+  // Add to live data
+  CATEGORIES.push(newCat)
+
+  // Persist in admin overrides
+  if (!adminData.newCategories) adminData.newCategories = []
+  adminData.newCategories.push(newCat)
+  saveAdminData()
+
+  _newCatImg = ''
+  renderCatList()
+  renderSvcCatList()
+  renderDashboard()
+  closeCatEdit()
+  toast('Categoría creada exitosamente', 'success')
+
+  // Sync to Supabase
+  if (typeof supabase !== 'undefined') {
+    const row = categoryToRow(newCat)
+    row.sort_order = CATEGORIES.length
+    supabase.insert('categories', row)
+      .then(() => console.log('✓ New category created in Supabase:', newCat.id))
+      .catch(e => { console.error('Supabase new cat fail:', e); toast('Error creando categoría en servidor', 'error') })
+  }
+}
+
+/* ── ADD NEW SERVICE ─────────── */
+function addNewService(catId) {
+  const cat = getCategoryById(catId)
+  if (!cat) return
+
+  document.getElementById('svcListPanel').style.display = 'none'
+  const panel = document.getElementById('svcEditPanel')
+  panel.style.display = 'block'
+
+  const catOptions = CATEGORIES.map(c =>
+    `<option value="${c.id}"${c.id === catId ? ' selected' : ''}>${esc(c.name)}</option>`
+  ).join('')
+
+  panel.innerHTML = `
+    <span class="back-btn" onclick="backToSvcList('${catId}')">← Volver a ${esc(cat.name)}</span>
+    <div class="edit-panel">
+      <h2>Nuevo Servicio</h2>
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label>Categoría</label>
+          <select id="newsvc-catId" style="width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;background:var(--white);color:var(--dark)">
+            ${catOptions}
+          </select>
+          <span class="form-hint">Selecciona la categoría donde aparecerá este servicio</span>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre del servicio</label>
+          <input type="text" id="newsvc-name" placeholder="Ej: Masaje Descontracturante" />
+        </div>
+        <div class="form-group">
+          <label>Etiqueta (tag)</label>
+          <input type="text" id="newsvc-tag" placeholder="Ej: Relajación" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Precio</label>
+          <input type="text" id="newsvc-price" placeholder="$24.900" />
+          <span class="form-hint">Formato: $24.900</span>
+        </div>
+        <div class="form-group">
+          <label>Duración</label>
+          <input type="text" id="newsvc-duration" placeholder="60 min" />
+          <span class="form-hint">Ejemplo: 60 min, 1 hr 30 min</span>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Descripción corta</label>
+          <textarea id="newsvc-shortDesc" placeholder="Breve descripción del servicio"></textarea>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Descripción larga</label>
+          <textarea id="newsvc-longDesc" placeholder="Descripción detallada del servicio"></textarea>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Imagen del servicio</label>
+          <div class="img-uploader">
+            <img class="img-preview" id="newsvc-img-preview" src="" style="background:var(--cream)" />
+            <div class="img-upload-area">
+              <span class="icon">📷</span>
+              <p>Click o arrastra para subir imagen</p>
+              <input type="file" accept="image/*" onchange="handleNewSvcImg(event)" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Link de reserva (AgendaPro)</label>
+          <input type="text" id="newsvc-link" placeholder="https://spainfinity.site.agendapro.com/cl/sucursal/452261?services_id=..." />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Destacado</label>
+          <select id="newsvc-highlighted">
+            <option value="false" selected>No</option>
+            <option value="true">Sí — Destacado</option>
+          </select>
+        </div>
+      </div>
+      <!-- Process Steps -->
+      <div class="process-steps-editor" style="margin-top:24px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;padding:20px;background:#fafaf8">
+        <h4 style="margin:0 0 4px;font-size:0.95rem">Pasos del Proceso <span style="font-weight:400;color:#999;font-size:0.8rem">(opcional)</span></h4>
+        <p style="margin:0 0 16px;font-size:0.78rem;color:#999">3 pasos con título y descripción para la página del servicio.</p>
+        <div id="newProcessStepsContainer">
+          ${[0,1,2].map(i => `
+            <div class="process-step-row" style="display:flex;gap:12px;margin-bottom:12px;align-items:flex-start">
+              <span style="font-family:'Playfair Display',serif;color:var(--gold);font-style:italic;font-size:1.2rem;padding-top:6px;min-width:30px">0${i+1}</span>
+              <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+                <input type="text" class="new-process-step-title" placeholder="Título del paso ${i+1}" style="font-weight:600" />
+                <textarea class="new-process-step-text" placeholder="Descripción del paso ${i+1}..." rows="2" style="font-size:0.85rem"></textarea>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:24px">
+        <button class="btn btn-primary" onclick="saveNewService()">Crear servicio</button>
+        <button class="btn" onclick="backToSvcList('${catId}')">Cancelar</button>
+      </div>
+    </div>
+  `
+}
+
+let _newSvcImg = ''
+function handleNewSvcImg(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  resizeAndStore(file, 800, (dataUrl) => {
+    document.getElementById('newsvc-img-preview').src = dataUrl
+    _newSvcImg = dataUrl
+  })
+}
+
+function saveNewService() {
+  const catId = document.getElementById('newsvc-catId').value
+  const cat = getCategoryById(catId)
+  if (!cat) { toast('Selecciona una categoría válida', 'error'); return }
+
+  const name = document.getElementById('newsvc-name').value.trim()
+  if (!name) { toast('El nombre es obligatorio', 'error'); return }
+
+  const price = document.getElementById('newsvc-price').value.trim()
+  if (!price) { toast('El precio es obligatorio', 'error'); return }
+
+  const id = catId + '-' + name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
+  // Check duplicate
+  if (cat.services.find(s => s.id === id)) { toast('Ya existe un servicio con ese nombre', 'error'); return }
+
+  const newSvc = {
+    id,
+    catId,
+    name,
+    tag: document.getElementById('newsvc-tag').value.trim() || '',
+    price,
+    duration: document.getElementById('newsvc-duration').value.trim() || '',
+    shortDesc: document.getElementById('newsvc-shortDesc').value.trim() || '',
+    longDesc: document.getElementById('newsvc-longDesc').value.trim() || '',
+    img: _newSvcImg || cat.cardImg || 'images/placeholder.jpg',
+    link: document.getElementById('newsvc-link').value.trim() || SITE.booking,
+    highlighted: document.getElementById('newsvc-highlighted').value === 'true',
+    hasDiscount: false,
+    processSteps: (() => {
+      const titles = document.querySelectorAll('.new-process-step-title')
+      const texts = document.querySelectorAll('.new-process-step-text')
+      const steps = []
+      titles.forEach((el, i) => {
+        const title = el.value.trim()
+        const text = texts[i] ? texts[i].value.trim() : ''
+        if (title) steps.push({ title, text })
+      })
+      return steps
+    })()
+  }
+
+  // Add to live data
+  cat.services.push(newSvc)
+
+  // Persist in admin overrides
+  if (!adminData.newServices) adminData.newServices = {}
+  if (!adminData.newServices[catId]) adminData.newServices[catId] = []
+  adminData.newServices[catId].push(newSvc)
+  saveAdminData()
+
+  _newSvcImg = ''
+  renderDashboard()
+  toast('Servicio creado exitosamente', 'success')
+  showSvcList(catId)
+
+  // Sync to Supabase
+  if (typeof supabase !== 'undefined') {
+    const row = serviceToRow(newSvc)
+    row.sort_order = cat.services.length
+    supabase.insert('services', row)
+      .then(() => console.log('✓ New service created in Supabase:', newSvc.id))
+      .catch(e => { console.error('Supabase new svc fail:', e); toast('Error creando servicio en servidor', 'error') })
+  }
+}
+
+/* ── UTILITIES ────────────────── */
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+}
+
+function toast(msg, type) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.className = 'toast ' + (type || '')
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 3000)
+}
+
+/* Promo event image handler (hero & popup)
+   Note: max 800px @ 0.7 quality keeps total promo config < 1MB
+   so Supabase JSONB column accepts it. */
+function handlePromoImg(e, hiddenId, previewId) {
+  const file = e.target.files[0]
+  if (!file) return
+  // Validar tipo y tamaño antes de procesar
+  if (!file.type.startsWith('image/')) {
+    toast('El archivo no es una imagen', 'error')
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    toast('La imagen es demasiado grande (máx 10MB)', 'error')
+    return
+  }
+  resizeAndStore(file, 800, (dataUrl) => {
+    document.getElementById(previewId).src = dataUrl
+    document.getElementById(previewId).style.background = ''
+    document.getElementById(hiddenId).value = dataUrl
+    console.log('Promo image processed:', hiddenId, 'size:', Math.round(dataUrl.length / 1024), 'KB')
+  }, 0.75)
+}
+
+/* Pack banner image handler */
+function handlePackImg(e, inputEl) {
+  const file = e.target.files[0]
+  if (!file) return
+  const packDiv = inputEl.closest('.edit-panel')
+  resizeAndStore(file, 1200, (dataUrl) => {
+    packDiv.querySelector('.pk-img-preview').src = dataUrl
+    packDiv.querySelector('.pk-img-preview').style.background = ''
+    packDiv.querySelector('.pk-img').value = dataUrl
+  })
+}
+
+function resizeAndStore(file, maxW, cb, quality) {
+  const q = (typeof quality === 'number') ? quality : 0.8
+  const reader = new FileReader()
+  reader.onload = () => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      let w = img.width, h = img.height
+      if (w > maxW) { h = h * maxW / w; w = maxW }
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      cb(canvas.toDataURL('image/jpeg', q))
+    }
+    img.onerror = () => toast('Error procesando la imagen. Probá con otra.', 'error')
+    img.src = reader.result
+  }
+  reader.onerror = () => toast('Error leyendo el archivo', 'error')
+  reader.readAsDataURL(file)
+}
+</script>
+</body>
+</html>
+
+ + n.toLocaleString('es-CL')
+  }
   const basePriceStr = document.getElementById('svc-price').value.trim()
   const baseNum = parseInt(basePriceStr.replace(/[^0-9]/g, '')) || 0
 
@@ -1706,16 +2773,16 @@ function saveService(catId, svcId) {
       const discountedStr = '$' + discounted.toLocaleString('es-CL')
       ov.price = discountedStr
       svc.price = discountedStr
-      ov.originalPrice = basePriceStr
-      svc.originalPrice = basePriceStr
+      ov.originalPrice = precioNormal(basePriceStr)
+      svc.originalPrice = ov.originalPrice
       ov.discountLabel = pct + '% DCTO'
       svc.discountLabel = ov.discountLabel
       ov.discountPercent = pct
       svc.discountPercent = pct
     } else {
       // discount toggle on but % invalid — treat as no discount
-      ov.price = basePriceStr
-      svc.price = basePriceStr
+      ov.price = precioNormal(basePriceStr)
+      svc.price = ov.price
       delete ov.originalPrice; delete svc.originalPrice
       delete ov.discountLabel; delete svc.discountLabel
       delete ov.discountPercent; delete svc.discountPercent
@@ -1723,8 +2790,8 @@ function saveService(catId, svcId) {
     ov.discountText = document.getElementById('svc-discountText').value.trim()
     svc.discountText = ov.discountText
   } else {
-    ov.price = basePriceStr
-    svc.price = basePriceStr
+    ov.price = precioNormal(basePriceStr)
+    svc.price = ov.price
     delete ov.originalPrice; delete svc.originalPrice
     delete ov.discountLabel; delete svc.discountLabel
     delete ov.discountPercent; delete svc.discountPercent
