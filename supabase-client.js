@@ -1,3 +1,20 @@
+/* "1hr30min", "2 Hrs", "90" -> "90 min", que es como lo guarda la agenda */
+function duracionNormal(v){
+  const t = String(v == null ? '' : v).trim().toLowerCase()
+  if(!t) return ''
+  const NUM = '([0-9]+)[^0-9a-z]*'
+  const hr = t.match(new RegExp(NUM + '(h|hr|hrs|hora|horas)'))
+  const mi = t.match(new RegExp(NUM + '(m|min|mins|minuto|minutos)'))
+  let n = (hr || mi) ? ((hr ? parseInt(hr[1]) * 60 : 0) + (mi ? parseInt(mi[1]) : 0)) : 0
+  /* "1 h 30" -> la segunda cifra son los minutos */
+  if(hr && !mi){
+    const resto = t.slice(t.indexOf(hr[0]) + hr[0].length).match(/[0-9]+/)
+    if(resto) n += parseInt(resto[0])
+  }
+  if(!n){ const solo = t.match(/[0-9]+/); n = solo ? parseInt(solo[0]) : 0 }
+  return n ? n + ' min' : t
+}
+
 /* ═══════════════════════════════════════════
    SPA INFINITY — Supabase Client
    ═══════════════════════════════════════════ */
