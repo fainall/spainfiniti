@@ -5055,11 +5055,25 @@ function iniciarRefresco(){
   if(refrescoTimer) return
   refrescoTimer = setInterval(refrescarAgenda, 30000)
   setInterval(pintarUltimoRefresco, 20000)
+  /* las demas pantallas (Ventas, Caja, Comisiones...) tambien se ponen al dia
+     solas mientras esten abiertas */
+  setInterval(()=>{
+    if(document.visibilityState !== 'visible') return
+    const v = pantallaAbierta()
+    if(v && v !== 'agenda') refrescarPantalla(v, true)
+  }, 30000)
   /* al volver a la pestaña, refresca de inmediato: es cuando más falta hace */
   document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState === 'visible') refrescarAgenda()
+    if(document.visibilityState !== 'visible') return
+    refrescarAgenda()
+    const v = pantallaAbierta()
+    if(v && v !== 'agenda') refrescarPantalla(v, true)
   })
-  window.addEventListener('focus', ()=>refrescarAgenda())
+  window.addEventListener('focus', ()=>{
+    refrescarAgenda()
+    const v = pantallaAbierta()
+    if(v && v !== 'agenda') refrescarPantalla(v, true)
+  })
 }
 
 async function loadAndRender(){ await loadAppointments(); ultimoRefresco=Date.now(); render(); pintarUltimoRefresco() }
@@ -7305,6 +7319,72 @@ function switchView(v){
   if(v==='admin') renderAdmin()
   if(v==='misingresos') renderMisIngresos()
   if(v==='asistente') renderAsistente()
+  refrescarPantalla(v)
+}
+
+/* ── Refresco del resto de las pantallas ──
+   La agenda se actualizaba sola cada medio minuto, pero las demas no: en
+   Ventas habia que apretar F5 para ver un cobro que acababa de hacer otra
+   persona en el mostrador. Ahora cada pantalla dice de que tablas vive; se
+   vuelven a leer al entrar en ella y cada medio minuto mientras este abierta.
+   Solo se vuelve a pintar si de verdad cambio algo, para no mover la lista
+   bajo el dedo de quien la esta mirando.
+
+   Los nombres van como texto y se buscan al momento de usarlos: asi, si
+   alguna funcion cambia de nombre, la pantalla se queda sin refresco
+   automatico pero no se rompe. */
+const DATOS_DE_PANTALLA = {
+  ventas:        { carga: ['loadSales','cargarCobros'],   pinta: 'renderSales',        mira: ['sales'] },
+  transacciones: { carga: ['loadSales'],                  pinta: 'renderTransacciones',mira: ['sales'] },
+  cobros:        { carga: ['cargarCobros'],               pinta: 'renderCobros',       mira: [] },
+  caja:          { carga: ['loadCash','loadSales'],       pinta: 'renderCaja',         mira: ['cash','sales'] },
+  propinas:      { carga: ['loadSales'],                  pinta: 'renderPropinas',     mira: ['sales'] },
+  comisiones:    { carga: ['loadSales','loadAppointments'], pinta: 'renderComisiones', mira: ['sales','appointments'] },
+  planes:        { carga: ['loadPlans'],                  pinta: 'renderPlanes',       mira: ['plans'] },
+  clientes:      { carga: ['loadClients'],                pinta: 'renderClientList',   mira: ['clients'] },
+  productos:     { carga: ['loadProducts'],               pinta: 'renderProducts',     mira: ['products'] },
+  ventaprod:     { carga: ['loadProducts','loadSales'],   pinta: 'renderVentaProd',    mira: ['products','sales'] },
+  movstock:      { carga: ['loadStockMoves','loadProducts'], pinta: 'renderMovStock',  mira: ['stockMoves','products'] },
+  represervas:   { carga: ['loadAppointments'],           pinta: 'renderRepReservas',  mira: ['appointments'] },
+  repventas:     { carga: ['loadSales'],                  pinta: 'renderRepVentas',    mira: ['sales'] },
+  reportes:      { carga: ['loadAppointments','loadSales'], pinta: 'renderReportes',   mira: ['appointments','sales'] },
+  misingresos:   { carga: ['loadSales','loadAppointments'], pinta: 'renderMisIngresos',mira: ['sales','appointments'] }
+}
+
+/* una firma corta de una tabla, para saber si cambio sin compararla entera */
+function firmaDe(clave){
+  const filas = (state[clave] || [])
+  if(!Array.isArray(filas)) return ''
+  return filas.length + ':' + filas.map(f => (f.id||'') + (f.updated_at || f.created_at || f.status || '')).join('')
+}
+function firmaPantalla(v){
+  const d = DATOS_DE_PANTALLA[v]; if(!d) return ''
+  return d.mira.map(firmaDe).join('|') + '#' + (typeof cobrosEnviados !== 'undefined' ? cobrosEnviados.length : '')
+}
+
+let refrescandoPantalla = false
+async function refrescarPantalla(v, silencioso){
+  const d = DATOS_DE_PANTALLA[v]; if(!d || refrescandoPantalla) return
+  /* nada de tirar la pantalla si hay una ventana abierta encima */
+  if(silencioso && hayAlgoAbierto()) return
+  refrescandoPantalla = true
+  try{
+    const antes = firmaPantalla(v)
+    for(const nombre of d.carga){
+      const fn = window[nombre]
+      if(typeof fn === 'function') await fn()
+    }
+    if(firmaPantalla(v) === antes) return          // nada nuevo: no se toca la vista
+    const pintar = window[d.pinta]
+    if(typeof pintar === 'function') pintar()
+  }catch(e){ console.warn('refresco de ' + v + ':', e.message) }
+  finally{ refrescandoPantalla = false }
+}
+
+/* cual es la pantalla abierta ahora mismo */
+function pantallaAbierta(){
+  const el = document.querySelector('.view.on')
+  return el ? el.id.replace(/^view-/, '') : ''
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
 
