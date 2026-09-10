@@ -52,6 +52,33 @@ try {
 } catch (e) {}
 function supaAuthHeader() { return 'Bearer ' + (SUPA_TOKEN || SUPABASE_ANON_KEY) }
 
+/* ── La sesion al dia antes de escribir ──
+   En el celular el panel queda abierto con la pantalla bloqueada. Mientras
+   duerme, el temporizador que renueva la sesion cada 20 minutos no corre; al
+   desbloquear, el token de hace dos horas sigue en memoria y el primer cobro
+   que se intentaba fallaba con un 401 que nadie entendia. Ahora cada
+   escritura se asegura antes de que la sesion este vigente (no cuesta nada:
+   solo pide un token nuevo si al actual le quedan menos de dos minutos) y,
+   si la base la rechaza igual, la renueva a la fuerza y lo intenta otra vez. */
+async function sesionAlDia(forzar) {
+  if (typeof supaAuth === 'undefined' || !supaAuth.session()) return false
+  try { return await supaAuth.ensureFresh(forzar) } catch (e) { return false }
+}
+/* hace la peticion; si vuelve 401 con una sesion del panel, renueva y repite */
+async function conSesion(pedir) {
+  await sesionAlDia(false)
+  let res = await pedir()
+  if (res.status === 401 && typeof supaAuth !== 'undefined' && supaAuth.session()) {
+    if (await sesionAlDia(true)) res = await pedir()
+  }
+  return res
+}
+/* un 401 que sobrevivio a la renovacion: se explica en castellano */
+function errorDeEscritura(accion, table, status, cuerpo) {
+  if (status === 401) return new Error('Tu sesión del panel venció. Recarga la página y vuelve a entrar; lo que estabas guardando no se registró.')
+  return new Error(`Supabase ${accion} ${table}: ${status} - ${cuerpo}`)
+}
+
 const supabase = {
   async fetch(table, { select = '*', filters = '', order = '' } = {}) {
     let url = `${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}`
@@ -86,16 +113,21 @@ const supabase = {
        revocado. Antes de darse por vencida, la lectura se repite con la clave
        publica: para el sitio es lo unico que hace falta. */
     if (res.status === 401 && saliaConToken) {
-      console.warn('La sesion del panel ya no sirve; se lee con la clave publica')
-      SUPA_TOKEN = null
-      res = await pedir()
+      /* primero se intenta renovar: en el panel, leer con la clave publica
+         dejaria las listas a medias en cuanto la base se cierre al publico */
+      if (await sesionAlDia(true)) res = await pedir()
+      if (res.status === 401) {
+        console.warn('La sesion del panel ya no sirve; se lee con la clave publica')
+        SUPA_TOKEN = null
+        res = await pedir()
+      }
     }
     if (!res.ok) throw new Error(`Supabase ${table}: ${res.status}`)
     return res.json()
   },
 
   async insert(table, data) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    const res = await conSesion(() => fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
       method: 'POST',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -104,16 +136,13 @@ const supabase = {
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
-    })
-    if (!res.ok) {
-      const err = await res.text()
-      throw new Error(`Supabase insert ${table}: ${res.status} - ${err}`)
-    }
+    }))
+    if (!res.ok) throw errorDeEscritura('insert', table, res.status, await res.text())
     return res.json()
   },
 
   async update(table, id, data) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
+    const res = await conSesion(() => fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -122,11 +151,8 @@ const supabase = {
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
-    })
-    if (!res.ok) {
-      const err = await res.text()
-      throw new Error(`Supabase update ${table}: ${res.status} - ${err}`)
-    }
+    }))
+    if (!res.ok) throw errorDeEscritura('update', table, res.status, await res.text())
     return res.json()
   },
 
@@ -142,8 +168,10 @@ const supabase = {
       },
       body: JSON.stringify(params || {})
     })
-    const saliaConToken = !!SUPA_TOKEN
+    await sesionAlDia(false)
     let res = await pedir()
+    if (res.status === 401 && SUPA_TOKEN && await sesionAlDia(true)) res = await pedir()
+    const saliaConToken = !!SUPA_TOKEN
     /* misma proteccion que en fetch(): si el token del panel guardado en este
        navegador ya no sirve, la reserva se hace con la clave publica, que es
        con la que esta pensada la funcion de la base */
@@ -162,15 +190,15 @@ const supabase = {
   },
 
   async delete(table, id) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
+    const res = await conSesion(() => fetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': supaAuthHeader(),
         'Content-Type': 'application/json'
       }
-    })
-    if (!res.ok) throw new Error(`Supabase delete ${table}: ${res.status}`)
+    }))
+    if (!res.ok) throw errorDeEscritura('delete', table, res.status, '')
     return true
   }
 }
@@ -446,10 +474,10 @@ const supaAuth = {
   },
 
   /* renueva el token si está por vencer; devuelve false si la sesión ya no sirve */
-  async ensureFresh() {
+  async ensureFresh(forzar) {
     const s = this.session()
     if (!s) return false
-    if (s.expires_at && s.expires_at - Date.now() > 120000) { SUPA_TOKEN = s.access_token; return true }
+    if (!forzar && s.expires_at && s.expires_at - Date.now() > 120000) { SUPA_TOKEN = s.access_token; return true }
     try {
       const res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
         method: 'POST',
@@ -457,7 +485,17 @@ const supaAuth = {
         body: JSON.stringify({ refresh_token: s.refresh_token })
       })
       const j = await res.json()
-      if (!res.ok) { this.signOut(); return false }
+      if (!res.ok) {
+        /* El token de renovacion sirve una sola vez. Si Luis tiene la agenda y
+           la administracion abiertas en el mismo navegador, puede que la otra
+           pestana ya lo haya usado y guardado una sesion nueva: antes de
+           echarlo del panel, se mira si hay una sesion vigente distinta. */
+        const otra = this.session()
+        if (otra && otra.refresh_token !== s.refresh_token && otra.expires_at - Date.now() > 60000) {
+          SUPA_TOKEN = otra.access_token; return true
+        }
+        this.signOut(); return false
+      }
       this.setSession(j)
       return true
     } catch (e) { return false }
