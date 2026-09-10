@@ -23,6 +23,9 @@ foreach (glob($dir.'/*.json') as $f) {
         'id'        => $o['commerceOrder'] ?? basename($f, '.json'),
         'code'      => $d['code'],
         'name'      => $svc,
+        /* una gift card es un vale por estos servicios (uno o varios) */
+        'services'  => array_values(array_map(fn($s) => ['name' => (string)($s['name'] ?? ''), 'price' => (string)($s['price'] ?? '')],
+                                              array_filter((array)($d['services'] ?? []), 'is_array'))),
         'amount'    => (int)($o['amount'] ?? 0),
         'from'      => $d['from'] ?? '',
         'fromEmail' => $d['fromEmail'] ?? '',

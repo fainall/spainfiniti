@@ -2024,8 +2024,8 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       <h2>Canjear Gift Card</h2>
       <input type="hidden" id="gcrCode" />
       <div id="gcrInfo" style="background:var(--cream-2);padding:12px 14px;border-radius:8px;font-size:.85rem;margin-bottom:4px"></div>
-      <label>Monto a canjear</label>
-      <input type="number" id="gcrAmount" min="1" step="500" />
+      <label>Servicio que se canjea</label>
+      <select id="gcrServicio"></select>
       <label>Nota (opcional)</label>
       <input type="text" id="gcrNote" placeholder="Ej: usada en masaje del 20/08" />
       <div class="modal-actions">
@@ -6027,23 +6027,28 @@ function vdMontoGiftCard(){
   if(vd.metodo !== 'Gift card') return 0
   return vd.paso === 3 ? (Number(vd.abono)||0) : vdTotal()
 }
+/* lo que se le muestra a quien cobra mientras escribe el codigo */
 function vdGcInfo(){
-  const monto = vdMontoGiftCard()
   if(!vd.gcCodigo) return giftCardsCargadas ? 'Escribe o elige el código que viene en la gift card.' : 'Cargando gift cards…'
+  const mal = t => '<span class="vd-gc-mal">' + t + '</span>'
   const g = gcBuscar(vd.gcCodigo)
-  if(!g) return '<span class="vd-gc-mal">No hay una gift card pagada con ese código.</span>'
-  const saldo = gcSaldo(g)
-  if(saldo < monto) return `<span class="vd-gc-mal">Saldo ${fmtMoney(saldo)}: no alcanza para ${fmtMoney(monto)}. Usa "Múltiples métodos de pago" para completar con otro medio.</span>`
-  return `<span class="vd-gc-ok">✓ ${esc(g.name)}${g.to?' · para '+esc(g.to):''} · saldo ${fmtMoney(saldo)} → quedan ${fmtMoney(saldo-monto)}</span>`
+  if(!g) return mal('No hay una gift card pagada con ese código.')
+  if(!gcPendientes(g).length) return mal('Esta gift card ya se canjeó completa: ' + esc(gcListaTexto(g)) + '.')
+  if(vd.paso === 3) return mal('La gift card se canjea por el servicio completo: no sirve para abonos.')
+  const { cubiertos, sobran } = gcCubre(g, vd.items)
+  if(!cubiertos.length) return mal('Esta gift card es para ' + esc(gcListaTexto(g)) + '. No sirve para lo que hay en el carro.')
+  if(sobran.length && !vd.partes.length)
+    return mal('Cubre ' + esc(cubiertos.map(c=>c.name).join(', ')) + ', pero no ' + esc(sobran.join(', ')) + '. Cobra eso con "Múltiples métodos de pago".')
+  return '<span class="vd-gc-ok">✓ Canjea ' + esc(cubiertos.map(c=>c.name).join(', ')) + (g.to ? ' · gift card de ' + esc(g.to) : '') + '</span>'
 }
 function vdGcCampo(){
   if(!(vdMontoGiftCard() > 0 || (vd && vd.metodo === 'Gift card'))) return ''
-  const conSaldo = (state.giftcards||[]).filter(g=>g.status==='paid' && gcSaldo(g)>0)
+  const conSaldo = (state.giftcards||[]).filter(g=>g.status==='paid' && gcPendientes(g).length)
   return `<div class="vd-gc">
       <label for="vdGcCodigo">Código de la gift card</label>
       <input id="vdGcCodigo" list="vdGcLista" value="${esc(vd.gcCodigo||'')}" placeholder="GC-XXXXXXXXX"
         autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="vdGcEscribir(this.value)" />
-      <datalist id="vdGcLista">${conSaldo.map(g=>`<option value="${esc(g.code)}">${esc(g.to||g.name)} · saldo ${fmtMoney(gcSaldo(g))}</option>`).join('')}</datalist>
+      <datalist id="vdGcLista">${conSaldo.map(g=>`<option value="${esc(g.code)}">${esc(g.to||'—')} · ${esc(gcPendientes(g).map(s=>s.name).join(', '))}</option>`).join('')}</datalist>
       <div class="vd-gc-info" id="vdGcInfo">${vdGcInfo()}</div>
     </div>`
 }
@@ -6053,29 +6058,41 @@ function vdGcEscribir(v){
   vd.gcCodigo = gcNormal(v)
   const i = document.getElementById('vdGcInfo'); if(i) i.innerHTML = vdGcInfo()
 }
-/* valida el codigo antes de cobrar; devuelve la gift card o lanza el motivo */
+/* Valida la gift card antes de cobrar. Devuelve la tarjeta y los servicios
+   que canjea, o lanza el motivo por el que no sirve. */
 async function vdGiftCardValida(){
-  const monto = vdMontoGiftCard()
-  if(monto <= 0) return null
+  if(vdMontoGiftCard() <= 0) return null
   if(!giftCardsCargadas && !(await cargarGiftCards()))
     throw new Error('No pude cargar las gift cards para comprobar el código. Revisa la conexión e inténtalo de nuevo.')
   if(!vd.gcCodigo) throw new Error('Escribe el código de la gift card.')
   const g = gcBuscar(vd.gcCodigo)
   if(!g) throw new Error('No hay una gift card pagada con el código ' + vd.gcCodigo + '.')
-  const saldo = gcSaldo(g)
-  if(saldo < monto) throw new Error('A esa gift card le quedan ' + fmtMoney(saldo) + ': no alcanza para ' + fmtMoney(monto) + '. Completa la diferencia con "Múltiples métodos de pago".')
-  return g
+  if(!gcPendientes(g).length) throw new Error('La gift card ' + g.code + ' ya se canjeó completa (' + gcListaTexto(g) + ').')
+  if(vd.paso === 3) throw new Error('La gift card se canjea por el servicio completo: no sirve para abonos.')
+  const { cubiertos, sobran } = gcCubre(g, vd.items)
+  if(!cubiertos.length) throw new Error('La gift card ' + g.code + ' es para ' + gcListaTexto(g) + '; no sirve para lo que hay en el carro.')
+  if(vd.partes.length){
+    /* con varios medios, la parte de la gift card no puede pasar de lo que cubre */
+    const tope = cubiertos.reduce((t,c)=>t+c.valorCarro,0)
+    if(vdMontoGiftCard() > tope) throw new Error('Con esta gift card se pueden pagar como máximo ' + fmtMoney(tope) + ' (' + cubiertos.map(c=>c.name).join(', ') + ').')
+  } else if(sobran.length){
+    throw new Error('La gift card cubre ' + cubiertos.map(c=>c.name).join(', ') + ', pero no ' + sobran.join(', ') + '. Cobra eso con "Múltiples métodos de pago".')
+  }
+  return { g, cubiertos }
 }
-/* el canje queda anotado junto con la venta */
-async function vdRegistrarCanje(g, monto){
-  if(!g || !(monto > 0)) return
+/* cada servicio canjeado queda anotado, con la venta de la que salio */
+async function vdRegistrarCanje(gc, ventaId){
+  if(!gc) return
   try{
-    await supabase.insert('gift_card_uses', { code: g.code, amount: monto, used_at: new Date().toISOString(),
-      note: 'Cobro en el mostrador' + (vd && vd.clientName ? ' · ' + vd.clientName : '') + (vd && vd.items.length ? ' · ' + vd.items.map(i=>i.name).join(', ') : '') })
+    for(const c of gc.cubiertos){
+      await supabase.insert('gift_card_uses', { code: gc.g.code, service_name: c.name, amount: c.valorVale,
+        sale_id: ventaId || null, used_at: new Date().toISOString(),
+        note: 'Canjeada en el mostrador' + (vd && vd.clientName ? ' · ' + vd.clientName : '') })
+    }
     state.gcUses = await supabase.fetch('gift_card_uses',{order:'used_at.desc'}) || state.gcUses
   }catch(e){
     console.error(e)
-    toast('El cobro quedó registrado, pero no se pudo descontar la gift card ' + g.code + '. Descuéntala en Ventas → Gift Cards → Canjear.', 'error')
+    toast('El cobro quedó registrado, pero no se pudo marcar la gift card ' + gc.g.code + ' como canjeada. Márcala en Ventas → Gift Cards → Canjear.', 'error')
   }
 }
 
@@ -6308,16 +6325,15 @@ async function vdCobrar(){
   b.dataset.ocupado = '1'; b.disabled = true; const txt = b.textContent; b.textContent = 'Cobrando…'
   try{
     const gc = await vdGiftCardValida()
-    const montoGc = vdMontoGiftCard()
     /* en la venta queda de que gift card salio el pago */
-    const etiqueta = m => (m === 'Gift card' && gc) ? 'Gift card ' + gc.code : m
+    const etiqueta = m => (m === 'Gift card' && gc) ? 'Gift card ' + gc.g.code : m
     const medio = vd.partes.length
       ? vd.partes.map(p=>`${etiqueta(p.medio)} ${fmtMoney(p.monto)}`).join(' + ')
       : etiqueta(vd.metodo)
     const a = vd.apptId ? findAppt(vd.apptId) : null
     if(vd.apptIds && vd.apptIds.length > 1){
       await guardarCobroMultiple(medio)
-      await vdRegistrarCanje(gc, montoGc)
+      await vdRegistrarCanje(gc, null)
       for(const i of vd.items){
         if(i.productId){
           const p = state.products.find(x=>x.id===i.productId)
@@ -6330,7 +6346,7 @@ async function vdCobrar(){
       toast('Cobradas las ' + _n + ' reservas del día','success')
       return
     }
-    await supabase.insert('sales', {
+    const ventaNueva = await supabase.insert('sales', {
       client_id: vd.clientId || null,
       client_name: vd.clientName || '',
       professional_id: a ? a.professional_id : null,
@@ -6342,7 +6358,7 @@ async function vdCobrar(){
       status: vd.paso === 3 ? 'partial' : 'paid',
       notes: (vd.paso === 3 ? 'Abono de ' + fmtMoney(vd.abono||0) + ' sobre ' + fmtMoney(vdTotal()) + '. ' : '') + (vd.nota || '')
     })
-    await vdRegistrarCanje(gc, montoGc)
+    await vdRegistrarCanje(gc, ventaNueva && ventaNueva[0] && ventaNueva[0].id)
     /* si había un link de cobro enviado, queda saldado (un abono no salda) */
     if(vd.apptId && vd.paso !== 3){
       const l = cobrosEnviados.find(c => c.appointment_id === vd.apptId && c.status === 'sent')
@@ -9762,19 +9778,21 @@ async function registrarPagoReserva(apptId){
   const a = state.appointments.find(x=>x.id===apptId); if(!a) return
   let medio = prompt('¿Cómo pagó?\n\nEscribe: efectivo, débito, crédito, transferencia o giftcard', 'efectivo')
   if(medio === null) return
-  /* con gift card se pide el codigo y se descuenta el saldo, como en el cobro */
+  /* con gift card se pide el codigo y se comprueba que sea para este servicio */
   let gc = null
   if(/gift/i.test(medio)){
     if(!giftCardsCargadas) await cargarGiftCards()
     const cod = prompt('Código de la gift card:', '')
     if(cod === null) return
-    gc = gcBuscar(cod)
-    if(!gc){ toast('No hay una gift card pagada con el código ' + gcNormal(cod), 'error'); return }
-    if(gcSaldo(gc) < money2num(a.price)){ toast('A esa gift card le quedan ' + fmtMoney(gcSaldo(gc)) + ': no alcanza. Cóbrala desde la agenda con varios medios de pago.', 'error'); return }
-    medio = 'Gift card ' + gc.code
+    const g = gcBuscar(cod)
+    if(!g){ toast('No hay una gift card pagada con el código ' + gcNormal(cod), 'error'); return }
+    const { cubiertos } = gcCubre(g, [{ name: a.service_name, qty: 1, price: money2num(a.price) }])
+    if(!cubiertos.length){ toast('La gift card ' + g.code + ' es para ' + gcListaTexto(g) + '; no sirve para ' + (a.service_name||'este servicio') + '.', 'error'); return }
+    gc = { g, cubiertos }
+    medio = 'Gift card ' + g.code
   }
   try{
-    await supabase.insert('sales', {
+    const ventaNueva = await supabase.insert('sales', {
       client_id: a.client_id, client_name: a.client_name,
       appointment_id: a.id, sale_date: isoDate(new Date()),
       items: [{ name: a.service_name, qty: 1, price: money2num(a.price) }],
@@ -9784,10 +9802,12 @@ async function registrarPagoReserva(apptId){
     })
     if(gc){
       try{
-        await supabase.insert('gift_card_uses', { code: gc.code, amount: money2num(a.price), used_at: new Date().toISOString(),
-          note: 'Cobro de ' + (a.client_name||'') + ' · ' + (a.service_name||'') })
+        for(const c of gc.cubiertos)
+          await supabase.insert('gift_card_uses', { code: gc.g.code, service_name: c.name, amount: c.valorVale,
+            sale_id: (ventaNueva && ventaNueva[0] && ventaNueva[0].id) || null, used_at: new Date().toISOString(),
+            note: 'Canjeada al registrar el pago de ' + (a.client_name||'') })
         state.gcUses = await supabase.fetch('gift_card_uses',{order:'used_at.desc'}) || state.gcUses
-      }catch(e){ toast('El pago quedó registrado, pero no se pudo descontar la gift card. Descuéntala en Gift Cards → Canjear.', 'error') }
+      }catch(e){ toast('El pago quedó registrado, pero no se pudo marcar la gift card como canjeada. Márcala en Gift Cards → Canjear.', 'error') }
     }
     /* si había un link enviado, se marca como pagado */
     const link = cobrosEnviados.find(c=>c.appointment_id===a.id && c.status==='sent')
@@ -11881,7 +11901,41 @@ const gcNormal = c => String(c||'').trim().toUpperCase()
 function gcUsedAmount(code){ const c=gcNormal(code); return state.gcUses.filter(u=>gcNormal(u.code)===c).reduce((a,u)=>a+Number(u.amount||0),0) }
 /* una gift card pagada con ese codigo, o nada */
 function gcBuscar(code){ const c=gcNormal(code); return c ? (state.giftcards||[]).find(g=>g.status==='paid' && gcNormal(g.code)===c) : null }
-function gcSaldo(g){ return g ? Math.max(0, Number(g.amount||0) - gcUsedAmount(g.code)) : 0 }
+
+/* ── Las gift cards son vales por servicio, no saldo en plata ──
+   Cada gift card incluye uno o varios servicios, los que se eligieron al
+   comprarla en la web. Cada uno se canjea una vez y solo por ese servicio:
+   si se compro una podologia, se canjea por esa podologia. */
+const gcNorm = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()
+/* los servicios de la tarjeta, cada uno con su canje si ya se uso */
+function gcServicios(g){
+  if(!g) return []
+  const lista = (Array.isArray(g.services) && g.services.length ? g.services : [{ name: g.name, price: g.amount }])
+    .map(s => ({ name: s.name, valor: money2num(s.price), usado: null }))
+  ;(state.gcUses||[]).filter(u => gcNormal(u.code) === gcNormal(g.code)).forEach(u => {
+    const k = gcNorm(u.service_name)
+    /* un canje sin servicio anotado (de antes de este cambio) gasta el primero libre */
+    const s = lista.find(x => !x.usado && (!k || gcNorm(x.name) === k))
+    if(s) s.usado = u
+  })
+  return lista
+}
+function gcPendientes(g){ return gcServicios(g).filter(s => !s.usado) }
+/* lo que la tarjeta puede pagar de lo que hay en el carro */
+function gcCubre(g, items){
+  const libres = gcPendientes(g).slice()
+  const cubiertos = [], sobran = []
+  ;(items||[]).forEach(i => {
+    for(let q = 0; q < (Number(i.qty)||1); q++){
+      const k = libres.findIndex(s => gcNorm(s.name) === gcNorm(i.name))
+      if(k >= 0){ cubiertos.push({ name: libres[k].name, valorVale: libres[k].valor, valorCarro: Number(i.price)||0 }); libres.splice(k, 1) }
+      else sobran.push(i.name)
+    }
+  })
+  return { cubiertos, sobran }
+}
+/* "Masaje Relajación Premium (ya canjeado), Reflexología" */
+const gcListaTexto = g => gcServicios(g).map(s => s.name + (s.usado ? ' (ya canjeado)' : '')).join(', ')
 function gcFiltered(){
   const period=document.getElementById('gcPeriod').value
   const st=document.getElementById('gcStatus').value
@@ -11894,9 +11948,9 @@ function gcFiltered(){
   if(st){
     list=list.filter(g=>{
       if(st==='pending') return g.status!=='paid'
-      const left=g.amount-gcUsedAmount(g.code)
-      if(st==='used') return g.status==='paid' && left<=0
-      return g.status==='paid' && left>0   // available
+      const quedan=gcPendientes(g).length
+      if(st==='used') return g.status==='paid' && !quedan
+      return g.status==='paid' && quedan>0   // available
     })
   }
   return list
@@ -11906,7 +11960,8 @@ function renderGiftCards(){
   const list=gcFiltered()
   const pagadas=list.filter(g=>g.status==='paid')
   const vendido=pagadas.reduce((a,g)=>a+g.amount,0)
-  const canjeado=pagadas.reduce((a,g)=>a+Math.min(g.amount, gcUsedAmount(g.code)),0)
+  /* lo canjeado es el valor de los servicios ya usados */
+  const canjeado=pagadas.reduce((a,g)=>a+Math.min(g.amount, gcServicios(g).filter(s=>s.usado).reduce((t,s)=>t+s.valor,0)),0)
   document.getElementById('gcSold').textContent=fmtMoney(vendido)
   document.getElementById('gcUsed').textContent=fmtMoney(canjeado)
   document.getElementById('gcLeft').textContent=fmtMoney(vendido-canjeado)
@@ -11922,26 +11977,28 @@ function renderGiftCards(){
 
   cont.innerHTML=`<div class="tx-total">${list.length} gift card${list.length===1?'':'s'}</div>
   <table class="ctbl">
-    <thead><tr><th>Código</th><th>Fecha de venta</th><th>Nombre del gift card</th><th>De → Para</th><th>Estado</th><th style="text-align:right">Saldo inicial</th><th style="text-align:right">Saldo actual</th><th>N° canjes</th><th></th></tr></thead>
+    <thead><tr><th>Código</th><th>Fecha de venta</th><th>Servicios</th><th>De → Para</th><th>Estado</th><th style="text-align:right">Valor</th><th></th></tr></thead>
     <tbody>${slice.map(g=>{
-      const used=gcUsedAmount(g.code), left=Math.max(0,g.amount-used)
-      const n=state.gcUses.filter(u=>u.code===g.code).length
+      const serv=gcServicios(g), quedan=serv.filter(s=>!s.usado).length
       const d=g.soldAt?new Date(g.soldAt):null
       const fecha=d?`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`:'—'
       let badge
       if(g.status!=='paid') badge='<span class="badge" style="background:#eee;color:#3A3F47">Pago pendiente</span>'
-      else if(left<=0) badge='<span class="badge" style="background:#e6f4fa;color:#256b81">Canjeada</span>'
+      else if(!quedan) badge='<span class="badge" style="background:#e6f4fa;color:#256b81">Canjeada</span>'
+      else if(quedan<serv.length) badge='<span class="badge" style="background:#fff4de;color:#8a5a00">Canje parcial</span>'
       else badge='<span class="badge paid">Disponible</span>'
+      /* cada servicio, tachado si ya se canjeo, con la fecha del canje */
+      const lista=serv.map(s=>s.usado
+        ? `<div style="color:var(--light);text-decoration:line-through" title="Canjeado el ${esc(String(s.usado.used_at||'').slice(0,10))}">${esc(s.name)}</div>`
+        : `<div>${esc(s.name)}</div>`).join('')
       return `<tr>
         <td style="font-family:monospace;font-size:.76rem;font-weight:700">${esc(g.code)}</td>
         <td>${fecha}</td>
-        <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(g.name)}</td>
+        <td style="font-size:.8rem;max-width:230px">${lista}</td>
         <td style="font-size:.78rem">${esc(g.from||'—')}<div style="color:var(--mid)">→ ${esc(g.to||'—')}</div></td>
         <td>${badge}</td>
         <td style="text-align:right">${fmtMoney(g.amount)}</td>
-        <td style="text-align:right;font-weight:700;${left<=0&&g.status==='paid'?'color:var(--light)':''}">${fmtMoney(left)}</td>
-        <td style="text-align:center">${n}</td>
-        <td class="cacts">${g.status==='paid'&&left>0?`<button class="mini-btn" onclick="openRedeem('${esc(g.code)}')">Canjear</button>`:''}</td>
+        <td class="cacts">${g.status==='paid'&&quedan?`<button class="mini-btn" onclick="openRedeem('${esc(g.code)}')">Canjear</button>`:''}</td>
       </tr>`}).join('')}</tbody></table>`
 
   document.getElementById('gcPager').innerHTML=`
@@ -11952,25 +12009,25 @@ function renderGiftCards(){
       ${[25,50,100].map(n=>`<option value="${n}" ${n===gcPerPage?'selected':''}>${n} por página</option>`).join('')}
     </select>`
 }
+/* Canje a mano, desde esta pantalla: sirve cuando el servicio que se hizo no
+   se llama igual que el de la gift card (un cambio acordado con la clienta)
+   o cuando se cobro por otro lado. Se marca cual de sus servicios se uso. */
 function openRedeem(code){
   const g=state.giftcards.find(x=>x.code===code); if(!g) return
-  const left=Math.max(0,g.amount-gcUsedAmount(code))
+  const pend=gcPendientes(g)
   document.getElementById('gcrCode').value=code
-  document.getElementById('gcrInfo').innerHTML=`<strong>${esc(code)}</strong> · ${esc(g.name)}<br>Para: ${esc(g.to||'—')} · Saldo disponible: <strong>${fmtMoney(left)}</strong>`
-  document.getElementById('gcrAmount').value=left
-  document.getElementById('gcrAmount').max=left
+  document.getElementById('gcrInfo').innerHTML=`<strong>${esc(code)}</strong><br>Para: ${esc(g.to||'—')}<br>Incluye: ${esc(gcListaTexto(g))}`
+  document.getElementById('gcrServicio').innerHTML=pend.map((s,i)=>`<option value="${i}">${esc(s.name)} (${fmtMoney(s.valor)})</option>`).join('')
   document.getElementById('gcrNote').value=''
   openModal('gcRedeemModal')
 }
 async function saveRedeem(){
   const code=document.getElementById('gcrCode').value
-  const amount=parseInt(document.getElementById('gcrAmount').value)||0
   const g=state.giftcards.find(x=>x.code===code); if(!g) return
-  const left=Math.max(0,g.amount-gcUsedAmount(code))
-  if(amount<=0){ toast('Ingresa un monto válido','error'); return }
-  if(amount>left){ toast('El monto supera el saldo disponible','error'); return }
+  const s=gcPendientes(g)[parseInt(document.getElementById('gcrServicio').value)||0]
+  if(!s){ toast('Esta gift card ya no tiene servicios por canjear','error'); return }
   try{
-    await supabase.insert('gift_card_uses',{code, amount, note:document.getElementById('gcrNote').value.trim(), used_at:new Date().toISOString()})
+    await supabase.insert('gift_card_uses',{code, service_name:s.name, amount:s.valor, note:document.getElementById('gcrNote').value.trim(), used_at:new Date().toISOString()})
     state.gcUses = await supabase.fetch('gift_card_uses',{order:'used_at.desc'}) || []
     closeModal('gcRedeemModal'); toast('Canje registrado','success'); renderGiftCards()
   }catch(e){ console.error(e); toast('Error al registrar el canje','error') }
@@ -11979,13 +12036,14 @@ function exportGiftCards(){
   const list=gcFiltered()
   if(!list.length){ toast('No hay gift cards para exportar','error'); return }
   const rows=list.map(g=>{
-    const used=gcUsedAmount(g.code), left=Math.max(0,g.amount-used)
+    const serv=gcServicios(g), usados=serv.filter(s=>s.usado), pend=serv.filter(s=>!s.usado)
     const d=g.soldAt?new Date(g.soldAt):null
-    return [g.code, d?`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`:'', g.name,
-      g.from||'', g.to||'', g.toEmail||'', g.status==='paid'?(left<=0?'Canjeada':'Disponible'):'Pago pendiente',
-      g.amount, used, left, state.gcUses.filter(u=>u.code===g.code).length]
+    const estado=g.status!=='paid'?'Pago pendiente':!pend.length?'Canjeada':usados.length?'Canje parcial':'Disponible'
+    return [g.code, d?`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`:'',
+      g.from||'', g.to||'', g.toEmail||'', estado, g.amount,
+      usados.map(s=>s.name).join(' | '), pend.map(s=>s.name).join(' | ')]
   })
-  downloadCSV('giftcards.csv', ['Código','Fecha de venta','Gift card','De','Para','Email','Estado','Saldo inicial','Canjeado','Saldo actual','N° canjes'], rows)
+  downloadCSV('giftcards.csv', ['Código','Fecha de venta','De','Para','Email','Estado','Valor','Servicios canjeados','Servicios por canjear'], rows)
 }
 
 function fillSaleItemPick(){
