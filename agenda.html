@@ -995,6 +995,13 @@ label.chk input{width:auto;margin:0}
 .vd-btn{width:100%;background:var(--gold);color:#fff;border:none;border-radius:10px;padding:15px;
   font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer}
 .vd-btn:disabled{opacity:.45;cursor:not-allowed}
+.vd-gc{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--cream)}
+.vd-gc label{display:block;font-size:.74rem;font-weight:600;color:var(--mid);margin-bottom:6px}
+.vd-gc input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid var(--border);border-radius:8px;
+  font-family:monospace;font-size:.95rem;letter-spacing:.04em;text-transform:uppercase;background:#fff}
+.vd-gc-info{font-size:.76rem;margin-top:8px;line-height:1.4;color:var(--mid)}
+.vd-gc-ok{color:#2e7d4f}
+.vd-gc-mal{color:#c0392b}
 body.sin-scroll{overflow:hidden}
 @media(max-width:820px){ .vd{width:100%;max-width:100%} .vd-medios{gap:8px} }
 
@@ -5605,6 +5612,8 @@ function cobrarReservasDelDia(id){
   document.getElementById('ventaDrawer').classList.add('on')
   document.body.classList.add('sin-scroll')
   vdRender()
+  /* para poder comprobar el codigo si se paga con gift card */
+  if(!giftCardsCargadas) cargarGiftCards().then(() => { const i = document.getElementById('vdGcInfo'); if(i && vd) i.innerHTML = vdGcInfo() })
 }
 /* una venta por reserva, todas con el mismo medio de pago */
 async function guardarCobroMultiple(medio){
@@ -5828,6 +5837,8 @@ function abrirVenta(apptId){
   document.getElementById('ventaDrawer').classList.add('on')
   document.body.classList.add('sin-scroll')
   vdRender()
+  /* para poder comprobar el codigo si se paga con gift card */
+  if(!giftCardsCargadas) cargarGiftCards().then(() => { const i = document.getElementById('vdGcInfo'); if(i && vd) i.innerHTML = vdGcInfo() })
 }
 function cerrarVenta(){
   document.getElementById('ventaDrawer').classList.remove('on')
@@ -6006,12 +6017,75 @@ const MEDIOS = [
   ['Crédito','💳','Tarjeta de crédito'],
   ['Efectivo','💵','Pago en efectivo']
 ]
+/* Pagar con gift card en el mostrador antes solo anotaba "Gift card" en la
+   venta: no pedia el codigo ni descontaba el saldo, asi que la tarjeta seguia
+   con todo su saldo y se podia volver a usar. Ahora se pide el codigo, se
+   comprueba el saldo y el canje queda registrado junto con la venta. */
+function vdMontoGiftCard(){
+  if(!vd) return 0
+  if(vd.partes.length) return vd.partes.filter(p=>p.medio==='Gift card').reduce((t,p)=>t+p.monto,0)
+  if(vd.metodo !== 'Gift card') return 0
+  return vd.paso === 3 ? (Number(vd.abono)||0) : vdTotal()
+}
+function vdGcInfo(){
+  const monto = vdMontoGiftCard()
+  if(!vd.gcCodigo) return giftCardsCargadas ? 'Escribe o elige el código que viene en la gift card.' : 'Cargando gift cards…'
+  const g = gcBuscar(vd.gcCodigo)
+  if(!g) return '<span class="vd-gc-mal">No hay una gift card pagada con ese código.</span>'
+  const saldo = gcSaldo(g)
+  if(saldo < monto) return `<span class="vd-gc-mal">Saldo ${fmtMoney(saldo)}: no alcanza para ${fmtMoney(monto)}. Usa "Múltiples métodos de pago" para completar con otro medio.</span>`
+  return `<span class="vd-gc-ok">✓ ${esc(g.name)}${g.to?' · para '+esc(g.to):''} · saldo ${fmtMoney(saldo)} → quedan ${fmtMoney(saldo-monto)}</span>`
+}
+function vdGcCampo(){
+  if(!(vdMontoGiftCard() > 0 || (vd && vd.metodo === 'Gift card'))) return ''
+  const conSaldo = (state.giftcards||[]).filter(g=>g.status==='paid' && gcSaldo(g)>0)
+  return `<div class="vd-gc">
+      <label for="vdGcCodigo">Código de la gift card</label>
+      <input id="vdGcCodigo" list="vdGcLista" value="${esc(vd.gcCodigo||'')}" placeholder="GC-XXXXXXXXX"
+        autocomplete="off" autocapitalize="characters" spellcheck="false" oninput="vdGcEscribir(this.value)" />
+      <datalist id="vdGcLista">${conSaldo.map(g=>`<option value="${esc(g.code)}">${esc(g.to||g.name)} · saldo ${fmtMoney(gcSaldo(g))}</option>`).join('')}</datalist>
+      <div class="vd-gc-info" id="vdGcInfo">${vdGcInfo()}</div>
+    </div>`
+}
+/* se actualiza solo el aviso: repintar todo sacaria el cursor del campo */
+function vdGcEscribir(v){
+  if(!vd) return
+  vd.gcCodigo = gcNormal(v)
+  const i = document.getElementById('vdGcInfo'); if(i) i.innerHTML = vdGcInfo()
+}
+/* valida el codigo antes de cobrar; devuelve la gift card o lanza el motivo */
+async function vdGiftCardValida(){
+  const monto = vdMontoGiftCard()
+  if(monto <= 0) return null
+  if(!giftCardsCargadas && !(await cargarGiftCards()))
+    throw new Error('No pude cargar las gift cards para comprobar el código. Revisa la conexión e inténtalo de nuevo.')
+  if(!vd.gcCodigo) throw new Error('Escribe el código de la gift card.')
+  const g = gcBuscar(vd.gcCodigo)
+  if(!g) throw new Error('No hay una gift card pagada con el código ' + vd.gcCodigo + '.')
+  const saldo = gcSaldo(g)
+  if(saldo < monto) throw new Error('A esa gift card le quedan ' + fmtMoney(saldo) + ': no alcanza para ' + fmtMoney(monto) + '. Completa la diferencia con "Múltiples métodos de pago".')
+  return g
+}
+/* el canje queda anotado junto con la venta */
+async function vdRegistrarCanje(g, monto){
+  if(!g || !(monto > 0)) return
+  try{
+    await supabase.insert('gift_card_uses', { code: g.code, amount: monto, used_at: new Date().toISOString(),
+      note: 'Cobro en el mostrador' + (vd && vd.clientName ? ' · ' + vd.clientName : '') + (vd && vd.items.length ? ' · ' + vd.items.map(i=>i.name).join(', ') : '') })
+    state.gcUses = await supabase.fetch('gift_card_uses',{order:'used_at.desc'}) || state.gcUses
+  }catch(e){
+    console.error(e)
+    toast('El cobro quedó registrado, pero no se pudo descontar la gift card ' + g.code + '. Descuéntala en Ventas → Gift Cards → Canjear.', 'error')
+  }
+}
+
 function vdMetodos(){
   return `
     <div class="vd-medios">${MEDIOS.map(([m,ico,desc])=>`
       <button type="button" class="vd-medio${vd.metodo===m?' on':''}" data-medio="${esc(m)}" title="${esc(desc)}">
         <span class="vd-medio-ico">${ico}</span><span>${esc(m)}</span></button>`).join('')}
     </div>
+    ${vdGcCampo()}
     <h4 class="vd-h4">Opciones de pago</h4>
     <div class="vd-ops">
       <button onclick="vdMultiple()"><span>🧮</span> Múltiples métodos de pago
@@ -6176,6 +6250,7 @@ function vdAbonoPantalla(){
       <button type="button" class="vd-medio${vd.metodo===m?' on':''}" data-medio="${esc(m)}" title="${esc(desc)}">
         <span class="vd-medio-ico">${ico}</span><span>${esc(m)}</span></button>`).join('')}
     </div>
+    ${vdGcCampo()}
     <h4 class="vd-h4">Opciones de pago</h4>
     <div class="vd-ops">
       <button onclick="vdEnviarCarro()"><span>➤</span> Enviar carro <em>link de pago</em></button>
@@ -6232,12 +6307,17 @@ async function vdCobrar(){
   if(b.dataset.ocupado === '1') return
   b.dataset.ocupado = '1'; b.disabled = true; const txt = b.textContent; b.textContent = 'Cobrando…'
   try{
+    const gc = await vdGiftCardValida()
+    const montoGc = vdMontoGiftCard()
+    /* en la venta queda de que gift card salio el pago */
+    const etiqueta = m => (m === 'Gift card' && gc) ? 'Gift card ' + gc.code : m
     const medio = vd.partes.length
-      ? vd.partes.map(p=>`${p.medio} ${fmtMoney(p.monto)}`).join(' + ')
-      : vd.metodo
+      ? vd.partes.map(p=>`${etiqueta(p.medio)} ${fmtMoney(p.monto)}`).join(' + ')
+      : etiqueta(vd.metodo)
     const a = vd.apptId ? findAppt(vd.apptId) : null
     if(vd.apptIds && vd.apptIds.length > 1){
       await guardarCobroMultiple(medio)
+      await vdRegistrarCanje(gc, montoGc)
       for(const i of vd.items){
         if(i.productId){
           const p = state.products.find(x=>x.id===i.productId)
@@ -6262,6 +6342,7 @@ async function vdCobrar(){
       status: vd.paso === 3 ? 'partial' : 'paid',
       notes: (vd.paso === 3 ? 'Abono de ' + fmtMoney(vd.abono||0) + ' sobre ' + fmtMoney(vdTotal()) + '. ' : '') + (vd.nota || '')
     })
+    await vdRegistrarCanje(gc, montoGc)
     /* si había un link de cobro enviado, queda saldado (un abono no salda) */
     if(vd.apptId && vd.paso !== 3){
       const l = cobrosEnviados.find(c => c.appointment_id === vd.apptId && c.status === 'sent')
@@ -7337,7 +7418,7 @@ const DATOS_DE_PANTALLA = {
   ventas:        { carga: ['loadSales','cargarCobros'],   pinta: 'renderSales',        mira: ['sales'] },
   transacciones: { carga: ['loadSales'],                  pinta: 'renderTransacciones',mira: ['sales'] },
   cobros:        { carga: ['cargarCobros'],               pinta: 'renderCobros',       mira: [] },
-  caja:          { carga: ['loadCash','loadSales'],       pinta: 'renderCaja',         mira: ['cash','sales'] },
+  caja:          { carga: ['loadCash','loadSales','cargarGiftCards'], pinta: 'renderCaja', mira: ['cash','sales','giftcards','gcUses'] },
   propinas:      { carga: ['loadSales'],                  pinta: 'renderPropinas',     mira: ['sales'] },
   comisiones:    { carga: ['loadSales','loadAppointments'], pinta: 'renderComisiones', mira: ['sales','appointments'] },
   planes:        { carga: ['loadPlans'],                  pinta: 'renderPlanes',       mira: ['plans'] },
@@ -9679,17 +9760,35 @@ function copiarTexto(t){
 async function registrarPagoReserva(apptId){
   const _qvAbierta = !!document.getElementById('apptQV')
   const a = state.appointments.find(x=>x.id===apptId); if(!a) return
-  const medio = prompt('¿Cómo pagó?\n\nEscribe: efectivo, débito, crédito, transferencia o giftcard', 'efectivo')
+  let medio = prompt('¿Cómo pagó?\n\nEscribe: efectivo, débito, crédito, transferencia o giftcard', 'efectivo')
   if(medio === null) return
+  /* con gift card se pide el codigo y se descuenta el saldo, como en el cobro */
+  let gc = null
+  if(/gift/i.test(medio)){
+    if(!giftCardsCargadas) await cargarGiftCards()
+    const cod = prompt('Código de la gift card:', '')
+    if(cod === null) return
+    gc = gcBuscar(cod)
+    if(!gc){ toast('No hay una gift card pagada con el código ' + gcNormal(cod), 'error'); return }
+    if(gcSaldo(gc) < money2num(a.price)){ toast('A esa gift card le quedan ' + fmtMoney(gcSaldo(gc)) + ': no alcanza. Cóbrala desde la agenda con varios medios de pago.', 'error'); return }
+    medio = 'Gift card ' + gc.code
+  }
   try{
     await supabase.insert('sales', {
       client_id: a.client_id, client_name: a.client_name,
       appointment_id: a.id, sale_date: isoDate(new Date()),
       items: [{ name: a.service_name, qty: 1, price: money2num(a.price) }],
-      total: money2num(a.price), payment_method: (medio||'efectivo').trim().toLowerCase(),
+      total: money2num(a.price), payment_method: gc ? medio : (medio||'efectivo').trim().toLowerCase(),
       professional_id: a.professional_id, status: 'paid',
       notes: 'Cobro registrado desde Ventas → Cobros'
     })
+    if(gc){
+      try{
+        await supabase.insert('gift_card_uses', { code: gc.code, amount: money2num(a.price), used_at: new Date().toISOString(),
+          note: 'Cobro de ' + (a.client_name||'') + ' · ' + (a.service_name||'') })
+        state.gcUses = await supabase.fetch('gift_card_uses',{order:'used_at.desc'}) || state.gcUses
+      }catch(e){ toast('El pago quedó registrado, pero no se pudo descontar la gift card. Descuéntala en Gift Cards → Canjear.', 'error') }
+    }
     /* si había un link enviado, se marca como pagado */
     const link = cobrosEnviados.find(c=>c.appointment_id===a.id && c.status==='sent')
     if(link) await supabase.update('payment_links', link.id, { status:'paid', paid_at:new Date().toISOString() })
@@ -11755,19 +11854,34 @@ function exportTransacciones(){
 /* ── GIFT CARDS (vendidas por la web con Flow) ── */
 let gcPage=1, gcPerPage=25
 state.giftcards=[]; state.gcUses=[]
-async function loadGiftCards(){
-  const cont=document.getElementById('gcTable')
-  if(cont && !state.giftcards.length) cont.innerHTML='<div class="empty-state">Cargando gift cards…</div>'
+/* Las gift cards y sus canjes, sin pintar nada: las usan la pantalla de Gift
+   Cards, la Caja y el cobro. Antes solo se cargaban al abrir Gift Cards, asi
+   que la Caja mostraba $0 en gift cards si uno entraba directo a ella. */
+let giftCardsCargadas = false
+async function cargarGiftCards(){
   try{
     const res=await fetch('/api/giftcards.php',{headers:authHeaders()})
     const j=await res.json()
+    if(!res.ok) throw new Error(j.error || ('HTTP ' + res.status))
     state.giftcards = j.giftcards || []
-  }catch(e){ console.warn('gift cards:',e); state.giftcards=[] }
+    giftCardsCargadas = true
+  }catch(e){ console.warn('gift cards:',e); giftCardsCargadas = false }
   try{ state.gcUses = await supabase.fetch('gift_card_uses',{order:'used_at.desc'}) || [] }
-  catch(e){ state.gcUses=[] }
+  catch(e){ console.warn('canjes:', e) }
+  return giftCardsCargadas
+}
+async function loadGiftCards(){
+  const cont=document.getElementById('gcTable')
+  if(cont && !state.giftcards.length) cont.innerHTML='<div class="empty-state">Cargando gift cards…</div>'
+  await cargarGiftCards()
   renderGiftCards()
 }
-function gcUsedAmount(code){ return state.gcUses.filter(u=>u.code===code).reduce((a,u)=>a+Number(u.amount||0),0) }
+/* el codigo se escribe a mano en el mostrador: sin espacios ni minusculas */
+const gcNormal = c => String(c||'').trim().toUpperCase()
+function gcUsedAmount(code){ const c=gcNormal(code); return state.gcUses.filter(u=>gcNormal(u.code)===c).reduce((a,u)=>a+Number(u.amount||0),0) }
+/* una gift card pagada con ese codigo, o nada */
+function gcBuscar(code){ const c=gcNormal(code); return c ? (state.giftcards||[]).find(g=>g.status==='paid' && gcNormal(g.code)===c) : null }
+function gcSaldo(g){ return g ? Math.max(0, Number(g.amount||0) - gcUsedAmount(g.code)) : 0 }
 function gcFiltered(){
   const period=document.getElementById('gcPeriod').value
   const st=document.getElementById('gcStatus').value
@@ -12197,11 +12311,25 @@ function cajaRange(){
 }
 function inRange(d,from,to){ return (!from||d>=from) && (!to||d<=to) }
 const esPagoConBono = s => /^Bono:/.test(String((s&&s.payment_method)||''))
+/* Cuanto de una venta se pago con gift card. Esa plata ya entro cuando se
+   vendio la gift card (y la Caja la cuenta ahi, en su columna): si tambien
+   se sumara al canjearla, el mismo dinero apareceria dos veces. En un pago
+   combinado ("Gift card GC-X $10.000 + Efectivo $5.000") solo cuenta esa parte. */
+function parteGiftCard(s){
+  const t = String((s&&s.payment_method)||'')
+  if(!/gift ?card/i.test(t)) return 0
+  const partes = t.split(' + ')
+  if(partes.length === 1) return Number(s.total||0)
+  return partes.filter(p=>/gift ?card/i.test(p)).reduce((a,p)=>a+money2num((p.match(/\$[\d.]+/)||['0'])[0]),0)
+}
 function cajaData(){
   const [from,to]=cajaRange()
   /* una sesion descontada de un bono se registra como venta para que la
-     reserva quede saldada, pero la plata entro cuando se vendio el bono */
+     reserva quede saldada, pero la plata entro cuando se vendio el bono.
+     Lo mismo con lo pagado con gift card: se descuenta de la venta. */
   const ventas=state.sales.filter(s=>s.status!=='deleted' && !esPagoConBono(s) && inRange(s.sale_date,from,to))
+    .map(s=>{ const g=parteGiftCard(s); return g ? Object.assign({}, s, { total: Math.max(0, Number(s.total||0)-g), _conGc: true }) : s })
+    .filter(s=>!(s._conGc && Number(s.total||0)<=0))
   /* Los abonos anteriores a este cambio quedaron guardados como 'paid' y
      se contaban entre las ventas facturadas: se reconocen también por la
      nota, que dice de cuánto fue el abono y sobre qué monto. */
@@ -13540,6 +13668,7 @@ async function boot(){
   await loadProducts()
   await loadStockMoves()
   await loadCash()
+  cargarGiftCards()   // en segundo plano: la Caja y el cobro las necesitan
   await loadBotConfig()
   loadInvSettings()
   loadLocalInfo()

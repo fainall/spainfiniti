@@ -8,7 +8,9 @@ header('Content-Type: application/json; charset=UTF-8');
 
 $cfg = file_exists(__DIR__.'/bot-config.php') ? require __DIR__.'/bot-config.php' : [];
 require_once __DIR__ . '/require-auth.php';
-require_panel_user();   // solo administradores con sesión abierta
+/* cualquier cuenta del panel: la recepcion cobra con gift card y necesita
+   comprobar el codigo y el saldo (su rol ya incluye la pantalla Gift Cards) */
+require_panel_user(false);
 
 $dir = __DIR__ . '/orders';
 $out = [];
