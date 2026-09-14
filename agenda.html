@@ -5849,6 +5849,10 @@ function abrirVenta(apptId){
                   prof:a.professional_id, cuando:a.appt_date + ' ' + (a.start_time||'').slice(0,5) }] : [],
     metodo: '', abono: 0, partes: [], nota: ''
   }
+  /* reservada desde la web con gift card: el cobro llega con la gift card
+     elegida y el codigo escrito; igual se valida al cobrar */
+  const gcNota = a && String(a.notes||'').match(/gift card (GC-[A-Z0-9]{6,12})/i)
+  if(gcNota){ vd.metodo = 'Gift card'; vd.gcCodigo = gcNota[1].toUpperCase() }
   closeQuickView()
   document.getElementById('ventaDrawer').classList.add('on')
   document.body.classList.add('sin-scroll')
@@ -6055,7 +6059,10 @@ function vdGcInfo(){
   if(!cubiertos.length) return mal('Esta gift card es para ' + esc(gcListaTexto(g)) + '. No sirve para lo que hay en el carro.')
   if(sobran.length && !vd.partes.length)
     return mal('Cubre ' + esc(cubiertos.map(c=>c.name).join(', ')) + ', pero no ' + esc(sobran.join(', ')) + '. Cobra eso con "Múltiples métodos de pago".')
-  return '<span class="vd-gc-ok">✓ Canjea ' + esc(cubiertos.map(c=>c.name).join(', ')) + (g.to ? ' · gift card de ' + esc(g.to) : '') + '</span>'
+  const vence = g.soldAt ? isoDate(addDays(new Date(String(g.soldAt).slice(0,10) + 'T12:00:00'), 45)) : ''
+  const vencida = vence && isoDate(new Date()) > vence
+    ? '<br><span class="vd-gc-mal">Ojo: venció el ' + vence.split('-').reverse().join('/') + ' (45 días desde la compra).</span>' : ''
+  return '<span class="vd-gc-ok">✓ Canjea ' + esc(cubiertos.map(c=>c.name).join(', ')) + (g.to ? ' · gift card de ' + esc(g.to) : '') + '</span>' + vencida
 }
 function vdGcCampo(){
   if(!(vdMontoGiftCard() > 0 || (vd && vd.metodo === 'Gift card'))) return ''

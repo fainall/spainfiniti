@@ -71,6 +71,38 @@
   position: relative;
 }
 
+/* ── CANJE: quien recibio una gift card agenda sola ── */
+.gcx { background: var(--white, #fff); border-bottom: 1px solid rgba(197,164,103,0.18); padding: 34px 24px; scroll-margin-top: 80px; }
+.gcx-box { max-width: 880px; margin: 0 auto; }
+.gcx-top { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+.gcx-txt { flex: 1 1 320px; }
+.gcx-tag { font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-d, #9c7f45); font-weight: 600; }
+.gcx-txt h2 { font-family: 'Playfair Display', serif; font-size: 1.55rem; margin: 6px 0 6px; line-height: 1.2; }
+.gcx-txt p { font-size: 0.84rem; color: var(--mid, #666); line-height: 1.7; margin: 0; }
+.gcx-form { flex: 1 1 320px; display: flex; gap: 10px; }
+.gcx-form input { flex: 1; min-width: 0; padding: 14px 16px; border: 1px solid rgba(197,164,103,0.45); border-radius: 8px;
+  font-family: monospace; font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; background: #fff; }
+.gcx-form input:focus { outline: none; border-color: var(--gold, #c5a467); box-shadow: 0 0 0 3px rgba(197,164,103,0.15); }
+.gcx-form .gc-btn { padding: 14px 22px; white-space: nowrap; }
+.gcx-res { margin-top: 22px; border: 1px solid rgba(197,164,103,0.3); border-radius: 12px; overflow: hidden; background: #fff; }
+.gcx-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 16px 20px; background: linear-gradient(135deg, var(--cream, #faf6ef), var(--gold-pale, #f3ead8)); }
+.gcx-cab strong { display: block; font-family: 'Playfair Display', serif; font-size: 1.15rem; }
+.gcx-cab span { font-size: 0.8rem; color: var(--mid, #666); }
+.gcx-cod { font-family: monospace; letter-spacing: 0.06em; color: var(--texto, #222); }
+.gcx-vence { font-size: 0.74rem !important; background: #fff; border-radius: 20px; padding: 5px 12px; color: #2e7d4f !important; }
+.gcx-vence.mal { color: #c0392b !important; }
+.gcx-svc { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px 20px; border-top: 1px solid rgba(197,164,103,0.18); }
+.gcx-svc strong { display: block; font-size: 0.95rem; }
+.gcx-svc span { font-size: 0.76rem; color: var(--light, #999); }
+.gcx-svc .gc-btn { padding: 12px 22px; }
+.gcx-est { font-size: 0.76rem !important; font-weight: 600; border-radius: 20px; padding: 6px 12px; }
+.gcx-est.usado { background: #eee; color: #666 !important; }
+.gcx-est.agendado { background: #e8f5ee; color: #2e7d4f !important; }
+.gcx-error, .gcx-cargando { margin: 0; padding: 16px 20px; font-size: 0.85rem; }
+.gcx-error { color: #c0392b; }
+@media (max-width: 600px) { .gcx-form { flex-direction: column; } .gcx-svc .gc-btn { width: 100%; justify-content: center; } }
+
 /* ── STEPS BAR ────────────────────── */
 .gc-steps-bar {
   background: var(--white);
@@ -1012,6 +1044,80 @@
   <p class="fu">Elige un servicio, personaliza tu mensaje y regala una experiencia de spa inolvidable.</p>
 </section>
 
+<!-- CANJE -->
+<section class="gcx" id="canjear">
+  <div class="gcx-box">
+    <div class="gcx-top">
+      <div class="gcx-txt">
+        <span class="gcx-tag">¿Te regalaron una gift card?</span>
+        <h2>Canjéala y agenda tu hora</h2>
+        <p>Escribe el código que llegó a tu correo. Te mostramos tu regalo y eliges el día y la hora, sin tener que escribirnos.</p>
+      </div>
+      <form class="gcx-form" onsubmit="event.preventDefault(); canjearGiftCard()">
+        <input id="gcxCodigo" placeholder="GC-XXXXXXXXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="16" aria-label="Código de tu gift card" />
+        <button class="gc-btn gc-btn-gold" id="gcxBtn" type="submit">Ver mi gift card</button>
+      </form>
+    </div>
+    <div class="gcx-res" id="gcxRes" hidden></div>
+  </div>
+</section>
+<script>
+/* Canje de gift card: consulta el codigo y ofrece agendar cada servicio
+   disponible en el sistema de reservas, con la gift card como pago. */
+const escGc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+function fechaGc(f){ const [y, m, d] = String(f || '').split('-'); return d ? d + '/' + m + '/' + y : '' }
+function waGc(texto){ return (typeof waLink === 'function') ? waLink(texto) : 'https://wa.me/56986688771?text=' + encodeURIComponent(texto) }
+
+async function canjearGiftCard(){
+  const input = document.getElementById('gcxCodigo'), btn = document.getElementById('gcxBtn'), res = document.getElementById('gcxRes')
+  const codigo = input.value.trim().toUpperCase().replace(/\s+/g, '')
+  if(!codigo){ input.focus(); return }
+  btn.disabled = true; btn.textContent = 'Buscando…'
+  res.hidden = false; res.innerHTML = '<p class="gcx-cargando">Buscando tu gift card…</p>'
+  try{
+    const r = await fetch('/api/giftcard-canje.php?code=' + encodeURIComponent(codigo), { cache: 'no-store' })
+    const j = await r.json().catch(() => ({}))
+    if(!r.ok) throw new Error(j.error || 'No pudimos revisar el código. Inténtalo de nuevo.')
+    res.innerHTML = pintarCanje(j)
+  }catch(e){
+    res.innerHTML = '<p class="gcx-error">' + escGc(e.message) + '</p>'
+  }finally{
+    btn.disabled = false; btn.textContent = 'Ver mi gift card'
+  }
+}
+
+function pintarCanje(j){
+  const cab = '<div class="gcx-cab"><div>'
+    + '<strong>' + (j.para ? '¡Hola, ' + escGc(j.para) + '!' : '¡Hola!') + '</strong>'
+    + '<span>' + (j.de ? 'Tu regalo de ' + escGc(j.de) : 'Tu gift card') + ' · <b class="gcx-cod">' + escGc(j.codigo) + '</b></span></div>'
+    + '<span class="gcx-vence' + (j.vencida ? ' mal' : '') + '">' + (j.vencida ? 'Venció el ' : 'Válida hasta el ') + fechaGc(j.vence) + '</span></div>'
+  const filas = (j.servicios || []).map(s => {
+    let accion
+    if(s.estado === 'canjeado')
+      accion = '<span class="gcx-est usado">Ya canjeado' + (s.fecha ? ' el ' + fechaGc(s.fecha) : '') + '</span>'
+    else if(s.estado === 'agendado')
+      accion = '<span class="gcx-est agendado">Agendado para el ' + fechaGc(s.fecha) + '</span>'
+    else if(j.vencida)
+      accion = '<a class="gc-btn gc-btn-outline" target="_blank" rel="noopener" href="' + escGc(waGc('Hola, mi gift card ' + j.codigo + ' venció y quisiera consultar por ' + s.nombre)) + '">Escríbenos</a>'
+    else if(s.svc)
+      accion = '<a class="gc-btn gc-btn-gold" href="/reservar.html?svc=' + encodeURIComponent(s.svc) + '&gc=' + encodeURIComponent(j.codigo) + '">Agendar mi hora</a>'
+    else   /* el servicio ya no esta en el catalogo: lo vemos por WhatsApp */
+      accion = '<a class="gc-btn gc-btn-outline" target="_blank" rel="noopener" href="' + escGc(waGc('Hola, quiero agendar mi gift card ' + j.codigo + ': ' + s.nombre)) + '">Agendar por WhatsApp</a>'
+    return '<div class="gcx-svc"><div><strong>' + escGc(s.nombre) + '</strong>' + (s.duracion ? '<span>' + escGc(s.duracion) + '</span>' : '') + '</div>' + accion + '</div>'
+  }).join('')
+  return cab + filas
+}
+
+/* desde el correo de la gift card se llega con ?canjear=CODIGO */
+;(function(){
+  const c = new URLSearchParams(location.search).get('canjear')
+  if(!c) return
+  document.getElementById('gcxCodigo').value = c
+  document.getElementById('canjear').scrollIntoView({ behavior: 'smooth' })
+  canjearGiftCard()
+})()
+</script>
+
 <!-- STEPS BAR -->
 <div class="gc-steps-bar">
   <div class="gc-steps-inner">
@@ -1475,7 +1581,10 @@ function buildFinalPreview() {
   const expiryStr = expiry.toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' })
   const today = new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })
 
-  gcCode = 'GC-' + Date.now().toString(36).toUpperCase().slice(-6) + Math.random().toString(36).toUpperCase().slice(-3)
+  /* El codigo es la llave del regalo: con el se agenda desde la web. Antes
+     salia de la hora exacta mas 3 caracteres al azar; ahora son 10 al azar
+     de verdad, sin 0/O ni 1/I para que no se confundan al escribirlo. */
+  gcCode = 'GC-' + Array.from(crypto.getRandomValues(new Uint8Array(10)), b => '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'[b % 32]).join('')
 
   const total = selectedServices.reduce((sum, s) => sum + gcPriceNum(s), 0)
   document.getElementById('gcFinalSvc').textContent = selectedServices.length > 1

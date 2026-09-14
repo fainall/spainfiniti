@@ -45,6 +45,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .btn:hover{background:var(--gold-d)}
 .btn:disabled{opacity:.45;cursor:default}
 .resumen{background:var(--gold-pale);border-radius:10px;padding:14px 16px;font-size:.86rem;margin-top:18px;line-height:1.6}
+.gc-aviso{margin-top:10px;background:#f3ead8;color:#6b5328;border-radius:9px;padding:9px 12px;font-size:.8rem;line-height:1.45}
 .err{background:#fdecea;color:#c0392b;border-radius:9px;padding:12px 14px;font-size:.84rem;margin-top:14px;display:none}
 .done{text-align:center;padding:44px 24px}
 .done .em{font-size:3.2rem;margin-bottom:14px}
@@ -102,6 +103,27 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
    ═══════════════════════════════════════════ */
 const params = new URLSearchParams(location.search)
 const svcId = params.get('svc')
+/* Reserva pagada con gift card: se llega desde /giftcard con ?gc=CODIGO.
+   No se cobra nada aqui; la reserva queda anotada con el codigo y en el
+   local se canjea al atender. */
+const gcCodigo = (params.get('gc') || '').trim().toUpperCase()
+let giftcard = null   // { codigo, para, vence, nombre }
+
+const normNombre = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()
+/* consulta la gift card; devuelve { giftcard } o { error } sin tocar la pantalla */
+async function consultarGiftCard(){
+  try{
+    const r = await fetch('/api/giftcard-canje.php?code=' + encodeURIComponent(gcCodigo), { cache: 'no-store' })
+    const j = await r.json().catch(() => ({}))
+    if(!r.ok) return { error: j.error || 'No pudimos revisar tu gift card. Inténtalo de nuevo.' }
+    if(j.vencida) return { error: 'Tu gift card venció el ' + j.vence.split('-').reverse().join('/') + '. Escríbenos por WhatsApp y lo vemos.' }
+    const s = (j.servicios || []).find(x => x.estado === 'disponible' && (x.svc === svcId || normNombre(x.nombre) === normNombre(servicio && servicio.name)))
+    if(!s) return { error: 'Tu gift card ya no tiene disponible ' + ((servicio && servicio.name) || 'este servicio') + ': puede que ya esté agendado o canjeado.' }
+    return { giftcard: { codigo: j.codigo, para: j.para, vence: j.vence, nombre: s.nombre } }
+  }catch(e){
+    return { error: 'No pudimos revisar tu gift card. Revisa tu conexión e inténtalo de nuevo.' }
+  }
+}
 const DOW_S = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB']
 const MES_S = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
@@ -128,6 +150,7 @@ function durMin(str){
 /* precio con descuento si esa hora cae en una franja de precios inteligentes */
 function precioEn(fecha, hora){
   const base = money2int(servicio.price)
+  if(giftcard) return { precio: base, pct: 0 }
   const sp = config.smart_pricing || {}
   if(!sp.on) return { precio: base, pct: 0 }
   const dow = new Date(fecha+'T00:00:00').getDay()
@@ -272,8 +295,14 @@ function horasLibres(fecha){
 /* cuantos dias por delante se pueden reservar; lo decide el local */
 function diasQueSeOfrecen(){
   const n = Math.round(Number((config.local_info || {}).maxDias))
-  if(!isFinite(n) || n < 1) return 14
-  return Math.min(n, 365)
+  let dias = (!isFinite(n) || n < 1) ? 14 : Math.min(n, 365)
+  /* con gift card, solo hasta el dia que vence */
+  if(giftcard && giftcard.vence){
+    const hoy = new Date(); hoy.setHours(0,0,0,0)
+    const vence = new Date(giftcard.vence + 'T00:00:00')
+    dias = Math.max(1, Math.min(dias, Math.floor((vence - hoy) / 86400000) + 1))
+  }
+  return dias
 }
 
 function pintarDias(){
@@ -328,7 +357,9 @@ function pintarFormulario(){
     <div class="resumen">
       <strong>${esc(servicio.name)}</strong><br>
       ${DOW_S[d.getDay()]} ${d.getDate()} de ${MES_S[d.getMonth()]} · ${horaSel} hrs · ${durMin(servicio.duration)} min<br>
-      Total: <strong>${money(p.precio)}</strong>${p.pct ? ` <span class="sp-tag">−${p.pct}% por horario</span>` : ''}
+      ${giftcard
+        ? `🎁 Se paga con tu gift card <strong>${esc(giftcard.codigo)}</strong>`
+        : `Total: <strong>${money(p.precio)}</strong>${p.pct ? ` <span class="sp-tag">−${p.pct}% por horario</span>` : ''}`}
     </div>
     <div class="err" id="err"></div>
     <button class="btn" id="btnReservar" onclick="reservar()">Confirmar mi reserva</button>`
@@ -341,9 +372,12 @@ function render(){
       <div class="svc-name">${esc(servicio.name)}</div>
       <div class="svc-meta">
         <span>⏱ ${durMin(servicio.duration)} min</span>
-        <span class="svc-price">${esc(servicio.price || money(p0))}</span>
+        ${giftcard
+          ? `<span class="svc-price">🎁 Incluido en tu gift card</span>`
+          : `<span class="svc-price">${esc(servicio.price || money(p0))}</span>`}
       </div>
       ${m.hourMode === 'range' ? `<span class="sp-tag">Se realiza entre ${m.from} y ${m.to}</span>` : ''}
+      ${giftcard ? `<div class="gc-aviso">Gift card <strong>${esc(giftcard.codigo)}</strong>${giftcard.para ? ' de ' + esc(giftcard.para) : ''} · válida hasta el ${giftcard.vence.split('-').reverse().join('/')}. No pagas nada al reservar.</div>` : ''}
     </div>
     ${pintarDias()}
     ${pintarProfesionales()}
@@ -398,6 +432,11 @@ async function reservar(){
     })
 
     const p = precioEn(fechaSel, horaSel)
+    if(giftcard){
+      /* justo antes de reservar: que nadie la haya usado mientras elegia hora */
+      const otra = await consultarGiftCard()
+      if(otra.error) throw new Error(otra.error)
+    }
     await supabase.rpc('reservar_hora', {
       p_profesional: prof.id,
       p_cliente:     clienteId,
@@ -408,7 +447,9 @@ async function reservar(){
       p_inicio:      horaSel + ':00',
       p_fin:         toHHMM(toMin(horaSel)+dur) + ':00',
       p_precio:      money(p.precio),
-      p_nota:        'Reservado desde el sitio web' + (nota ? ' — ' + nota : '')
+      p_nota:        (giftcard
+                       ? 'Reservado desde el sitio web con gift card ' + giftcard.codigo + ' (' + giftcard.nombre + ', ya pagado)'
+                       : 'Reservado desde el sitio web') + (nota ? ' — ' + nota : '')
     })
 
     const d = new Date(fechaSel+'T00:00:00')
@@ -421,7 +462,7 @@ async function reservar(){
           📅 ${DOW_S[d.getDay()]} ${d.getDate()} de ${MES_S[d.getMonth()]}<br>
           🕐 ${horaSel} hrs · ${dur} minutos<br>
           👤 ${esc(prof.name)}<br>
-          💵 ${money(p.precio)}${p.pct ? ` (−${p.pct}% por horario)` : ''}
+          ${giftcard ? `🎁 Pagado con tu gift card ${esc(giftcard.codigo)}` : `💵 ${money(p.precio)}${p.pct ? ` (−${p.pct}% por horario)` : ''}`}
         </div>
         <p>Te esperamos en Santo Domingo 1083, oficina 502.<br>
         Si necesitas cambiarla, escríbenos por WhatsApp.</p>
@@ -464,6 +505,14 @@ async function init(){
     const r = getServiceById ? getServiceById(svcId) : null
     servicio = r && r.service
     if(!servicio){ body.innerHTML = '<p class="empty">No encontramos ese servicio.</p>'; return }
+    if(gcCodigo){
+      const r = await consultarGiftCard()
+      if(r.error){
+        body.innerHTML = '<p class="empty">' + esc(r.error) + '<br><br><a href="/giftcard.html?canjear=' + encodeURIComponent(gcCodigo) + '">Ver mi gift card</a></p>'
+        return
+      }
+      giftcard = r.giftcard
+    }
 
     const [cfg, pros] = await Promise.all([
       supabase.fetch('public_pricing').catch(()=>[]),
