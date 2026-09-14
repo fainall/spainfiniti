@@ -7460,6 +7460,9 @@ function switchView(v){
   const hi = VENTAS_GROUP.includes(v) ? 'ventas' : CLIENTES_GROUP.includes(v) ? 'clientes' : PRODUCTOS_GROUP.includes(v) ? 'productos' : REPORTES_GROUP.includes(v) ? 'reportes' : v
   document.querySelectorAll('.topnav-tabs [data-view]').forEach(b=>b.classList.toggle('on', b.dataset.view===hi))
   if(v==='clientes'){ renderClientList(); renderRecordatorios() }
+  /* el menu abre Recordatorios directo: sin esto el mensaje y la tabla
+     quedaban vacios si antes no se habia pasado por Clientes */
+  if(v==='recordatorios') renderRecordatorios()
   if(v==='reportes') renderReportes()
   if(v==='ventas') renderSales()
   if(v==='transacciones') renderTransacciones()
@@ -7508,7 +7511,8 @@ const DATOS_DE_PANTALLA = {
   represervas:   { carga: ['loadAppointments'],           pinta: 'renderRepReservas',  mira: ['appointments'] },
   repventas:     { carga: ['loadSales'],                  pinta: 'renderRepVentas',    mira: ['sales'] },
   reportes:      { carga: ['loadAppointments','loadSales'], pinta: 'renderReportes',   mira: ['appointments','sales'] },
-  misingresos:   { carga: ['loadSales','loadAppointments'], pinta: 'renderMisIngresos',mira: ['sales','appointments'] }
+  misingresos:   { carga: ['loadSales','loadAppointments'], pinta: 'renderMisIngresos',mira: ['sales','appointments'] },
+  recordatorios: { carga: ['cargarRemCitas'],             pinta: 'renderRecordatorios', mira: ['remCitas'] }
 }
 
 /* una firma corta de una tabla, para saber si cambio sin compararla entera */
@@ -13499,6 +13503,12 @@ function restaurarRemTpl(){
   toast('Se puso el mensaje original. Aprieta "Guardar mensaje" para dejarlo.','success')
 }
 let remTab='pendientes'
+async function cargarRemCitas(){
+  const hasta = state.remCitasHasta || isoDate(addDays(new Date(), 1))
+  state.remCitas = await supabase.fetch('appointments', {
+    filters: `appt_date=gte.${isoDate(new Date())}&appt_date=lte.${hasta}`, order: 'appt_date.asc,start_time.asc' }) || []
+  state.remCitasListas = hasta
+}
 function renderRecordatorios(){
   const el=document.getElementById('remTable'); if(!el) return
   document.getElementById('remTpl').value=getRemTpl()
@@ -13515,7 +13525,15 @@ function renderRecordatorios(){
   const range=parseInt(document.getElementById('remRange').value)
   const today=new Date(); today.setHours(0,0,0,0)
   const to=addDays(today,range)
-  const list=state.appointments.filter(a=>{
+  /* las reservas del periodo se piden aparte: la agenda solo tiene cargada
+     la semana que se esta mirando, y "Proximos 30 dias" se quedaba corto */
+  const hastaIso=isoDate(to)
+  if(state.remCitasHasta!==hastaIso){
+    state.remCitasHasta=hastaIso
+    cargarRemCitas().then(()=>renderRecordatorios()).catch(e=>console.warn('recordatorios:', e))
+  }
+  const fuente = Array.isArray(state.remCitas) && state.remCitasListas===hastaIso ? state.remCitas : state.appointments
+  const list=fuente.filter(a=>{
     if(a.status==='block') return false
     const d=new Date(a.appt_date+'T00:00:00'); return d>=today && d<=to
   }).sort((a,b)=>(a.appt_date+a.start_time).localeCompare(b.appt_date+b.start_time))
