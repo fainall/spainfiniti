@@ -4186,13 +4186,9 @@ function renderMisIngresos(){
   cargarMisCitas(pid, desde, hasta).then(nuevas => { if(nuevas) renderMisIngresos() }).catch(e => console.warn('mis citas:', e))
   const rows=[]
   state.sales.filter(s=>s.status!=='deleted' && s.professional_id===pid && inRange(s.sale_date,desde,hasta)).forEach(s=>{
-    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
-    const parte=parteCobrada(s, items)
-    items.forEach(it=>{
-      const monto=Math.round(Number(it.qty||1)*Number(it.price||0)*parte)
-      const kind = state.products.some(p=>p.name===it.name) ? 'products'
-        : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
-      const pct=commPctFor(pid,it.name,kind)
+    lineasComision(s).forEach(it=>{
+      const monto=it.monto
+      const pct=commPctFor(pid,it.name,tipoDeItem(it.name))
       rows.push({date:s.sale_date, client:s.client_name||'', item:it.name, monto, pct, comm:Math.round(monto*pct/100), tip:0})
     })
     if(Number(s.tip||0)) rows.push({date:s.sale_date, client:s.client_name||'', item:'Propina', monto:0, pct:100, comm:Number(s.tip), tip:Number(s.tip)})
@@ -4253,13 +4249,9 @@ function exportMisIngresos(){
   const desde=document.getElementById('miFrom').value, hasta=document.getElementById('miTo').value
   const rows=[]
   state.sales.filter(s=>s.status!=='deleted' && s.professional_id===pid && inRange(s.sale_date,desde,hasta)).forEach(s=>{
-    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
-    /* igual que en pantalla: si la venta fue un abono, cuenta solo lo cobrado */
-    const parte=parteCobrada(s, items)
-    items.forEach(it=>{ const monto=Math.round(Number(it.qty||1)*Number(it.price||0)*parte)
-      const kind = state.products.some(p=>p.name===it.name) ? 'products'
-        : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
-      const pct=commPctFor(pid,it.name,kind)
+    /* igual que en pantalla: los abonos comisionan recien al cerrar la cuenta */
+    lineasComision(s).forEach(it=>{ const monto=it.monto
+      const pct=commPctFor(pid,it.name,tipoDeItem(it.name))
       rows.push([s.sale_date, s.client_name||'', it.name, monto, pct, Math.round(monto*pct/100)]) })
   })
   if(!rows.length){ toast('No hay ganancias en el período','error'); return }
@@ -8353,21 +8345,13 @@ function commDefaultOf(profId){
 function detalleComision(profId, ventas){
   const porItem = {}
   ventas.filter(s => s.professional_id === profId).forEach(s => {
-    const items = itemsDe(s)
-    const cobrado = Number(s.total||0)
-    const lista = items.reduce((t,i)=> t + Number(i.qty||1)*Number(i.price||0), 0)
-    /* en un abono entró solo una parte: cada línea se muestra a prorrata */
-    const parte = (lista > 0 && cobrado > 0 && cobrado !== lista) ? cobrado / lista : 1
-    items.forEach(it => {
-      const monto = Math.round(Number(it.qty||1) * Number(it.price||0) * parte)
-      const kind = state.products.some(p=>p.name===it.name) ? 'products'
-        : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
-      const pct = commPctFor(profId, it.name, kind)
+    lineasComision(s).forEach(it => {
+      const pct = commPctFor(profId, it.name, tipoDeItem(it.name))
       const k = it.name + '|' + pct
       porItem[k] = porItem[k] || { name:it.name, pct, veces:0, monto:0, comm:0 }
-      porItem[k].veces += Number(it.qty||1)
-      porItem[k].monto += monto
-      porItem[k].comm  += Math.round(monto * pct / 100)
+      porItem[k].veces += it.qty
+      porItem[k].monto += it.monto
+      porItem[k].comm  += Math.round(it.monto * pct / 100)
     })
   })
   return Object.values(porItem).sort((a,b) => b.comm - a.comm)
@@ -8377,24 +8361,68 @@ function toggleDesglose(profId){
   if(fila) fila.classList.toggle('abierto')
 }
 
-function comisionDeVenta(s){
+/* ── Comisiones y abonos ──
+   Un abono no genera comision. La profesional la gana cuando el servicio
+   queda pagado completo, y sobre el servicio completo: lo abonado antes se
+   suma al cobro que cierra la cuenta, con la fecha de ese cierre. Antes
+   cada abono pagaba su parte de comision apenas entraba, aunque la clienta
+   no volviera a pagar el resto.
+
+   Devuelve las lineas comisionables de una venta: { name, qty, monto }. */
+const ventaVigente = v => v.status!=='deleted' && v.status!=='cancelled' && v.status!=='void'
+function lineasComision(s){
   const items = itemsDe(s)
+  const valorLista = its => its.reduce((t,i)=> t + Number(i.qty||1)*Number(i.price||0), 0)
+  /* si se cobro con descuento, cuenta lo cobrado */
+  const factor = (v, its) => { const l = valorLista(its), c = Number(v.total||0); return (l>0 && c>0 && c!==l) ? c/l : 1 }
+  const lineas = (its, f) => its.map(it => ({ name: it.name, qty: Number(it.qty||1), monto: Math.round(Number(it.qty||1)*Number(it.price||0)*f) }))
+  const hermanas = s.appointment_id
+    ? state.sales.filter(v => v.appointment_id===s.appointment_id && v.id!==s.id && ventaVigente(v)) : []
+  const porFecha = (a,b) => String(a.created_at||'').localeCompare(String(b.created_at||''))
+
+  if(esAbono(s)){
+    /* un abono solo comisiona si nadie mas cierra la cuenta y es el abono que
+       completa el precio (se pago todo en abonos) */
+    if(hermanas.some(v => !esAbono(v))) return []
+    const abonos = hermanas.concat([s]).sort(porFecha)
+    if(abonos[abonos.length-1].id !== s.id) return []
+    const pagado = abonos.reduce((t,v)=> t + Number(v.total||0), 0)
+    const lista = valorLista(items)
+    if(!(lista > 0 && pagado >= lista)) return []
+    return lineas(items, 1)
+  }
+
+  const propias = lineas(items, factor(s, items))
+  /* el primer cobro que cierra una reserva con abonos trae lo abonado */
+  const cierres = hermanas.filter(v => !esAbono(v)).concat([s]).sort(porFecha)
+  if(cierres[0].id === s.id){
+    hermanas.filter(esAbono).forEach(v => {
+      const its = itemsDe(v)
+      lineas(its, factor(v, its)).forEach(l => {
+        const igual = propias.find(p => p.name === l.name)
+        if(igual) igual.monto += l.monto                      // mismo servicio: una sola linea
+        else propias.push({ name: l.name, qty: 0, monto: l.monto })
+      })
+    })
+  }
+  return propias
+}
+const tipoDeItem = name => state.products.some(p=>p.name===name) ? 'products'
+  : (state.plans||[]).some(p=>p.name===name) ? 'plans' : 'services'
+
+function comisionDeVenta(s){
   const cobrado = Number(s.total||0)
-  let lista = 0, comm = 0
-  items.forEach(it => {
-    const monto = Number(it.qty||1) * Number(it.price||0)
-    const kind = state.products.some(p=>p.name===it.name) ? 'products'
-      : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
-    lista += monto
-    comm += Math.round(monto * commPctFor(s.professional_id, it.name, kind) / 100)
-  })
   /* si la venta no trae el detalle, se usa el porcentaje general sobre el total */
-  if(!items.length) return { base: cobrado, comm: Math.round(cobrado * commDefaultOf(s.professional_id) / 100) }
-  /* En un abono el detalle trae el servicio completo pero solo entró una
-     parte de la plata. La comisión se gana sobre lo cobrado, no sobre lo
-     que el servicio vale; el resto se comisiona cuando se pague el saldo. */
-  if(lista > 0 && cobrado > 0 && cobrado !== lista) comm = Math.round(comm * cobrado / lista)
-  return { base: cobrado || lista, comm }
+  if(!itemsDe(s).length){
+    if(esAbono(s)) return { base: 0, comm: 0 }
+    return { base: cobrado, comm: Math.round(cobrado * commDefaultOf(s.professional_id) / 100) }
+  }
+  let base = 0, comm = 0
+  lineasComision(s).forEach(l => {
+    base += l.monto
+    comm += Math.round(l.monto * commPctFor(s.professional_id, l.name, tipoDeItem(l.name)) / 100)
+  })
+  return { base, comm }
 }
 
 /* En un abono el detalle trae el servicio completo pero entro solo una
@@ -8497,15 +8525,11 @@ function liqData(){
   const profId=ps?ps.value:''
   const rows=[]
   state.sales.filter(s=>s.status!=='deleted' && s.professional_id===profId && inRange(s.sale_date,f.value,t.value)).forEach(s=>{
-    const items=Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')
-    const parte=parteCobrada(s, items)
-    items.forEach(it=>{
-      const monto=Math.round(Number(it.qty||1)*Number(it.price||0)*parte)
-      const kind = state.products.some(p=>p.name===it.name) ? 'products'
-        : (state.plans||[]).some(p=>p.name===it.name) ? 'plans' : 'services'
-      const pct=commPctFor(profId,it.name,kind)
+    lineasComision(s).forEach(it=>{
+      const monto=it.monto
+      const pct=commPctFor(profId,it.name,tipoDeItem(it.name))
       rows.push({ date:s.sale_date, hora:(s.created_at||'').slice(11,16)||'—', client:s.client_name||'',
-        item:it.name, qty:Number(it.qty||1), monto, pct, comm:Math.round(monto*pct/100), tip:0 })
+        item:it.name, qty:it.qty, monto, pct, comm:Math.round(monto*pct/100), tip:0 })
     })
     if(Number(s.tip||0)) rows.push({date:s.sale_date, hora:'—', client:s.client_name||'', item:'Propina', qty:1,
       monto:0, pct:100, comm:Number(s.tip), tip:Number(s.tip)})
