@@ -455,9 +455,15 @@ function do_book($args) {
     if (!empty($args['acompanante']))          $nota .= '. Viene con ' . trim($args['acompanante']);
     if (!empty($args['acompanante_telefono'])) $nota .= ' (tel. ' . trim($args['acompanante_telefono']) . ')';
 
+    /* el precio del catalogo en el momento de reservar: sin el, el panel no
+       sabia cuanto cobrar y marcaba la reserva como "precio ajustado" */
+    $svcPrecio = supa('GET', 'services?select=price&name=eq.' . rawurlencode($args['service_name']) . '&limit=1');
+    $precio = (is_array($svcPrecio) && count($svcPrecio)) ? (string)($svcPrecio[0]['price'] ?? '') : '';
+
     $row=['professional_id'=>$prof['id'],'client_name'=>$args['client_name'],'client_phone'=>$phone,
         'service_name'=>$args['service_name'],'appt_date'=>$args['date'],'start_time'=>$time,'end_time'=>$end,
         'status'=>'reserved','origen'=>'bot','notes'=>$nota];
+    if ($precio !== '') $row['price'] = $precio;
     if ($clientId) $row['client_id'] = $clientId;
     $res=supa('POST','appointments',$row);
     if (is_array($res)&&count($res)) return ['ok'=>true,'professional'=>$prof['name'],'appointment'=>$res[0]];

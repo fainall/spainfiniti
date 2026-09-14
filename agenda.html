@@ -1084,6 +1084,9 @@ body.sin-scroll{overflow:hidden}
 .re-precio span{color:var(--light);font-size:.9rem}
 .re-precio input{flex:1;border:none;outline:none;padding:11px 0;font-family:inherit;font-size:.86rem;
   font-weight:600;color:var(--texto);background:transparent}
+.qv-precio{margin-top:3px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.qv-precio strong{color:var(--gold-d);font-size:.95rem}
+.qv-precio-cat{font-size:.74rem;color:var(--light);text-decoration:line-through}
 .re-ajustado{display:inline-block;background:#fdf1e0;color:#8a6318;border-radius:20px;padding:1px 9px;
   font-size:.68rem;font-weight:600;vertical-align:middle}
 
@@ -5521,7 +5524,7 @@ function openApptQuickView(id){
              onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'Sin cliente')}</button>`
         : esc(a.client_name||'Sin cliente')}
       ${ORIGENES[origenDe(a)].icono ? `<span class="qv-org" title="${esc(ORIGENES[origenDe(a)].nombre)}">${ORIGENES[origenDe(a)].icono}</span>` : ''}</div>
-    ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${a.price?` <span style="color:var(--gold-d);font-weight:600">${esc(a.price)}</span>`:''}${precioAjustado(a)?' <span class="re-ajustado">precio ajustado</span>':''}</div>`:''}
+    ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${qvPrecio(a)}</div>`:''}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--texto)">${esc(p.name)}</strong></div>`:''}
     ${phone?`<div class="qv-row">📱 ${esc(phone)} ${menuWhatsapp(id, phone)}</div>`:''}
@@ -6392,10 +6395,26 @@ function precioDeCatalogo(a){
   return sv ? (sv.price || '') : ''
 }
 /* ¿el precio de esta reserva es distinto al del catálogo? */
+/* El precio en la ficha rapida. Si se ajusto a mano se ve el valor que
+   quedo y, al lado, el del catalogo, para saber cuanto se cambio. Si la
+   reserva no tiene precio se muestra el del catalogo. */
+function qvPrecio(a){
+  const cat = precioDeCatalogo(a)
+  if(precioAjustado(a))
+    return ` <div class="qv-precio"><strong>${esc(fmtMoney(money2num(a.price)))}</strong>
+      <span class="re-ajustado">precio ajustado</span>
+      <span class="qv-precio-cat">catálogo ${esc(fmtMoney(money2num(cat)))}</span></div>`
+  const v = money2num(a.price) || money2num(cat)
+  return v ? ` <span style="color:var(--gold-d);font-weight:600">${esc(fmtMoney(v))}</span>` : ''
+}
+
+/* Sin precio guardado no hay nada ajustado: las reservas que tomaba el
+   asistente de WhatsApp llegaban sin precio y salian marcadas "precio
+   ajustado" sin ningun valor que mostrar. */
 function precioAjustado(a){
   const cat = money2num(precioDeCatalogo(a))
   const act = money2num(a.price)
-  return cat > 0 && act !== cat
+  return cat > 0 && act > 0 && act !== cat
 }
 
 /* ══════════════ PESTAÑA RESERVA (editable) ══════════════
