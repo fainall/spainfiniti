@@ -512,16 +512,42 @@ const supaAuth = {
     return j
   },
 
+  /* Supabase lee la direccion de regreso de la URL (?redirect_to=), no del
+     cuerpo del pedido. Mandada en el cuerpo se ignoraba y el enlace del
+     correo llevaba a la direccion por defecto del proyecto (localhost). */
   async resetPassword(email, redirectTo) {
-    const body = { email, gotrue_meta_security: {} }
-    if (redirectTo) body.redirect_to = redirectTo
-    const res = await fetch(SUPABASE_URL + '/auth/v1/recover', {
+    const url = SUPABASE_URL + '/auth/v1/recover' + (redirectTo ? '?redirect_to=' + encodeURIComponent(redirectTo) : '')
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify({ email, gotrue_meta_security: {} })
     })
-    if (!res.ok) { const j = await res.json().catch(function () { return {} }); throw new Error(j.msg || 'No pudimos enviar el correo') }
+    if (!res.ok) {
+      const j = await res.json().catch(function () { return {} })
+      const m = String(j.msg || j.error_description || j.message || '')
+      if (/rate limit|too many/i.test(m)) throw new Error('Ya se pidieron varios correos seguidos. Espera un rato e inténtalo de nuevo.')
+      if (/not authorized/i.test(m)) throw new Error('El servidor de correos todavía no está configurado para enviar a esa dirección. Avísale al administrador.')
+      throw new Error(m || 'No pudimos enviar el correo')
+    }
     return true
+  },
+
+  /* la contraseña nueva, con el token que trae el enlace del correo */
+  async setPasswordWithToken(accessToken, newPassword) {
+    const res = await fetch(SUPABASE_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: newPassword })
+    })
+    const j = await res.json().catch(function () { return {} })
+    if (!res.ok) {
+      const m = String(j.msg || j.error_description || j.message || '')
+      if (/different from the old|same/i.test(m)) throw new Error('La contraseña nueva tiene que ser distinta de la anterior.')
+      if (/expired|invalid/i.test(m) || res.status === 401) throw new Error('El enlace ya venció. Vuelve a pedir el correo desde "Olvidé mi contraseña".')
+      if (/at least|characters|weak/i.test(m)) throw new Error('La contraseña es muy corta o muy simple. Usa al menos 8 caracteres.')
+      throw new Error(m || 'No pudimos cambiar la contraseña')
+    }
+    return j
   },
 
   signOut() { SUPA_TOKEN = null; localStorage.removeItem('spa_session'); localStorage.removeItem('spa_admin_auth') }

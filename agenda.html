@@ -1493,6 +1493,15 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     <div class="login-err" id="loginErr">Correo o contraseña incorrectos</div>
     <button class="login-link" onclick="forgotPassword()">Olvidé mi contraseña</button>
 
+    <!-- se muestra al volver desde el correo de "Olvidé mi contraseña" -->
+    <div id="recBox" style="display:none;text-align:left">
+      <p style="font-size:.85rem;color:var(--mid);margin-bottom:14px" id="recTxt">Escribe tu contraseña nueva.</p>
+      <input type="password" id="recPass1" placeholder="Contraseña nueva (mínimo 8 caracteres)" autocomplete="new-password" />
+      <input type="password" id="recPass2" placeholder="Repítela" autocomplete="new-password" onkeydown="if(event.key==='Enter')guardarClaveRecuperada()" />
+      <button onclick="guardarClaveRecuperada()" id="recBtn">Guardar y entrar</button>
+      <div class="login-err" id="recErr"></div>
+    </div>
+
     <div id="setupBox" style="display:none;border-top:1px solid var(--border);margin-top:18px;padding-top:16px;text-align:left">
       <p style="font-size:.82rem;color:var(--mid);margin-bottom:12px">
         <strong>Primer ingreso.</strong> Crea la cuenta de administrador. La contraseña la eliges tú y queda encriptada.
@@ -3933,7 +3942,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
 
 <div class="toast" id="toast"></div>
 
-<script src="/supabase-client.js?v=18"></script>
+<script src="/supabase-client.js?v=19"></script>
 <script src="/data.js?v=7"></script>
 <script>
 /* Ya no hay contraseñas en el código: se entra con cuenta (Supabase Auth) */
@@ -4118,8 +4127,8 @@ async function doLogin(){
 async function forgotPassword(){
   const email=(document.getElementById('loginEmail').value||'').trim()
   if(!email){ toast('Escribe tu correo primero','error'); return }
-  try{ await supaAuth.resetPassword(email, location.origin+location.pathname)
-    toast('Te enviamos un correo para crear una nueva contraseña','success')
+  try{ await supaAuth.resetPassword(email, location.origin+'/agenda')
+    toast('Si ese correo tiene cuenta, te llegará un mensaje para crear una contraseña nueva. Revisa también la carpeta de spam.','success')
   }catch(e){ toast(e.message,'error') }
 }
 function doLogout(){ supaAuth.signOut(); localStorage.removeItem('spa_admin_auth'); location.reload() }
@@ -8722,7 +8731,7 @@ async function saveUser(){
 }
 async function sendUserReset(email){
   if(!email){ toast('Esa cuenta no tiene correo','error'); return }
-  try{ await supaAuth.resetPassword(email, location.origin+location.pathname)
+  try{ await supaAuth.resetPassword(email, location.origin+'/agenda')
     toast('Le enviamos un correo para crear una contraseña nueva','success') }
   catch(e){ toast(e.message,'error') }
 }
@@ -13910,7 +13919,67 @@ async function boot(){
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=0 }, 100)
 }
-if(localStorage.getItem('spa_admin_auth')==='true') boot()
+/* ── Volver desde el correo de "Olvidé mi contraseña" ──
+   Supabase manda de vuelta a /agenda con los datos en el ancla de la URL:
+   #access_token=…&refresh_token=…&type=recovery, o #error_code=otp_expired…
+   si el enlace ya no sirve. Antes el panel no los leia y la persona caia en
+   el login de siempre, sin forma de poner su contraseña nueva. */
+let recuperacion = null
+function leerRetornoRecuperacion(){
+  const h = new URLSearchParams(String(location.hash||'').replace(/^#/, ''))
+  if(!h.toString()) return null
+  if(h.get('error') || h.get('error_code')){
+    const vencido = /expired/i.test(h.get('error_code') + ' ' + h.get('error_description'))
+    return { error: vencido ? 'El enlace ya venció o ya se usó. Pide otro con "Olvidé mi contraseña".' : 'El enlace no es válido. Pide otro con "Olvidé mi contraseña".' }
+  }
+  if(h.get('type') === 'recovery' && h.get('access_token'))
+    return { token: h.get('access_token'), refresh: h.get('refresh_token') || '', expira: Number(h.get('expires_in')) || 3600 }
+  return null
+}
+function mostrarRecuperacion(r){
+  /* los tokens no se quedan en la barra de direcciones ni en el historial */
+  history.replaceState(null, '', location.pathname + location.search)
+  localStorage.removeItem('spa_admin_auth')
+  document.getElementById('loginScreen').style.display = ''
+  const caja = document.getElementById('loginScreen').querySelector('.login-box')
+  ;['loginEmail','loginPass','loginBtn','loginErr'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none' })
+  const olvido = caja.querySelector('.login-link'); if(olvido) olvido.style.display = r.error ? '' : 'none'
+  if(r.error){
+    ;['loginEmail','loginPass','loginBtn'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = '' })
+    const e = document.getElementById('loginErr'); e.textContent = r.error; e.style.display = 'block'
+    return
+  }
+  recuperacion = r
+  caja.querySelector('.sub').textContent = 'Crea tu contraseña nueva'
+  document.getElementById('recBox').style.display = 'block'
+  setTimeout(() => document.getElementById('recPass1').focus(), 50)
+}
+async function guardarClaveRecuperada(){
+  const p1 = document.getElementById('recPass1').value, p2 = document.getElementById('recPass2').value
+  const err = document.getElementById('recErr'), btn = document.getElementById('recBtn')
+  err.style.display = 'none'
+  if(p1.length < 8){ err.textContent = 'Usa al menos 8 caracteres.'; err.style.display = 'block'; return }
+  if(p1 !== p2){ err.textContent = 'Las dos contraseñas no coinciden.'; err.style.display = 'block'; return }
+  btn.disabled = true; btn.textContent = 'Guardando…'
+  try{
+    const u = await supaAuth.setPasswordWithToken(recuperacion.token, p1)
+    /* queda con la sesion abierta: el enlace ya valida que es la persona */
+    supaAuth.setSession({ access_token: recuperacion.token, refresh_token: recuperacion.refresh, expires_in: recuperacion.expira, user: u })
+    recuperacion = null
+    document.getElementById('recPass1').value = ''; document.getElementById('recPass2').value = ''
+    toast('Contraseña actualizada', 'success')
+    localStorage.setItem('spa_admin_auth', 'true')
+    await boot()
+  }catch(e){
+    err.textContent = e.message; err.style.display = 'block'
+  }finally{
+    btn.disabled = false; btn.textContent = 'Guardar y entrar'
+  }
+}
+
+const retornoRecuperacion = leerRetornoRecuperacion()
+if(retornoRecuperacion) mostrarRecuperacion(retornoRecuperacion)
+else if(localStorage.getItem('spa_admin_auth')==='true') boot()
 else checkFirstRun()
 </script>
 </body>
