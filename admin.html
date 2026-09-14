@@ -1708,10 +1708,12 @@ function saveService(catId, svcId) {
   function duracionNormal(v){
     const t = String(v == null ? '' : v).trim().toLowerCase()
     if(!t) return ''
-    const hr = t.match(/(d+)s*(h|hr|hrs|hora|horas)/)
-    const mi = t.match(/(d+)s*(m|min|mins|minuto|minutos)/)
+    /* las expresiones decian (d+) en vez de (\d+): buscaban la letra "d" y
+       nunca ordenaban nada ("1hr30min" quedaba tal cual) */
+    const hr = t.match(/(\d+)\s*(h|hr|hrs|hora|horas)/)
+    const mi = t.match(/(\d+)\s*(m|min|mins|minuto|minutos)/)
     let n = (hr || mi) ? ((hr ? parseInt(hr[1]) * 60 : 0) + (mi ? parseInt(mi[1]) : 0)) : 0
-    if(!n){ const solo = t.match(/d+/); n = solo ? parseInt(solo[0]) : 0 }
+    if(!n){ const solo = t.match(/\d+/); n = solo ? parseInt(solo[0]) : 0 }
     return n ? n + ' min' : t
   }
   const basePriceStr = document.getElementById('svc-price').value.trim()

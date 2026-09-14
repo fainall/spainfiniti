@@ -582,6 +582,10 @@ label.chk input{width:auto;margin:0}
 .modal input,.modal select,.modal textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.85rem}
 .modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;border-color:var(--gold)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.svc-dcto{margin-top:16px;background:#faf5ec;border:1px solid #efe3cc;border-radius:10px;padding:14px 16px}
+.svc-dcto-precio{background:#eef7ef !important;color:#2a7a2a !important;font-weight:700}
+.ar-tachado{text-decoration:line-through;color:var(--light);margin-right:4px}
+.ar-dcto{background:#e8f5ee;color:#2a7a2a;border-radius:20px;padding:1px 7px;font-size:.68rem;font-weight:700;margin-left:4px}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .row2>*,.row3>*{min-width:0}
 .row2 input,.row3 input,.row2 select,.row3 select{min-width:0}
@@ -2915,8 +2919,24 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <label>Nombre del servicio <span style="color:var(--red)">*</span></label>
           <input type="text" id="svcName" placeholder="El nombre aparecerá en el sitio web" />
           <div class="row2" style="margin-top:14px">
-            <div><label>Precio <span style="color:var(--red)">*</span></label><input type="text" id="svcPrice" placeholder="$15.000" /></div>
+            <div><label>Precio final <span style="color:var(--red)">*</span></label><input type="text" id="svcPrice" placeholder="$15.000" oninput="svcCalcDescuento()" />
+              <span class="rem-note" style="display:block;margin-top:4px">Precio base. Si no hay descuento, es lo que paga el cliente.</span></div>
             <div><label>Duración (min) <span style="color:var(--red)">*</span></label><input type="number" id="svcDur" min="5" step="5" value="60" /></div>
+          </div>
+          <!-- Descuento especial: el mismo de la administracion del sitio web -->
+          <div class="svc-dcto">
+            <div class="sw-row" style="margin:0">
+              <label class="sw"><input type="checkbox" id="svcDisc" onchange="svcCalcDescuento()" /><i></i></label>
+              <div class="sw-txt"><strong>Descuento especial</strong><span>El cliente paga el precio con descuento y ve el precio final tachado, en la agenda y en el sitio web.</span></div>
+            </div>
+            <div id="svcDiscBox" style="display:none;margin-top:12px">
+              <div class="row2">
+                <div><label>Porcentaje de descuento (%)</label><input type="number" id="svcDiscPct" min="1" max="99" placeholder="20" oninput="svcCalcDescuento()" /></div>
+                <div><label>Precio con descuento (calculado)</label><input type="text" id="svcDiscPrecio" readonly class="svc-dcto-precio" /></div>
+              </div>
+              <label style="margin-top:12px">Texto promocional (banner en la página del servicio)</label>
+              <input type="text" id="svcDiscText" placeholder="Ej: Descuento por Día de la Madre" />
+            </div>
           </div>
           <label style="margin-top:14px">Categoría <span style="color:var(--red)">*</span></label>
           <select id="svcCat"></select>
@@ -3011,16 +3031,6 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <div class="sw-row">
             <label class="sw"><input type="checkbox" id="svcHigh" /><i></i></label>
             <div class="sw-txt"><strong>Servicio destacado</strong><span>Se muestra primero en su categoría dentro del sitio web.</span></div>
-          </div>
-          <div class="sw-row">
-            <label class="sw"><input type="checkbox" id="svcDisc" onchange="document.getElementById('svcDiscBox').style.display=this.checked?'block':'none'" /><i></i></label>
-            <div class="sw-txt"><strong>Mostrar descuento</strong><span>Muestra el precio anterior tachado junto al actual.</span></div>
-          </div>
-          <div id="svcDiscBox" style="display:none">
-            <div class="row2">
-              <div><label>Precio anterior</label><input type="text" id="svcOrig" placeholder="$30.000" /></div>
-              <div><label>Etiqueta del descuento</label><input type="text" id="svcDiscLbl" placeholder="-20%" /></div>
-            </div>
           </div>
           <label style="margin-top:14px">Incluye (una línea por ítem)</label>
           <textarea id="svcIncludes" rows="3" placeholder="Evaluación podológica&#10;Corte y limado&#10;Hidratación"></textarea>
@@ -4319,7 +4329,8 @@ function CATS(){ return (typeof CATEGORIES!=="undefined" && Array.isArray(CATEGO
 function flattenServices(){
   const out=[]
   ;(CATS()).forEach(c => (c.services||[]).forEach(s => out.push({
-    id:s.id, name:s.name, duration:parseDur(s.duration), price:s.price, cat:c.name
+    id:s.id, name:s.name, duration:parseDur(s.duration), price:s.price, cat:c.name,
+    original:s.hasDiscount ? (s.originalPrice||'') : '', dcto:s.hasDiscount ? (s.discountLabel||'') : ''
   })))
   state.services = out
 }
@@ -11022,7 +11033,7 @@ function listaServicios(){
       <span class="asa" onmousedown="iniciarArrastre(event,this.parentElement)" title="Arrastra para reordenar">⠿</span>
       <span class="ar-name">${esc(s.name)}</span>
       <span class="ar-meta">${s.duration} min</span>
-      <span class="ar-meta">${esc(s.price||'')}</span>
+      <span class="ar-meta">${s.original ? '<span class="ar-tachado">' + esc(s.original) + '</span>' : ''}${esc(s.price||'')}${s.dcto ? '<span class="ar-dcto">' + esc(s.dcto) + '</span>' : ''}</span>
       <span class="adm-dot">● Activo</span>
       <button class="mini-btn" onclick="openSvcModal('${s.id}')">✎ Editar</button></div>`).join('')).join('')
 }
@@ -11058,13 +11069,31 @@ function fillSvcCatSelect(sel,cur){
   el.innerHTML=svcCats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
   if(cur) el.value=cur
 }
+/* Descuento especial, con la misma regla que la administracion del sitio:
+   el "precio final" es el precio base; con descuento, el cliente paga
+   base × (1 − %) y el base queda como precio tachado. En la base se guarda
+   price = lo que se paga, original_price = base, discount_label = "25% DCTO". */
+function svcDescuentoCalculado(){
+  const base = money2num(document.getElementById('svcPrice').value)
+  const on = document.getElementById('svcDisc').checked
+  const pct = parseInt(document.getElementById('svcDiscPct').value) || 0
+  const valido = on && base > 0 && pct > 0 && pct < 100
+  return { base, on, pct, valido, final: valido ? Math.round(base * (1 - pct / 100)) : base }
+}
+function svcCalcDescuento(){
+  const d = svcDescuentoCalculado()
+  document.getElementById('svcDiscBox').style.display = d.on ? 'block' : 'none'
+  document.getElementById('svcDiscPrecio').value = d.valido ? precioNormal(d.final) : ''
+}
 function openSvcModal(id){
   const raw=id?(window.__svcRows||[]).find(s=>s.id===id):null
   const s=id?state.services.find(x=>x.id===id):null
   document.getElementById('svcTitle').textContent=s?'Editando '+s.name:'Nuevo servicio'
   document.getElementById('svcId').value=id||''
   document.getElementById('svcName').value=s?s.name:''
-  document.getElementById('svcPrice').value=s?precioNormal(s.price):''
+  /* con descuento, el campo muestra el precio base, no el ya descontado */
+  const conDcto = !!(raw && raw.has_discount && money2num(raw.original_price) > 0)
+  document.getElementById('svcPrice').value = conDcto ? precioNormal(raw.original_price) : (s ? precioNormal(s.price) : '')
   document.getElementById('svcDur').value=s?s.duration:60
   fillSvcCatSelect('svcCat', raw?raw.cat_id:(svcCats[0]||{}).id)
   document.getElementById('svcShort').value=raw?(raw.short_desc||''):''
@@ -11073,10 +11102,13 @@ function openSvcModal(id){
   document.getElementById('svcTag').value=raw?(raw.tag||''):''
   document.getElementById('svcLink').value=raw?(raw.link||''):''
   document.getElementById('svcHigh').checked=!!(raw&&raw.highlighted)
-  document.getElementById('svcDisc').checked=!!(raw&&raw.has_discount)
-  document.getElementById('svcDiscBox').style.display=(raw&&raw.has_discount)?'block':'none'
-  document.getElementById('svcOrig').value=raw?(raw.original_price||''):''
-  document.getElementById('svcDiscLbl').value=raw?(raw.discount_label||''):''
+  document.getElementById('svcDisc').checked = conDcto
+  /* el porcentaje sale de la etiqueta ("25% DCTO"); si no la tiene, de los precios */
+  let pctDcto = conDcto ? parseInt(String(raw.discount_label||'').replace(/[^0-9]/g,'')) || 0 : 0
+  if(conDcto && !pctDcto){ const b = money2num(raw.original_price), p = money2num(raw.price); if(b > 0 && p > 0 && p < b) pctDcto = Math.round((1 - p / b) * 100) }
+  document.getElementById('svcDiscPct').value = pctDcto || ''
+  document.getElementById('svcDiscText').value = raw ? (raw.discount_text || '') : ''
+  svcCalcDescuento()
   let inc=[]
   try{ inc=raw? (Array.isArray(raw.includes)?raw.includes:JSON.parse(raw.includes||'[]')) : [] }catch(e){}
   document.getElementById('svcIncludes').value=inc.join('\n')
@@ -11113,8 +11145,10 @@ async function saveSvc(){
   const name=document.getElementById('svcName').value.trim()
   if(!name){ svcTab('basicos'); toast('Falta el nombre','error'); return }
   const id=document.getElementById('svcId').value
+  const dcto = svcDescuentoCalculado()
+  if(dcto.on && !dcto.valido){ svcTab('basicos'); toast('Pon un precio y un porcentaje de descuento entre 1 y 99','error'); return }
   const row={ name, cat_id:document.getElementById('svcCat').value,
-    price:precioNormal(document.getElementById('svcPrice').value),
+    price:precioNormal(dcto.final || document.getElementById('svcPrice').value),
     duration:(parseInt(document.getElementById('svcDur').value)||60)+' min',
     short_desc:document.getElementById('svcShort').value.trim(),
     long_desc:document.getElementById('svcLong').value.trim(),
@@ -11123,9 +11157,10 @@ async function saveSvc(){
     tag:document.getElementById('svcTag').value.trim(),
     link:document.getElementById('svcLink').value.trim(),
     highlighted:document.getElementById('svcHigh').checked,
-    has_discount:document.getElementById('svcDisc').checked,
-    original_price:document.getElementById('svcOrig').value.trim(),
-    discount_label:document.getElementById('svcDiscLbl').value.trim(),
+    has_discount:dcto.valido,
+    original_price:dcto.valido ? precioNormal(dcto.base) : '',
+    discount_label:dcto.valido ? dcto.pct + '% DCTO' : '',
+    discount_text:dcto.valido ? document.getElementById('svcDiscText').value.trim() : '',
     includes:document.getElementById('svcIncludes').value.split('\n').map(x=>x.trim()).filter(Boolean) }
   const oldName=(state.services.find(x=>x.id===id)||{}).name
   const meta={ video:document.getElementById('svcVideo').checked,
