@@ -885,6 +885,8 @@ label.chk input{width:auto;margin:0}
 .wa-burbuja{background:#dcf8c6;border-radius:14px 14px 14px 4px;padding:12px 14px;font-size:.86rem;
   line-height:1.5;color:#1f2733;white-space:normal;max-width:100%}
 .mt-vars{display:flex;flex-wrap:wrap;gap:6px}
+.rem-prev{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.rem-prev .wa-burbuja{max-width:520px;white-space:pre-wrap}
 .mt-vars .mini-btn{font-size:.74rem}
 
 /* catálogo de gift cards */
@@ -1766,10 +1768,21 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           </div>
           <div class="rep-block">
             <h3>Mensaje del recordatorio</h3>
-            <textarea id="remTpl" rows="3" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></textarea>
-            <div style="font-size:.75rem;color:var(--mid);margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <span>Variables: <code>{cliente}</code> <code>{fecha}</code> <code>{hora}</code> <code>{servicio}</code></span>
+            <textarea id="remTpl" rows="3" oninput="previewRemTpl()" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.84rem"></textarea>
+            <p class="rem-note" style="margin:8px 0 6px">Pincha un dato para insertarlo donde está el cursor; en cada recordatorio se cambia solo por el de la reserva:</p>
+            <div class="mt-vars">
+              <button type="button" class="mini-btn" onclick="insertarVariable('cliente','remTpl')">👤 Nombre del cliente</button>
+              <button type="button" class="mini-btn" onclick="insertarVariable('fecha','remTpl')">📅 Fecha</button>
+              <button type="button" class="mini-btn" onclick="insertarVariable('hora','remTpl')">🕐 Hora</button>
+              <button type="button" class="mini-btn" onclick="insertarVariable('servicio','remTpl')">💆 Servicio</button>
+            </div>
+            <div class="rem-prev">
+              <span class="rem-note">Así le llega al cliente:</span>
+              <div class="wa-burbuja" id="remPrev"></div>
+            </div>
+            <div style="margin-top:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
               <button class="mini-btn" onclick="saveRemTpl()">Guardar mensaje</button>
+              <button class="mini-link" type="button" onclick="restaurarRemTpl()">Volver al mensaje original</button>
             </div>
           </div>
         </div>
@@ -10142,11 +10155,15 @@ async function saveMsgTpl(){
   closeModal('mtModal'); renderAdmin()
   toast(ok ? 'Plantilla guardada' : 'Guardada solo en este navegador','success')
 }
-function insertarVariable(v){
-  const ta = document.getElementById('mtTexto')
-  const i = ta.selectionStart || ta.value.length
-  ta.value = ta.value.slice(0,i) + '{' + v + '}' + ta.value.slice(ta.selectionEnd || i)
-  ta.focus(); ta.selectionStart = ta.selectionEnd = i + v.length + 2
+/* Inserta {variable} donde esta el cursor. Antes, con el cursor al inicio
+   del texto (posicion 0) la variable se iba al final. */
+function insertarVariable(v, campo){
+  const ta = document.getElementById(campo || 'mtTexto'); if(!ta) return
+  const ini = typeof ta.selectionStart === 'number' ? ta.selectionStart : ta.value.length
+  const fin = typeof ta.selectionEnd === 'number' ? ta.selectionEnd : ini
+  ta.value = ta.value.slice(0, ini) + '{' + v + '}' + ta.value.slice(fin)
+  ta.focus(); ta.selectionStart = ta.selectionEnd = ini + v.length + 2
+  ta.dispatchEvent(new Event('input'))   // para que se actualice la vista previa
 }
 
 /* ══════════════ CATÁLOGO DE GIFT CARDS ══════════════
@@ -13456,20 +13473,36 @@ function waPhone(raw){
   if(d.length===8) return '569'+d
   return d
 }
-function buildReminderMsg(a){
+function rellenarRecordatorio(tpl, a){
   const [y,m,dd]=a.appt_date.split('-').map(Number)
   const dObj=new Date(y,m-1,dd)
   const fecha=`${DOW_FULL[dObj.getDay()].toLowerCase()} ${dd} de ${MONTHS[m-1].toLowerCase()}`
-  return getRemTpl()
+  return String(tpl||'')
     .replace(/{cliente}/g, a.client_name||'')
     .replace(/{fecha}/g, fecha)
-    .replace(/{hora}/g, a.start_time.slice(0,5))
+    .replace(/{hora}/g, (a.start_time||'').slice(0,5))
     .replace(/{servicio}/g, a.service_name||'tu servicio')
+}
+function buildReminderMsg(a){ return rellenarRecordatorio(getRemTpl(), a) }
+/* vista previa con una reserva de verdad, o una de ejemplo si no hay */
+function previewRemTpl(){
+  const el = document.getElementById('remPrev'); if(!el) return
+  const hoy = isoDate(new Date())
+  const a = state.appointments.find(x => x.status!=='block' && x.status!=='cancelled' && x.appt_date>=hoy)
+    || { client_name:'María Pérez', service_name:'Masaje Descontracturante Premium', appt_date:isoDate(addDays(new Date(),1)), start_time:'16:00' }
+  const txt = rellenarRecordatorio(document.getElementById('remTpl').value, a)
+  el.textContent = txt.trim() ? txt : 'Escribe el mensaje arriba.'
+}
+function restaurarRemTpl(){
+  document.getElementById('remTpl').value = REM_TPL_DEFAULT
+  previewRemTpl()
+  toast('Se puso el mensaje original. Aprieta "Guardar mensaje" para dejarlo.','success')
 }
 let remTab='pendientes'
 function renderRecordatorios(){
   const el=document.getElementById('remTable'); if(!el) return
   document.getElementById('remTpl').value=getRemTpl()
+  previewRemTpl()
   document.getElementById('remAuto').checked=!!botCfg.rem_auto
   document.getElementById('remHours').value=botCfg.rem_hours||24
   document.getElementById('remChannel').value=botCfg.rem_channel||'email'
