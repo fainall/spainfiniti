@@ -11115,8 +11115,27 @@ function svcCalcDescuento(){
   document.getElementById('svcDiscBox').style.display = d.on ? 'block' : 'none'
   document.getElementById('svcDiscPrecio').value = d.valido ? precioNormal(d.final) : ''
 }
-function openSvcModal(id){
-  const raw=id?(window.__svcRows||[]).find(s=>s.id===id):null
+/* Error grave corregido: los datos del sitio de cada servicio (foto,
+   descripciones, enlace de AgendaPro, destacado, descuento) salian de
+   window.__svcRows, una lista que solo se cargaba despues del primer
+   guardado. El primer servicio que se editaba en cada sesion se abria con
+   esos campos en blanco, y al guardar los borraba de la base: asi se
+   perdieron fotos, descripciones y enlaces de varios servicios.
+   Ahora el servicio se lee de la base cada vez que se abre, y si no se
+   puede leer el editor no se abre, para que nunca se guarde en blanco. */
+let svcAbierto = null
+async function openSvcModal(id){
+  let raw = null
+  svcAbierto = null
+  if(id){
+    try{
+      const filas = await supabase.fetch('services', { filters: 'id=eq.' + encodeURIComponent(id) })
+      raw = (filas && filas[0]) || null
+    }catch(e){ console.warn('servicio:', e) }
+    if(!raw){ toast('No pude leer ese servicio. Revisa la conexión e inténtalo de nuevo.', 'error'); return }
+    window.__svcRows = (window.__svcRows || []).filter(x => x.id !== id).concat([raw])
+    svcAbierto = id
+  }
   const s=id?state.services.find(x=>x.id===id):null
   document.getElementById('svcTitle').textContent=s?'Editando '+s.name:'Nuevo servicio'
   document.getElementById('svcId').value=id||''
@@ -11175,6 +11194,8 @@ async function saveSvc(){
   const name=document.getElementById('svcName').value.trim()
   if(!name){ svcTab('basicos'); toast('Falta el nombre','error'); return }
   const id=document.getElementById('svcId').value
+  /* nunca guardar un servicio existente que no se leyo completo al abrirlo */
+  if(id && svcAbierto !== id){ toast('Vuelve a abrir el servicio antes de guardar: no se alcanzaron a leer todos sus datos.', 'error'); return }
   const dcto = svcDescuentoCalculado()
   if(dcto.on && !dcto.valido){ svcTab('basicos'); toast('Pon un precio y un porcentaje de descuento entre 1 y 99','error'); return }
   const row={ name, cat_id:document.getElementById('svcCat').value,
