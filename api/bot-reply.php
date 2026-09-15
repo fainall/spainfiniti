@@ -45,7 +45,7 @@ function supa($method, $path, $body = null) {
 /* ── Contexto ── */
 $botRows = supa('GET', 'bot_config?id=eq.1&select=*');
 $bot = (is_array($botRows) && count($botRows)) ? $botRows[0] : [];
-$services = supa('GET', 'services?select=name,price,duration,short_desc,long_desc,cat_id') ?: [];
+$services = supa('GET', 'services?select=id,name,price,duration,short_desc,long_desc,cat_id') ?: [];
 $categorias = supa('GET', 'categories?select=id,name') ?: [];
 $nombreCat = [];
 foreach ($categorias as $c) $nombreCat[$c['id']] = $c['name'];
@@ -196,6 +196,9 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - Todo lo que averigües (cuántas uñas, molestias, si es primera vez, diabetes)
   pásalo en el campo 'detalle' al crear la reserva, para que el equipo lo lea.
 - Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
+- En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
+- Si le dijiste al cliente con qué profesional se atiende, pásala en professional_name: no se agenda con otra sin avisarle.
+- Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok.
 - Si no hay disponibilidad, ofrece alternativas cercanas.
 
 LO QUE NO HACES:
@@ -220,11 +223,50 @@ $svcMeta = $bot['svc_meta'] ?? [];
 if (is_string($svcMeta)) $svcMeta = json_decode($svcMeta, true);
 if (!is_array($svcMeta)) $svcMeta = [];
 
+/* El modelo escribe el nombre del servicio como le sale ("Tratamiento Ácido
+   Nítrico + Alta Frecuencia-Tipo 2" en vez de "Tratamiento con Ácido Nítrico+
+   Alta Frecuencia-Tipo 2"). Con el nombre distinto la reserva quedaba sin
+   precio y el panel no la asociaba a ningun servicio. Aqui se busca el del
+   catalogo que mas se parece: sin tildes, sin signos, y si aun no calza, el
+   que comparte mas palabras. */
+function svc_clave($t) {
+    $t = mb_strtolower(trim((string)$t), 'UTF-8');
+    $t = strtr($t, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ü'=>'u','ñ'=>'n']);
+    return trim(preg_replace('/[^a-z0-9]+/', ' ', $t));
+}
+function svc_del_catalogo($name) {
+    global $services;
+    $k = svc_clave($name);
+    if ($k === '') return null;
+    foreach ($services as $s) if (svc_clave($s['name']) === $k) return $s;
+    $sinRelleno = fn($x) => array_values(array_diff(explode(' ', $x), ['con','de','del','la','el','y','tipo','en','para','']));
+    $pal = $sinRelleno($k);
+    $mejor = null; $mejorPts = 0;
+    foreach ($services as $s) {
+        $ps = $sinRelleno(svc_clave($s['name']));
+        $comunes = count(array_intersect($pal, $ps));
+        if (!$comunes) continue;
+        /* las palabras que no calzan restan: "tipo 1" y "tipo 2" se distinguen */
+        $pts = $comunes * 2 - count(array_diff($ps, $pal)) - count(array_diff($pal, $ps));
+        if ($pts > $mejorPts) { $mejorPts = $pts; $mejor = $s; }
+    }
+    return ($mejor && $mejorPts >= 2) ? $mejor : null;
+}
 /* id del servicio a partir de su nombre */
 function svc_id_by_name($name) {
-    global $services;
-    foreach ($services as $s) if (mb_strtolower($s['name']) === mb_strtolower(trim($name))) return $s['id'] ?? null;
-    return null;
+    $s = svc_del_catalogo($name);
+    return $s ? ($s['id'] ?? null) : null;
+}
+/* minutos que dura un servicio del catalogo ("90 min", "1 hora 30") */
+function svc_minutos($s, $porDefecto = 60) {
+    $d = mb_strtolower((string)($s['duration'] ?? ''));
+    if (preg_match('/(\d+)\s*h/', $d, $h)) {
+        $min = (int)$h[1] * 60;
+        if (preg_match('/h[a-z]*\s*(\d+)/', $d, $m2)) $min += (int)$m2[1];
+        return $min ?: $porDefecto;
+    }
+    if (preg_match('/(\d+)/', $d, $m)) return (int)$m[1] ?: $porDefecto;
+    return $porDefecto;
 }
 /* devuelve null si se puede agendar, o el motivo del bloqueo */
 function service_rule_block($serviceName, $date, $time, $dur) {
@@ -342,8 +384,17 @@ $tools = [
       'client_email'=>['type'=>'string','description'=>'Correo del cliente'],
       'acompanante'=>['type'=>'string','description'=>'Nombre del acompanante, si viene con alguien'],
       'acompanante_telefono'=>['type'=>'string','description'=>'Telefono del acompanante'],
-      'detalle'=>['type'=>'string','description'=>'Lo que conviene que sepa el equipo: cuantas unas afectadas, molestias, etc.']
+      'detalle'=>['type'=>'string','description'=>'Lo que conviene que sepa el equipo: cuantas unas afectadas, molestias, etc.'],
+      'professional_name'=>['type'=>'string','description'=>'Profesional que se le dijo al cliente (el que devolvio check_availability). Obligatorio si se le nombro una.'],
+      'replace_date'=>['type'=>'string','description'=>'Si es un cambio de hora: fecha YYYY-MM-DD de la reserva anterior, que se cancela sola al crear la nueva'],
+      'replace_time'=>['type'=>'string','description'=>'Hora HH:MM de la reserva anterior que se reemplaza']
     ],'required'=>['service_name','date','time','client_name','client_email']]]],
+  ['type'=>'function','function'=>['name'=>'cancel_booking','description'=>'Cancela una reserva existente del cliente. Usala cuando pida anular o cuando cambie la hora y no se haya usado replace_date. Nunca digas que una hora fue cancelada sin llamar a esta funcion.',
+    'parameters'=>['type'=>'object','properties'=>[
+      'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD de la reserva a cancelar'],
+      'time'=>['type'=>'string','description'=>'Hora HH:MM de la reserva a cancelar'],
+      'client_name'=>['type'=>'string','description'=>'Nombre con que se reservo']
+    ],'required'=>['date','time','client_name']]]],
 ];
 
 $input = json_decode(file_get_contents('php://input'), true);
@@ -397,7 +448,8 @@ function do_check($args) {
     if (!empty($args['service_name'])) {
         global $services;
         $base = '';
-        foreach ($services as $s) if ($s['name'] === $args['service_name']) { $base = $s['price']; break; }
+        $sc = svc_del_catalogo($args['service_name']);
+        if ($sc) $base = $sc['price'];
         if ($base !== '') {
             $sp = smart_price($date, $time, $args['service_name'], $base);
             $out['precio_normal'] = money_fmt(money_int($base));
@@ -436,11 +488,49 @@ function ficha_de_cliente($nombre, $telefono, $correo) {
     return (is_array($nuevo) && count($nuevo) && !empty($nuevo[0]['id'])) ? $nuevo[0]['id'] : null;
 }
 
+/* Cancela la reserva del cliente en esa fecha y hora (queda como cancelada en
+   su historial, como cuando se anula desde el panel). */
+function do_cancel($args) {
+    global $phone;
+    $date = (string)($args['date'] ?? ''); $time = substr((string)($args['time'] ?? ''), 0, 5);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !preg_match('/^\d{2}:\d{2}$/', $time)) return ['ok'=>false,'reason'=>'fecha u hora no válida'];
+    $q = 'appointments?select=id,client_name,client_phone,professional_id&appt_date=eq.'.$date.'&start_time=eq.'.$time.':00&status=neq.cancelled&status=neq.block';
+    $lista = supa('GET', $q) ?: [];
+    $dig = preg_replace('/\D/', '', (string)$phone);
+    $ult = strlen($dig) >= 8 ? substr($dig, -8) : '';
+    $nombre = svc_clave($args['client_name'] ?? '');
+    foreach ($lista as $a) {
+        $mismoTel = $ult !== '' && substr(preg_replace('/\D/', '', (string)($a['client_phone'] ?? '')), -8) === $ult;
+        $mismoNombre = $nombre !== '' && svc_clave($a['client_name'] ?? '') === $nombre;
+        if ($mismoTel || $mismoNombre) {
+            $r = supa('PATCH', 'appointments?id=eq.'.urlencode($a['id']), ['status'=>'cancelled']);
+            return is_array($r) ? ['ok'=>true, 'cancelled'=>$date.' '.$time] : ['ok'=>false,'reason'=>'error'];
+        }
+    }
+    return ['ok'=>false,'reason'=>'no encontré una reserva a ese nombre en esa fecha y hora'];
+}
+
 function do_book($args) {
     global $phone;
+    /* el servicio tal como esta en el catalogo: su nombre, su duracion y su precio */
+    $svc = svc_del_catalogo($args['service_name'] ?? '');
+    if (!$svc) return ['ok'=>false,'reason'=>'no encuentro ese servicio en el catálogo; usa el nombre exacto de la lista'];
+    $args['service_name'] = $svc['name'];
+    if (empty($args['duration'])) $args['duration'] = svc_minutos($svc);
     $chk=do_check($args);
     if (!$chk['available']) return ['ok'=>false,'reason'=>$chk['motivo'] ?? 'no_disponible'];
-    $prof=$chk['professionals'][0];
+    /* la profesional que se le nombro al cliente; si ya no esta libre se avisa
+       en vez de agendar con otra a escondidas */
+    $prof = null;
+    $pedida = svc_clave($args['professional_name'] ?? '');
+    if ($pedida !== '') {
+        foreach ($chk['professionals'] as $p) {
+            $kp = svc_clave($p['name']);
+            if ($kp === $pedida || strpos($kp, $pedida) === 0 || strpos($pedida, explode(' ', $kp)[0]) === 0) { $prof = $p; break; }
+        }
+        if (!$prof) return ['ok'=>false,'reason'=>'esa profesional ya no está libre a esa hora; libres: '.implode(', ', array_column($chk['professionals'], 'name'))];
+    }
+    if (!$prof) $prof = $chk['professionals'][0];
     if (!prof_hace_servicio($prof['id'], $args['service_name'] ?? ''))
         return ['ok'=>false,'reason'=>'ese profesional no realiza ese servicio'];
     $time=substr($args['time'],0,5); $dur=$args['duration']??60;
@@ -457,8 +547,7 @@ function do_book($args) {
 
     /* el precio del catalogo en el momento de reservar: sin el, el panel no
        sabia cuanto cobrar y marcaba la reserva como "precio ajustado" */
-    $svcPrecio = supa('GET', 'services?select=price&name=eq.' . rawurlencode($args['service_name']) . '&limit=1');
-    $precio = (is_array($svcPrecio) && count($svcPrecio)) ? (string)($svcPrecio[0]['price'] ?? '') : '';
+    $precio = (string)($svc['price'] ?? '');
 
     $row=['professional_id'=>$prof['id'],'client_name'=>$args['client_name'],'client_phone'=>$phone,
         'service_name'=>$args['service_name'],'appt_date'=>$args['date'],'start_time'=>$time,'end_time'=>$end,
@@ -466,7 +555,16 @@ function do_book($args) {
     if ($precio !== '') $row['price'] = $precio;
     if ($clientId) $row['client_id'] = $clientId;
     $res=supa('POST','appointments',$row);
-    if (is_array($res)&&count($res)) return ['ok'=>true,'professional'=>$prof['name'],'appointment'=>$res[0]];
+    if (is_array($res)&&count($res)) {
+        $out = ['ok'=>true,'professional'=>$prof['name'],'service'=>$svc['name'],'price'=>$precio,'appointment'=>$res[0]];
+        /* cambio de hora: la anterior se cancela recien cuando la nueva ya existe */
+        if (!empty($args['replace_date']) && !empty($args['replace_time'])) {
+            $c = do_cancel(['date'=>$args['replace_date'], 'time'=>$args['replace_time'], 'client_name'=>$args['client_name']]);
+            $out['previous_cancelled'] = !empty($c['ok']);
+            if (empty($c['ok'])) $out['previous_reason'] = $c['reason'] ?? '';
+        }
+        return $out;
+    }
     return ['ok'=>false,'reason'=>'error'];
 }
 
@@ -516,7 +614,7 @@ for ($i=0; $i<4; $i++) {
         foreach ($m['tool_calls'] as $tc) {
             $args = json_decode($tc['function']['arguments'] ?? '{}', true) ?: [];
             $name = $tc['function']['name'];
-            $out = $name==='check_availability' ? do_check($args) : do_book($args);
+            $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : do_book($args));
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
         }
