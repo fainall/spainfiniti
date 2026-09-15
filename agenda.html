@@ -5721,8 +5721,12 @@ async function guardarCobroMultiple(medio){
 function botonPagar(id, ancho){
   const a = findAppt(id); if(!a) return ''
   if(apptPagada(a)){
-    const v = state.sales.find(s=>s.appointment_id===a.id && s.status!=='deleted') || {}
+    /* la venta mas reciente de la reserva (la que cerro la cuenta); se abre
+       con "Ver pago", como en AgendaPro (pedido de Luis) */
+    const v = state.sales.filter(s=>s.appointment_id===a.id && s.status!=='deleted')
+      .sort((x,y)=>String(y.created_at||y.sale_date||'').localeCompare(String(x.created_at||x.sale_date||'')))[0] || {}
     return `<span class="pagada-sello" title="${esc(v.payment_method||'')}">✓ Pagada${v.payment_method?' · '+esc(v.payment_method):''}</span>`
+      + (v.id ? ` <button class="mini-btn" onclick="closeQuickView();editSale('${v.id}')">$ Ver pago</button>` : '')
   }
   /* con abono: se muestra lo pagado y se cobra solo el saldo */
   if(apptAbonada(a)){
