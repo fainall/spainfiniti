@@ -5603,7 +5603,7 @@ function openApptQuickView(id){
     ${pro ? '' : `<div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>`}
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--texto)">${STATUS_LABEL[a.status]||''}</span></div>
     <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
-      ${pro ? '' : botonPagar(id)}
+      ${pro ? pagoSoloVer(id) : botonPagar(id)}
       ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">Ver ficha completa</button>`:''}
     </div>`
   document.body.appendChild(qv)
@@ -5718,6 +5718,17 @@ async function guardarCobroMultiple(medio){
 /* ══════════════ MENÚ DE PAGO DE UNA RESERVA ══════════════
    Si ya está pagada se ve el sello; si no, las tres formas de cobrar:
    en el local, mandando el link por WhatsApp, o copiando el link. */
+/* Lo que ve una profesional del pago de una reserva: pagada, abonada o
+   pendiente, sin botones para cobrar (Luis: que pueda ver el pago). */
+function pagoSoloVer(id){
+  const a = findAppt(id); if(!a) return ''
+  if(apptPagada(a)){
+    const v = state.sales.find(s=>s.appointment_id===a.id && s.status!=='deleted') || {}
+    return `<span class="pagada-sello">✓ Pagada${v.payment_method?' · '+esc(v.payment_method):''}</span>`
+  }
+  if(apptAbonada(a)) return `<span class="abono-sello">A · Abonado ${fmtMoney(totalCobrado(a))} · falta ${fmtMoney(saldoPendiente(a))}</span>`
+  return '<span class="abono-sello" style="opacity:.75">Pago pendiente</span>'
+}
 function botonPagar(id, ancho){
   const a = findAppt(id); if(!a) return ''
   if(apptPagada(a)){
