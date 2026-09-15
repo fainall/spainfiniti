@@ -37,20 +37,32 @@ $system = "Eres el analista de negocio de Spa Infinity, un centro podológico y 
   . "Cada línea: un hallazgo concreto con el número que lo respalda, o una recomendación accionable para el spa. "
   . "No inventes datos que no estén en el resumen. No uses markdown ni viñetas.";
 
-$payload = json_encode([
-  'model' => $cfg['model'] ?? 'gpt-4o-mini',
+/* Esto es un informe, no un chat: aqui si conviene un modelo que razone mas
+   aunque se demore unos segundos. El bot de WhatsApp usa el suyo, mas rapido.
+   Se puede cambiar con 'insightModel' en bot-config.php. */
+$MODELO_ANALISIS = $cfg['insightModel'] ?? 'gpt-5';
+$cuerpo = [
+  'model' => $MODELO_ANALISIS,
   'messages' => [
     ['role'=>'system','content'=>$system],
     ['role'=>'user','content'=>"Estos son los datos reales de ventas del negocio. Analízalos:\n\n" . $datos],
   ],
-  'temperature' => 0.4,
-  'max_tokens' => 400,
-], JSON_UNESCAPED_UNICODE);
+];
+/* los GPT-5 no aceptan max_tokens ni temperature, y gastan parte del
+   presupuesto pensando antes de escribir */
+if (preg_match('/^(gpt-5|o[134])/', $MODELO_ANALISIS)) {
+  $cuerpo['max_completion_tokens'] = 2000;
+  $cuerpo['reasoning_effort'] = 'low';
+} else {
+  $cuerpo['temperature'] = 0.4;
+  $cuerpo['max_tokens'] = 400;
+}
+$payload = json_encode($cuerpo, JSON_UNESCAPED_UNICODE);
 
 $ch = curl_init('https://api.openai.com/v1/chat/completions');
 curl_setopt_array($ch, [
   CURLOPT_RETURNTRANSFER => true,
-  CURLOPT_TIMEOUT => 40,
+  CURLOPT_TIMEOUT => 90,   // gpt-5 se toma unos segundos pensando
   CURLOPT_POST => true,
   CURLOPT_POSTFIELDS => $payload,
   CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Authorization: Bearer ' . $KEY],
