@@ -12420,7 +12420,7 @@ async function deleteSale(){
   if(!id) return
   if(!await confirmar('¿Eliminar esta venta?')) return
   const venta = state.sales.find(x=>x.id===id)
-  try{ await supabase.update('sales',id,{status:'deleted'}); await devolverStock(venta); await loadSales(); closeModal('saleModal'); toast('Venta eliminada','success'); renderSales() }
+  try{ await supabase.update('sales',id,{status:'deleted'}); await devolverStock(venta); await loadSales(); closeModal('saleModal'); toast('Venta eliminada','success'); renderSales(); if(typeof renderCalendar==='function') renderCalendar() }
   catch(e){ toast('Error al eliminar','error') }
 }
 function fillSaleProf(){
