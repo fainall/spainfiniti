@@ -9085,7 +9085,7 @@ function formularioFicha(tpl, datos, soloLectura){
           campo = `<div class="ff-fotos" data-fk="${k}" data-urls='${JSON.stringify(urls)}'>
             <div class="ff-miniaturas">${urls.map((u,n)=>`<span class="ff-mini">
               <a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" /></a>
-              <button class="ff-quitar" title="Quitar" onclick="quitarFotoFicha('${k}',${n})">✕</button></span>`).join('')}</div>
+              ${puedeQuitarFoto(k, u) ? `<button class="ff-quitar" title="Quitar" onclick="quitarFotoFicha('${k}',${n})">✕</button>` : ''}</span>`).join('')}</div>
             <button class="btn-g ff-camara" onclick="document.getElementById('cam-${k}').click()">📷 Tomar foto</button>
             <button class="btn-g" onclick="document.getElementById('file-${k}').click()">🖼 Subir foto</button>
             <input type="file" id="cam-${k}" accept="image/*" capture="environment" style="display:none" onchange="subirFotoFicha('${k}',this)" />
@@ -9194,19 +9194,29 @@ function reducirImagen(file, maxLado, calidad){
   })
 }
 
+/* Una profesional puede quitar una foto que recien subio por error, pero no
+   las que ya estaban guardadas en la ficha (el registro del antes, por
+   ejemplo): borrarlas es tan grave como borrar la ficha. */
+function puedeQuitarFoto(clave, url){
+  if(!isPro()) return true
+  const g = fichaEdit && fichaEdit.record && fichaEdit.record.data ? fichaEdit.record.data[clave] : null
+  const guardadas = Array.isArray(g) ? g : (g ? [g] : [])
+  return !guardadas.includes(url)
+}
 function pintarFotosFicha(clave){
   const caja = document.querySelector('.ff-fotos[data-fk="' + clave + '"]')
   if(!caja) return
   const urls = JSON.parse(caja.dataset.urls || '[]')
   caja.querySelector('.ff-miniaturas').innerHTML = urls.map((u, n) =>
     '<span class="ff-mini"><a href="' + esc(u) + '" target="_blank" rel="noopener"><img src="' + esc(u) + '" alt="" /></a>' +
-    '<button class="ff-quitar" title="Quitar" onclick="quitarFotoFicha(\'' + clave + '\',' + n + ')">✕</button></span>').join('')
+    (puedeQuitarFoto(clave, u) ? '<button class="ff-quitar" title="Quitar" onclick="quitarFotoFicha(\'' + clave + '\',' + n + ')">✕</button>' : '') + '</span>').join('')
 }
 
 function quitarFotoFicha(clave, indice){
   const caja = document.querySelector('.ff-fotos[data-fk="' + clave + '"]')
   if(!caja) return
   const urls = JSON.parse(caja.dataset.urls || '[]')
+  if(!puedeQuitarFoto(clave, urls[indice])){ toast('Las fotos ya guardadas solo las puede quitar administración.', 'error'); return }
   urls.splice(indice, 1)
   caja.dataset.urls = JSON.stringify(urls)
   pintarFotosFicha(clave)
@@ -9352,7 +9362,7 @@ function pintarFicha(){
 
   document.getElementById('ffBotones').innerHTML = leyendo
     ? `<button class="btn-ghost" onclick="closeModal('ffModal')">Cerrar</button>`
-    : `${rec ? '<button class="btn-danger" onclick="deleteFichaCliente()">Eliminar</button>' : ''}
+    : `${rec && !isPro() ? '<button class="btn-danger" onclick="deleteFichaCliente()">Eliminar</button>' : ''}
        <button class="btn-ghost" onclick="cancelarEdicionFicha()">Cancelar</button>
        <button class="btn-primary" onclick="unaVez(event,saveFichaCliente)">Guardar ficha</button>`
 }
@@ -9425,6 +9435,8 @@ async function saveFichaCliente(){
 
 async function deleteFichaCliente(){
   if(!fichaEdit || !fichaEdit.id) return
+  /* las profesionales crean y completan fichas, pero no las borran (Luis) */
+  if(isPro()){ toast('Las fichas solo las puede borrar administración.', 'error'); return }
   if(!await confirmar('Se borrará esta ficha completada. No se puede deshacer.', { titulo:'¿Borrar la ficha?' })) return
   try{
     await supabase.delete('client_records', fichaEdit.id)
