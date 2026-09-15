@@ -1331,6 +1331,8 @@ body.sin-scroll{overflow:hidden}
   #calGrid .dcol.pcol, .cal-head .dcol.pcol{min-width:150px;flex:0 0 150px}
   .cal-head .dcol.pcol{min-width:150px}
 }
+/* una sola columna: todo el ancho (va despues para ganarle a la regla de arriba) */
+#calGrid.una-col .dcol.pcol, .cal-head.una-col .dcol.pcol{min-width:0 !important;flex:1 1 auto !important}
 
 /* selección múltiple en forma de desplegable */
 .ff-multi{position:relative}
@@ -4767,6 +4769,11 @@ function renderCalendarDia(){
   })
 
   document.getElementById('calGrid').innerHTML = `<div class="gutter">${gut}</div>${cols}`
+  /* con una sola profesional (la que entra con su cuenta, o el filtro en una)
+     su columna ocupa todo el ancho en vez de quedarse en 150px */
+  const unaCol = profs.length === 1
+  document.getElementById('calGrid').classList.toggle('una-col', unaCol)
+  document.getElementById('calHead').classList.toggle('una-col', unaCol)
   if(!profs.length){
     document.getElementById('calGrid').innerHTML += `<div class="empty-note">
       <div>No hay profesionales para mostrar.</div>
@@ -4808,6 +4815,7 @@ function franjasFueraDeHorario(fecha, minM, maxM, SP, gridH){
 }
 
 function renderCalendar(){
+  ;['calGrid','calHead'].forEach(i => { const el = document.getElementById(i); if(el) el.classList.remove('una-col') })
   if(state.view==='rec') return renderCalendarRec()
   if(state.view==='day') return renderCalendarDia()
   const [from,to]=visibleRange()
@@ -5572,11 +5580,14 @@ function openApptQuickView(id){
   const waP=waPhone(phone)
   const dots=['reserved','confirmed','attending','no_show','pending','waiting']
     .map(s=>`<span class="qv-dot ${a.status===s?'on':''}" title="${STATUS_LABEL[s]}" style="background:${STATUS_COLORS[s]}" onclick="setApptStatus('${id}','${s}')"></span>`).join('')
+  /* Una profesional solo ve la reserva y entra a la ficha clinica: no elimina
+     ni edita, no ve el contacto del cliente ni cobra (pedido de Luis). */
+  const pro = isPro()
   const qv=document.createElement('div'); qv.className='qv'; qv.id='apptQV'
   qv.innerHTML=`
     <div class="qv-head">
-      <button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="qvDelete('${id}')">🗑</button>
-      <button class="qv-icon" title="Editar" onclick="closeQuickView();openApptDetail('${id}')">✎ Editar</button>
+      ${pro ? '' : `<button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="qvDelete('${id}')">🗑</button>
+      <button class="qv-icon" title="Editar" onclick="closeQuickView();openApptDetail('${id}')">✎ Editar</button>`}
       <button class="qv-icon" onclick="closeQuickView()">✕</button>
     </div>
     <div class="qv-name">${a.client_id
@@ -5587,12 +5598,12 @@ function openApptQuickView(id){
     ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${qvPrecio(a)}</div>`:''}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--texto)">${esc(p.name)}</strong></div>`:''}
-    ${phone?`<div class="qv-row">📱 ${esc(phone)} ${menuWhatsapp(id, phone)}</div>`:''}
-    ${email?`<div class="qv-row">✉ ${esc(email)}</div>`:''}
-    <div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>
+    ${!pro && phone?`<div class="qv-row">📱 ${esc(phone)} ${menuWhatsapp(id, phone)}</div>`:''}
+    ${!pro && email?`<div class="qv-row">✉ ${esc(email)}</div>`:''}
+    ${pro ? '' : `<div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>`}
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--texto)">${STATUS_LABEL[a.status]||''}</span></div>
     <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
-      ${botonPagar(id)}
+      ${pro ? '' : botonPagar(id)}
       ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">Ver ficha completa</button>`:''}
     </div>`
   document.body.appendChild(qv)
@@ -6829,6 +6840,7 @@ let adState={id:null, tab:'reserva', hist:'cliente'}
 const AD_TABS=[['reserva','Reserva'],['pago','Pago'],['recordatorios','Recordatorios'],['cliente','Cliente'],['ficha','Ficha'],['historial','Historial']]
 function openApptDetail(id){
   closeQuickView()
+  if(isPro()){ toast('Las reservas las modifica la recepción. Desde aquí puedes ver y crear fichas.', 'error'); return }
   const a=findAppt(id); if(!a) return
   adState={id, tab:'reserva', hist:'cliente'}
   document.getElementById('adTitle').textContent='Reserva de '+(a.client_name||'—')
@@ -7179,7 +7191,7 @@ let cdCliente = null, cdTab = 'actividad'
 
 async function openClientDetail(id){
   cdCliente = state.clients.find(x=>x.id===id); if(!cdCliente) return
-  cdTab = 'actividad'
+  cdTab = isPro() ? 'fichas' : 'actividad'
   fichasCliente = []
   renderClientDetail()
   openModal('clientDetailModal')
@@ -7213,18 +7225,22 @@ function renderClientDetail(){
   const desde = c.created_at ? new Date(c.created_at) : null
   document.getElementById('cdSince').textContent = desde
     ? 'Cliente desde '+desde.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}) : ''
+  const pro = isPro()
   document.getElementById('cdInfo').innerHTML = `<div class="cd-chips">
-    ${c.phone?`<span>📞 ${esc(c.phone)}</span>`:''}
-    ${c.email?`<span>✉ ${esc(c.email)}</span>`:''}
-    ${c.rut?`<span>RUT ${esc(c.rut)}</span>`:''}
+    ${!pro && c.phone?`<span>📞 ${esc(c.phone)}</span>`:''}
+    ${!pro && c.email?`<span>✉ ${esc(c.email)}</span>`:''}
+    ${!pro && c.rut?`<span>RUT ${esc(c.rut)}</span>`:''}
     ${c.birthday?`<span>🎂 ${esc(c.birthday)}</span>`:''}</div>
-    ${c.notes?`<div class="cd-nota">${esc(c.notes)}</div>`:''}`
+    ${!pro && c.notes?`<div class="cd-nota">${esc(c.notes)}</div>`:''}`
 
   const { appts, bonos, sales } = cdDatos()
-  const tabs = [['actividad','Actividad'],['asistencia','Asistencia'],
+  const todas = [['actividad','Actividad'],['asistencia','Asistencia'],
                 ['pagos','Pagos y deudas'],['fichas','Fichas ('+fichasCliente.length+')'],
                 ['consent','Consentimientos ('+firmasCliente.length+')'],
                 ['bonos','Bonos ('+bonos.length+')']]
+  /* una profesional solo ve y crea fichas y consentimientos */
+  const tabs = pro ? todas.filter(([k]) => k === 'fichas' || k === 'consent') : todas
+  if(pro && cdTab !== 'fichas' && cdTab !== 'consent') cdTab = 'fichas'
   document.getElementById('cdTabs').innerHTML = tabs.map(([k,t])=>
     `<button class="${cdTab===k?'on':''}" onclick="cdSetTab('${k}')">${t}</button>`).join('')
 
@@ -7237,6 +7253,7 @@ function renderClientDetail(){
   else body.innerHTML = cdBonos(bonos)
 
   document.getElementById('cdEditBtn').onclick=()=>{ closeModal('clientDetailModal'); openClientModal(true,c.id) }
+  document.getElementById('cdEditBtn').style.display = pro ? 'none' : ''
 }
 
 /* ── Actividad: cuántas reservas hay de cada estado, y el historial ── */
