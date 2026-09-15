@@ -5596,6 +5596,7 @@ function openApptQuickView(id){
         : esc(a.client_name||'Sin cliente')}
       ${ORIGENES[origenDe(a)].icono ? `<span class="qv-org" title="${esc(ORIGENES[origenDe(a)].nombre)}">${ORIGENES[origenDe(a)].icono}</span>` : ''}</div>
     ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${qvPrecio(a)}</div>`:''}
+    ${qvCobrado(a)}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--texto)">${esc(p.name)}</strong></div>`:''}
     ${!pro && phone?`<div class="qv-row">📱 ${esc(phone)} ${menuWhatsapp(id, phone)}</div>`:''}
@@ -6492,6 +6493,32 @@ function precioDeCatalogo(a){
 /* El precio en la ficha rapida. Si se ajusto a mano se ve el valor que
    quedo y, al lado, el del catalogo, para saber cuanto se cambio. Si la
    reserva no tiene precio se muestra el del catalogo. */
+/* Al cobrar se pueden sumar otros servicios o productos al carro. La reserva
+   solo guarda su servicio, asi que la ficha rapida mostraba $25.600 aunque la
+   venta fuera de $55.600 (Luis). Aqui se listan los items agregados en el
+   cobro y el total realmente cobrado. */
+function qvCobrado(a){
+  const ventas = ventasDe(a); if(!ventas.length) return ''
+  const norm = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()
+  let delServicio = false
+  const extras = []
+  ventas.forEach(v => {
+    let it = v.items
+    if(typeof it === 'string'){ try{ it = JSON.parse(it) }catch(e){ it = [] } }
+    ;(Array.isArray(it) ? it : []).forEach(x => {
+      const nombre = x.name || x.service_name || x.product_name || ''
+      if(!delServicio && norm(nombre) === norm(a.service_name)){ delServicio = true; return }
+      if(esAbono(v) && norm(nombre).includes(norm(a.service_name))) return
+      extras.push({ nombre, monto:(Number(x.price)||0) * (Number(x.qty)||1) })
+    })
+  })
+  const total = totalCobrado(a)
+  if(!extras.length && total === money2num(a.price)) return ''
+  return `<div class="qv-row" style="display:block;font-size:.82rem">
+    ${extras.map(e => `<div>+ ${esc(e.nombre)} <span style="color:var(--gold-d);font-weight:600">${esc(fmtMoney(e.monto))}</span></div>`).join('')}
+    <div style="margin-top:3px"><strong>Total cobrado ${esc(fmtMoney(total))}</strong></div>
+  </div>`
+}
 function qvPrecio(a){
   const cat = precioDeCatalogo(a)
   if(precioAjustado(a))
