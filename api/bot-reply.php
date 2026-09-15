@@ -481,11 +481,24 @@ if (!count($convo)) { echo json_encode(['reply'=>'Hola 👋 ¿En qué puedo ayud
 
 $messages = array_merge([['role'=>'system','content'=>$system]], $convo);
 
+/* Los modelos GPT-5 no aceptan max_tokens (piden max_completion_tokens) y
+   ademas gastan parte del presupuesto pensando antes de responder: se les da
+   mas margen y el esfuerzo mas bajo, que para atender por WhatsApp basta. */
+function cuerpoOpenAI($MODEL, $tools, $messages) {
+    $cuerpo = ['model'=>$MODEL, 'tools'=>$tools, 'messages'=>$messages];
+    if (preg_match('/^(gpt-5|o[134])/', $MODEL)) {
+        $cuerpo['max_completion_tokens'] = 2500;
+        $cuerpo['reasoning_effort'] = 'low';
+    } else {
+        $cuerpo['max_tokens'] = 700;
+    }
+    return $cuerpo;
+}
 function openai($KEY, $MODEL, $tools, $messages) {
     $ch = curl_init('https://api.openai.com/v1/chat/completions');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>40,
         CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$KEY, 'Content-Type: application/json'],
-        CURLOPT_POSTFIELDS=>json_encode(['model'=>$MODEL,'max_tokens'=>700,'tools'=>$tools,'messages'=>$messages])]);
+        CURLOPT_POSTFIELDS=>json_encode(cuerpoOpenAI($MODEL, $tools, $messages))]);
     $r=curl_exec($ch); $code=curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
     return [$code, json_decode($r,true)];
 }
