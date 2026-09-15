@@ -96,6 +96,9 @@
 .gcx-svc strong { display: block; font-size: 0.95rem; }
 .gcx-svc span { font-size: 0.76rem; color: var(--light, #999); }
 .gcx-svc .gc-btn { padding: 12px 22px; }
+.gcx-ap { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 320px; }
+.gcx-ap span { font-size: 0.74rem !important; color: var(--mid, #666) !important; text-align: right; line-height: 1.45; }
+@media (max-width: 600px) { .gcx-ap { align-items: stretch; max-width: none; } .gcx-ap span { text-align: left; } }
 .gcx-est { font-size: 0.76rem !important; font-weight: 600; border-radius: 20px; padding: 6px 12px; }
 .gcx-est.usado { background: #eee; color: #666 !important; }
 .gcx-est.agendado { background: #e8f5ee; color: #2e7d4f !important; }
@@ -1099,9 +1102,12 @@ function pintarCanje(j){
       accion = '<span class="gcx-est agendado">Agendado para el ' + fechaGc(s.fecha) + '</span>'
     else if(j.vencida)
       accion = '<a class="gc-btn gc-btn-outline" target="_blank" rel="noopener" href="' + escGc(waGc('Hola, mi gift card ' + j.codigo + ' venció y quisiera consultar por ' + s.nombre)) + '">Escríbenos</a>'
-    else if(s.svc)
+    else if(s.svc && s.propia)
       accion = '<a class="gc-btn gc-btn-gold" href="/reservar.html?svc=' + encodeURIComponent(s.svc) + '&gc=' + encodeURIComponent(j.codigo) + '">Agendar mi hora</a>'
-    else   /* el servicio ya no esta en el catalogo: lo vemos por WhatsApp */
+    else if(s.agendapro)   /* se agenda en AgendaPro: el codigo se muestra al llegar */
+      accion = '<div class="gcx-ap"><a class="gc-btn gc-btn-gold" target="_blank" rel="noopener" href="' + escGc(s.agendapro) + '">Agendar mi hora</a>'
+        + '<span>Al reservar y al llegar, indica tu código <b>' + escGc(j.codigo) + '</b>: el servicio ya está pagado.</span></div>'
+    else   /* sin enlace de reserva: lo vemos por WhatsApp */
       accion = '<a class="gc-btn gc-btn-outline" target="_blank" rel="noopener" href="' + escGc(waGc('Hola, quiero agendar mi gift card ' + j.codigo + ': ' + s.nombre)) + '">Agendar por WhatsApp</a>'
     return '<div class="gcx-svc"><div><strong>' + escGc(s.nombre) + '</strong>' + (s.duracion ? '<span>' + escGc(s.duracion) + '</span>' : '') + '</div>' + accion + '</div>'
   }).join('')

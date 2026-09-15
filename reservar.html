@@ -119,6 +119,8 @@ async function consultarGiftCard(){
     if(j.vencida) return { error: 'Tu gift card venció el ' + j.vence.split('-').reverse().join('/') + '. Escríbenos por WhatsApp y lo vemos.' }
     const s = (j.servicios || []).find(x => x.estado === 'disponible' && (x.svc === svcId || normNombre(x.nombre) === normNombre(servicio && servicio.name)))
     if(!s) return { error: 'Tu gift card ya no tiene disponible ' + ((servicio && servicio.name) || 'este servicio') + ': puede que ya esté agendado o canjeado.' }
+    /* los servicios fuera de la agenda propia se agendan en AgendaPro */
+    if(!s.propia) return { error: 'Este servicio se agenda en AgendaPro. Vuelve a tu gift card y usa el botón "Agendar mi hora".' }
     return { giftcard: { codigo: j.codigo, para: j.para, vence: j.vence, nombre: s.nombre } }
   }catch(e){
     return { error: 'No pudimos revisar tu gift card. Revisa tu conexión e inténtalo de nuevo.' }
