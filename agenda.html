@@ -17,7 +17,11 @@
   --hour-h:60px; --gutter-w:58px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Montserrat',sans-serif;background:var(--cream-2);color:var(--texto);height:100vh;overflow:hidden}
+/* En el celular, 100vh mide la pantalla como si no hubiera barras del
+   navegador: el final de cada lista quedaba escondido detras de la barra de
+   abajo y no se podia llegar a las ultimas filas. 100dvh es la altura que de
+   verdad se ve; 100vh queda para navegadores antiguos. */
+body{font-family:'Montserrat',sans-serif;background:var(--cream-2);color:var(--texto);height:100vh;height:100dvh;overflow:hidden}
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit}
 
@@ -36,7 +40,7 @@ input,select,textarea{font-family:inherit}
 .login-err{color:var(--red);font-size:.8rem;margin-top:10px;display:none}
 
 /* ── LAYOUT ── */
-.app{display:none;height:100vh;flex-direction:column}
+.app{display:none;height:100vh;height:100dvh;flex-direction:column}
 /* top nav (módulos) */
 .topnav{display:flex;align-items:center;gap:22px;padding:0 20px;height:52px;background:var(--dark);color:#fff;flex-shrink:0}
 .topnav-brand{font-family:'Playfair Display',serif;font-size:1.05rem;white-space:nowrap}
@@ -57,6 +61,16 @@ input,select,textarea{font-family:inherit}
 .view{display:none;flex:1;min-height:0;flex-direction:column}
 .view.on{display:flex}
 .view-inner{flex:1;overflow-y:auto;padding:28px 40px;max-width:1600px;width:100%;margin:0 auto}
+/* aire al final para que la ultima fila no quede pegada al borde (ni bajo la
+   barra de gestos del telefono) */
+@media(max-width:820px){.view-inner{padding-bottom:calc(48px + env(safe-area-inset-bottom))}}
+/* tablas anchas: se desplazan de lado dentro de su recuadro, sin mover la pagina */
+.tabla-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px}
+@media(max-width:700px){
+  .tabla-scroll .ctbl{min-width:560px}
+  .tabla-scroll .ctbl th,.tabla-scroll .ctbl td{padding:9px 10px;font-size:.78rem}
+  .mi-kpis{grid-template-columns:1fr 1fr !important;gap:10px}
+}
 .view-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .view-head h2{font-family:'Playfair Display',serif;font-size:1.6rem}
 .view-sub{color:var(--mid);font-size:.82rem}
@@ -4256,14 +4270,14 @@ function renderMisIngresos(){
        <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700;padding:12px 16px">Total</td>
          <td style="text-align:right;font-weight:700;padding:12px 16px">${fmtMoney(comm)}</td></tr></tfoot></table>`
     : '<div class="empty-state">Todavía no hay ventas registradas a tu nombre en este período.</div>'
-  el.innerHTML = avisoCero + `<div class="rr-kpis" style="grid-template-columns:repeat(4,1fr)">
+  el.innerHTML = avisoCero + `<div class="rr-kpis mi-kpis" style="grid-template-columns:repeat(4,1fr)">
       ${kpi('Citas en el período', citas.length, atendidas+' marcadas como asistidas')}
       ${kpi('Ventas generadas', fmtMoney(ventas), 'Lo facturado por tu trabajo')}
       ${kpi('Tu comisión', fmtMoney(comm-tips), 'Según el % de cada servicio')}
       ${kpi('Propinas', fmtMoney(tips), 'Se pagan íntegras')}
     </div>
-    <div class="rr-panel" style="margin-bottom:18px"><h5>Tus próximas horas</h5>${proxHtml}</div>
-    <div class="rr-panel"><h5>Detalle de tus ganancias</h5>${detalle}</div>`
+    <div class="rr-panel" style="margin-bottom:18px"><h5>Tus próximas horas</h5><div class="tabla-scroll">${proxHtml}</div></div>
+    <div class="rr-panel"><h5>Detalle de tus ganancias</h5><div class="tabla-scroll">${detalle}</div></div>`
 }
 let miCitas = { pid:'', desde:'', hasta:'', filas:[] }
 /* devuelve true si trajo algo distinto a lo que ya habia */
