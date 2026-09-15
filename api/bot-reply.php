@@ -200,6 +200,7 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - No preguntes con qué profesional quiere: si hay varias libres, agenda con la primera y dile con quién quedó. Solo si el cliente pide a alguien en particular, o si tú ya le nombraste a una, pásala en professional_name: no se agenda con otra sin avisarle.
 - Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok.
 - Si no hay disponibilidad, ofrece alternativas cercanas.
+- Cuando la reserva ya quedó creada y el cliente solo responde "sí" o "gracias", NO vuelvas a llamar a create_booking: despídete o pregunta si necesita algo más.
 
 LO QUE NO HACES:
 - No inventas servicios, precios, promociones ni horarios: usa solo lo que aparece aquí abajo.
@@ -554,6 +555,24 @@ function do_book($args) {
         'status'=>'reserved','origen'=>'bot','notes'=>$nota];
     if ($precio !== '') $row['price'] = $precio;
     if ($clientId) $row['client_id'] = $clientId;
+    /* Si el cliente escribe "sí, confirmo" despues de que ya quedo agendado, el
+       modelo volvia a llamar a create_booking y quedaban dos reservas iguales.
+       Si ya tiene ese mismo servicio ese dia, se devuelve la que existe. */
+    $dig = preg_replace('/\D/', '', (string)$phone);
+    $ult = strlen($dig) >= 8 ? substr($dig, -8) : '';
+    $previas = supa('GET', 'appointments?select=id,start_time,professional_id,client_name,client_phone&appt_date=eq.'.$args['date'].'&status=neq.cancelled&status=neq.block&service_name=eq.'.rawurlencode($svc['name'])) ?: [];
+    foreach ($previas as $pv) {
+        $mismoTel = $ult !== '' && substr(preg_replace('/\D/', '', (string)($pv['client_phone'] ?? '')), -8) === $ult;
+        $mismoNombre = svc_clave($pv['client_name'] ?? '') === svc_clave($args['client_name']);
+        $esLaQueSeCambia = !empty($args['replace_date']) && $args['replace_date'] === $args['date'] && substr($pv['start_time'],0,5) === substr((string)($args['replace_time'] ?? ''),0,5);
+        if (($mismoTel || $mismoNombre) && !$esLaQueSeCambia) {
+            $pn = '';
+            global $pros;
+            foreach ($pros as $p) if ($p['id'] === $pv['professional_id']) $pn = $p['name'];
+            return ['ok'=>true,'already_booked'=>true,'professional'=>$pn,'service'=>$svc['name'],'price'=>$precio,
+                    'time'=>substr($pv['start_time'],0,5),'note'=>'ya tenía esta reserva; no se creó otra. Dile que su hora sigue confirmada a las '.substr($pv['start_time'],0,5).($pn ? ' con '.$pn : '')];
+        }
+    }
     $res=supa('POST','appointments',$row);
     if (is_array($res)&&count($res)) {
         $out = ['ok'=>true,'professional'=>$prof['name'],'service'=>$svc['name'],'price'=>$precio,'appointment'=>$res[0]];
