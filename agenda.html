@@ -5603,7 +5603,7 @@ function openApptQuickView(id){
     ${pro ? '' : `<div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>`}
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--texto)">${STATUS_LABEL[a.status]||''}</span></div>
     <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
-      ${pro ? '' : botonPagar(id)}
+      ${pro ? (canEditAppt(a) ? pagoSoloVer(id) : '') : botonPagar(id)}
       ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">Ver ficha completa</button>`:''}
     </div>`
   document.body.appendChild(qv)
@@ -5718,6 +5718,18 @@ async function guardarCobroMultiple(medio){
 /* ══════════════ MENÚ DE PAGO DE UNA RESERVA ══════════════
    Si ya está pagada se ve el sello; si no, las tres formas de cobrar:
    en el local, mandando el link por WhatsApp, o copiando el link. */
+/* Lo que ve una profesional del pago de su reserva: pagada (con Ver pago, en
+   solo lectura), abonada o pendiente. No cobra ni elimina (Luis). */
+function pagoSoloVer(id){
+  const a = findAppt(id); if(!a || !canEditAppt(a)) return ''
+  const ventas = state.sales.filter(s=>s.appointment_id===a.id && s.status!=='deleted')
+    .sort((x,y)=>String(y.created_at||y.sale_date||'').localeCompare(String(x.created_at||x.sale_date||'')))
+  const v = ventas[0]
+  const ver = v ? ` <button class="mini-btn" onclick="closeQuickView();editSale('${v.id}')">$ Ver pago</button>` : ''
+  if(apptPagada(a)) return `<span class="pagada-sello">✓ Pagada${v&&v.payment_method?' · '+esc(v.payment_method):''}</span>${ver}`
+  if(apptAbonada(a)) return `<span class="abono-sello">A · Abonado ${fmtMoney(totalCobrado(a))} · falta ${fmtMoney(saldoPendiente(a))}</span>${ver}`
+  return '<span class="abono-sello" style="opacity:.75">Pago pendiente</span>'
+}
 function botonPagar(id, ancho){
   const a = findAppt(id); if(!a) return ''
   if(apptPagada(a)){
@@ -12312,7 +12324,18 @@ document.addEventListener('click',e=>{ if(!e.target.closest('#saleModal .client-
    que la agenda pueda mostrar el signo de pagada */
 let ventaDeReserva = null
 
+/* Una profesional abre la venta solo para mirarla: todo bloqueado, sin
+   agregar, quitar, guardar ni eliminar. */
+function ventaSoloLectura(si){
+  const m = document.getElementById('saleModal')
+  m.querySelectorAll('input,select,textarea').forEach(el => { if(el.type !== 'hidden') el.disabled = si })
+  m.querySelectorAll('.sale-add,.si-del,#saleDelBtn,.modal-actions .btn-primary').forEach(el => { if(si) el.style.display = 'none'; else if(el.id !== 'saleDelBtn') el.style.display = '' })
+  const cancelar = m.querySelector('.modal-actions .btn-ghost'); if(cancelar) cancelar.textContent = si ? 'Cerrar' : 'Cancelar'
+  if(si) document.getElementById('saleTitle').textContent = 'Pago'
+}
 function openSaleModal(){
+  if(isPro()){ toast('Las ventas las registra la recepción.', 'error'); return }
+  ventaSoloLectura(false)
   ventaDeReserva = null
   fillSaleItemPick(); fillSaleProf()
   document.getElementById('saleTitle').textContent='Nueva venta'
@@ -12345,12 +12368,19 @@ function editSale(id){
   document.getElementById('saleClientId').value=s.client_id||''
   document.getElementById('saleNotes').value=s.notes||''
   saleItemsArr=(Array.isArray(s.items)?s.items:JSON.parse(s.items||'[]')).map(i=>({name:i.name,qty:i.qty||1,price:i.price||0,productId:i.productId}))
+  if(isPro()){
+    const ap = s.appointment_id ? findAppt(s.appointment_id) : null
+    if(!ap || !canEditAppt(ap)){ toast('Solo puedes ver los pagos de tus reservas.', 'error'); return }
+  }
+  ventaSoloLectura(false)
   renderSaleItems(); updateSaleDot()
   document.getElementById('saleDelBtn').style.display='block'
+  if(isPro()) ventaSoloLectura(true)
   openModal('saleModal')
 }
 let guardandoVenta = false
 async function saveSale(){
+  if(isPro()){ toast('Las ventas solo las modifica la recepción.', 'error'); return }
   if(guardandoVenta) return
   if(!saleItemsArr.length){ toast('Agrega al menos un ítem','error'); return }
   guardandoVenta = true
@@ -12416,6 +12446,7 @@ async function devolverStock(venta){
   }
 }
 async function deleteSale(){
+  if(isPro()){ toast('Las ventas solo las elimina la recepción.', 'error'); return }
   const id=document.getElementById('saleId').value
   if(!id) return
   if(!await confirmar('¿Eliminar esta venta?')) return
