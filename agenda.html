@@ -1628,6 +1628,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <option value="no_show">No asistió</option>
           <option value="pending">Pendiente</option>
           <option value="waiting">En espera</option>
+          <option value="cancelled">Cancelado</option>
         </select>
       </div>
       <div class="field">
@@ -3492,6 +3493,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <option value="no_show">No asistió</option>
           <option value="pending">Pendiente</option>
           <option value="waiting">En espera</option>
+          <option value="cancelled">Cancelado</option>
         </select>
       </div>
     </div>
@@ -4359,7 +4361,10 @@ async function loadAppointments(){
   let filters = `appt_date=gte.${isoDate(from)}&appt_date=lte.${isoDate(to)}`
   const sf=document.getElementById('statusFilter').value
   if(sf!=='all') filters += `&status=in.(${sf},block)`
-  try{ state.appointments = await supabase.fetch('appointments',{filters,order:'start_time.asc'}) || [] }
+  try{
+    state.appointments = await supabase.fetch('appointments',{filters,order:'start_time.asc'}) || []
+    if(sf !== 'cancelled') state.appointments = state.appointments.filter(a => a.status !== 'cancelled')
+  }
   catch(e){ state.appointments=[]; console.warn(e) }
 }
 /* data.js declara CATEGORIES con const: no queda en window, hay que leerlo del scope global */
@@ -5425,8 +5430,8 @@ async function createService(){
     selectApptService(slug)
   }catch(e){ console.error(e); toast('Error al crear el servicio','error') }
 }
-const STATUS_COLORS={reserved:'#3FC7EB',confirmed:'#F5A623',attending:'#EC6FBF',no_show:'#F4A29B',pending:'#E9573F',waiting:'#9CCC65',active:'#3FC7EB'}
-const STATUS_LABEL={reserved:'Reservado',confirmed:'Confirmado',attending:'Asiste',no_show:'No asistió',pending:'Pendiente',waiting:'En espera',active:'Reservado'}
+const STATUS_COLORS={reserved:'#3FC7EB',confirmed:'#F5A623',attending:'#EC6FBF',no_show:'#F4A29B',pending:'#E9573F',waiting:'#9CCC65',active:'#3FC7EB',cancelled:'#9AA0A6'}
+const STATUS_LABEL={reserved:'Reservado',confirmed:'Confirmado',attending:'Asiste',no_show:'No asistió',pending:'Pendiente',waiting:'En espera',active:'Reservado',cancelled:'Cancelado'}
 function updateStatusDot(){ const v=document.getElementById('apptStatus').value; document.getElementById('apptStatusDot').style.background=STATUS_COLORS[v]||'#3FC7EB' }
 function toggleCollapse(id){ document.getElementById(id).classList.toggle('open') }
 function findAppt(id){ return state.appointments.find(x=>x.id===id) }
@@ -5578,7 +5583,7 @@ function openApptQuickView(id){
   const email=(c&&c.email)||''
   const phone=a.client_phone||''
   const waP=waPhone(phone)
-  const dots=['reserved','confirmed','attending','no_show','pending','waiting']
+  const dots=['reserved','confirmed','attending','no_show','pending','waiting','cancelled']
     .map(s=>`<span class="qv-dot ${a.status===s?'on':''}" title="${STATUS_LABEL[s]}" style="background:${STATUS_COLORS[s]}" onclick="setApptStatus('${id}','${s}')"></span>`).join('')
   /* Una profesional solo ve la reserva y entra a la ficha clinica: no elimina
      ni edita, no ve el contacto del cliente ni cobra (pedido de Luis). */
@@ -5627,14 +5632,24 @@ function closeQuickView(){
 }
 async function setApptStatus(id,status){
   const a=findAppt(id); if(!a) return
+  if(status==='cancelled') return qvDelete(id)
   a.status=status
   try{ await supabase.update('appointments',id,{status}); renderCalendar(); openApptQuickView(id) }
   catch(e){ toast('Error al cambiar estado','error') }
 }
+/* El basurero ahora ANULA: la reserva queda como Cancelada en el historial del
+   cliente (para saber quien agenda y no llega) y el horario queda libre.
+   Una reserva ya cancelada si se puede eliminar del todo (pruebas). */
 async function qvDelete(id){
   const a = findAppt(id)
   const detalle = a ? ((a.client_name||'la reserva') + ' · ' + fmtLongDate(a.appt_date) + ' a las ' + a.start_time.slice(0,5)) : ''
-  if(!await confirmar('Se eliminará ' + detalle + '. Esta acción no se puede deshacer.', { titulo:'¿Eliminar esta reserva?' })) return
+  if(a && a.status !== 'cancelled'){
+    if(!await confirmar('Se anulará ' + detalle + '. El horario queda libre y la reserva queda en el historial del cliente como cancelada.', { titulo:'¿Anular esta reserva?', ok:'Sí, anular' })) return
+    try{ await supabase.update('appointments', id, { status:'cancelled' }); closeQuickView(); toast('Reserva anulada','success'); loadAndRender() }
+    catch(e){ toast('Error al anular','error') }
+    return
+  }
+  if(!await confirmar('Se eliminará ' + detalle + ' del todo, también del historial del cliente. Esta acción no se puede deshacer.', { titulo:'¿Eliminar esta reserva?' })) return
   try{ await supabase.delete('appointments',id); closeQuickView(); toast('Reserva eliminada','success'); loadAndRender() }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -6894,7 +6909,7 @@ function openApptDetail(id){
 }
 function setApptTab(t){ adState.tab=t; document.querySelectorAll('#adTabs .ad-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t)); renderApptTab() }
 function statusDotsRow(id, status){
-  return ['reserved','confirmed','attending','no_show','pending','waiting']
+  return ['reserved','confirmed','attending','no_show','pending','waiting','cancelled']
     .map(s=>`<span class="qv-dot ${status===s?'on':''}" title="${STATUS_LABEL[s]}" style="background:${STATUS_COLORS[s]}" onclick="setApptStatus('${id}','${s}'); setTimeout(renderApptTab,200)"></span>`).join('')
 }
 function renderApptTab(){
@@ -7236,8 +7251,10 @@ async function openClientDetail(id){
   cdCliente = state.clients.find(x=>x.id===id); if(!cdCliente) return
   cdTab = isPro() ? 'fichas' : 'actividad'
   fichasCliente = []
+  cdCitas = null
   renderClientDetail()
   openModal('clientDetailModal')
+  cargarCitasCliente(id).then(() => { if(cdCliente && cdCliente.id === id) renderClientDetail() })
   /* las fichas y consentimientos se traen aparte, para que el modal abra al tiro */
   /* estas tablas exigen sesión: se renueva antes de pedirlas */
   if(typeof sesionLista === 'function') await sesionLista()
@@ -7250,9 +7267,20 @@ async function openClientDetail(id){
 function cdSetTab(t){ cdTab=t; renderClientDetail() }
 
 /* las reservas y ventas de este cliente */
+/* Antes la ficha tomaba las reservas cargadas en la agenda, que son solo las
+   de la semana que se esta mirando: un cliente con 8 reservas aparecia con 1
+   (Luis). Ahora se piden a la base todas las del cliente al abrir la ficha. */
+let cdCitas = null
+async function cargarCitasCliente(id){
+  cdCitas = null
+  try{
+    const filas = await supabase.fetch('appointments', { filters:'client_id=eq.' + encodeURIComponent(id), order:'appt_date.desc' }) || []
+    if(cdCliente && cdCliente.id === id) cdCitas = filas
+  }catch(e){ console.warn('reservas del cliente:', e) }
+}
 function cdDatos(){
   const id = cdCliente.id
-  const appts = state.appointments.filter(a=>a.client_id===id && a.status!=='block')
+  const appts = (cdCitas || state.appointments).filter(a=>a.client_id===id && a.status!=='block')
     .sort((a,b)=>(b.appt_date+b.start_time).localeCompare(a.appt_date+a.start_time))
   const bonos = state.plans.filter(x=>x.client_id===id && x.status!=='cancelled')
   const sales = state.sales.filter(x=>x.client_id===id && x.status!=='deleted')
