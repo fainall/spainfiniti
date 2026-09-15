@@ -1606,7 +1606,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       <span id="refrescoTxt">Actualizado recién</span>
     </span>
     <div class="spacer"></div>
-    <button class="btn-g" onclick="openProfManager()">Profesionales</button>
+    <button class="btn-g" id="btnProfs" onclick="openProfManager()">Profesionales</button>
     <button class="btn-primary" onclick="openApptModal()">+ Nuevo</button>
   </div>
 
@@ -1616,7 +1616,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       <div class="field">
         <h3>Profesional</h3>
         <div class="prof-list" id="profList"></div>
-        <button class="side-link" onclick="openProfManager()">+ Gestionar profesionales</button>
+        <button class="side-link" id="btnProfsFiltro" onclick="openProfManager()">+ Gestionar profesionales</button>
       </div>
       <div class="field">
         <h3>Estado</h3>
@@ -4182,6 +4182,8 @@ async function loadMe(){
 }
 /* adapta la interfaz al rol */
 function applyRole(){
+  /* las profesionales no administran al equipo (Luis) */
+  ;['btnProfs','btnProfsFiltro'].forEach(i => { const el=document.getElementById(i); if(el) el.style.display = isPro() ? 'none' : '' })
   const nav=document.querySelector('.topnav-tabs')
   const old=document.getElementById('userChip'); if(old) old.remove()
   /* cada botón del menú se muestra solo si el rol abre esa pantalla */
@@ -13932,7 +13934,10 @@ async function deleteBlock(){
 
 /* ── PROFESSIONAL MANAGER ── */
 let pfColor=COLORS[0], pfDays=[1,2,3,4,5,6]
-function openProfManager(){ renderProfManage(); resetProfForm(); openModal('profModal') }
+function openProfManager(){
+  if(isPro()){ toast('El equipo lo administra la recepción.', 'error'); return }
+  renderProfManage(); resetProfForm(); openModal('profModal')
+}
 function renderProfManage(){
   const el=document.getElementById('profManageList')
   if(!state.professionals.length){ el.innerHTML=`<p style="color:var(--mid);font-size:.82rem">Aún no hay profesionales.</p>`; return }
