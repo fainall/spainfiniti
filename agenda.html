@@ -8720,8 +8720,10 @@ function openUserModal(id){
   document.getElementById('usEmail').value=u?(u.email||''):''
   document.getElementById('usEmail').disabled=!!u
   const selRol=document.getElementById('usRole')
-  selRol.innerHTML=Object.entries(ROLES).map(([k,r])=>'<option value="'+k+'">'+r.nombre+'</option>').join('')
-  selRol.value=(u&&ROLES[u.role])?u.role:'pro'
+  /* 'Profesional (sin edicion)' ya no se ofrece (Luis): una sola opcion de profesional.
+     Una cuenta que aun lo tenga se abre como Profesional y queda asi al guardar. */
+  selRol.innerHTML=Object.entries(ROLES).filter(([k])=>k!=='pro_ro').map(([k,r])=>'<option value="'+k+'">'+r.nombre+'</option>').join('')
+  selRol.value=(u&&ROLES[u.role]&&u.role!=='pro_ro')?u.role:'pro'
   pintarDescRol()
   document.getElementById('usActive').value=(u&&u.active===false)?'0':'1'
   const ps=document.getElementById('usProf')
