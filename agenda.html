@@ -3339,7 +3339,21 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   <!-- VISTA: REPORTE DE RESERVAS -->
   <div class="view" id="view-represervas">
     <div class="view-inner" style="max-width:1600px">
-      <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:14px">Reporte de reservas</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;margin:0">Reporte de reservas</h2>
+        <button class="btn-g" id="apAbrir" onclick="document.getElementById('apCaja').hidden=!document.getElementById('apCaja').hidden">⬆ Importar desde AgendaPro</button>
+      </div>
+      <div class="fbox" id="apCaja" hidden style="margin-bottom:16px">
+        <p class="rem-note" style="margin:0 0 10px">En AgendaPro: <strong>Reportes → Reservas → Exportar</strong>. Sube aquí ese archivo
+        <strong>.xlsx</strong> tal como sale. Antes de importar verás un resumen; las reservas que ya estén en la agenda no se duplican,
+        así que puedes subir el mismo archivo otra vez más adelante.</p>
+        <div class="resp-fila">
+          <label class="btn-primary" style="cursor:pointer;margin:0">⬆ Elegir archivo de AgendaPro
+            <input type="file" accept=".xlsx,.xls,.csv" hidden onchange="leerExportAgendaPro(this)"></label>
+          <span class="resp-estado" id="apEstado"></span>
+        </div>
+        <div id="apPrevia" hidden></div>
+      </div>
       <div class="mtabs" id="rrTabs" style="margin-bottom:16px">
         <button class="on" onclick="rrSetTab('general',this)">General</button>
         <button onclick="rrSetTab('historial',this)">Historial</button>
@@ -4182,6 +4196,7 @@ async function loadMe(){
 }
 /* adapta la interfaz al rol */
 function applyRole(){
+  { const b = document.getElementById('apAbrir'); if(b) b.hidden = !isAdmin() }
   /* las profesionales no administran al equipo (Luis) */
   ;['btnProfs','btnProfsFiltro'].forEach(i => { const el=document.getElementById(i); if(el) el.style.display = isPro() ? 'none' : '' })
   const nav=document.querySelector('.topnav-tabs')
@@ -9982,6 +9997,7 @@ async function importarAgendaPro(){
     document.getElementById('apPrevia').innerHTML = `<div class="fbox" style="margin-top:14px"><strong>Listo:</strong> ${hechas} reservas importadas${creados.size ? ' y ' + creados.size + ' clientes nuevos' : ''}.</div>`
     apImport = null
     await loadClients(); if(typeof loadAndRender === 'function') loadAndRender()
+    if(typeof refrescarPantalla === 'function' && pantallaAbierta() === 'represervas') refrescarPantalla('represervas', true)
   }catch(e){
     avisar(''); btn.disabled = false
     toast('La importación se detuvo: ' + e.message + '. Puedes volver a subir el archivo: lo ya importado no se duplica.', 'error')
@@ -10590,19 +10606,6 @@ function admConfig(){
       <div id="respRestaurar" hidden></div>
       <h4 style="margin:18px 0 8px">Copias guardadas en el servidor</h4>
       <div id="respServidor"><p class="rem-note">Cargando…</p></div>
-    </div>
-
-    <h3 class="cd-h3">Importar reservas de AgendaPro</h3>
-    <div class="fbox">
-      <p class="rem-note" style="margin:0 0 10px">En AgendaPro: <strong>Reportes → Reservas → Exportar</strong>. Sube aquí ese archivo
-      <strong>.xlsx</strong> tal como sale. Antes de importar verás un resumen; las reservas que ya estén en la agenda no se duplican,
-      así que puedes subir el mismo archivo otra vez más adelante.</p>
-      <div class="resp-fila">
-        <label class="btn-primary" style="cursor:pointer;margin:0">⬆ Elegir archivo de AgendaPro
-          <input type="file" accept=".xlsx,.xls,.csv" hidden onchange="leerExportAgendaPro(this)"></label>
-        <span class="resp-estado" id="apEstado"></span>
-      </div>
-      <div id="apPrevia" hidden></div>
     </div>`
 }
 
