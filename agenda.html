@@ -4355,7 +4355,8 @@ async function loadProfessionals(){
   catch(e){ state.professionals=[]; console.warn(e) }
 }
 async function loadClients(){
-  try{ state.clients = await supabase.fetch('clients',{order:'name.asc'}) || [] }
+  /* hay mas de 1.000 clientes y Supabase entrega 1.000 por consulta: se leen todos */
+  try{ state.clients = (await leerTablaCompleta('clients')).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''), 'es')) }
   catch(e){ state.clients=[]; console.warn(e) }
 }
 async function loadAppointments(){
@@ -9767,6 +9768,221 @@ function elegirCopiaArchivo(input){
   r.readAsText(f)
 }
 
+/* ══════════════ IMPORTAR RESERVAS DE AGENDAPRO ══════════════
+   Lee el Excel de Reportes → Reservas de AgendaPro, empareja cada servicio y
+   profesional con los de esta agenda (los nombres no son identicos: "Valentina
+   Quintana" es "Valentina Quinteros"), busca o crea la ficha del cliente y crea
+   las reservas. Cada una lleva una marca con su origen para no duplicarla si
+   se vuelve a subir el archivo. */
+let apImport = null
+
+function cargarScriptUnaVez(src){
+  return new Promise((ok, mal) => {
+    if(document.querySelector('script[data-src="' + src + '"]')) return ok()
+    const s = document.createElement('script'); s.src = src; s.dataset.src = src
+    s.onload = () => ok(); s.onerror = () => mal(new Error('No se pudo cargar el lector de Excel. Revisa la conexión.'))
+    document.head.appendChild(s)
+  })
+}
+const apClave = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()
+const AP_RELLENO = new Set(['con','de','del','la','el','y','en','para','por','una','uña','una','min','60','30','spa','premium','express'])
+function apPalabras(t){ return apClave(t).split(' ').filter(w => w && !AP_RELLENO.has(w)) }
+
+/* el servicio del catalogo que mas se parece; null si ninguno se parece lo suficiente */
+function apServicio(nombre){
+  const k = apClave(nombre); if(!k) return null
+  const cat = flattenServices()
+  const exacto = cat.find(s => apClave(s.name) === k); if(exacto) return exacto
+  const p = apPalabras(nombre)
+  let mejor = null, pts = 0
+  cat.forEach(s => {
+    const q = apPalabras(s.name)
+    const comunes = p.filter(w => q.includes(w)).length
+    if(!comunes) return
+    /* "tipo 1" y "tipo 2" tienen que calzar: los numeros que no coinciden restan fuerte */
+    const numP = p.filter(w => /^\d+$/.test(w)), numQ = q.filter(w => /^\d+$/.test(w))
+    const choqueNum = numP.some(n => !numQ.includes(n)) || numQ.some(n => !numP.includes(n))
+    const v = comunes * 2 - q.filter(w => !p.includes(w)).length - p.filter(w => !q.includes(w)).length - (choqueNum ? 6 : 0)
+    if(v > pts){ pts = v; mejor = s }
+  })
+  return pts >= 2 ? mejor : null
+}
+function apProfesional(nombre){
+  const p = apClave(nombre).split(' ').filter(Boolean); if(!p.length) return null
+  let mejor = null, pts = 0
+  state.professionals.forEach(pr => {
+    const q = apClave(pr.name).split(' ').filter(Boolean)
+    let v = 0
+    p.forEach(w => { if(q.includes(w)) v += 2; else if(w.length >= 4 && q.some(x => x.length >= 4 && (x.startsWith(w) || w.startsWith(x)))) v += 1 })
+    if(v > pts){ pts = v; mejor = pr }
+  })
+  return pts >= 2 ? mejor : null
+}
+const AP_ESTADO = { 'asiste':'attending', 'cancelado':'cancelled', 'confirmado':'confirmed', 'no asiste':'no_show', 'reservado':'reserved', 'pendiente':'pending', 'en espera':'waiting' }
+
+async function leerExportAgendaPro(input){
+  const f = input.files && input.files[0]; input.value = ''
+  if(!f) return
+  const est = document.getElementById('apEstado'), prev = document.getElementById('apPrevia')
+  const avisar = t => { if(est) est.textContent = t }
+  try{
+    avisar('Leyendo ' + f.name + '…')
+    await cargarScriptUnaVez('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js')
+    const libro = XLSX.read(await f.arrayBuffer(), { type:'array', cellDates:true })
+    const hoja = libro.Sheets[libro.SheetNames[0]]
+    const filas = XLSX.utils.sheet_to_json(hoja, { header:1, raw:false, defval:'' })
+    const cab = (filas[0]||[]).map(h => apClave(h))
+    const col = n => cab.indexOf(apClave(n))
+    const need = ['Fecha de realización','Nombre','Servicio','Prestador','Estado']
+    const faltan = need.filter(n => col(n) < 0)
+    if(faltan.length) throw new Error('Este archivo no parece el reporte de reservas de AgendaPro (faltan: ' + faltan.join(', ') + ').')
+
+    if(!state.clients || state.clients.length < 1000) await loadClients()
+    const hoy = isoDate(new Date())
+    const reservas = []
+    filas.slice(1).forEach((r, i) => {
+      const v = n => { const k = col(n); return k < 0 ? '' : String(r[k] == null ? '' : r[k]).trim() }
+      const m = v('Fecha de realización').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/)
+      if(!m) return
+      const fecha = m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0')
+      const hora = m[4].padStart(2,'0') + ':' + m[5]
+      const svcAP = v('Servicio').replace(/\s+/g,' ').replace(/^[\s.]+|[\s.]+$/g,'')
+      const svc = apServicio(svcAP)
+      const prof = apProfesional(v('Prestador'))
+      const dur = svc ? parseDur(svc.duration) : 60
+      const [hh, mm] = hora.split(':').map(Number), finM = hh*60 + mm + dur
+      const fin = String(Math.min(23, Math.floor(finM/60))).padStart(2,'0') + ':' + (finM >= 24*60 ? '59' : String(finM%60).padStart(2,'0'))
+      const nombre = (v('Nombre') + ' ' + v('Apellido')).replace(/\s+/g,' ').trim()
+      const tel = v('Teléfono'), tel8 = tel.replace(/\D/g,'').slice(-8)
+      const precioN = Number(String(v('Precio real') || v('Precio lista')).replace(/[^0-9]/g,'')) || 0
+      reservas.push({
+        fila: i + 2, fecha, hora, fin, nombre, tel, tel8, email: v('E-mail'), rut: v('RUT'),
+        svcAP, svc: svc ? svc.name : svcAP, svcOk: !!svc,
+        profAP: v('Prestador'), prof, estadoAP: v('Estado'), estado: AP_ESTADO[apClave(v('Estado'))] || 'reserved',
+        pagoAP: v('Estado de pago'), precio: precioN ? fmtMoney(precioN) : '',
+        nota: [v('Comentario interno'), v('Notas compartidas con cliente')].filter((x, j, a) => x && a.indexOf(x) === j).join(' · '),
+        marca: '[AgendaPro ' + v('Fecha de creación') + ' ' + (tel8 || apClave(nombre).slice(0,20)) + ']',
+        futura: fecha >= hoy
+      })
+    })
+    if(!reservas.length) throw new Error('No encontré reservas en el archivo.')
+
+    /* lo que ya esta en la agenda en esas fechas, para no duplicar */
+    avisar('Revisando lo que ya está en la agenda…')
+    const fechas = reservas.map(r => r.fecha).sort()
+    let existentes = [], off = 0
+    for(;;){
+      const lote = await supabase.fetch('appointments', { select:'id,appt_date,start_time,professional_id,client_name,client_phone,notes',
+        filters:'appt_date=gte.' + fechas[0] + '&appt_date=lte.' + fechas[fechas.length-1] + '&limit=1000&offset=' + off, order:'id.asc' }) || []
+      existentes = existentes.concat(lote); if(lote.length < 1000) break; off += 1000
+    }
+    const marcas = new Set(existentes.map(a => (String(a.notes||'').match(/\[AgendaPro [^\]]+\]/)||[])[0]).filter(Boolean))
+    reservas.forEach(r => {
+      r.repetida = marcas.has(r.marca) || existentes.some(a => a.appt_date === r.fecha && String(a.start_time).slice(0,5) === r.hora
+        && (!r.prof || a.professional_id === r.prof.id)
+        && ((r.tel8 && String(a.client_phone||'').replace(/\D/g,'').slice(-8) === r.tel8) || apClave(a.client_name) === apClave(r.nombre)))
+      r.cliente = state.clients.find(c => (r.tel8 && String(c.phone||'').replace(/\D/g,'').slice(-8) === r.tel8)
+        || (r.email && String(c.email||'').toLowerCase() === r.email.toLowerCase())) || null
+    })
+    apImport = { archivo: f.name, reservas }
+    avisar('')
+    pintarPreviaAgendaPro()
+  }catch(e){ avisar(''); if(prev) prev.hidden = true; toast(e.message, 'error') }
+}
+
+function pintarPreviaAgendaPro(){
+  const prev = document.getElementById('apPrevia'); if(!prev || !apImport) return
+  const soloFuturas = !!(document.getElementById('apSoloFuturas')||{}).checked
+  const sinCanceladas = !!(document.getElementById('apSinCanceladas')||{}).checked
+  const todas = apImport.reservas
+  const elegibles = todas.filter(r => (!soloFuturas || r.futura) && (!sinCanceladas || r.estado !== 'cancelled'))
+  const nuevas = elegibles.filter(r => !r.repetida)
+  const cuenta = (lista, k) => lista.reduce((o, r) => (o[r[k]] = (o[r[k]]||0) + 1, o), {})
+  const porEstado = cuenta(nuevas, 'estadoAP')
+  const fechas = todas.map(r => r.fecha).sort()
+  const fmtD = d => d.split('-').reverse().join('/')
+  const sinSvc = Object.entries(cuenta(nuevas.filter(r => !r.svcOk), 'svcAP')).sort((a,b)=>b[1]-a[1])
+  const svcMap = Object.entries(nuevas.filter(r => r.svcOk && apClave(r.svcAP) !== apClave(r.svc))
+    .reduce((o, r) => (o[r.svcAP + '→' + r.svc] = (o[r.svcAP + '→' + r.svc]||0) + 1, o), {})).sort((a,b)=>b[1]-a[1])
+  const profMap = Object.entries(nuevas.reduce((o, r) => { const k = r.profAP + '→' + (r.prof ? r.prof.name : '(sin asignar)'); o[k] = (o[k]||0) + 1; return o }, {}))
+  const clientesNuevos = new Set(nuevas.filter(r => !r.cliente).map(r => r.tel8 || apClave(r.nombre))).size
+  prev.hidden = false
+  prev.innerHTML = `<div class="fbox" style="margin-top:14px">
+    <h4 style="margin:0 0 6px">${esc(apImport.archivo)}</h4>
+    <p class="rem-note" style="margin:0 0 10px">${todas.length} reservas en el archivo, del ${fmtD(fechas[0])} al ${fmtD(fechas[fechas.length-1])}.</p>
+    <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="apSoloFuturas" ${soloFuturas?'checked':''} style="width:auto" onchange="pintarPreviaAgendaPro()"> Solo reservas de hoy en adelante</label>
+    <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="apSinCanceladas" ${sinCanceladas?'checked':''} style="width:auto" onchange="pintarPreviaAgendaPro()"> No importar las canceladas</label>
+    <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="apSinRecordatorio" checked style="width:auto"> No mandar recordatorios automáticos a estas reservas (AgendaPro ya los manda)</label>
+    <div class="rep-cards" style="margin:12px 0">
+      <div class="rep-card"><div class="rc-num">${nuevas.length}</div><div class="rc-lbl">Se importarán</div></div>
+      <div class="rep-card"><div class="rc-num">${elegibles.length - nuevas.length}</div><div class="rc-lbl">Ya estaban (se omiten)</div></div>
+      <div class="rep-card"><div class="rc-num">${clientesNuevos}</div><div class="rc-lbl">Clientes nuevos</div></div>
+    </div>
+    <p class="rem-note" style="margin:0 0 6px">${Object.entries(porEstado).map(([k,n]) => esc(k) + ': ' + n).join(' · ') || 'Nada nuevo para importar.'}</p>
+    <details style="margin:8px 0"><summary>Profesionales</summary><p class="rem-note">${profMap.map(([k,n]) => esc(k) + ' (' + n + ')').join('<br>')}</p></details>
+    ${svcMap.length ? `<details style="margin:8px 0"><summary>Servicios emparejados con el catálogo (${svcMap.length})</summary><p class="rem-note">${svcMap.map(([k,n]) => esc(k) + ' (' + n + ')').join('<br>')}</p></details>` : ''}
+    ${sinSvc.length ? `<details style="margin:8px 0" open><summary>Servicios que no están en el catálogo (${sinSvc.length})</summary><p class="rem-note">Se importan con el nombre de AgendaPro: ${sinSvc.map(([k,n]) => esc(k) + ' (' + n + ')').join(' · ')}</p></details>` : ''}
+    ${nuevas.some(r => !r.prof) ? '<p class="rem-note" style="color:var(--red)">Hay reservas cuya profesional no reconocí: quedarán sin profesional asignada.</p>' : ''}
+    <div class="resp-fila" style="margin-top:10px">
+      <button class="btn-primary" id="apGo" onclick="importarAgendaPro()" ${nuevas.length ? '' : 'disabled'}>Importar ${nuevas.length} reservas</button>
+      <button class="btn-ghost" onclick="document.getElementById('apPrevia').hidden=true;apImport=null">Cancelar</button>
+      <span class="resp-estado" id="apProgreso"></span>
+    </div></div>`
+}
+
+async function importarAgendaPro(){
+  if(!apImport) return
+  if(!isAdmin()){ toast('Solo un administrador puede importar reservas.', 'error'); return }
+  const soloFuturas = document.getElementById('apSoloFuturas').checked
+  const sinCanceladas = document.getElementById('apSinCanceladas').checked
+  const sinRecordatorio = document.getElementById('apSinRecordatorio').checked
+  const nuevas = apImport.reservas.filter(r => !r.repetida && (!soloFuturas || r.futura) && (!sinCanceladas || r.estado !== 'cancelled'))
+  const btn = document.getElementById('apGo'), prog = document.getElementById('apProgreso')
+  const avisar = t => { if(prog) prog.textContent = t }
+  btn.disabled = true
+  try{
+    if(typeof sesionLista === 'function') await sesionLista()
+    /* 1. fichas de clientes que no existen */
+    const porCrear = new Map()
+    nuevas.filter(r => !r.cliente).forEach(r => {
+      const k = r.tel8 || apClave(r.nombre)
+      if(!porCrear.has(k)) porCrear.set(k, { name: r.nombre, phone: r.tel || null, email: r.email || null, rut: r.rut || null, notes: 'Importado de AgendaPro' })
+    })
+    const creados = new Map()
+    const lista = [...porCrear.entries()]
+    for(let i = 0; i < lista.length; i += 100){
+      avisar('Creando clientes… ' + Math.min(i+100, lista.length) + ' de ' + lista.length)
+      const res = await supabase.insert('clients', lista.slice(i, i+100).map(([,c]) => c)) || []
+      res.forEach((c, j) => creados.set(lista[i+j][0], c))
+    }
+    /* 2. reservas */
+    const ahora = new Date().toISOString()
+    const filas = nuevas.map(r => {
+      const cli = r.cliente || creados.get(r.tel8 || apClave(r.nombre))
+      const notas = ['Importado de AgendaPro', r.pagoAP ? 'Pago: ' + r.pagoAP : '', r.nota, r.marca].filter(Boolean).join('. ')
+      const fila = { professional_id: r.prof ? r.prof.id : null, client_id: cli ? cli.id : null, client_name: r.nombre || 'Sin nombre',
+        client_phone: r.tel || null, service_name: r.svc, appt_date: r.fecha, start_time: r.hora, end_time: r.fin,
+        status: r.estado, price: r.precio || null, notes: notas, origen: 'panel' }
+      if(sinRecordatorio){ fila.reminded_at = ahora; fila.reminded_channel = 'agendapro' }
+      return fila
+    })
+    let hechas = 0
+    for(let i = 0; i < filas.length; i += 200){
+      avisar('Importando reservas… ' + Math.min(i+200, filas.length) + ' de ' + filas.length)
+      await supabase.insert('appointments', filas.slice(i, i+200))
+      hechas = Math.min(i+200, filas.length)
+    }
+    avisar('')
+    toast(hechas + ' reservas importadas' + (creados.size ? ' y ' + creados.size + ' clientes nuevos' : ''), 'success')
+    document.getElementById('apPrevia').innerHTML = `<div class="fbox" style="margin-top:14px"><strong>Listo:</strong> ${hechas} reservas importadas${creados.size ? ' y ' + creados.size + ' clientes nuevos' : ''}.</div>`
+    apImport = null
+    await loadClients(); if(typeof loadAndRender === 'function') loadAndRender()
+  }catch(e){
+    avisar(''); btn.disabled = false
+    toast('La importación se detuvo: ' + e.message + '. Puedes volver a subir el archivo: lo ya importado no se duplica.', 'error')
+  }
+}
+
 /* ── restaurar ── */
 /* primero lo que otras tablas necesitan (servicios, clientes...), despues lo que depende de ello */
 const ORDEN_RESTAURAR = ['categories','services','professionals','clients','products','plans','record_templates','consents',
@@ -10369,6 +10585,19 @@ function admConfig(){
       <div id="respRestaurar" hidden></div>
       <h4 style="margin:18px 0 8px">Copias guardadas en el servidor</h4>
       <div id="respServidor"><p class="rem-note">Cargando…</p></div>
+    </div>
+
+    <h3 class="cd-h3">Importar reservas de AgendaPro</h3>
+    <div class="fbox">
+      <p class="rem-note" style="margin:0 0 10px">En AgendaPro: <strong>Reportes → Reservas → Exportar</strong>. Sube aquí ese archivo
+      <strong>.xlsx</strong> tal como sale. Antes de importar verás un resumen; las reservas que ya estén en la agenda no se duplican,
+      así que puedes subir el mismo archivo otra vez más adelante.</p>
+      <div class="resp-fila">
+        <label class="btn-primary" style="cursor:pointer;margin:0">⬆ Elegir archivo de AgendaPro
+          <input type="file" accept=".xlsx,.xls,.csv" hidden onchange="leerExportAgendaPro(this)"></label>
+        <span class="resp-estado" id="apEstado"></span>
+      </div>
+      <div id="apPrevia" hidden></div>
     </div>`
 }
 
