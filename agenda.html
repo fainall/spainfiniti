@@ -5483,7 +5483,9 @@ function _mezcla(hex, otro, p){
   return _hex(a[0]+(otro[0]-a[0])*p, a[1]+(otro[1]-a[1])*p, a[2]+(otro[2]-a[2])*p)
 }
 /* fondo pastel del bloque */
-function bgSuave(c){ return _mezcla(c||'#C5A467', [255,255,255], 0.90) }
+/* fondo de las reservas en la agenda: antes 90% blanco y casi no se distinguian del fondo;
+   ahora con mas color, sin llegar a ser chillon (Luis) */
+function bgSuave(c){ return _mezcla(c||'#C5A467', [255,255,255], 0.72) }
 /* texto legible sobre ese fondo */
 function txtOscuro(c){ return _mezcla(c||'#C5A467', [0,0,0], 0.48) }
 
