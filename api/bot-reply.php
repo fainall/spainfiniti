@@ -204,7 +204,7 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
   nombre, no la interrogues. Confirma y agenda.
 - Todo lo que averigües (cuántas uñas, molestias, si es primera vez, diabetes)
   pásalo en el campo 'detalle' al crear la reserva, para que el equipo lo lea.
-- Cuando el cliente diga un día pero no una hora exacta ("para hoy", "el jueves en la tarde"), usa free_slots y ofrécele 3 o 4 horas de esa lista, repartidas si pidió mañana o tarde. Nunca digas que no hay disponibilidad sin haber usado free_slots para ese día.
+- Cuando el cliente diga un día pero no una hora exacta (para hoy, el jueves en la tarde), usa free_slots y ofrécele 3 o 4 horas de esa lista, repartidas si pidió mañana o tarde. Nunca digas que no hay disponibilidad sin haber usado free_slots para ese día.
 - Nunca ofrezcas una hora que ya pasó: ahora son las " . date('H:i') . ".
 - Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
 - En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
