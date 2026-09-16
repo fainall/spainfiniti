@@ -9791,7 +9791,7 @@ function apPalabras(t){ return apClave(t).split(' ').filter(w => w && !AP_RELLEN
 /* el servicio del catalogo que mas se parece; null si ninguno se parece lo suficiente */
 function apServicio(nombre){
   const k = apClave(nombre); if(!k) return null
-  const cat = flattenServices()
+  const cat = (state.services && state.services.length) ? state.services : (flattenServices(), state.services || [])
   const exacto = cat.find(s => apClave(s.name) === k); if(exacto) return exacto
   const p = apPalabras(nombre)
   let mejor = null, pts = 0
