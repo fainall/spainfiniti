@@ -7823,7 +7823,22 @@ async function renderCampaigns(){
     el.innerHTML=`<table class="ctbl"><thead><tr><th>Fecha</th><th>Asunto</th><th style="text-align:right">Enviados</th></tr></thead><tbody>${rows.map(r=>{const d=new Date(r.created_at);return `<tr><td>${d.toLocaleDateString('es-CL')} ${d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</td><td>${esc(r.subject||'—')}</td><td style="text-align:right;font-weight:700">${r.sent_count||0}</td></tr>`}).join('')}</tbody></table>`
   }catch(e){ el.innerHTML='<div style="color:var(--light)">Historial no disponible.</div>' }
 }
+/* Un panel abierto desde antes guardaba el entrenamiento con los textos viejos y
+   borraba los cambios hechos despues: dos veces el nombre volvio de "Julia" a
+   "Mariet". Antes de guardar se compara con lo que hay ahora en la base; si
+   cambio desde que se abrio la pantalla, no se pisa y se pide recargar. */
 async function saveBotConfig(){
+  try{
+    const ahora = (await supabase.fetch('bot_config', { select:'bot_name,welcome,tone,local_tips,handoff_keywords', filters:'id=eq.1' }) || [])[0]
+    if(ahora){
+      const campos = ['bot_name','welcome','tone','local_tips','handoff_keywords']
+      const cambio = campos.find(k => String(ahora[k]||'') !== String(botCfg[k]||''))
+      if(cambio){
+        toast('El entrenamiento del asistente se cambió desde que abriste esta pantalla. Recarga la página (F5) y vuelve a hacer tu cambio: así no se pierde lo nuevo.', 'error')
+        return
+      }
+    }
+  }catch(e){ console.warn('revisar cambios del asistente:', e) }
   const row={ active:document.getElementById('botActive').checked,
     bot_name:document.getElementById('botName').value.trim() || 'Julia',
     welcome:document.getElementById('botWelcome').value.trim(),
