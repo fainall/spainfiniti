@@ -646,6 +646,7 @@ function openai($KEY, $MODEL, $tools, $messages) {
 }
 
 $booked=null;
+$traza=[];
 for ($i=0; $i<4; $i++) {
     list($code,$resp)=openai($KEY,$MODEL,$tools,$messages);
     if ($code!==200 || !isset($resp['choices'][0]['message'])) {
@@ -661,9 +662,13 @@ for ($i=0; $i<4; $i++) {
             $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : do_book($args));
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
+            /* traza para diagnosticar: solo con la clave interna y pidiendola */
+            if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>$name, 'args'=>$args, 'out'=>$out];
         }
         continue;
     }
-    echo json_encode(['reply'=>trim($m['content'] ?? '') ?: '¿Podrías darme más detalles? 🙂', 'booked'=>$booked], JSON_UNESCAPED_UNICODE); exit;
+    $salida = ['reply'=>trim($m['content'] ?? '') ?: '¿Podrías darme más detalles? 🙂', 'booked'=>$booked];
+    if ($traza) $salida['traza'] = $traza;
+    echo json_encode($salida, JSON_UNESCAPED_UNICODE); exit;
 }
 echo json_encode(['reply'=>'¿Seguimos? Cuéntame qué servicio y día prefieres 🙂', 'booked'=>$booked], JSON_UNESCAPED_UNICODE);
