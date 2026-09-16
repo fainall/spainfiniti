@@ -1252,20 +1252,26 @@ body.sin-scroll{overflow:hidden}
   text-align:left;border-bottom:1px solid var(--gold);line-height:1.2}
 .link-cliente:hover{color:var(--gold-d);border-bottom-color:var(--gold-d)}
 .qv-name .link-cliente{font-weight:700;font-size:1.05rem}
-/* ficha rapida de la reserva: letra 20% mas chica (Luis). Los tamaños van en rem,
-   asi que cada elemento se ajusta aparte */
-.qv{font-size:.68rem}
-.qv .qv-icon{font-size:.64rem}
-.qv .qv-name,.qv .qv-name .link-cliente{font-size:.84rem}
-.qv .qv-svc{font-size:.72rem}
-.qv .qv-precio strong{font-size:.76rem}
-.qv .qv-precio-cat{font-size:.59rem}
-.qv .qv-org{font-size:.64rem}
-.qv .mini-btn{font-size:.58rem}
-.qv .pagada-sello{font-size:.62rem}
-.qv .abono-sello{font-size:.61rem}
-.qv .pagar-menu button,.qv .wa-menu button,.qv .wa-menu .wa-directo{font-size:.66rem}
-.qv .wa-menu i{font-size:.64rem}
+/* Ficha rapida de la reserva, como la de AgendaPro (Luis): un poco mas grande,
+   con aire entre las lineas y el texto en negro, sin negrita. La version
+   anterior quedaba chica y apretada. Los tamaños van en rem, asi que cada
+   elemento se ajusta aparte. */
+.qv{width:370px;padding:18px 22px 20px;font-size:.8rem;line-height:1.45;color:#111}
+.qv .qv-head{margin-bottom:10px}
+.qv .qv-icon{font-size:.74rem;padding:6px 11px}
+.qv .qv-name,.qv .qv-name .link-cliente{font-size:.98rem;margin-bottom:6px;color:#111}
+.qv .qv-svc{font-size:.84rem;margin-bottom:12px;color:#111}
+.qv .qv-row{color:#111;margin:10px 0;gap:10px}
+.qv .qv-precio strong{font-size:.88rem}
+.qv .qv-precio-cat{font-size:.68rem}
+.qv .qv-org{font-size:.74rem}
+.qv .mini-btn{font-size:.72rem;padding:6px 12px}
+.qv .pagada-sello{font-size:.72rem}
+.qv .abono-sello{font-size:.72rem}
+.qv .pagar-menu button,.qv .wa-menu button,.qv .wa-menu .wa-directo{font-size:.78rem}
+.qv .wa-menu i{font-size:.74rem}
+.qv .qv-dots{margin-top:16px;padding-top:14px;gap:8px}
+.qv .qv-dots > span{color:#111 !important}
 
 /* aviso de cuándo se actualizó la agenda */
 .refresco{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--light);white-space:nowrap}
