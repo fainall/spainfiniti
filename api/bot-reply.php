@@ -198,7 +198,7 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
 - En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
 - No preguntes con qué profesional quiere: si hay varias libres, agenda con la primera y dile con quién quedó. Solo si el cliente pide a alguien en particular, o si tú ya le nombraste a una, pásala en professional_name: no se agenda con otra sin avisarle.
-- Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok.
+- Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si tenía VARIOS servicios ese día y cambia de día, crea cada uno en el día nuevo y luego cancela CADA UNO de los anteriores con cancel_booking (una llamada por reserva; create_booking te devuelve la lista en otras_reservas_vigentes). Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok.
 - Si no hay disponibilidad, ofrece alternativas cercanas.
 - Cuando la reserva ya quedó creada y el cliente solo responde 'sí' o 'gracias', NO vuelvas a llamar a create_booking: despídete o pregunta si necesita algo más.
 
@@ -511,6 +511,24 @@ function do_cancel($args) {
     return ['ok'=>false,'reason'=>'no encontré una reserva a ese nombre en esa fecha y hora'];
 }
 
+/* reservas futuras vigentes del cliente (por telefono o nombre), sin la recien creada */
+function otras_reservas($nombre, $excluirId) {
+    global $phone;
+    $hoy = date('Y-m-d');
+    $lista = supa('GET', 'appointments?select=id,appt_date,start_time,service_name,client_name,client_phone&appt_date=gte.'.$hoy.'&status=neq.cancelled&status=neq.block&origen=eq.bot&order=appt_date,start_time') ?: [];
+    $dig = preg_replace('/D/', '', (string)$phone);
+    $ult = strlen($dig) >= 8 ? substr($dig, -8) : '';
+    $k = svc_clave($nombre);
+    $out = [];
+    foreach ($lista as $a) {
+        if (($a['id'] ?? '') === $excluirId) continue;
+        $mismoTel = $ult !== '' && substr(preg_replace('/D/', '', (string)($a['client_phone'] ?? '')), -8) === $ult;
+        $mismoNombre = $k !== '' && svc_clave($a['client_name'] ?? '') === $k;
+        if ($mismoTel || $mismoNombre) $out[] = ['date'=>$a['appt_date'], 'time'=>substr($a['start_time'],0,5), 'service'=>$a['service_name']];
+    }
+    return $out;
+}
+
 function do_book($args) {
     global $phone;
     /* el servicio tal como esta en el catalogo: su nombre, su duracion y su precio */
@@ -576,6 +594,13 @@ function do_book($args) {
     $res=supa('POST','appointments',$row);
     if (is_array($res)&&count($res)) {
         $out = ['ok'=>true,'professional'=>$prof['name'],'service'=>$svc['name'],'price'=>$precio,'appointment'=>$res[0]];
+        /* Las demas reservas vigentes del cliente: si pidio cambiar de dia y
+           tenia varias, el modelo las ve aqui y las cancela una por una. */
+        $otras = otras_reservas($args['client_name'], $res[0]['id'] ?? '');
+        if ($otras) {
+            $out['otras_reservas_vigentes'] = $otras;
+            $out['aviso'] = 'El cliente tiene estas otras reservas activas. Si pidió cambiar o mover su hora, cancela cada una con cancel_booking; si son citas distintas que sí quiere, déjalas.';
+        }
         /* cambio de hora: la anterior se cancela recien cuando la nueva ya existe */
         if (!empty($args['replace_date']) && !empty($args['replace_time'])) {
             $c = do_cancel(['date'=>$args['replace_date'], 'time'=>$args['replace_time'], 'client_name'=>$args['client_name']]);
