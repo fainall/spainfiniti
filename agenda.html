@@ -12474,7 +12474,7 @@ async function _saveSale(){
         }
       }
     }
-    await loadSales(); closeModal('saleModal'); toast('Venta guardada','success'); renderSales()
+    await loadSales(); closeModal('saleModal'); toast('Venta guardada','success'); repintarTrasVenta()
     /* si la venta era de una reserva, la agenda ya puede marcarla como pagada */
     if(ventaDeReserva){
       const _r = ventaDeReserva
@@ -12502,13 +12502,23 @@ async function devolverStock(venta){
     catch(e){ console.warn('stock no devuelto:', e.message) }
   }
 }
+/* Despues de guardar o eliminar una venta se repinta la pantalla que este
+   abierta (Transacciones, Caja, Propinas, reportes...), no solo el listado de
+   Ventas: antes habia que apretar F5 para ver el cambio (Luis). */
+function repintarTrasVenta(){
+  const v = pantallaAbierta()
+  const d = (typeof DATOS_DE_PANTALLA !== 'undefined') ? DATOS_DE_PANTALLA[v] : null
+  try{ if(d && typeof window[d.pinta] === 'function') window[d.pinta]() }catch(e){ console.warn('repintar:', e) }
+  if(v !== 'ventas' && typeof renderSales === 'function'){ try{ renderSales() }catch(e){} }
+  if(typeof renderCalendar === 'function'){ try{ renderCalendar() }catch(e){} }
+}
 async function deleteSale(){
   if(isPro()){ toast('Las ventas solo las elimina la recepción.', 'error'); return }
   const id=document.getElementById('saleId').value
   if(!id) return
   if(!await confirmar('¿Eliminar esta venta?')) return
   const venta = state.sales.find(x=>x.id===id)
-  try{ await supabase.update('sales',id,{status:'deleted'}); await devolverStock(venta); await loadSales(); closeModal('saleModal'); toast('Venta eliminada','success'); renderSales(); if(typeof renderCalendar==='function') renderCalendar() }
+  try{ await supabase.update('sales',id,{status:'deleted'}); await devolverStock(venta); await loadSales(); closeModal('saleModal'); toast('Venta eliminada','success'); repintarTrasVenta() }
   catch(e){ toast('Error al eliminar','error') }
 }
 function fillSaleProf(){
