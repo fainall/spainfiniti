@@ -9789,11 +9789,16 @@ const AP_RELLENO = new Set(['con','de','del','la','el','y','en','para','por','un
 function apPalabras(t){ return apClave(t).split(' ').filter(w => w && !AP_RELLENO.has(w)) }
 
 /* el servicio del catalogo que mas se parece; null si ninguno se parece lo suficiente */
+/* nombres de AgendaPro que no se parecen lo suficiente al del catalogo */
+const AP_ALIAS = { 'retiro de esmaltado':'Retiro de Esmaltado Simple' }
 function apServicio(nombre){
-  const k = apClave(nombre); if(!k) return null
   const cat = (state.services && state.services.length) ? state.services : (flattenServices(), state.services || [])
+  let k = apClave(nombre); if(!k) return null
+  if(AP_ALIAS[k]){ const a = cat.find(s => apClave(s.name) === apClave(AP_ALIAS[k])); if(a) return a }
   const exacto = cat.find(s => apClave(s.name) === k); if(exacto) return exacto
-  const p = apPalabras(nombre)
+  /* "Masaje Relax 60 min": relax es relajacion, y los minutos deciden entre Premium y Express */
+  const minutos = (k.match(/(\d+) min/) || [])[1]
+  const p = apPalabras(k.replace(/\brelax\b/g, 'relajacion'))
   let mejor = null, pts = 0
   cat.forEach(s => {
     const q = apPalabras(s.name)
@@ -9803,7 +9808,7 @@ function apServicio(nombre){
     const numP = p.filter(w => /^\d+$/.test(w)), numQ = q.filter(w => /^\d+$/.test(w))
     const choqueNum = numP.some(n => !numQ.includes(n)) || numQ.some(n => !numP.includes(n))
     const v = comunes * 2 - q.filter(w => !p.includes(w)).length - p.filter(w => !q.includes(w)).length - (choqueNum ? 6 : 0)
-    if(v > pts){ pts = v; mejor = s }
+    if(v > pts || (v === pts && v > 0 && minutos && Number(s.duration) === Number(minutos) && Number((mejor||{}).duration) !== Number(minutos))){ pts = v; mejor = s }
   })
   return pts >= 2 ? mejor : null
 }
@@ -9879,8 +9884,8 @@ async function leerExportAgendaPro(input){
     const marcas = new Set(existentes.map(a => (String(a.notes||'').match(/\[AgendaPro [^\]]+\]/)||[])[0]).filter(Boolean))
     reservas.forEach(r => {
       r.repetida = marcas.has(r.marca) || existentes.some(a => a.appt_date === r.fecha && String(a.start_time).slice(0,5) === r.hora
-        && (!r.prof || a.professional_id === r.prof.id)
-        && ((r.tel8 && String(a.client_phone||'').replace(/\D/g,'').slice(-8) === r.tel8) || apClave(a.client_name) === apClave(r.nombre)))
+        && ((r.tel8 && String(a.client_phone||'').replace(/\D/g,'').slice(-8) === r.tel8)
+            || ((!r.prof || a.professional_id === r.prof.id) && apClave(a.client_name) === apClave(r.nombre))))
       r.cliente = state.clients.find(c => (r.tel8 && String(c.phone||'').replace(/\D/g,'').slice(-8) === r.tel8)
         || (r.email && String(c.email||'').toLowerCase() === r.email.toLowerCase())) || null
     })
