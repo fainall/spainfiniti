@@ -7,6 +7,8 @@ require_once __DIR__ . '/supa-key.php';
  * Usa la API de OpenAI (function calling) para consultar disponibilidad y agendar.
  */
 header('Content-Type: application/json; charset=UTF-8');
+/* el servidor esta en UTC: sin esto, desde las 21:00 de Chile "hoy" era mañana */
+date_default_timezone_set('America/Santiago');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(['error'=>'Method not allowed']); exit; }
 
@@ -33,13 +35,20 @@ $SUPA_KEY = supa_key();
 
 function supa($method, $path, $body = null) {
     global $SUPA_URL, $SUPA_KEY;
+    /* free_slots revisa ~20 horas del dia: las lecturas se guardan mientras dura
+       la respuesta, y cualquier escritura las descarta para no leer datos viejos */
+    static $memo = [];
+    if ($method !== 'GET') $memo = [];
+    elseif (isset($memo[$path])) return $memo[$path];
     $ch = curl_init($SUPA_URL . $path);
     $h = ['apikey: '.$SUPA_KEY, 'Authorization: Bearer '.$SUPA_KEY, 'Content-Type: application/json'];
     if ($method !== 'GET') $h[] = 'Prefer: return=representation';
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_CUSTOMREQUEST=>$method, CURLOPT_HTTPHEADER=>$h, CURLOPT_TIMEOUT=>15]);
     if ($body !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
     $r = curl_exec($ch); curl_close($ch);
-    return json_decode($r, true);
+    $j = json_decode($r, true);
+    if ($method === 'GET' && is_array($j)) $memo[$path] = $j;
+    return $j;
 }
 
 /* ── Contexto ── */
@@ -145,7 +154,7 @@ $bienvenidasTxt = $bienvenidas
     : "\nAl saludar por primera vez presentate: \"Hola, soy $botName, asistente de $negocio. En que puedo ayudarte?\"";
 
 $system = "Eres $botName, la asistente de $negocio, un centro podológico y spa en $direccion.
-Hoy es $dow $today. Atiendes por WhatsApp.
+Hoy es $dow $today y ahora son las " . date('H:i') . ". Atiendes por WhatsApp.
 
 CÓMO HABLAS:
 - Natural y profesional, como una recepcionista con experiencia. Nunca robótica ni con frases hechas repetidas.
@@ -195,6 +204,8 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
   nombre, no la interrogues. Confirma y agenda.
 - Todo lo que averigües (cuántas uñas, molestias, si es primera vez, diabetes)
   pásalo en el campo 'detalle' al crear la reserva, para que el equipo lo lea.
+- Cuando el cliente diga un día pero no una hora exacta ("para hoy", "el jueves en la tarde"), usa free_slots y ofrécele 3 o 4 horas de esa lista, repartidas si pidió mañana o tarde. Nunca digas que no hay disponibilidad sin haber usado free_slots para ese día.
+- Nunca ofrezcas una hora que ya pasó: ahora son las " . date('H:i') . ".
 - Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
 - En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
 - No preguntes con qué profesional quiere: si hay varias libres, agenda con la primera y dile con quién quedó. Solo si el cliente pide a alguien en particular, o si tú ya le nombraste a una, pásala en professional_name: no se agenda con otra sin avisarle.
@@ -390,6 +401,11 @@ $tools = [
       'replace_date'=>['type'=>'string','description'=>'Si es un cambio de hora: fecha YYYY-MM-DD de la reserva anterior, que se cancela sola al crear la nueva'],
       'replace_time'=>['type'=>'string','description'=>'Hora HH:MM de la reserva anterior que se reemplaza']
     ],'required'=>['service_name','date','time','client_name','client_email']]]],
+  ['type'=>'function','function'=>['name'=>'free_slots','description'=>'Devuelve TODAS las horas libres de un día para un servicio, con qué profesionales. Úsala siempre que el cliente pida un día sin hora exacta, o pregunte qué horas hay.',
+    'parameters'=>['type'=>'object','properties'=>[
+      'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD'],
+      'service_name'=>['type'=>'string','description'=>'Nombre exacto del servicio']
+    ],'required'=>['date']]]],
   ['type'=>'function','function'=>['name'=>'cancel_booking','description'=>'Cancela una reserva existente del cliente. Usala cuando pida anular o cuando cambie la hora y no se haya usado replace_date. Nunca digas que una hora fue cancelada sin llamar a esta funcion.',
     'parameters'=>['type'=>'object','properties'=>[
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD de la reserva a cancelar'],
@@ -415,6 +431,34 @@ function prof_hace_servicio($profId, $serviceName) {
 
 function weekdayIso($date){ return (int)date('N', strtotime($date)); }
 
+/* La jornada de una profesional ese dia, como la muestra la agenda: primero el
+   horario por dia de Administracion -> Profesionales (con sus descansos), y si
+   no lo tiene, el horario general. Devuelve null si no trabaja ese dia. */
+function jornada_de($p, $date) {
+    global $bot;
+    $w = (int)date('w', strtotime($date));                     // 0 = domingo
+    $meta = $bot['prof_meta'] ?? [];
+    if (is_string($meta)) $meta = json_decode($meta, true);
+    $m = (is_array($meta) && isset($meta[$p['id']])) ? $meta[$p['id']] : [];
+    $aMin = fn($h) => (int)substr($h,0,2)*60 + (int)substr($h,3,2);
+    $hpd = $m['horasPorDia'] ?? null;
+    if (is_array($hpd) && count($hpd)) {
+        $r = $hpd[$w] ?? ($hpd[(string)$w] ?? null);
+        if (!is_array($r) || empty($r[0])) return null;
+        $ini = $aMin($r[0]); $fin = $aMin($r[1]);
+    } else {
+        $days = is_string($p['work_days']) ? json_decode($p['work_days'], true) : $p['work_days'];
+        $days = $days ?: [1,2,3,4,5,6];
+        $wd = weekdayIso($date);
+        if (!in_array($wd, $days) && !in_array($wd % 7, $days)) return null;
+        $ini = $aMin($p['work_start']); $fin = $aMin($p['work_end']);
+    }
+    $descansos = [];
+    $brk = $m['breaks'] ?? [];
+    foreach (($brk[$w] ?? ($brk[(string)$w] ?? [])) as $b) $descansos[] = [$aMin($b[0]), $aMin($b[1])];
+    return ['ini'=>$ini, 'fin'=>$fin, 'descansos'=>$descansos];
+}
+
 function do_check($args) {
     global $pros;
     $date=$args['date']; $time=substr($args['time'],0,5); $dur=$args['duration']??60;
@@ -424,14 +468,24 @@ function do_check($args) {
     $appts = supa('GET', 'appointments?select=professional_id,start_time,end_time&appt_date=eq.'.$date.'&or=(status.is.null,status.neq.cancelled)') ?: [];
     $free=[];
     $svcPedido = $args['service_name'] ?? '';
+    if ($svcPedido !== '') {
+        $sc = svc_del_catalogo($svcPedido);
+        if ($sc) {
+            $svcPedido = $sc['name']; $args['service_name'] = $sc['name'];
+            if (empty($args['duration'])) { $dur = svc_minutos($sc); $endM = $startM + $dur; }
+        }
+    }
+    /* una hora que ya paso no se ofrece */
+    if ($date < date('Y-m-d') || ($date === date('Y-m-d') && $startM < (int)date('H')*60 + (int)date('i') + 30))
+        return ['available'=>false,'professionals'=>[],'motivo'=>'esa hora ya pasó; ahora son las '.date('H:i').'. Usa free_slots para ver lo que queda hoy'];
     foreach ($pros as $p) {
         if ($svcPedido && !prof_hace_servicio($p['id'], $svcPedido)) continue;   // no lo tiene asignado
-        $days = is_string($p['work_days']) ? json_decode($p['work_days'],true) : $p['work_days'];
-        /* el panel guarda el domingo como 0; un gestor antiguo como 7 */
-        if (!in_array($wd, $days ?: [1,2,3,4,5,6]) && !in_array($wd % 7, $days ?: [1,2,3,4,5,6])) continue;
-        $ws=(int)substr($p['work_start'],0,2)*60+(int)substr($p['work_start'],3,2);
-        $we=(int)substr($p['work_end'],0,2)*60+(int)substr($p['work_end'],3,2);
-        if ($startM<$ws || $endM>$we) continue;
+        $j = jornada_de($p, $date);
+        if (!$j) continue;                                        // no trabaja ese dia
+        if ($startM < $j['ini'] || $endM > $j['fin']) continue;
+        $enDescanso = false;
+        foreach ($j['descansos'] as $d) if ($startM < $d[1] && $endM > $d[0]) { $enDescanso = true; break; }
+        if ($enDescanso) continue;
         $busy=false;
         foreach ($appts as $a) { if ($a['professional_id']!==$p['id']) continue;
             $as=(int)substr($a['start_time'],0,2)*60+(int)substr($a['start_time'],3,2);
@@ -491,6 +545,28 @@ function ficha_de_cliente($nombre, $telefono, $correo) {
 
 /* Cancela la reserva del cliente en esa fecha y hora (queda como cancelada en
    su historial, como cuando se anula desde el panel). */
+/* Todas las horas libres de un dia para un servicio, cada 30 minutos. Antes el
+   bot probaba una o dos horas al azar (a veces ya pasadas) y si esas estaban
+   tomadas decia que no habia disponibilidad aunque la agenda estuviera libre. */
+function do_free_slots($args) {
+    global $pros;
+    $date = (string)($args['date'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return ['ok'=>false,'reason'=>'fecha no válida'];
+    if ($date < date('Y-m-d')) return ['ok'=>false,'reason'=>'esa fecha ya pasó'];
+    $svc = !empty($args['service_name']) ? svc_del_catalogo($args['service_name']) : null;
+    $dur = $svc ? svc_minutos($svc) : 60;
+    $desde = 24*60; $hasta = 0;
+    foreach ($pros as $p) { $j = jornada_de($p, $date); if ($j) { $desde = min($desde, $j['ini']); $hasta = max($hasta, $j['fin']); } }
+    $libres = [];
+    for ($t = $desde; $t + $dur <= $hasta; $t += 30) {
+        $hh = sprintf('%02d:%02d', intdiv($t,60), $t%60);
+        $r = do_check(['date'=>$date, 'time'=>$hh, 'duration'=>$dur, 'service_name'=>$svc ? $svc['name'] : '']);
+        if (!empty($r['available'])) $libres[] = ['time'=>$hh, 'professionals'=>array_column($r['professionals'], 'name')];
+    }
+    return ['date'=>$date, 'service'=>$svc ? $svc['name'] : null, 'duration'=>$dur, 'now'=>date('H:i'),
+            'free'=>$libres, 'total'=>count($libres)];
+}
+
 function do_cancel($args) {
     global $phone;
     $date = (string)($args['date'] ?? ''); $time = substr((string)($args['time'] ?? ''), 0, 5);
@@ -659,7 +735,7 @@ for ($i=0; $i<4; $i++) {
         foreach ($m['tool_calls'] as $tc) {
             $args = json_decode($tc['function']['arguments'] ?? '{}', true) ?: [];
             $name = $tc['function']['name'];
-            $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : do_book($args));
+            $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : ($name==='free_slots' ? do_free_slots($args) : do_book($args)));
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
             /* traza para diagnosticar: solo con la clave interna y pidiendola */
