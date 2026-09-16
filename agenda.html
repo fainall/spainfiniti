@@ -9899,10 +9899,23 @@ async function leerExportAgendaPro(input){
     const marcas = new Set(existentes.map(a => (String(a.notes||'').match(/\[AgendaPro [^\]]+\]/)||[])[0]).filter(Boolean))
     reservas.forEach(r => {
       r.repetida = marcas.has(r.marca) || existentes.some(a => a.appt_date === r.fecha && String(a.start_time).slice(0,5) === r.hora
+        && apClave(a.service_name) === apClave(r.svc)
         && ((r.tel8 && String(a.client_phone||'').replace(/\D/g,'').slice(-8) === r.tel8)
             || ((!r.prof || a.professional_id === r.prof.id) && apClave(a.client_name) === apClave(r.nombre))))
       r.cliente = state.clients.find(c => (r.tel8 && String(c.phone||'').replace(/\D/g,'').slice(-8) === r.tel8)
         || (r.email && String(c.email||'').toLowerCase() === r.email.toLowerCase())) || null
+    })
+    /* Dentro del mismo archivo, una misma hora del mismo cliente y servicio puede
+       venir dos veces: AgendaPro cancela la reserva y crea otra cuando se cambia la
+       profesional o se reagenda (Cancelado + Asiste), o la cancela dos veces. Esas
+       canceladas sobran en el historial. Dos "Asiste" se conservan: son dos
+       profesionales atendiendo a la vez. */
+    const grupos = {}
+    reservas.forEach(r => { const g = r.fecha + '|' + r.hora + '|' + (r.tel8 || apClave(r.nombre)) + '|' + apClave(r.svc); (grupos[g] = grupos[g] || []).push(r) })
+    Object.values(grupos).forEach(g => {
+      if(g.length < 2) return
+      const vivas = g.filter(r => r.estado !== 'cancelled'), canceladas = g.filter(r => r.estado === 'cancelled')
+      ;(vivas.length ? canceladas : canceladas.slice(1)).forEach(r => { r.sobrante = true })
     })
     apImport = { archivo: f.name, reservas }
     avisar('')
@@ -9915,7 +9928,9 @@ function pintarPreviaAgendaPro(){
   const soloFuturas = !!(document.getElementById('apSoloFuturas')||{}).checked
   const sinCanceladas = !!(document.getElementById('apSinCanceladas')||{}).checked
   const todas = apImport.reservas
-  const elegibles = todas.filter(r => (!soloFuturas || r.futura) && (!sinCanceladas || r.estado !== 'cancelled'))
+  const sinSobrantes = !document.getElementById('apSinSobrantes') || document.getElementById('apSinSobrantes').checked
+  const sobrantes = todas.filter(r => r.sobrante).length
+  const elegibles = todas.filter(r => (!soloFuturas || r.futura) && (!sinCanceladas || r.estado !== 'cancelled') && !(sinSobrantes && r.sobrante))
   const nuevas = elegibles.filter(r => !r.repetida)
   const cuenta = (lista, k) => lista.reduce((o, r) => (o[r[k]] = (o[r[k]]||0) + 1, o), {})
   const porEstado = cuenta(nuevas, 'estadoAP')
@@ -9931,6 +9946,7 @@ function pintarPreviaAgendaPro(){
     <h4 style="margin:0 0 6px">${esc(apImport.archivo)}</h4>
     <p class="rem-note" style="margin:0 0 10px">${todas.length} reservas en el archivo, del ${fmtD(fechas[0])} al ${fmtD(fechas[fechas.length-1])}.</p>
     <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="apSoloFuturas" ${soloFuturas?'checked':''} style="width:auto" onchange="pintarPreviaAgendaPro()"> Solo reservas de hoy en adelante</label>
+    ${sobrantes ? `<label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="apSinSobrantes" ${sinSobrantes?'checked':''} style="width:auto" onchange="pintarPreviaAgendaPro()"> Omitir ${sobrantes} canceladas repetidas (la misma hora se volvió a agendar o se canceló dos veces)</label>` : ''}
     <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="apSinCanceladas" ${sinCanceladas?'checked':''} style="width:auto" onchange="pintarPreviaAgendaPro()"> No importar las canceladas</label>
     <label style="display:flex;gap:8px;align-items:center;margin:4px 0"><input type="checkbox" id="apSinRecordatorio" checked style="width:auto"> No mandar recordatorios automáticos a estas reservas (AgendaPro ya los manda)</label>
     <div class="rep-cards" style="margin:12px 0">
@@ -9956,7 +9972,8 @@ async function importarAgendaPro(){
   const soloFuturas = document.getElementById('apSoloFuturas').checked
   const sinCanceladas = document.getElementById('apSinCanceladas').checked
   const sinRecordatorio = document.getElementById('apSinRecordatorio').checked
-  const nuevas = apImport.reservas.filter(r => !r.repetida && (!soloFuturas || r.futura) && (!sinCanceladas || r.estado !== 'cancelled'))
+  const sinSobrantes = !document.getElementById('apSinSobrantes') || document.getElementById('apSinSobrantes').checked
+  const nuevas = apImport.reservas.filter(r => !r.repetida && (!soloFuturas || r.futura) && (!sinCanceladas || r.estado !== 'cancelled') && !(sinSobrantes && r.sobrante))
   const btn = document.getElementById('apGo'), prog = document.getElementById('apProgreso')
   const avisar = t => { if(prog) prog.textContent = t }
   btn.disabled = true
