@@ -12888,9 +12888,19 @@ function renderComisiones(){
   const cajaAviso=document.getElementById('commAviso')
   if(cajaAviso) cajaAviso.innerHTML=avisoComisionFaltante()
 
+  /* En Comisiones cuenta solo lo que ya quedo pagado completo: un abono no
+     suma hasta que se cierra la cuenta, y ahi entra el servicio entero (la
+     misma regla de la comision). Antes "Ventas totales" sumaba los abonos y
+     no cuadraba con lo que se comisionaba (Luis). */
+  const baseDe = {}
+  list.forEach(s => { baseDe[s.id] = comisionDeVenta(s).base })
   // KPIs por tipo de venta
   let vServ=0, vProd=0, tips=0
-  list.forEach(s=>{ const {serv,prod}=splitSaleItems(s); vServ+=serv; vProd+=prod; tips+=Number(s.tip||0) })
+  list.forEach(s=>{
+    const {serv,prod}=splitSaleItems(s), tot=serv+prod, b=baseDe[s.id]
+    const bServ = tot>0 ? Math.round(serv*b/tot) : b
+    vServ+=bServ; vProd+=b-bServ; tips+=Number(s.tip||0)
+  })
   // planes vendidos en el período
   const vPlans=state.plans.filter(p=>p.status!=='cancelled' && (!from||p.purchase_date>=from) && (!to||p.purchase_date<=to))
     .reduce((a,p)=>a+Number(p.price||0),0)
@@ -12903,7 +12913,7 @@ function renderComisiones(){
   const byProf={}
   list.forEach(s=>{ if(!s.professional_id) return
     byProf[s.professional_id]=byProf[s.professional_id]||{sales:0,tips:0,comm:0}
-    byProf[s.professional_id].sales+=Number(s.total||0)
+    byProf[s.professional_id].sales+=baseDe[s.id]
     byProf[s.professional_id].tips+=Number(s.tip||0)
     byProf[s.professional_id].comm+=comisionDeVenta(s).comm })
   const profList=psel && psel.value ? state.professionals.filter(p=>p.id===psel.value) : state.professionals
@@ -12920,8 +12930,13 @@ function renderComisiones(){
   document.getElementById('ckTotalComm').textContent=fmtMoney(totalComm)
   document.getElementById('commCount').textContent=`Mostrando ${rows.length} de ${rows.length} registros`
 
-  const unassigned=list.filter(s=>!s.professional_id).reduce((a,s)=>a+Number(s.total||0),0)
-  el.innerHTML=`${rows.length?`<table class="ctbl">
+  const unassigned=list.filter(s=>!s.professional_id).reduce((a,s)=>a+baseDe[s.id],0)
+  /* cuantos abonos quedan fuera por no estar pagados completos */
+  const abonosFuera = list.filter(s => esAbono(s) && !baseDe[s.id])
+  const notaAbonos = abonosFuera.length
+    ? `<p class="rem-note" style="margin:0 0 10px">No se cuentan ${abonosFuera.length} ${abonosFuera.length===1?'abono':'abonos'} (${fmtMoney(abonosFuera.reduce((a,s)=>a+Number(s.total||0),0))}): entran con el servicio completo cuando se pague el saldo.</p>`
+    : ''
+  el.innerHTML=notaAbonos + `${rows.length?`<table class="ctbl">
       <thead><tr><th>Profesional o Staff</th><th style="text-align:right">Ventas totales</th><th style="text-align:right">% Comisión</th><th style="text-align:right">Monto comisión</th><th style="text-align:right">Propinas</th></tr></thead>
       <tbody>${rows.map(r=>{
         const det = detalleComision(r.id, list)
