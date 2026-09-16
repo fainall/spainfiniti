@@ -8207,7 +8207,7 @@ function renderAdmin(){
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else if(admCurrent==='precios') el.innerHTML=admPrecios()
   else if(admCurrent==='recursos') el.innerHTML=admRecursos()
-  else if(admCurrent==='config') el.innerHTML=admConfig()
+  else if(admCurrent==='config'){ el.innerHTML=admConfig(); if(isAdmin()) pintarRespaldos() }
   else if(admCurrent==='mensajes') el.innerHTML=admMensajes()
   else if(admCurrent==='gccat') el.innerHTML=admGcCatalogo()
   else if(admCurrent==='fichas'){ el.innerHTML=admFichas(); cargarPlantillas().then(()=>{ if(admCurrent==='fichas') el.innerHTML=admFichas() }) }
@@ -9612,42 +9612,263 @@ const TABLAS_RESPALDO = ['appointments','clients','professionals','services','ca
   'client_records','consents','client_consents','payment_links','panel_users','bot_config',
   'surveys','survey_responses','campaigns','gift_card_uses']
 
+/* Supabase entrega como maximo 1.000 filas por consulta: la copia anterior
+   guardaba solo los primeros 1.000 clientes (hay mas). Se lee por paginas. */
+async function leerTablaCompleta(t){
+  const PAG = 1000
+  let todas = [], desde = 0
+  for(let vuelta = 0; vuelta < 500; vuelta++){
+    let filas
+    try{ filas = await supabase.fetch(t, { filters:'limit=' + PAG + '&offset=' + desde, order:'id.asc' }) || [] }
+    catch(e){
+      /* una tabla sin columna id no se puede ordenar por id: va de una vez */
+      if(vuelta === 0) return await supabase.fetch(t) || []
+      throw e
+    }
+    todas = todas.concat(filas)
+    if(filas.length < PAG) break
+    desde += PAG
+  }
+  return todas
+}
+
+async function armarRespaldo(avisar){
+  if(typeof sesionLista === 'function') await sesionLista()
+  if(typeof supaAuth !== 'undefined' && !supaAuth.session()) throw new Error('Necesitas haber iniciado sesión para hacer la copia.')
+  const copia = { tipo:'spa-infinity-respaldo', version:2, hecha:new Date().toISOString(),
+                  local:(localInfo||{}).name || '', por:(me && me.email) || '', tablas:{}, conteos:{} }
+  const fallaron = []
+  for(let i = 0; i < TABLAS_RESPALDO.length; i++){
+    const t = TABLAS_RESPALDO[i]
+    if(avisar) avisar('Copiando ' + t + '… (' + (i+1) + ' de ' + TABLAS_RESPALDO.length + ')')
+    try{ copia.tablas[t] = await leerTablaCompleta(t); copia.conteos[t] = copia.tablas[t].length }
+    catch(e){ fallaron.push(t + ': ' + e.message); copia.tablas[t] = null }
+  }
+  copia.no_copiadas = fallaron
+  copia.registros = Object.values(copia.conteos).reduce((a,n)=>a+n, 0)
+  return copia
+}
+function bajarComoArchivo(copia, nombre){
+  const blob = new Blob([JSON.stringify(copia)], { type:'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = nombre || ('spa-infinity-respaldo-' + String(copia.hecha||new Date().toISOString()).slice(0,10) + '.json')
+  a.click()
+  setTimeout(()=>URL.revokeObjectURL(a.href), 3000)
+}
+
 async function descargarRespaldo(){
   const btn = document.getElementById('respBtn'), est = document.getElementById('respEstado')
   const avisar = t => { if(est) est.textContent = t }
   if(btn){ btn.disabled = true; btn.textContent = 'Preparando…' }
-
-  /* estas tablas piden sesion; sin ella la copia saldria vacia y nadie se enteraria */
-  if(typeof sesionLista === 'function') await sesionLista()
-  if(typeof supaAuth !== 'undefined' && !supaAuth.session()){
-    avisar('Necesitas haber iniciado sesión para bajar la copia.')
-    if(btn){ btn.disabled = false; btn.textContent = '⬇ Descargar copia de seguridad' }
-    return
-  }
-
-  const copia = { hecha: new Date().toISOString(), local: (localInfo||{}).name || '', tablas: {} }
-  const fallaron = []
-  for(let i = 0; i < TABLAS_RESPALDO.length; i++){
-    const t = TABLAS_RESPALDO[i]
-    avisar('Copiando ' + t + '… (' + (i+1) + ' de ' + TABLAS_RESPALDO.length + ')')
-    try{ copia.tablas[t] = await supabase.fetch(t) || [] }
-    catch(e){ fallaron.push(t + ': ' + e.message); copia.tablas[t] = null }
-  }
-  copia.no_copiadas = fallaron
-
-  const filas = Object.values(copia.tablas).reduce((a,v)=> a + (Array.isArray(v) ? v.length : 0), 0)
-  const blob = new Blob([JSON.stringify(copia, null, 1)], { type:'application/json' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = 'spa-infinity-respaldo-' + new Date().toISOString().slice(0,10) + '.json'
-  a.click()
-  setTimeout(()=>URL.revokeObjectURL(a.href), 2000)
-
-  avisar(filas + ' registros guardados' + (fallaron.length ? ' · ' + fallaron.length + ' tabla(s) sin copiar' : ''))
-  if(fallaron.length) console.warn('respaldo, sin copiar:', fallaron)
+  try{
+    const copia = await armarRespaldo(avisar)
+    bajarComoArchivo(copia)
+    /* la misma copia queda tambien guardada en el servidor */
+    try{ await guardarEnServidor(copia, 'manual') }catch(e){ console.warn('copia en servidor:', e) }
+    avisar(copia.registros + ' registros guardados' + (copia.no_copiadas.length ? ' · ' + copia.no_copiadas.length + ' tabla(s) sin copiar' : ''))
+    toast(copia.no_copiadas.length ? 'Copia hecha, pero faltaron ' + copia.no_copiadas.length + ' tabla(s)' : 'Copia descargada',
+          copia.no_copiadas.length ? 'error' : 'success')
+    pintarRespaldos()
+  }catch(e){ avisar(e.message); toast(e.message, 'error') }
   if(btn){ btn.disabled = false; btn.textContent = '⬇ Descargar copia de seguridad' }
-  toast(fallaron.length ? 'Copia hecha, pero faltaron ' + fallaron.length + ' tabla(s)' : 'Copia descargada',
-        fallaron.length ? 'error' : 'success')
+}
+
+/* ── copias en el servidor ── */
+async function apiRespaldo(query, opciones){
+  if(typeof sesionLista === 'function') await sesionLista()
+  const o = opciones || {}
+  const res = await fetch('/api/respaldo.php?' + query, { method:o.method||'GET', cache:'no-store',
+    headers: authHeaders(o.body ? {'Content-Type':'application/json'} : {}), body:o.body })
+  const txt = await res.text()
+  let j = null; try{ j = JSON.parse(txt) }catch(e){}
+  if(!res.ok) throw new Error((j && j.error) || ('Error ' + res.status))
+  return j
+}
+async function guardarEnServidor(copia, tipo){
+  return apiRespaldo('accion=guardar&tipo=' + tipo, { method:'POST', body: JSON.stringify(copia) })
+}
+
+/* Copia automatica: el navegador no puede trabajar con el panel cerrado, asi
+   que la hace el primer administrador que entra al panel cuando ya toca
+   (cada N dias). Se guarda en el servidor, fuera de la web. */
+let respaldoAutoCorriendo = false
+async function respaldoAutomatico(){
+  if(respaldoAutoCorriendo || !isAdmin()) return
+  respaldoAutoCorriendo = true
+  try{
+    const l = await apiRespaldo('accion=lista')
+    if(l && l.toca){
+      const copia = await armarRespaldo()
+      if(!copia.no_copiadas.length || copia.registros > 0){
+        await guardarEnServidor(copia, 'auto')
+        toast('Copia de seguridad automática guardada (' + copia.registros + ' registros)', 'success')
+      }
+    }
+  }catch(e){ console.warn('copia automatica:', e.message) }
+  respaldoAutoCorriendo = false
+}
+
+let respLista = null, respElegida = null
+async function pintarRespaldos(){
+  const el = document.getElementById('respServidor'); if(!el) return
+  try{ respLista = await apiRespaldo('accion=lista') }
+  catch(e){ el.innerHTML = '<p class="rem-note">No pude leer las copias del servidor: ' + esc(e.message) + '</p>'; return }
+  const c = respLista.config || {}
+  const fmtF = f => { const [d,h] = String(f).split(' '); const [y,m,dd] = d.split('-'); return dd + '/' + m + '/' + y + (h ? ' ' + h : '') }
+  const kb = b => b > 1048576 ? (b/1048576).toFixed(1) + ' MB' : Math.round(b/1024) + ' KB'
+  const tipoTxt = { auto:'Automática', manual:'Manual', 'antes-de-restaurar':'Antes de restaurar' }
+  el.innerHTML = `
+    <div class="row2" style="margin-bottom:10px">
+      <div><label>Copia automática</label>
+        <select onchange="cambiarCfgRespaldo({cadaDias:+this.value})">
+          ${[[0,'Desactivada'],[1,'Todos los días'],[7,'Cada 7 días'],[15,'Cada 15 días'],[30,'Cada 30 días']]
+            .map(([v,t])=>`<option value="${v}" ${+c.cadaDias===v?'selected':''}>${t}</option>`).join('')}
+        </select></div>
+      <div><label>Guardar las últimas</label>
+        <select onchange="cambiarCfgRespaldo({guardar:+this.value})">
+          ${[3,6,12].map(v=>`<option value="${v}" ${+c.guardar===v?'selected':''}>${v} copias</option>`).join('')}
+        </select></div>
+    </div>
+    <p class="rem-note" style="margin:0 0 12px">${+c.cadaDias
+      ? 'Última copia: <strong>' + (c.ultimo ? fmtF(c.ultimo) : 'ninguna todavía') + '</strong> · próxima: <strong>' + (respLista.proxima ? fmtF(respLista.proxima) : 'hoy') + '</strong>. Se hace sola cuando un administrador entra al panel ese día o después.'
+      : 'Las copias automáticas están desactivadas.'}</p>
+    ${(respLista.copias||[]).length ? `<div class="tabla-scroll"><table class="ctbl">
+      <thead><tr><th>Fecha</th><th>Tipo</th><th style="text-align:right">Registros</th><th style="text-align:right">Tamaño</th><th></th></tr></thead>
+      <tbody>${respLista.copias.map(x=>`<tr>
+        <td>${fmtF(x.fecha)}</td><td>${tipoTxt[x.tipo]||x.tipo}</td>
+        <td style="text-align:right">${x.registros!=null ? x.registros.toLocaleString('es-CL') : '—'}</td>
+        <td style="text-align:right">${kb(x.bytes)}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="mini-btn" onclick="bajarCopiaServidor('${x.nombre}')">⬇ Descargar</button>
+          <button class="mini-btn" onclick="elegirCopiaServidor('${x.nombre}')">↺ Restaurar</button></td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="rem-note">Todavía no hay copias guardadas en el servidor.</p>'}`
+}
+async function cambiarCfgRespaldo(cambio){
+  try{ await apiRespaldo('accion=config', { method:'POST', body: JSON.stringify(cambio) }); toast('Guardado', 'success'); pintarRespaldos() }
+  catch(e){ toast(e.message, 'error') }
+}
+async function bajarCopiaServidor(nombre){
+  try{ const copia = await apiRespaldo('accion=bajar&nombre=' + encodeURIComponent(nombre)); bajarComoArchivo(copia, nombre.replace(/\.gz$/, '')) }
+  catch(e){ toast(e.message, 'error') }
+}
+async function elegirCopiaServidor(nombre){
+  try{ prepararRestauracion(await apiRespaldo('accion=bajar&nombre=' + encodeURIComponent(nombre)), nombre) }
+  catch(e){ toast(e.message, 'error') }
+}
+function elegirCopiaArchivo(input){
+  const f = input.files && input.files[0]; if(!f) return
+  const r = new FileReader()
+  r.onload = () => {
+    try{ prepararRestauracion(JSON.parse(r.result), f.name) }
+    catch(e){ toast('Ese archivo no es una copia de seguridad válida.', 'error') }
+    input.value = ''
+  }
+  r.readAsText(f)
+}
+
+/* ── restaurar ── */
+/* primero lo que otras tablas necesitan (servicios, clientes...), despues lo que depende de ello */
+const ORDEN_RESTAURAR = ['categories','services','professionals','clients','products','plans','record_templates','consents',
+  'surveys','campaigns','bot_config','appointments','sales','stock_movements','cash_movements','client_records',
+  'client_consents','payment_links','survey_responses','gift_card_uses']
+/* panel_users no se restaura: devolveria roles y accesos viejos y podria dejar a alguien fuera */
+
+function prepararRestauracion(copia, origen){
+  if(!copia || typeof copia.tablas !== 'object'){ toast('Ese archivo no es una copia de seguridad válida.', 'error'); return }
+  respElegida = copia
+  const el = document.getElementById('respRestaurar'); if(!el) return
+  const cuando = copia.hecha ? new Date(copia.hecha).toLocaleString('es-CL') : '(sin fecha)'
+  const nombres = { appointments:'Reservas', clients:'Clientes', sales:'Ventas', services:'Servicios', professionals:'Profesionales',
+    client_records:'Fichas', client_consents:'Consentimientos firmados', products:'Productos', cash_movements:'Movimientos de caja', plans:'Planes', bot_config:'Configuración' }
+  const filas = ORDEN_RESTAURAR.filter(t => Array.isArray(copia.tablas[t]) && copia.tablas[t].length)
+  el.hidden = false
+  el.innerHTML = `<div class="fbox" style="border:2px solid var(--red);margin-top:14px">
+    <h4 style="margin:0 0 6px">Restaurar la copia del ${esc(cuando)}</h4>
+    <p class="rem-note" style="margin:0 0 8px">${esc(origen||'')} · ${filas.map(t=>(nombres[t]||t)+': '+copia.tablas[t].length).join(' · ')}</p>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin:8px 0"><input type="radio" name="respModo" value="recuperar" checked style="width:auto;margin-top:3px">
+      <span><strong>Recuperar lo que tenía la copia</strong> (recomendado)<br><small>Vuelve a poner todo lo que estaba en la copia tal como estaba. Lo que se creó después (reservas, ventas o clientes nuevos) se conserva.</small></span></label>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin:8px 0"><input type="radio" name="respModo" value="exacto" style="width:auto;margin-top:3px">
+      <span><strong>Dejar todo exactamente como en la copia</strong><br><small>Además <strong>borra</strong> todo lo creado después de esa fecha. Úsalo solo si la base quedó dañada.</small></span></label>
+    <p class="rem-note" style="margin:10px 0 6px">Antes de restaurar se guarda sola una copia del estado actual, para poder deshacer. Los usuarios y contraseñas del panel no se tocan.</p>
+    <div class="resp-fila">
+      <input id="respConfirma" placeholder="Escribe RESTAURAR" style="max-width:200px" />
+      <button class="btn-danger" id="respGo" onclick="restaurarRespaldo()">Restaurar</button>
+      <button class="btn-ghost" onclick="document.getElementById('respRestaurar').hidden=true;respElegida=null">Cancelar</button>
+      <span class="resp-estado" id="respRestEstado"></span>
+    </div></div>`
+  el.scrollIntoView({ behavior:'smooth', block:'center' })
+}
+
+async function pedirConSesion(url, opciones){
+  const res = await conSesion(() => fetch(url, Object.assign({}, opciones, { headers: Object.assign({
+    'apikey': SUPABASE_ANON_KEY, 'Authorization': supaAuthHeader(), 'Content-Type':'application/json' }, (opciones||{}).headers || {}) })))
+  if(!res.ok) throw new Error(res.status + ' ' + (await res.text()).slice(0, 200))
+  return res
+}
+
+async function restaurarRespaldo(){
+  const copia = respElegida; if(!copia) return
+  if(!isAdmin()){ toast('Solo un administrador puede restaurar.', 'error'); return }
+  if(String(document.getElementById('respConfirma').value).trim().toUpperCase() !== 'RESTAURAR'){ toast('Escribe RESTAURAR para confirmar.', 'error'); return }
+  const modo = (document.querySelector('input[name="respModo"]:checked')||{}).value || 'recuperar'
+  const est = document.getElementById('respRestEstado'), btn = document.getElementById('respGo')
+  const avisar = t => { if(est) est.textContent = t }
+  btn.disabled = true
+  const informe = [], errores = []
+  try{
+    /* 1. copia del estado actual, por si hay que deshacer */
+    avisar('Guardando el estado actual por seguridad…')
+    const actual = await armarRespaldo(t => avisar('Guardando el estado actual… ' + t))
+    await guardarEnServidor(actual, 'antes-de-restaurar')
+
+    /* 2. se vuelve a poner cada fila de la copia (insertar o reemplazar por id) */
+    const tablas = ORDEN_RESTAURAR.filter(t => Array.isArray(copia.tablas[t]))
+    for(const t of tablas){
+      const filas = copia.tablas[t]
+      let hechas = 0
+      try{
+        for(let i = 0; i < filas.length; i += 300){
+          avisar('Restaurando ' + t + '… ' + Math.min(i+300, filas.length) + ' de ' + filas.length)
+          await pedirConSesion(SUPABASE_URL + '/rest/v1/' + t, { method:'POST',
+            headers:{ 'Prefer':'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(filas.slice(i, i+300)) })
+          hechas = Math.min(i+300, filas.length)
+        }
+        informe.push(t + ': ' + hechas)
+      }catch(e){ errores.push(t + ' (' + e.message + ')') }
+    }
+
+    /* 3. modo exacto: se borra lo que no estaba en la copia, de las tablas hijas a las madres */
+    if(modo === 'exacto'){
+      for(const t of tablas.slice().reverse()){
+        if(errores.some(x => x.startsWith(t + ' '))) continue      // si no se restauro bien, no se borra nada
+        try{
+          const enCopia = new Set(copia.tablas[t].map(f => String(f.id)))
+          const hoy = await leerTablaCompleta(t)
+          const sobran = hoy.map(f => String(f.id)).filter(id => id !== 'undefined' && !enCopia.has(id))
+          for(let i = 0; i < sobran.length; i += 80){
+            avisar('Quitando lo posterior en ' + t + '… ' + Math.min(i+80, sobran.length) + ' de ' + sobran.length)
+            const lote = sobran.slice(i, i+80).map(id => '"' + id.replace(/"/g,'') + '"').join(',')
+            await pedirConSesion(SUPABASE_URL + '/rest/v1/' + t + '?id=in.(' + encodeURIComponent(lote) + ')', { method:'DELETE' })
+          }
+          if(sobran.length) informe.push(t + ': ' + sobran.length + ' borrados')
+        }catch(e){ errores.push(t + ' al borrar (' + e.message + ')') }
+      }
+    }
+
+    avisar(errores.length ? 'Terminó con problemas en ' + errores.length + ' tabla(s)' : 'Restauración completa')
+    console.log('restauracion:', informe, errores)
+    if(errores.length){
+      toast('Restauración con problemas: ' + errores.join(' · ').slice(0, 300), 'error')
+    }else{
+      toast('Copia restaurada. Recargando…', 'success')
+      setTimeout(() => location.reload(), 1800)
+    }
+  }catch(e){
+    avisar(e.message); toast('No se restauró: ' + e.message, 'error')
+  }
+  btn.disabled = false
+  pintarRespaldos()
 }
 
 /* ══════════════ CONSENTIMIENTOS ══════════════
@@ -10139,10 +10360,15 @@ function admConfig(){
       ventas, caja, inventario— a un solo archivo. Guárdalo fuera del computador del local.</p>
       <div class="resp-fila">
         <button class="btn-primary" id="respBtn" onclick="descargarRespaldo()">⬇ Descargar copia de seguridad</button>
+        <label class="btn-ghost" style="cursor:pointer;margin:0">⬆ Restaurar desde un archivo
+          <input type="file" accept=".json,application/json" hidden onchange="elegirCopiaArchivo(this)"></label>
         <span class="resp-estado" id="respEstado"></span>
       </div>
       <p class="rem-note" style="margin:10px 0 0"><strong>Cuidado:</strong> el archivo lleva datos de salud
       y de contacto de los pacientes. No lo dejes en el escritorio ni lo mandes por WhatsApp.</p>
+      <div id="respRestaurar" hidden></div>
+      <h4 style="margin:18px 0 8px">Copias guardadas en el servidor</h4>
+      <div id="respServidor"><p class="rem-note">Cargando…</p></div>
     </div>`
 }
 
@@ -14102,6 +14328,8 @@ async function boot(){
   render()
   if(isPro()) switchView('agenda')
   iniciarRefresco()
+  /* copia automatica si ya toca (la hace un administrador al entrar) */
+  if(isAdmin()) setTimeout(respaldoAutomatico, 45000)
   // scroll a las 9:00 aprox
   setTimeout(()=>{ const w=document.getElementById('calWrap'); if(w) w.scrollTop=0 }, 100)
 }
