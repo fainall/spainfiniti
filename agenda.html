@@ -9620,6 +9620,51 @@ function filtrarAddFicha(texto){
 /* al pulsar fuera, se cierra */
 document.addEventListener('click', e=>{ if(!e.target.closest('#addFicha')) cerrarAddFicha() })
 
+/* ══════════════ FOTOS CLINICAS PRIVADAS ══════════════
+   Las carpetas 'fichas' y 'consentimientos' ya no se leen por enlace publico:
+   las fotos clinicas se podian abrir sin iniciar sesion. En las fichas sigue
+   guardado el enlace de siempre; al mostrarlo, el panel pide a Supabase un
+   enlace firmado que vence en una hora, y solo alguien con sesion del panel
+   puede pedirlo. Se aplica solo a cualquier imagen o enlace que aparezca. */
+const FOTO_PRIV_RE = /\/storage\/v1\/object\/public\/(fichas|consentimientos)\/([^?#"']+)/
+const fotoFirmada = {}
+let firmandoFotos = false, otraVueltaFotos = false, relojFotos = null
+async function firmarFotosPrivadas(){
+  if(typeof supaAuth === 'undefined' || !supaAuth.session()) return
+  if(firmandoFotos){ otraVueltaFotos = true; return }
+  firmandoFotos = true
+  try{
+    const nodos = [...document.querySelectorAll('img[src*="/object/public/"], a[href*="/object/public/"], iframe[src*="/object/public/"], embed[src*="/object/public/"]')]
+    const porBucket = {}
+    const pendientes = []
+    nodos.forEach(el => {
+      const attr = el.tagName === 'A' ? 'href' : 'src'
+      const m = String(el.getAttribute(attr) || '').match(FOTO_PRIV_RE); if(!m) return
+      const ruta = decodeURIComponent(m[2]), clave = m[1] + '/' + ruta
+      pendientes.push({ el, attr, clave })
+      const f = fotoFirmada[clave]
+      if(!f || f.vence < Date.now()) (porBucket[m[1]] = porBucket[m[1]] || new Set()).add(ruta)
+    })
+    for(const bucket of Object.keys(porBucket)){
+      const rutas = [...porBucket[bucket]]
+      const res = await conSesion(() => fetch(SUPABASE_URL + '/storage/v1/object/sign/' + bucket, { method:'POST',
+        headers:{ 'apikey':SUPABASE_ANON_KEY, 'Authorization':supaAuthHeader(), 'Content-Type':'application/json' },
+        body: JSON.stringify({ expiresIn:3600, paths:rutas }) }))
+      if(!res.ok){ console.warn('firmar fotos:', res.status); continue }
+      ;(await res.json() || []).forEach(x => {
+        if(x && x.signedURL) fotoFirmada[bucket + '/' + x.path] = { url: SUPABASE_URL + '/storage/v1' + x.signedURL, vence: Date.now() + 50*60000 }
+      })
+    }
+    pendientes.forEach(p => { const f = fotoFirmada[p.clave]; if(f) p.el.setAttribute(p.attr, f.url) })
+  }catch(e){ console.warn('firmar fotos:', e) }
+  finally{
+    firmandoFotos = false
+    if(otraVueltaFotos){ otraVueltaFotos = false; firmarFotosPrivadas() }
+  }
+}
+new MutationObserver(() => { clearTimeout(relojFotos); relojFotos = setTimeout(firmarFotosPrivadas, 60) })
+  .observe(document.documentElement, { childList:true, subtree:true })
+
 /* ══════════════ COPIA DE SEGURIDAD ══════════════
    El plan de Supabase en uso no guarda copias. Esto baja todas las
    tablas a un archivo, usando la sesion de quien lo pide. */
@@ -9679,10 +9724,22 @@ async function descargarRespaldo(){
   if(btn){ btn.disabled = true; btn.textContent = 'Preparando…' }
   try{
     const copia = await armarRespaldo(avisar)
-    bajarComoArchivo(copia)
-    /* la misma copia queda tambien guardada en el servidor */
-    try{ await guardarEnServidor(copia, 'manual') }catch(e){ console.warn('copia en servidor:', e) }
-    avisar(copia.registros + ' registros guardados' + (copia.no_copiadas.length ? ' · ' + copia.no_copiadas.length + ' tabla(s) sin copiar' : ''))
+    /* el servidor le suma las fotos de las fichas, los consentimientos y los
+       pedidos de gift cards, y lo guarda todo en un .zip que luego se baja */
+    let guardada = null
+    try{
+      avisar('Juntando fotos y documentos…')
+      guardada = await guardarEnServidor(copia, 'manual')
+      avisar('Descargando…')
+      await bajarCopiaServidor(guardada.nombre)
+    }catch(e){
+      console.warn('copia con fotos:', e)
+      bajarComoArchivo(copia)
+      toast('No pude juntar las fotos (' + e.message + '). Se bajaron solo los datos.', 'error')
+    }
+    avisar(copia.registros + ' registros' + (guardada ? ' y ' + guardada.archivos + ' archivos' : '') + ' guardados'
+      + (copia.no_copiadas.length ? ' · ' + copia.no_copiadas.length + ' tabla(s) sin copiar' : '')
+      + (guardada && guardada.faltaron && guardada.faltaron.length ? ' · ' + guardada.faltaron.length + ' foto(s) no se pudieron bajar' : ''))
     toast(copia.no_copiadas.length ? 'Copia hecha, pero faltaron ' + copia.no_copiadas.length + ' tabla(s)' : 'Copia descargada',
           copia.no_copiadas.length ? 'error' : 'success')
     pintarRespaldos()
@@ -9695,7 +9752,7 @@ async function apiRespaldo(query, opciones){
   if(typeof sesionLista === 'function') await sesionLista()
   const o = opciones || {}
   const res = await fetch('/api/respaldo.php?' + query, { method:o.method||'GET', cache:'no-store',
-    headers: authHeaders(o.body ? {'Content-Type':'application/json'} : {}), body:o.body })
+    headers: authHeaders(o.body && typeof o.body === 'string' ? {'Content-Type':'application/json'} : {}), body:o.body })
   const txt = await res.text()
   let j = null; try{ j = JSON.parse(txt) }catch(e){}
   if(!res.ok) throw new Error((j && j.error) || ('Error ' + res.status))
@@ -9733,7 +9790,7 @@ async function pintarRespaldos(){
   const c = respLista.config || {}
   const fmtF = f => { const [d,h] = String(f).split(' '); const [y,m,dd] = d.split('-'); return dd + '/' + m + '/' + y + (h ? ' ' + h : '') }
   const kb = b => b > 1048576 ? (b/1048576).toFixed(1) + ' MB' : Math.round(b/1024) + ' KB'
-  const tipoTxt = { auto:'Automática', manual:'Manual', 'antes-de-restaurar':'Antes de restaurar' }
+  const tipoTxt = { auto:'Automática', manual:'Manual', 'antes-de-restaurar':'Antes de restaurar', subida:'Subida desde archivo' }
   el.innerHTML = `
     <div class="row2" style="margin-bottom:10px">
       <div><label>Copia automática</label>
@@ -9750,10 +9807,11 @@ async function pintarRespaldos(){
       ? 'Última copia: <strong>' + (c.ultimo ? fmtF(c.ultimo) : 'ninguna todavía') + '</strong> · próxima: <strong>' + (respLista.proxima ? fmtF(respLista.proxima) : 'hoy') + '</strong>. Se hace sola cuando un administrador entra al panel ese día o después.'
       : 'Las copias automáticas están desactivadas.'}</p>
     ${(respLista.copias||[]).length ? `<div class="tabla-scroll"><table class="ctbl">
-      <thead><tr><th>Fecha</th><th>Tipo</th><th style="text-align:right">Registros</th><th style="text-align:right">Tamaño</th><th></th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Tipo</th><th style="text-align:right">Registros</th><th style="text-align:right">Fotos y archivos</th><th style="text-align:right">Tamaño</th><th></th></tr></thead>
       <tbody>${respLista.copias.map(x=>`<tr>
         <td>${fmtF(x.fecha)}</td><td>${tipoTxt[x.tipo]||x.tipo}</td>
         <td style="text-align:right">${x.registros!=null ? x.registros.toLocaleString('es-CL') : '—'}</td>
+        <td style="text-align:right">${x.conFotos ? (x.archivos||0) + (x.faltaron ? ' <span style="color:var(--red)" title="No se pudieron bajar">(faltan ' + x.faltaron + ')</span>' : '') : '<span class="rem-note">sin fotos</span>'}</td>
         <td style="text-align:right">${kb(x.bytes)}</td>
         <td style="text-align:right;white-space:nowrap">
           <button class="mini-btn" onclick="bajarCopiaServidor('${x.nombre}')">⬇ Descargar</button>
@@ -9765,22 +9823,46 @@ async function cambiarCfgRespaldo(cambio){
   catch(e){ toast(e.message, 'error') }
 }
 async function bajarCopiaServidor(nombre){
-  try{ const copia = await apiRespaldo('accion=bajar&nombre=' + encodeURIComponent(nombre)); bajarComoArchivo(copia, nombre.replace(/\.gz$/, '')) }
-  catch(e){ toast(e.message, 'error') }
+  try{
+    if(/\.zip$/.test(nombre)){
+      if(typeof sesionLista === 'function') await sesionLista()
+      const res = await fetch('/api/respaldo.php?accion=bajar&formato=zip&nombre=' + encodeURIComponent(nombre), { cache:'no-store', headers: authHeaders() })
+      if(!res.ok) throw new Error('No se pudo bajar la copia (' + res.status + ')')
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(await res.blob())
+      a.download = nombre.replace(/^respaldo-/, 'spa-infinity-respaldo-')
+      a.click()
+      setTimeout(()=>URL.revokeObjectURL(a.href), 5000)
+    }else{
+      const copia = await apiRespaldo('accion=bajar&nombre=' + encodeURIComponent(nombre)); bajarComoArchivo(copia, nombre.replace(/\.gz$/, ''))
+    }
+  }catch(e){ toast(e.message, 'error'); throw e }
 }
+/* la copia elegida para restaurar, si esta en el servidor: de ahi salen las fotos */
+let respNombreServidor = null
 async function elegirCopiaServidor(nombre){
-  try{ prepararRestauracion(await apiRespaldo('accion=bajar&nombre=' + encodeURIComponent(nombre)), nombre) }
-  catch(e){ toast(e.message, 'error') }
+  try{
+    const copia = await apiRespaldo('accion=bajar&formato=json&nombre=' + encodeURIComponent(nombre))
+    respNombreServidor = nombre
+    prepararRestauracion(copia, nombre)
+  }catch(e){ toast(e.message, 'error') }
 }
-function elegirCopiaArchivo(input){
-  const f = input.files && input.files[0]; if(!f) return
-  const r = new FileReader()
-  r.onload = () => {
-    try{ prepararRestauracion(JSON.parse(r.result), f.name) }
-    catch(e){ toast('Ese archivo no es una copia de seguridad válida.', 'error') }
-    input.value = ''
+async function elegirCopiaArchivo(input){
+  const f = input.files && input.files[0]; input.value = ''
+  if(!f) return
+  const est = document.getElementById('respEstado')
+  try{
+    /* el archivo se sube al servidor, que lo revisa y lo deja en la lista: asi
+       las fotos que trae se pueden volver a subir al restaurar */
+    if(est) est.textContent = 'Subiendo ' + f.name + '…'
+    const j = await apiRespaldo('accion=subir', { method:'POST', body: f })
+    if(est) est.textContent = ''
+    await elegirCopiaServidor(j.nombre)
+    pintarRespaldos()
+  }catch(e){
+    if(est) est.textContent = ''
+    toast(e.message || 'Ese archivo no es una copia de seguridad válida.', 'error')
   }
-  r.readAsText(f)
 }
 
 /* ══════════════ IMPORTAR RESERVAS DE AGENDAPRO ══════════════
@@ -10110,6 +10192,15 @@ async function restaurarRespaldo(){
       }
     }
 
+    /* fotos de fichas, consentimientos y pedidos de gift cards */
+    if(respNombreServidor && /\.zip$/.test(respNombreServidor)){
+      avisar('Restaurando fotos y documentos…')
+      try{
+        const r = await apiRespaldo('accion=restaurar-archivos&nombre=' + encodeURIComponent(respNombreServidor), { method:'POST' })
+        informe.push('fotos: ' + r.fotos, 'archivos del servidor: ' + r.servidor)
+        if(r.errores && r.errores.length) errores.push(r.errores.length + ' foto(s) no se pudieron subir')
+      }catch(e){ errores.push('fotos (' + e.message + ')') }
+    }
     avisar(errores.length ? 'Terminó con problemas en ' + errores.length + ' tabla(s)' : 'Restauración completa')
     console.log('restauracion:', informe, errores)
     if(errores.length){
@@ -10615,7 +10706,7 @@ function admConfig(){
       <div class="resp-fila">
         <button class="btn-primary" id="respBtn" onclick="descargarRespaldo()">⬇ Descargar copia de seguridad</button>
         <label class="btn-ghost" style="cursor:pointer;margin:0">⬆ Restaurar desde un archivo
-          <input type="file" accept=".json,application/json" hidden onchange="elegirCopiaArchivo(this)"></label>
+          <input type="file" accept=".zip,.json,application/zip,application/json" hidden onchange="elegirCopiaArchivo(this)"></label>
         <span class="resp-estado" id="respEstado"></span>
       </div>
       <p class="rem-note" style="margin:10px 0 0"><strong>Cuidado:</strong> el archivo lleva datos de salud
