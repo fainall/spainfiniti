@@ -9905,7 +9905,7 @@ function cargarScriptUnaVez(src){
 }
 const apClave = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()
 const AP_RELLENO = new Set(['con','de','del','la','el','y','en','para','por','una','uña','una','min','60','30','spa','premium','express'])
-function apPalabras(t){ return apClave(t).split(' ').filter(w => w && !AP_RELLENO.has(w)) }
+function apPalabras(t){ return apClave(t).split(' ').filter(w => w && !AP_RELLENO.has(w) && w !== 'sesion').map(w => w.length > 4 && /s$/.test(w) ? w.slice(0, -1) : w) }
 
 /* el servicio del catalogo que mas se parece; null si ninguno se parece lo suficiente */
 /* nombres de AgendaPro que no se parecen lo suficiente al del catalogo */
@@ -9985,7 +9985,7 @@ async function leerExportAgendaPro(input){
         profAP: v('Prestador'), prof, estadoAP: v('Estado'), estado: AP_ESTADO[apClave(v('Estado'))] || 'reserved',
         pagoAP: v('Estado de pago'), precio: precioN ? fmtMoney(precioN) : '',
         nota: [v('Comentario interno'), v('Notas compartidas con cliente')].filter((x, j, a) => x && a.indexOf(x) === j).join(' · '),
-        marca: '[AgendaPro ' + v('Fecha de creación') + ' ' + (tel8 || apClave(nombre).slice(0,20)) + ']',
+        marca: '[AgendaPro ' + v('Fecha de creación') + ' ' + (tel8 || apClave(nombre).slice(0,20)) + ' ' + fecha + ' ' + hora + ' ' + apClave(svcAP).slice(0,40) + ']',
         futura: fecha >= hoy
       })
     })
