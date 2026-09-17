@@ -14770,7 +14770,7 @@ function renderRecordatorios(){
           ? '<span class="badge paid">Enviado'+(a.reminded_channel==='whatsapp'?' · WhatsApp':a.reminded_channel==='email'?' · Email':'')+'</span>'
           : '<span class="badge" style="background:#eee;color:#3A3F47">Pendiente</span>'}</td>
         <td class="cacts" style="text-align:right;white-space:nowrap">
-          ${phone && !a.reminded_at?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" title="Lo envía Mariet por el WhatsApp del spa y atiende la respuesta" onclick="recordarConMariet(['${a.id}'])">🤖 Enviar con Mariet</button>`:''}
+          ${phone && !a.reminded_at && !['cancelled','attending','no_show'].includes(a.status)?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" title="Lo envía Mariet por el WhatsApp del spa y atiende la respuesta" onclick="recordarConMariet(['${a.id}'])">🤖 Enviar con Mariet</button>`:''}
           ${phone?`<button class="mini-btn" title="Abre WhatsApp en este equipo para enviarlo tú" onclick="sendReminder('${a.id}')">Desde mi WhatsApp</button>`:''}
           ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}')">Email</button>`:''}
           ${(!phone&&!email)?'<span style="font-size:.72rem;color:var(--light)">Sin contacto</span>':''}
