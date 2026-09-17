@@ -406,6 +406,11 @@ $tools = [
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD'],
       'service_name'=>['type'=>'string','description'=>'Nombre exacto del servicio']
     ],'required'=>['date']]]],
+  ['type'=>'function','function'=>['name'=>'confirm_booking','description'=>'Marca como CONFIRMADA una reserva del cliente en la agenda. Úsala cuando el cliente confirme que asistirá (por ejemplo responde "sí", "confirmo", "ahí estaré" a un recordatorio). Nunca digas que una hora quedó confirmada sin llamar a esta función.',
+    'parameters'=>['type'=>'object','properties'=>[
+      'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD de la reserva'],
+      'time'=>['type'=>'string','description'=>'Hora HH:MM de la reserva']
+    ],'required'=>['date','time']]]],
   ['type'=>'function','function'=>['name'=>'cancel_booking','description'=>'Cancela una reserva existente del cliente. Usala cuando pida anular o cuando cambie la hora y no se haya usado replace_date. Nunca digas que una hora fue cancelada sin llamar a esta funcion.',
     'parameters'=>['type'=>'object','properties'=>[
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD de la reserva a cancelar'],
@@ -576,6 +581,24 @@ function do_free_slots($args) {
             'free'=>$libres, 'total'=>count($libres)];
 }
 
+/* confirma la reserva del cliente en esa fecha y hora (por su telefono o su ficha) */
+function do_confirm($args) {
+    global $phone, $clienteConocido;
+    $date = (string)($args['date'] ?? ''); $time = substr((string)($args['time'] ?? ''), 0, 5);
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !preg_match('/^\d{2}:\d{2}$/', $time)) return ['ok'=>false,'reason'=>'fecha u hora no válida'];
+    $lista = supa('GET', 'appointments?select=id,status,client_phone,client_id&appt_date=eq.'.$date.'&start_time=eq.'.$time.':00&status=in.(reserved,pending,waiting,confirmed)') ?: [];
+    $ult = substr(preg_replace('/\D/', '', (string)$phone), -8);
+    foreach ($lista as $a) {
+        $suya = ($ult !== '' && substr(preg_replace('/\D/', '', (string)($a['client_phone'] ?? '')), -8) === $ult)
+             || ($clienteConocido && ($a['client_id'] ?? '') === $clienteConocido['id']);
+        if (!$suya) continue;
+        if (($a['status'] ?? '') === 'confirmed') return ['ok'=>true, 'ya_estaba_confirmada'=>true];
+        $r = supa('PATCH', 'appointments?id=eq.'.urlencode($a['id']), ['status'=>'confirmed']);
+        return is_array($r) ? ['ok'=>true, 'confirmed'=>$date.' '.$time] : ['ok'=>false,'reason'=>'error al guardar'];
+    }
+    return ['ok'=>false,'reason'=>'no encontré una reserva suya en esa fecha y hora'];
+}
+
 function do_cancel($args) {
     global $phone;
     $date = (string)($args['date'] ?? ''); $time = substr((string)($args['time'] ?? ''), 0, 5);
@@ -736,7 +759,8 @@ function cliente_por_telefono($telefono) {
     foreach ($citas as $a) {
         $st = $a['status'] ?? '';
         if ($a['appt_date'] >= $hoy && !in_array($st, ['cancelled', 'no_show', 'block'], true)) {
-            $proximas[] = $a['appt_date'] . ' ' . substr($a['start_time'], 0, 5) . ' · ' . $a['service_name'] . ($nombrePro($a['professional_id']) ? ' con ' . $nombrePro($a['professional_id']) : '');
+            $estadoTxt = ['confirmed'=>'CONFIRMADA', 'reserved'=>'sin confirmar', 'pending'=>'sin confirmar', 'waiting'=>'sin confirmar', 'attending'=>'asistió'][$st] ?? $st;
+            $proximas[] = $a['appt_date'] . ' ' . substr($a['start_time'], 0, 5) . ' · ' . $a['service_name'] . ($nombrePro($a['professional_id']) ? ' con ' . $nombrePro($a['professional_id']) : '') . ' (' . $estadoTxt . ')';
         }
         if ($st === 'attending') { $atendidas++; if (!$ultima) $ultima = $a['appt_date'] . ' · ' . $a['service_name']; }
     }
@@ -789,6 +813,7 @@ CÓMO USARLO:
 - Si confirma, llama a create_booking SIN client_name ni client_email: el sistema usa los de la ficha.
 - Si dice que el nombre o el correo cambió, o que la hora es para otra persona, pídele el dato correcto y pásalo en create_booking.
 " . ($k['correo'] ? '' : "- La ficha no tiene correo: pídeselo una vez, junto con la confirmación del nombre.\n") . "- Si pregunta por sus horas, usa las próximas reservas de arriba. Si quiere cambiar una, usa replace_date y replace_time.
+- Si le enviamos un recordatorio y responde que sí asistirá (\"sí\", \"confirmo\", \"ahí estaré\"), llama a confirm_booking con esa fecha y hora. Solo di que quedó confirmada si la función respondió ok.
 - IMPORTANTE: en el mensaje donde pides confirmar los datos, escribe el nombre y el correo enmascarado tal cual. Nunca digas solo \"confirma tu nombre y correo\".
 
 " . $system;
@@ -832,7 +857,7 @@ for ($i=0; $i<4; $i++) {
         foreach ($m['tool_calls'] as $tc) {
             $args = json_decode($tc['function']['arguments'] ?? '{}', true) ?: [];
             $name = $tc['function']['name'];
-            $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : ($name==='free_slots' ? do_free_slots($args) : do_book($args)));
+            $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : ($name==='confirm_booking' ? do_confirm($args) : ($name==='free_slots' ? do_free_slots($args) : do_book($args))));
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
             /* traza para diagnosticar: solo con la clave interna y pidiendola */

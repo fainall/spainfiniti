@@ -145,6 +145,10 @@ if ($botonClave === '' && ($msg['type'] ?? '') === 'text') {
     if ($recReciente && $recReciente['t'] > time() - 48 * 3600) {
         if (in_array($escrito, ['confirmo', 'si confirmo', 'confirmado', 'confirmo mi hora', 'confirmo mi cita', 'si voy', 'confirmo asistencia'], true)) $botonClave = 'confirmo';
         if (in_array($escrito, ['cancelar', 'cancelo', 'quiero cancelar', 'no voy', 'anular'], true)) $botonClave = 'cancelar';
+        /* "si", "ok", "dale" solo cuentan si es la respuesta inmediata al recordatorio */
+        $previo = wa_chat_leer($from); array_pop($previo); $previo = end($previo);
+        if ($botonClave === '' && $previo && !empty($previo['recordatorio'])
+            && in_array($escrito, ['si', 'ok', 'dale', 'ya', 'perfecto', 'ahi estare', 'alli estare', 'si ahi estare', 'si gracias', 'vale'], true)) $botonClave = 'confirmo';
     }
 }
 if ($botonClave === 'confirmo' || $botonClave === 'cancelar') {
