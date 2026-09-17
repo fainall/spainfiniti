@@ -19,9 +19,17 @@ const WA_VOZ_VENCE = 24 * 3600;     // la preferencia dura un día sin hablar
 function wa_pide_audio($texto) {
     $t = ' ' . trim(preg_replace('/\s+/', ' ', strtolower(strtr((string)$texto,
         ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','Á'=>'a','É'=>'e','Í'=>'i','Ó'=>'o','Ú'=>'u','Ñ'=>'n'])))) . ' ';
-    if (!preg_match('/\b(audio|audios|voz|nota de voz|vocal|hablado|grabado|grabacion)\b/', $t)) return false;
-    /* que sea un pedido, no un comentario cualquiera */
-    return (bool)preg_match('/\b(mandame|manda|enviame|envia|envias|puedes|podrias|responde|respondeme|contesta|contestame|hablame|dime|explicame|grabame|grabas|prefiero|mejor|quiero|quisiera|me gustaria|se puede|puede|por|en)\b/', $t);
+    if (!preg_match_all('/\b(audios?|voz|vocal|grabacion)\b/', $t, $m, PREG_OFFSET_CAPTURE)) return false;
+    /* que sea un pedido y no un comentario ("escuché un audio en TikTok"): el
+       verbo de pedir tiene que estar pegado a la palabra audio */
+    $pedir = '/\b(mandame|mandamelo|manda|mandas|mandalo|enviame|envia|envias|responde|respondeme|contesta|contestame|'
+           . 'hablame|habla|dime|dilo|explicame|cuentame|grabame|graba|grabas|prefiero|mejor|quiero|quisiera|gustaria|'
+           . 'puedes|podrias|podes|se puede|porfa|por favor)\b/';
+    foreach ($m[1] as $hit) {
+        $ini = max(0, $hit[1] - 34);
+        if (preg_match($pedir, substr($t, $ini, $hit[1] - $ini + strlen($hit[0]) + 22))) return true;
+    }
+    return false;
 }
 function wa_pide_texto($texto) {
     $t = ' ' . strtolower(strtr((string)$texto, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u'])) . ' ';
