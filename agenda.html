@@ -58,6 +58,56 @@ input,select,textarea{font-family:inherit}
 .topnav-logout{background:rgba(255,255,255,.1);border:none;color:#fff;font-family:inherit;font-size:.78rem;font-weight:600;padding:8px 16px;border-radius:8px;cursor:pointer}
 .topnav-logout:hover{background:rgba(255,255,255,.2)}
 /* views */
+/* ── BANDEJA DE WHATSAPP ── */
+.wa-badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:#25D366;color:#fff;font-size:.66rem;line-height:18px;text-align:center;font-weight:700}
+#view-whatsapp{padding:0}
+.wa-bandeja{display:grid;grid-template-columns:340px 1fr;flex:1;min-height:0;background:#fff}
+.wa-lista{border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+.wa-lista-head{padding:14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.wa-lista-head input{padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:.82rem}
+.wa-filtros{display:flex;gap:6px;flex-wrap:wrap}
+.wa-filtros button{border:1px solid var(--border);background:#fff;border-radius:14px;padding:4px 10px;font-size:.72rem}
+.wa-filtros button.on{background:var(--dark);color:#fff;border-color:var(--dark)}
+.wa-lista-items{overflow-y:auto;flex:1}
+.wa-item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #eef0f2;background:#fff;padding:11px 14px;font-family:inherit;cursor:pointer}
+.wa-item:hover{background:#f7f5f1}
+.wa-item.on{background:#f1ebe0}
+.wa-item .l1{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.wa-item .nom{font-weight:600;font-size:.84rem;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-item .hora{font-size:.68rem;color:#6b7078;flex-shrink:0}
+.wa-item .l2{font-size:.76rem;color:#3a3f47;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.wa-item .tags{margin-top:4px;display:flex;gap:4px;flex-wrap:wrap}
+.wa-tag{font-size:.64rem;border-radius:8px;padding:1px 7px;background:#eef0f2;color:#24282e}
+.wa-tag.espera{background:#e3f7ea;color:#157a3c;font-weight:600}
+.wa-tag.pausa{background:#fdf1e0;color:#8a6318}
+.wa-chat{display:flex;flex-direction:column;min-height:0;background:#efeae2}
+.wa-vacio{margin:auto;color:#6b7078;font-size:.9rem}
+.wa-chat-head{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.wa-chat-head .quien{flex:1;min-width:180px}
+.wa-chat-head .quien strong{display:block;font-size:.92rem}
+.wa-chat-head .quien small{color:#6b7078}
+.wa-estado-ia{font-size:.74rem;border-radius:14px;padding:4px 10px}
+.wa-estado-ia.activa{background:#e3f7ea;color:#157a3c}
+.wa-estado-ia.pausa{background:#fdf1e0;color:#8a6318}
+.wa-estado-ia.apagada{background:#eef0f2;color:#3a3f47}
+.wa-msgs{flex:1;overflow-y:auto;padding:18px 6% 10px;display:flex;flex-direction:column;gap:6px}
+.wa-dia{align-self:center;background:#fff;color:#54585f;font-size:.7rem;border-radius:8px;padding:3px 10px;margin:8px 0;box-shadow:0 1px 1px rgba(0,0,0,.06)}
+.wa-msg{max-width:72%;padding:7px 10px 5px;border-radius:9px;font-size:.84rem;line-height:1.4;white-space:pre-wrap;word-wrap:break-word;box-shadow:0 1px 1px rgba(0,0,0,.08);color:#111}
+.wa-msg .meta{display:block;font-size:.64rem;color:#667;text-align:right;margin-top:2px}
+.wa-msg.cliente{align-self:flex-start;background:#fff}
+.wa-msg.asistente{align-self:flex-end;background:#e7f0fb}
+.wa-msg.equipo,.wa-msg.panel{align-self:flex-end;background:#d9fdd3}
+.wa-msg .err{color:var(--red);font-weight:600}
+.wa-escribir{display:flex;gap:8px;padding:10px 14px;background:#f0f2f5;border-top:1px solid var(--border);align-items:flex-end}
+.wa-escribir textarea{flex:1;resize:none;border:1px solid var(--border);border-radius:18px;padding:9px 14px;font-family:inherit;font-size:.86rem;max-height:140px}
+.wa-escribir button{border-radius:18px}
+.wa-aviso{font-size:.72rem;color:#54585f;padding:4px 16px 8px;background:#f0f2f5}
+@media(max-width:820px){
+  .wa-bandeja{grid-template-columns:1fr}
+  .wa-bandeja.con-chat .wa-lista{display:none}
+  .wa-bandeja:not(.con-chat) .wa-chat{display:none}
+  .wa-msg{max-width:88%}
+}
 .view{display:none;flex:1;min-height:0;flex-direction:column}
 .view.on{display:flex}
 .view-inner{flex:1;overflow-y:auto;padding:28px 40px;max-width:1600px;width:100%;margin:0 auto}
@@ -1594,6 +1644,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <button onclick="switchView('repventas')">Reporte de ventas</button>
         </div>
       </div>
+      <button data-view="whatsapp" onclick="switchView('whatsapp')">WhatsApp <span class="wa-badge" id="waBadge" hidden></span></button>
       <button data-view="asistente" onclick="switchView('asistente')">Asistente</button>
       <button data-view="admin" onclick="switchView('admin')">Administración</button>
     </nav>
@@ -3466,6 +3517,26 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   </div>
 
   <!-- VISTA: ASISTENTE (bot de reservas) -->
+  <div class="view" id="view-whatsapp">
+    <div class="wa-bandeja">
+      <aside class="wa-lista">
+        <div class="wa-lista-head">
+          <strong>Chats de WhatsApp</strong>
+          <input type="search" id="waBuscar" placeholder="Buscar nombre o número" oninput="pintarWaLista()" />
+          <div class="wa-filtros">
+            <button class="on" data-f="todos" onclick="waFiltro(this)">Todos</button>
+            <button data-f="esperando" onclick="waFiltro(this)">Sin responder</button>
+            <button data-f="pausa" onclick="waFiltro(this)">IA en pausa</button>
+          </div>
+        </div>
+        <div id="waLista" class="wa-lista-items"><p class="rem-note" style="padding:14px">Cargando…</p></div>
+      </aside>
+      <section class="wa-chat" id="waChat">
+        <div class="wa-vacio">Elige un chat para ver la conversación.</div>
+      </section>
+    </div>
+  </div>
+
   <div class="view" id="view-asistente">
     <div class="view-inner" style="max-width:1600px">
       <div class="view-head">
@@ -4085,10 +4156,10 @@ const ROLES = {
   admin:        { nombre:'Administrador general', desc:'Configura toda la cuenta. Acceso a todo, sin restricciones.',
                   vistas:'all', edita:true },
   admin_local:  { nombre:'Administrador de local', desc:'Encargado del local: ve y edita todo salvo la configuración de la cuenta.',
-                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','recordatorios','encuestas','misingresos'],
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','recordatorios','encuestas','misingresos','whatsapp'],
                   edita:true },
   recepcion:    { nombre:'Recepcionista', desc:'Agenda, clientes y cobros del día a día. No entra a reportes ni a administración.',
-                  vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios'],
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios','whatsapp'],
                   edita:true },
   recepcion_ro: { nombre:'Recepcionista (sin edición)', desc:'Ve la agenda y los clientes, pero no puede crear ni modificar nada.',
                   vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios'],
@@ -4239,6 +4310,8 @@ function applyRole(){
     ;[...nav.children].forEach(el=>{ el.style.display='none' })
     const agenda=nav.querySelector('[data-view="agenda"]')
     if(agenda) agenda.style.display=''
+    const wa=nav.querySelector('[data-view="whatsapp"]')
+    if(wa && vePantalla('whatsapp')) wa.style.display=''
     if(!nav.querySelector('.pro-only')){
       const b=document.createElement('button')
       b.className='pro-only'; b.dataset.view='misingresos'
@@ -7639,6 +7712,7 @@ function switchView(v){
   if(v==='admin') renderAdmin()
   if(v==='misingresos') renderMisIngresos()
   if(v==='asistente') renderAsistente()
+  if(v==='whatsapp'){ if(!botCfg || botCfg.bot_name === undefined) loadBotConfig().then(renderWhatsapp); else renderWhatsapp() }
   refrescarPantalla(v)
 }
 
@@ -7708,6 +7782,141 @@ function pantallaAbierta(){
   return el ? el.id.replace(/^view-/, '') : ''
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
+
+/* ══════════════ BANDEJA DE WHATSAPP ══════════════
+   Ver lo que el asistente habla con cada cliente y responder desde el panel.
+   Quien responde aqui toma el chat: la IA se pausa en esa conversacion. */
+let waChats = [], waSel = null, waFiltroSel = 'todos', waReloj = null, waFirmaChat = ''
+async function waChatsApi(query, cuerpo){
+  if(typeof sesionLista === 'function') await sesionLista()
+  const res = await fetch('/api/wa-chats.php' + (query ? '?' + query : ''), cuerpo
+    ? { method:'POST', cache:'no-store', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(cuerpo) }
+    : { cache:'no-store', headers: authHeaders() })
+  const j = await res.json().catch(() => ({}))
+  if(!res.ok) throw new Error(j.error || ('Error ' + res.status))
+  return j
+}
+function waHora(t){
+  const d = new Date(t * 1000), hoy = new Date()
+  if(d.toDateString() === hoy.toDateString()) return d.toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' })
+  const ayer = new Date(); ayer.setDate(ayer.getDate() - 1)
+  if(d.toDateString() === ayer.toDateString()) return 'ayer'
+  return d.toLocaleDateString('es-CL', { day:'2-digit', month:'2-digit' })
+}
+function waNombreChat(c){ return waNombre(c.tel) || c.nombre || waFmtTel(c.tel) }
+function waFiltro(btn){
+  waFiltroSel = btn.dataset.f
+  document.querySelectorAll('.wa-filtros button').forEach(b => b.classList.toggle('on', b === btn))
+  pintarWaLista()
+}
+async function renderWhatsapp(){
+  if(!state.clients || state.clients.length < 1000){ try{ await loadClients() }catch(e){} }
+  await cargarWaChats()
+  clearInterval(waReloj)
+  waReloj = setInterval(() => {
+    if(pantallaAbierta() !== 'whatsapp'){ clearInterval(waReloj); return }
+    cargarWaChats(true)
+    if(waSel) abrirWaChat(waSel, true)
+  }, 8000)
+}
+async function cargarWaChats(silencioso){
+  try{
+    const j = await waChatsApi()
+    waChats = j.chats || []
+    const esperando = waChats.filter(c => c.esperando && !c.prueba).length
+    const b = document.getElementById('waBadge')
+    if(b){ b.hidden = !esperando; b.textContent = esperando }
+    pintarWaLista()
+  }catch(e){
+    if(!silencioso){ const el = document.getElementById('waLista'); if(el) el.innerHTML = '<p class="rem-note" style="padding:14px">' + esc(e.message) + '</p>' }
+  }
+}
+function pintarWaLista(){
+  const el = document.getElementById('waLista'); if(!el) return
+  const q = apClave(document.getElementById('waBuscar')?.value || '')
+  const lista = waChats.filter(c => {
+    if(waFiltroSel === 'esperando' && !c.esperando) return false
+    if(waFiltroSel === 'pausa' && !c.pausa) return false
+    return !q || apClave(waNombreChat(c) + ' ' + c.tel).includes(q)
+  })
+  if(!lista.length){ el.innerHTML = '<p class="rem-note" style="padding:14px">No hay chats' + (waFiltroSel !== 'todos' || q ? ' con ese filtro' : ' todavía') + '.</p>'; return }
+  const icono = { cliente:'', asistente:'🤖 ', equipo:'📱 ', panel:'💬 ' }
+  el.innerHTML = lista.map(c => `<button class="wa-item ${c.tel === waSel ? 'on' : ''}" onclick="abrirWaChat('${c.tel}')">
+      <div class="l1"><span class="nom">${esc(waNombreChat(c))}</span><span class="hora">${waHora(c.t)}</span></div>
+      <div class="l2">${icono[c.quien] || ''}${esc(c.ultimo)}</div>
+      <div class="tags">
+        ${c.esperando ? '<span class="wa-tag espera">Espera respuesta</span>' : ''}
+        ${c.pausa ? '<span class="wa-tag pausa">IA en pausa</span>' : ''}
+        ${c.prueba ? '<span class="wa-tag">Número de prueba</span>' : ''}
+      </div></button>`).join('')
+}
+async function abrirWaChat(tel, silencioso){
+  const cambio = waSel !== tel
+  waSel = tel
+  document.querySelector('.wa-bandeja')?.classList.add('con-chat')
+  if(cambio) pintarWaLista()
+  const box = document.getElementById('waChat'); if(!box) return
+  let j
+  try{ j = await waChatsApi('tel=' + encodeURIComponent(tel)) }
+  catch(e){ if(!silencioso) box.innerHTML = '<div class="wa-vacio">' + esc(e.message) + '</div>'; return }
+  if(waSel !== tel) return
+  const firma = tel + '|' + (j.mensajes || []).length + '|' + JSON.stringify(j.pausa) + '|' + botCfg.active
+  if(silencioso && firma === waFirmaChat) return
+  waFirmaChat = firma
+  const borrador = document.getElementById('waTexto')?.value || ''
+  const chat = waChats.find(c => c.tel === tel) || { tel, nombre:'' }
+  const ia = j.pausa ? { cls:'pausa', txt:'IA en pausa' + (j.pausa.hasta ? ' hasta las ' + new Date(j.pausa.hasta).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) : '') }
+    : (!botCfg.active && !j.prueba) ? { cls:'apagada', txt:'Asistente apagado' } : { cls:'activa', txt:'IA respondiendo' }
+  const quienTxt = { cliente:'', asistente:'Asistente', equipo:'Desde el celular', panel:'Panel' }
+  let dia = ''
+  const msgs = (j.mensajes || []).map(m => {
+    const d = new Date(m.t * 1000).toLocaleDateString('es-CL', { weekday:'long', day:'numeric', month:'long' })
+    const sep = d !== dia ? (dia = d, `<div class="wa-dia">${d}</div>`) : ''
+    const autor = m.quien === 'panel' && m.autor ? m.autor : (quienTxt[m.quien] || '')
+    return sep + `<div class="wa-msg ${m.quien}">${esc(m.texto)}${m.error ? '<br><span class="err">⚠ ' + esc(m.error) + '</span>' : ''}<span class="meta">${autor ? esc(autor) + ' · ' : ''}${m.antiguo ? '' : new Date(m.t * 1000).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</span></div>`
+  }).join('')
+  const cli = (state.clients||[]).find(x => String(x.phone||'').replace(/\D/g,'').slice(-8) === tel.slice(-8))
+  box.innerHTML = `
+    <div class="wa-chat-head">
+      <button class="btn-g" style="display:none" id="waVolver" onclick="document.querySelector('.wa-bandeja').classList.remove('con-chat')">←</button>
+      <div class="quien"><strong>${esc(waNombreChat(chat))}</strong><small>${esc(waFmtTel(tel))}${cli ? '' : ' · no está en la base de clientes'}</small></div>
+      <span class="wa-estado-ia ${ia.cls}">${ia.txt}</span>
+      ${j.pausa ? `<button class="mini-btn" onclick="waReanudarChat('${tel}')">▶ Reactivar IA</button>`
+                 : `<button class="mini-btn" onclick="waPausarChat('${tel}')">⏸ Pausar IA</button>`}
+      ${cli ? `<button class="mini-btn" onclick="openClientDetail('${cli.id}')">Ficha</button>` : ''}
+      <a class="mini-btn" href="https://wa.me/${tel}" target="_blank" rel="noopener">Abrir en WhatsApp</a>
+    </div>
+    <div class="wa-msgs" id="waMsgs">${msgs || '<div class="wa-vacio">Sin mensajes.</div>'}</div>
+    <div class="wa-aviso">Al responder desde aquí, la IA se pausa en este chat. WhatsApp solo permite escribir dentro de las 24 horas desde el último mensaje del cliente.</div>
+    <div class="wa-escribir">
+      <textarea id="waTexto" rows="1" placeholder="Escribe un mensaje…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();waEnviar()}"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,140)+'px'"></textarea>
+      <button class="btn-primary" id="waEnviarBtn" onclick="waEnviar()">Enviar</button>
+    </div>`
+  const t = document.getElementById('waTexto'); if(t){ t.value = borrador }
+  if(window.innerWidth <= 820){ const v = document.getElementById('waVolver'); if(v) v.style.display = '' }
+  const cont = document.getElementById('waMsgs'); if(cont) cont.scrollTop = cont.scrollHeight
+}
+async function waEnviar(){
+  const t = document.getElementById('waTexto'), btn = document.getElementById('waEnviarBtn')
+  const texto = (t?.value || '').trim(); if(!texto || !waSel) return
+  btn.disabled = true; btn.textContent = 'Enviando…'
+  try{
+    await waChatsApi('', { tel: waSel, texto })
+    t.value = ''
+    waFirmaChat = ''
+    await cargarWaChats(true); await abrirWaChat(waSel)
+  }catch(e){ toast(e.message, 'error') }
+  btn.disabled = false; btn.textContent = 'Enviar'
+}
+async function waPausarChat(tel){
+  try{ await waApi({ accion:'pausar', tel, minutos:0 }); toast('IA en pausa en este chat hasta que la reactives', 'success'); waFirmaChat = ''; await cargarWaChats(true); abrirWaChat(tel) }
+  catch(e){ toast(e.message, 'error') }
+}
+async function waReanudarChat(tel){
+  try{ await waApi({ accion:'reanudar', tel }); toast('La IA vuelve a responder en este chat', 'success'); waFirmaChat = ''; await cargarWaChats(true); abrirWaChat(tel) }
+  catch(e){ toast(e.message, 'error') }
+}
 
 /* ── ASISTENTE: encender/apagar y pausas por chat ── */
 async function cambiarBotActivo(chk){

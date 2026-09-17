@@ -79,3 +79,51 @@ function wa_en_pausa($tel) {
 function wa_es_prueba($tel) {
     return in_array(wa_tel($tel), wa_control_leer()['pruebas'], true);
 }
+
+/* ══ Historial de cada chat, para verlo e intervenir desde el panel ══
+   Un archivo por numero: bot-sessions/chat-56912345678.json, con los ultimos
+   400 mensajes. quien = cliente | asistente | equipo (celular) | panel. */
+function wa_chat_archivo($tel) { return __DIR__ . '/bot-sessions/chat-' . wa_tel($tel) . '.json'; }
+
+function wa_log($tel, $quien, $texto, $extra = []) {
+    $tel = wa_tel($tel);
+    if ($tel === '') return;
+    $f = wa_chat_archivo($tel);
+    @mkdir(dirname($f), 0755, true);
+    $fp = @fopen($f, 'c+');
+    if (!$fp) return;
+    flock($fp, LOCK_EX);
+    $prev = json_decode((string)stream_get_contents($fp), true);
+    $lista = is_array($prev) ? $prev : [];
+    $lista[] = array_merge(['t' => time(), 'quien' => $quien, 'texto' => mb_substr((string)$texto, 0, 4000)], $extra);
+    if (count($lista) > 400) $lista = array_slice($lista, -400);
+    ftruncate($fp, 0); rewind($fp);
+    fwrite($fp, json_encode($lista, JSON_UNESCAPED_UNICODE));
+    flock($fp, LOCK_UN); fclose($fp);
+}
+
+function wa_chat_leer($tel) {
+    $f = wa_chat_archivo($tel);
+    $l = is_file($f) ? json_decode((string)file_get_contents($f), true) : [];
+    return is_array($l) ? $l : [];
+}
+
+/* lo que el equipo escribe tambien entra al contexto de la IA, para que al
+   volver sepa lo que ya se le dijo al cliente */
+function wa_contexto_agregar($tel, $rol, $texto) {
+    $f = __DIR__ . '/bot-sessions/' . wa_tel($tel) . '.json';
+    $h = is_file($f) ? (json_decode((string)file_get_contents($f), true) ?: []) : [];
+    $h[] = ['role' => $rol, 'content' => mb_substr((string)$texto, 0, 2000)];
+    if (count($h) > 16) $h = array_slice($h, -16);
+    @file_put_contents($f, json_encode($h, JSON_UNESCAPED_UNICODE));
+}
+
+/* texto legible de un mensaje de WhatsApp de cualquier tipo */
+function wa_texto_de($m) {
+    $tipo = $m['type'] ?? '';
+    if ($tipo === 'text') return (string)($m['text']['body'] ?? '');
+    $nombres = ['image'=>'📷 Imagen', 'audio'=>'🎤 Audio', 'video'=>'🎬 Video', 'document'=>'📄 Documento', 'sticker'=>'Sticker',
+                'location'=>'📍 Ubicación', 'contacts'=>'👤 Contacto', 'reaction'=>'Reacción', 'button'=>'Botón', 'interactive'=>'Respuesta'];
+    $cap = $m[$tipo]['caption'] ?? ($m['button']['text'] ?? ($m['interactive']['button_reply']['title'] ?? ($m['reaction']['emoji'] ?? '')));
+    return ($nombres[$tipo] ?? ('[' . $tipo . ']')) . ($cap ? ': ' . $cap : '');
+}

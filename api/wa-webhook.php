@@ -69,6 +69,12 @@ if (($cambio['field'] ?? '') === 'smb_message_echoes') {
             if (!empty($eco['to'])) wa_pausar($eco['to'], $minutos, 'Respondieron desde el celular');
         }
     }
+    foreach ((array)($cambio['value']['message_echoes'] ?? []) as $eco) {
+        if (empty($eco['to'])) continue;
+        $txtEco = wa_texto_de($eco);
+        wa_log($eco['to'], 'equipo', $txtEco, ['id' => (string)($eco['id'] ?? '')]);
+        if (($eco['type'] ?? '') === 'text') wa_contexto_agregar($eco['to'], 'assistant', $txtEco);
+    }
     http_response_code(200); exit('ok');
 }
 
@@ -88,12 +94,24 @@ $encendido = is_array($cfgBot) && count($cfgBot) ? ($cfgBot[0]['active'] ?? fals
 /* ── Mensaje entrante ── */
 $body = json_decode($raw, true);
 $msg = $body['entry'][0]['changes'][0]['value']['messages'][0] ?? null;
-if (!$msg || ($msg['type'] ?? '') !== 'text') { echo 'ok'; exit; }
+if (!$msg) { echo 'ok'; exit; }
 
 $from  = preg_replace('/\D/', '', (string)($msg['from'] ?? ''));
 $text  = (string)($msg['text']['body'] ?? '');
 $msgId = (string)($msg['id'] ?? '');
-if ($from === '' || $text === '') { echo 'ok'; exit; }
+if ($from === '') { echo 'ok'; exit; }
+
+/* el mismo mensaje no se procesa dos veces (Meta reintenta) */
+$idsFile = __DIR__ . '/bot-sessions/_procesados.json';
+@mkdir(dirname($idsFile), 0755, true);
+$idsPrev = file_exists($idsFile) ? (json_decode(file_get_contents($idsFile), true) ?: []) : [];
+if ($msgId !== '' && in_array($msgId, $idsPrev, true)) { echo 'ok'; exit; }
+
+/* todo lo que escribe el cliente queda en su chat, se responda o no */
+$nombrePerfil = (string)($body['entry'][0]['changes'][0]['value']['contacts'][0]['profile']['name'] ?? '');
+wa_log($from, 'cliente', wa_texto_de($msg), ['id' => $msgId, 'nombre' => $nombrePerfil]);
+if ($msgId !== '') { $idsPrev[] = $msgId; @file_put_contents($idsFile, json_encode(array_slice($idsPrev, -500))); }
+if (($msg['type'] ?? '') !== 'text' || $text === '') { echo 'ok'; exit; }
 if (!$encendido && !wa_es_prueba($from)) { http_response_code(200); exit('ok'); }
 
 /* chat en pausa (alguien del equipo lo esta atendiendo): se guarda lo que escribio
@@ -113,11 +131,7 @@ if (wa_en_pausa($from)) {
 $dir = __DIR__ . '/bot-sessions';
 @mkdir($dir, 0755, true);
 
-/* el mismo mensaje no se procesa dos veces */
-$idsFile = $dir . '/_procesados.json';
-$ids = file_exists($idsFile) ? (json_decode(file_get_contents($idsFile), true) ?: []) : [];
-if ($msgId !== '' && in_array($msgId, $ids, true)) { echo 'ok'; exit; }
-if ($msgId !== '') { $ids[] = $msgId; if (count($ids) > 500) $ids = array_slice($ids, -500); @file_put_contents($idsFile, json_encode($ids)); }
+/* (los mensajes repetidos ya se descartaron al recibirlos) */
 
 http_response_code(200);
 echo 'ok';
@@ -151,4 +165,5 @@ if (!empty($cfg['waToken']) && !empty($cfg['waPhoneId'])) {
         CURLOPT_POSTFIELDS=>json_encode(['messaging_product'=>'whatsapp','to'=>$from,'type'=>'text','text'=>['body'=>$reply]])]);
     $resEnvio = curl_exec($ch); $codEnvio = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
     if ($codEnvio < 200 || $codEnvio >= 300) error_log('wa-webhook: envio fallo ' . $codEnvio . ' ' . substr((string)$resEnvio, 0, 300));
+    wa_log($from, 'asistente', $reply, ($codEnvio >= 200 && $codEnvio < 300) ? [] : ['error' => 'No se pudo enviar (' . $codEnvio . ')']);
 }
