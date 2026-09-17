@@ -37,7 +37,7 @@ $li = is_array($bot['local_info'] ?? null) ? $bot['local_info'] : [];
 $direccion = trim(($li['address'] ?? ($cfg['address'] ?? 'Santo Domingo 1083, Of. 502, Santiago Centro')));
 
 $now = time();
-$appts = supa('GET','appointments?select=*&reminded_at=is.null&appt_date=gte.'.date('Y-m-d', $now).'&appt_date=lte.'.date('Y-m-d', $now + $hours*3600).'&status=in.(reserved,confirmed,pending,waiting)') ?: [];
+$appts = supa('GET','appointments?select=*&or=(reminded_at.is.null,reminded_channel.eq.agendapro)&appt_date=gte.'.date('Y-m-d', $now).'&appt_date=lte.'.date('Y-m-d', $now + $hours*3600).'&status=in.(reserved,confirmed,pending,waiting)') ?: [];
 
 $MONTHS=['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 $DOWS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];

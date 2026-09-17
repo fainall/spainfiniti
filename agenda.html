@@ -14692,7 +14692,10 @@ function renderRecordatorios(){
   }).sort((a,b)=>(a.appt_date+a.start_time).localeCompare(b.appt_date+b.start_time))
 
   const emailOf=a=>{ const c=state.clients.find(x=>x.id===a.client_id); return (c&&c.email)||'' }
-  const enviados=list.filter(a=>a.reminded_at)
+  /* las citas importadas de AgendaPro venian marcadas para no duplicar sus
+     recordatorios: aqui no cuentan como enviadas, para que Mariet pueda enviarlos */
+  const yaEnviado = a => !!a.reminded_at && a.reminded_channel !== 'agendapro'
+  const enviados=list.filter(yaEnviado)
   const conEmail=list.filter(a=>emailOf(a))
   const conWa=list.filter(a=>waPhone(a.client_phone))
   const sinContacto=list.filter(a=>!emailOf(a)&&!waPhone(a.client_phone))
@@ -14740,14 +14743,16 @@ function renderRecordatorios(){
     </div>`
 
   // pestañas
-  const pend=list.filter(a=>!a.reminded_at)
+  const pend=list.filter(a=>!yaEnviado(a))
   const tabs=[['pendientes','Pendientes',pend.length],['enviados','Enviados',enviados.length],['sincontacto','Sin contacto',sinContacto.length]]
   document.getElementById('remTabs').innerHTML=tabs.map(([k,l,n])=>
     `<button class="${k===remTab?'on':''}" onclick="remTab='${k}';renderRecordatorios()">${l}${n?` (${n})`:''}</button>`).join('')
     + (() => {
         const aMariet = pend.filter(a => waPhone(a.client_phone) && a.status !== 'cancelled' && a.status !== 'attending' && a.status !== 'no_show')
         window.__remPendMariet = aMariet.map(a => a.id)
-        return aMariet.length ? `<button class="btn-primary" style="margin-left:auto;align-self:center" onclick="recordarConMariet(window.__remPendMariet)">🤖 Enviar todos los pendientes con Mariet (${aMariet.length})</button>` : ''
+        return aMariet.length ? `<span style="margin-left:auto;display:flex;gap:8px;align-self:center">
+          <button class="btn-g" id="remSelBtn" hidden onclick="recordarConMariet([...document.querySelectorAll('.rem-sel:checked')].map(c=>c.value))">🤖 Enviar seleccionados</button>
+          <button class="btn-primary" onclick="recordarConMariet(window.__remPendMariet)">🤖 Enviar todos los pendientes con Mariet (${aMariet.length})</button></span>` : ''
       })()
 
   const shown = remTab==='enviados'?enviados : remTab==='sincontacto'?sinContacto : pend
@@ -14757,20 +14762,21 @@ function renderRecordatorios(){
     return
   }
   el.innerHTML=`<table class="ctbl">
-    <thead><tr><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Recordatorio</th><th style="text-align:right">Acciones</th></tr></thead>
+    <thead><tr>${remTab==='pendientes'?`<th style="width:28px"><input type="checkbox" title="Elegir todas" style="width:auto" onchange="document.querySelectorAll('.rem-sel:not(:disabled)').forEach(c=>c.checked=this.checked);remActualizarSel()"></th>`:''}<th>Fecha</th><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Recordatorio</th><th style="text-align:right">Acciones</th></tr></thead>
     <tbody>${shown.map(a=>{
       const [y,m,d]=a.appt_date.split('-')
       const phone=waPhone(a.client_phone), email=emailOf(a)
       return `<tr>
+        ${remTab==='pendientes'?`<td><input type="checkbox" class="rem-sel" value="${a.id}" style="width:auto" ${phone && !['cancelled','attending','no_show'].includes(a.status)?'':'disabled'} onchange="remActualizarSel()"></td>`:''}
         <td>${d}/${m}</td>
         <td>${a.start_time.slice(0,5)}</td>
         <td class="cname">${a.client_id?`<button class="link-cliente" onclick="abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'—')}</button>`:esc(a.client_name||'—')}${a.client_phone?`<div style="font-size:.7rem;color:var(--light)">${esc(a.client_phone)}</div>`:''}</td>
         <td>${esc(a.service_name||'—')}</td>
-        <td>${a.reminded_at
+        <td>${yaEnviado(a)
           ? '<span class="badge paid">Enviado'+(a.reminded_channel==='whatsapp'?' · WhatsApp':a.reminded_channel==='email'?' · Email':'')+'</span>'
           : '<span class="badge" style="background:#eee;color:#3A3F47">Pendiente</span>'}</td>
         <td class="cacts" style="text-align:right;white-space:nowrap">
-          ${phone && !a.reminded_at && !['cancelled','attending','no_show'].includes(a.status)?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" title="Lo envía Mariet por el WhatsApp del spa y atiende la respuesta" onclick="recordarConMariet(['${a.id}'])">🤖 Enviar con Mariet</button>`:''}
+          ${phone && !yaEnviado(a) && !['cancelled','attending','no_show'].includes(a.status)?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" title="Lo envía Mariet por el WhatsApp del spa y atiende la respuesta" onclick="recordarConMariet(['${a.id}'])">🤖 Enviar con Mariet</button>`:''}
           ${phone?`<button class="mini-btn" title="Abre WhatsApp en este equipo para enviarlo tú" onclick="sendReminder('${a.id}')">Desde mi WhatsApp</button>`:''}
           ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}')">Email</button>`:''}
           ${(!phone&&!email)?'<span style="font-size:.72rem;color:var(--light)">Sin contacto</span>':''}
@@ -14779,30 +14785,54 @@ function renderRecordatorios(){
 /* Mariet envia el recordatorio por el WhatsApp del spa: como mensaje suyo si el
    cliente escribio en las ultimas 24 horas, o con la plantilla aprobada por Meta
    si no. La respuesta (Confirmo / Cancelar / lo que escriba) la atiende ella. */
+function remActualizarSel(){
+  const n = document.querySelectorAll('.rem-sel:checked').length
+  const b = document.getElementById('remSelBtn')
+  if(b){ b.hidden = !n; b.textContent = '🤖 Enviar seleccionados (' + n + ')' }
+}
+/* Envio masivo: sin tope, en tandas de 20 para no cortar la conexion, con avance.
+   Si una tanda falla por algo general (sesion, WhatsApp desconectado) se detiene. */
+let remEnviando = false
 async function recordarConMariet(ids){
-  ids = (ids || []).slice(0, 60)
-  if(!ids.length) return
-  if(!await confirmar(ids.length === 1 ? 'Mariet le enviará el recordatorio por WhatsApp y atenderá su respuesta.' : 'Mariet enviará ' + ids.length + ' recordatorios por WhatsApp y atenderá las respuestas.',
+  ids = [...new Set(ids || [])]
+  if(!ids.length || remEnviando) return
+  if(!await confirmar(ids.length === 1
+      ? 'Mariet le enviará el recordatorio por WhatsApp y atenderá su respuesta.'
+      : 'Mariet enviará ' + ids.length + ' recordatorios por WhatsApp y atenderá las respuestas. A quienes no hayan escrito en las últimas 24 horas les llega la plantilla de WhatsApp, que Meta cobra por mensaje.',
     { titulo: ids.length === 1 ? '¿Enviar recordatorio?' : '¿Enviar ' + ids.length + ' recordatorios?', ok: 'Sí, enviar', suave: true })) return
-  toast('Enviando…', 'success')
+  remEnviando = true
+  const tot = { enviados:0, mensaje:0, plantilla:0, errores:[] }
+  const fuente = Array.isArray(state.remCitas) ? state.remCitas : []
+  const TANDA = 20
   try{
-    if(typeof sesionLista === 'function') await sesionLista()
-    const res = await fetch('/api/wa-recordar.php', { method:'POST', cache:'no-store', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify({ ids }) })
-    const j = await res.json().catch(() => ({}))
-    if(!res.ok) throw new Error(j.error || ('Error ' + res.status))
-    const errores = Object.values(j.resultados || {}).filter(r => !r.ok)
-    const partes = []
-    if(j.como_mensaje) partes.push(j.como_mensaje + ' como mensaje de Mariet')
-    if(j.con_plantilla) partes.push(j.con_plantilla + ' con la plantilla de WhatsApp')
-    if(j.enviados) toast('Enviados: ' + partes.join(' y '), 'success')
-    if(errores.length) toast((j.enviados ? 'No se enviaron ' + errores.length + ': ' : 'No se envió: ') + [...new Set(errores.map(e => e.error))].join(' · '), 'error')
-    const fuente = Array.isArray(state.remCitas) ? state.remCitas : []
-    Object.entries(j.resultados || {}).forEach(([id, r]) => {
-      if(!r.ok) return
-      ;[fuente.find(x => x.id === id), findAppt(id)].forEach(a => { if(a){ a.reminded_at = new Date().toISOString(); a.reminded_channel = 'whatsapp' } })
-    })
-    renderRecordatorios()
-  }catch(e){ toast('No se pudo enviar: ' + e.message, 'error') }
+    for(let i = 0; i < ids.length; i += TANDA){
+      toast('Enviando recordatorios… ' + Math.min(i + TANDA, ids.length) + ' de ' + ids.length, 'success')
+      if(typeof sesionLista === 'function') await sesionLista()
+      const res = await fetch('/api/wa-recordar.php', { method:'POST', cache:'no-store', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify({ ids: ids.slice(i, i + TANDA) }) })
+      const j = await res.json().catch(() => ({}))
+      if(!res.ok) throw new Error(j.error || ('Error ' + res.status))
+      tot.enviados += j.enviados || 0; tot.mensaje += j.como_mensaje || 0; tot.plantilla += j.con_plantilla || 0
+      Object.entries(j.resultados || {}).forEach(([id, r]) => {
+        if(!r.ok){ tot.errores.push(r.error); return }
+        ;[fuente.find(x => x.id === id), findAppt(id)].forEach(a => { if(a){ a.reminded_at = new Date().toISOString(); a.reminded_channel = 'whatsapp' } })
+      })
+      /* si toda la tanda fallo por lo mismo (pago, conexion), no tiene sentido seguir */
+      const errTanda = Object.values(j.resultados || {}).filter(r => !r.ok)
+      if(!j.enviados && errTanda.length && new Set(errTanda.map(e => e.error)).size === 1 && ids.length > TANDA){
+        tot.detenido = errTanda[0].error; break
+      }
+    }
+  }catch(e){ tot.detenido = e.message }
+  remEnviando = false
+  const partes = []
+  if(tot.mensaje) partes.push(tot.mensaje + ' como mensaje de Mariet')
+  if(tot.plantilla) partes.push(tot.plantilla + ' con la plantilla de WhatsApp')
+  if(tot.enviados) toast('Enviados ' + tot.enviados + ': ' + partes.join(' y '), 'success')
+  if(tot.errores.length || tot.detenido){
+    const motivos = [...new Set(tot.errores.concat(tot.detenido ? [tot.detenido] : []))]
+    toast((tot.detenido ? 'Envío detenido. ' : '') + (tot.errores.length ? tot.errores.length + ' sin enviar: ' : '') + motivos.join(' · '), 'error')
+  }
+  renderRecordatorios()
 }
 async function sendReminder(id){
   /* la lista puede traer citas fuera de la semana cargada en la agenda */
