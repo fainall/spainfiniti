@@ -172,7 +172,7 @@ $bienvenidasTxt
 
 QUÉ HACES:
 - Resuelves dudas y AGENDAS citas. Pide lo que falte, de a una cosa por mensaje.
-- Antes de agendar necesitas: servicio, día, hora, NOMBRE Y APELLIDO y CORREO.
+- Antes de agendar necesitas: servicio, día, hora, NOMBRE Y APELLIDO y CORREO. Si más abajo aparece CLIENTE QUE YA CONOCEMOS, no los pidas: confírmalos.
 - Pregunta siempre si viene con acompañante; si dice que sí, pide su nombre y teléfono.
 
 PRIMERO ENTENDER, DESPUÉS RECOMENDAR:
@@ -400,7 +400,7 @@ $tools = [
       'professional_name'=>['type'=>'string','description'=>'Profesional que se le dijo al cliente (el que devolvio check_availability). Obligatorio si se le nombro una.'],
       'replace_date'=>['type'=>'string','description'=>'Si es un cambio de hora: fecha YYYY-MM-DD de la reserva anterior, que se cancela sola al crear la nueva'],
       'replace_time'=>['type'=>'string','description'=>'Hora HH:MM de la reserva anterior que se reemplaza']
-    ],'required'=>['service_name','date','time','client_name','client_email']]]],
+    ],'required'=>['service_name','date','time']]]],
   ['type'=>'function','function'=>['name'=>'free_slots','description'=>'Devuelve TODAS las horas libres de un día para un servicio, con qué profesionales. Úsala siempre que el cliente pida un día sin hora exacta, o pregunte qué horas hay.',
     'parameters'=>['type'=>'object','properties'=>[
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD'],
@@ -527,6 +527,15 @@ function ficha_de_cliente($nombre, $telefono, $correo) {
         $hay = supa('GET', 'clients?select=id,name,email&phone=like.*' . $ult . '&limit=1');
         if (is_array($hay) && count($hay)) {
             $c = $hay[0];
+            /* mismo telefono pero otro nombre (una hija, un acompañante): ficha propia */
+            $pn = fn($t) => explode(' ', trim(strtr(mb_strtolower((string)$t, 'UTF-8'), ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n'])))[0] ?? '';
+            if (trim((string)$nombre) !== '' && $pn($nombre) !== $pn($c['name'] ?? '')) {
+                $otro = supa('GET', 'clients?select=id&phone=like.*' . $ult . '&name=ilike.' . rawurlencode($pn($nombre)) . '*&limit=1');
+                if (is_array($otro) && count($otro)) return $otro[0]['id'];
+                $nuevo = supa('POST', 'clients', ['name' => trim($nombre), 'phone' => $telefono, 'email' => $correo ?: null,
+                                                  'notes' => 'Creado por el asistente de WhatsApp (mismo teléfono que ' . ($c['name'] ?? '') . ')']);
+                return (is_array($nuevo) && count($nuevo) && !empty($nuevo[0]['id'])) ? $nuevo[0]['id'] : $c['id'];
+            }
             /* si llega un correo y la ficha no lo tenia, se completa */
             if ($correo && empty($c['email'])) {
                 supa('PATCH', 'clients?id=eq.' . urlencode($c['id']), ['email' => $correo]);
@@ -606,7 +615,13 @@ function otras_reservas($nombre, $excluirId) {
 }
 
 function do_book($args) {
-    global $phone;
+    global $phone, $clienteConocido;
+    /* cliente conocido que confirmo sus datos: se usan los de la ficha */
+    if ($clienteConocido) {
+        if (trim((string)($args['client_name'] ?? '')) === '')  $args['client_name']  = $clienteConocido['nombre'];
+        if (trim((string)($args['client_email'] ?? '')) === '') $args['client_email'] = $clienteConocido['correo'];
+    }
+    if (trim((string)($args['client_name'] ?? '')) === '') return ['ok'=>false,'reason'=>'falta el nombre y apellido del cliente'];
     /* el servicio tal como esta en el catalogo: su nombre, su duracion y su precio */
     $svc = svc_del_catalogo($args['service_name'] ?? '');
     if (!$svc) return ['ok'=>false,'reason'=>'no encuentro ese servicio en el catálogo; usa el nombre exacto de la lista'];
@@ -696,6 +711,56 @@ $convo = array_values(array_filter(array_map(function ($m) {
     return ['role' => $r, 'content' => mb_substr($c, 0, 2000)];
 }, is_array($input['messages'] ?? null) ? $input['messages'] : [])));
 if (!count($convo)) { echo json_encode(['reply'=>'Hola 👋 ¿En qué puedo ayudarte?']); exit; }
+
+/* ── Cliente que ya conocemos (pedido de Luis) ──
+   Por el numero de WhatsApp se busca su ficha: asi no se le vuelven a pedir
+   nombre y correo, pero se le confirman antes de agendar. El correo se
+   muestra enmascarado, por si el telefono lo esta usando otra persona. */
+function enmascarar_correo($e) {
+    $e = trim((string)$e);
+    if (!preg_match('/^([^@]+)@(.+)$/', $e, $m)) return '';
+    $u = $m[1];
+    return mb_substr($u, 0, 2) . str_repeat('*', max(3, mb_strlen($u) - 2)) . '@' . $m[2];
+}
+function cliente_por_telefono($telefono) {
+    $dig = preg_replace('/\D/', '', (string)$telefono);
+    if (strlen($dig) < 8) return null;
+    $hay = supa('GET', 'clients?select=id,name,email,rut&phone=like.*' . substr($dig, -8) . '&order=created_at.asc&limit=1');
+    if (!is_array($hay) || !count($hay) || trim((string)($hay[0]['name'] ?? '')) === '') return null;
+    $c = $hay[0];
+    $hoy = date('Y-m-d');
+    $citas = supa('GET', 'appointments?select=appt_date,start_time,service_name,status,professional_id&client_id=eq.' . urlencode($c['id']) . '&order=appt_date.desc,start_time.desc&limit=40') ?: [];
+    global $pros;
+    $nombrePro = function ($id) use ($pros) { foreach ($pros as $p) if ($p['id'] === $id) return $p['name']; return ''; };
+    $proximas = []; $ultima = null; $atendidas = 0;
+    foreach ($citas as $a) {
+        $st = $a['status'] ?? '';
+        if ($a['appt_date'] >= $hoy && !in_array($st, ['cancelled', 'no_show', 'block'], true)) {
+            $proximas[] = $a['appt_date'] . ' ' . substr($a['start_time'], 0, 5) . ' · ' . $a['service_name'] . ($nombrePro($a['professional_id']) ? ' con ' . $nombrePro($a['professional_id']) : '');
+        }
+        if ($st === 'attending') { $atendidas++; if (!$ultima) $ultima = $a['appt_date'] . ' · ' . $a['service_name']; }
+    }
+    return ['id' => $c['id'], 'nombre' => trim($c['name']), 'correo' => trim((string)($c['email'] ?? '')),
+            'correo_oculto' => enmascarar_correo($c['email'] ?? ''), 'atendidas' => $atendidas, 'ultima' => $ultima,
+            'proximas' => array_reverse($proximas)];
+}
+$clienteConocido = $phone ? cliente_por_telefono($phone) : null;
+if ($clienteConocido) {
+    $k = $clienteConocido;
+    $system .= "\n\nCLIENTE QUE YA CONOCEMOS (encontrado por su número de WhatsApp):
+- Nombre en la ficha: {$k['nombre']}
+- Correo en la ficha: " . ($k['correo'] ? $k['correo_oculto'] : '(no tiene)') . "
+- Veces atendido: {$k['atendidas']}" . ($k['ultima'] ? " · última atención: {$k['ultima']}" : '') . "
+- Próximas reservas: " . ($k['proximas'] ? implode('; ', $k['proximas']) : 'ninguna') . "
+CÓMO USARLO:
+- Salúdalo por su primer nombre, con naturalidad, sin decir que lo buscaste en una base de datos.
+- NO le pidas nombre ni correo desde cero. Antes de agendar, CONFÍRMALOS en una sola pregunta, por ejemplo:
+  \"¿Agendo a nombre de {$k['nombre']}" . ($k['correo'] ? " y te envío la confirmación a {$k['correo_oculto']}" : '') . "?\"
+  Muestra el correo tal cual aparece arriba (con asteriscos): nunca lo escribas completo.
+- Si confirma, llama a create_booking SIN client_name ni client_email: el sistema usa los de la ficha.
+- Si dice que el nombre o el correo cambió, o que la hora es para otra persona, pídele el dato correcto y pásalo en create_booking.
+" . ($k['correo'] ? '' : "- La ficha no tiene correo: pídeselo una vez, junto con la confirmación del nombre.\n") . "- Si pregunta por sus horas, usa las próximas reservas de arriba. Si quiere cambiar una, usa replace_date y replace_time.";
+}
 
 $messages = array_merge([['role'=>'system','content'=>$system]], $convo);
 
