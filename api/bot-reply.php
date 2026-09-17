@@ -747,7 +747,7 @@ function cliente_por_telefono($telefono) {
 $clienteConocido = $phone ? cliente_por_telefono($phone) : null;
 if ($clienteConocido) {
     $k = $clienteConocido;
-    $system .= "\n\nCLIENTE QUE YA CONOCEMOS (encontrado por su número de WhatsApp):
+    $system = "CLIENTE QUE YA CONOCEMOS (encontrado por su número de WhatsApp):
 - Nombre en la ficha: {$k['nombre']}
 - Correo en la ficha: " . ($k['correo'] ? $k['correo_oculto'] : '(no tiene)') . "
 - Veces atendido: {$k['atendidas']}" . ($k['ultima'] ? " · última atención: {$k['ultima']}" : '') . "
@@ -759,7 +759,10 @@ CÓMO USARLO:
   Muestra el correo tal cual aparece arriba (con asteriscos): nunca lo escribas completo.
 - Si confirma, llama a create_booking SIN client_name ni client_email: el sistema usa los de la ficha.
 - Si dice que el nombre o el correo cambió, o que la hora es para otra persona, pídele el dato correcto y pásalo en create_booking.
-" . ($k['correo'] ? '' : "- La ficha no tiene correo: pídeselo una vez, junto con la confirmación del nombre.\n") . "- Si pregunta por sus horas, usa las próximas reservas de arriba. Si quiere cambiar una, usa replace_date y replace_time.";
+" . ($k['correo'] ? '' : "- La ficha no tiene correo: pídeselo una vez, junto con la confirmación del nombre.\n") . "- Si pregunta por sus horas, usa las próximas reservas de arriba. Si quiere cambiar una, usa replace_date y replace_time.
+- IMPORTANTE: en el mensaje donde pides confirmar los datos, escribe el nombre y el correo enmascarado tal cual. Nunca digas solo \"confirma tu nombre y correo\".
+
+" . $system;
 }
 
 $messages = array_merge([['role'=>'system','content'=>$system]], $convo);
@@ -810,6 +813,7 @@ for ($i=0; $i<4; $i++) {
     }
     $salida = ['reply'=>trim($m['content'] ?? '') ?: '¿Podrías darme más detalles? 🙂', 'booked'=>$booked];
     if ($traza) $salida['traza'] = $traza;
+    if ($esWebhook && !empty($input['debug'])) $salida['cliente'] = $clienteConocido ? ['nombre'=>$clienteConocido['nombre'], 'correo'=>$clienteConocido['correo_oculto'], 'proximas'=>count($clienteConocido['proximas'])] : null;
     echo json_encode($salida, JSON_UNESCAPED_UNICODE); exit;
 }
 echo json_encode(['reply'=>'¿Seguimos? Cuéntame qué servicio y día prefieres 🙂', 'booked'=>$booked], JSON_UNESCAPED_UNICODE);
