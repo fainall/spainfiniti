@@ -49,7 +49,7 @@ $cambio = json_decode($raw, true)['entry'][0]['changes'][0] ?? [];
     $lineas = [];
     foreach ((array)($j['entry'] ?? []) as $e) foreach ((array)($e['changes'] ?? []) as $ch) {
         $v = $ch['value'] ?? [];
-        $ult = fn($t) => $t ? '…' . substr(preg_replace('/D/', '', (string)$t), -4) : '-';
+        $ult = fn($t) => $t ? '…' . substr(preg_replace('/[^0-9]/', '', (string)$t), -4) : '-';
         $det = [];
         foreach ((array)($v['messages'] ?? []) as $m) $det[] = 'msg de ' . $ult($m['from'] ?? '') . ' tipo ' . ($m['type'] ?? '?');
         foreach ((array)($v['message_echoes'] ?? []) as $m) $det[] = 'eco a ' . $ult($m['to'] ?? '') . ' tipo ' . ($m['type'] ?? '?');
