@@ -43,6 +43,25 @@ if (!hash_equals('sha256=' . hash_hmac('sha256', $raw, $secret), $firma)) {
    WhatsApp Business llega aqui como "smb_message_echoes". */
 require_once __DIR__ . '/wa-pausas.php';
 $cambio = json_decode($raw, true)['entry'][0]['changes'][0] ?? [];
+/* registro breve de lo que llega (sin textos de mensajes), para diagnosticar */
+(function($raw){
+    $j = json_decode($raw, true);
+    $lineas = [];
+    foreach ((array)($j['entry'] ?? []) as $e) foreach ((array)($e['changes'] ?? []) as $ch) {
+        $v = $ch['value'] ?? [];
+        $ult = fn($t) => $t ? '…' . substr(preg_replace('/D/', '', (string)$t), -4) : '-';
+        $det = [];
+        foreach ((array)($v['messages'] ?? []) as $m) $det[] = 'msg de ' . $ult($m['from'] ?? '') . ' tipo ' . ($m['type'] ?? '?');
+        foreach ((array)($v['message_echoes'] ?? []) as $m) $det[] = 'eco a ' . $ult($m['to'] ?? '') . ' tipo ' . ($m['type'] ?? '?');
+        foreach ((array)($v['statuses'] ?? []) as $m) $det[] = 'estado ' . ($m['status'] ?? '?') . ' a ' . $ult($m['recipient_id'] ?? '');
+        $lineas[] = date('Y-m-d H:i:s') . ' campo=' . ($ch['field'] ?? '?') . ' claves=' . implode(',', array_keys($v)) . ' ' . implode(' | ', $det);
+    }
+    $f = __DIR__ . '/bot-sessions/_eventos.log';
+    $prev = is_file($f) ? array_slice(file($f, FILE_IGNORE_NEW_LINES), -300) : [];
+    @file_put_contents($f, implode("
+", array_merge($prev, $lineas)) . "
+");
+})($raw);
 if (($cambio['field'] ?? '') === 'smb_message_echoes') {
     $minutos = wa_control_leer()['pausaMin'];
     if ($minutos > 0) {
