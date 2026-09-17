@@ -33,7 +33,8 @@ function wa_pide_audio($texto) {
 }
 function wa_pide_texto($texto) {
     $t = ' ' . strtolower(strtr((string)$texto, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u'])) . ' ';
-    if (preg_match('/\b(no|nada|deja|basta|ya no|mejor)\b.*\b(audio|audios|voz)\b/', $t)) return true;
+    /* tiene que ser un "no me mandes audios", no un "no entendí, mándame un audio" */
+    if (preg_match('/\b(no|nada de|ya no|deja de|dejen de|basta de)\s+(me\s+|nos\s+)?(mandes|manden|mande|mandar|envies|envien|enviar|hables|hablen|hablar|grabes|graben|quiero|queremos)?\s*(mas\s+)?(audios?|notas de voz|voz)\b/', $t)) return true;
     return (bool)preg_match('/\b(escribeme|escribemelo|escrito|por escrito|por texto|en texto|mensaje escrito)\b/', $t);
 }
 

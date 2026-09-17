@@ -233,8 +233,8 @@ if (count($history) > 16) $history = array_slice($history, -16);
    chat, hasta que pida texto o pase un día sin escribir. */
 require_once __DIR__ . '/wa-voz.php';
 $conVoz = wa_voz_activa($from);
-if (wa_pide_texto($text)) { wa_voz_marcar($from, false); $conVoz = false; }
-elseif (wa_pide_audio($text)) { wa_voz_marcar($from, true); $conVoz = true; }
+if (wa_pide_audio($text)) { wa_voz_marcar($from, true); $conVoz = true; }
+elseif (wa_pide_texto($text)) { wa_voz_marcar($from, false); $conVoz = false; }
 
 /* ── Consultar al cerebro (con la clave interna que lo distingue de un extraño) ── */
 $internalKey = hash('sha256', (string)($cfg['openaiKey'] ?? '') . '|spa-internal');
