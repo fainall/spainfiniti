@@ -3470,9 +3470,15 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     <div class="view-inner" style="max-width:1600px">
       <div class="view-head">
         <div><h2>Asistente de reservas</h2><span class="view-sub">Entrena y prueba el bot que agenda por WhatsApp.</span></div>
-        <label class="bot-switch"><input type="checkbox" id="botActive" /> <span>Activo</span></label>
+        <label class="bot-switch" title="Enciende o apaga las respuestas automáticas por WhatsApp. Se guarda al instante."><input type="checkbox" id="botActive" onchange="cambiarBotActivo(this)" /> <span id="botActiveTxt">Activo</span></label>
       </div>
       <div id="botStatus" class="bot-status"></div>
+      <div class="fbox" id="waControl" style="margin:0 0 18px">
+        <h3 class="cd-h3" style="margin-top:0">WhatsApp: cuándo responde el asistente</h3>
+        <p class="rem-note" style="margin:0 0 10px">Cuando alguien del equipo responde a un cliente desde la app WhatsApp Business del celular,
+        el asistente se calla <strong>en ese chat</strong> durante el tiempo que elijas. También puedes pausar o reactivar un chat a mano.</p>
+        <div id="waControlBody"><p class="rem-note">Cargando…</p></div>
+      </div>
       <div class="bot-grid">
         <div>
           <div class="rep-block">
@@ -7703,6 +7709,90 @@ function pantallaAbierta(){
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
 
+/* ── ASISTENTE: encender/apagar y pausas por chat ── */
+async function cambiarBotActivo(chk){
+  const activo = !!chk.checked
+  chk.disabled = true
+  try{
+    await supabase.update('bot_config', '1', { active: activo })
+    botCfg.active = activo
+    toast(activo ? 'Asistente encendido: responde por WhatsApp' : 'Asistente apagado: no responde a clientes', activo ? 'success' : 'error')
+  }catch(e){
+    chk.checked = !activo
+    toast('No se pudo cambiar: ' + e.message, 'error')
+  }
+  chk.disabled = false
+}
+
+let waEstado = null
+async function waApi(cuerpo){
+  if(typeof sesionLista === 'function') await sesionLista()
+  const res = await fetch('/api/wa-control.php', cuerpo
+    ? { method:'POST', cache:'no-store', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(cuerpo) }
+    : { cache:'no-store', headers: authHeaders() })
+  const j = await res.json().catch(() => ({}))
+  if(!res.ok) throw new Error(j.error || ('Error ' + res.status))
+  return j
+}
+function waFmtTel(t){
+  const d = String(t||'')
+  return d.length === 11 && d.startsWith('569') ? '+56 9 ' + d.slice(3,7) + ' ' + d.slice(7) : '+' + d
+}
+function waNombre(t){
+  const d8 = String(t||'').slice(-8)
+  const c = (state.clients||[]).find(x => String(x.phone||'').replace(/\D/g,'').slice(-8) === d8)
+  return c ? c.name : ''
+}
+async function pintarWaControl(){
+  const el = document.getElementById('waControlBody'); if(!el) return
+  try{ waEstado = await waApi() }
+  catch(e){ el.innerHTML = '<p class="rem-note">No pude leer el estado: ' + esc(e.message) + '</p>'; return }
+  const admin = isAdmin()
+  const opciones = [[0,'No pausar'],[30,'30 minutos'],[60,'1 hora'],[120,'2 horas'],[240,'4 horas'],[720,'12 horas'],[1440,'24 horas']]
+  const vence = p => p.hasta ? 'hasta las ' + new Date(p.hasta).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})
+      + (new Date(p.hasta).toDateString() !== new Date().toDateString() ? ' del ' + new Date(p.hasta).toLocaleDateString('es-CL') : '')
+    : 'hasta reactivarlo'
+  el.innerHTML = `
+    <div class="row2" style="margin-bottom:12px">
+      <div><label>Si respondes desde el celular, pausar ese chat</label>
+        <select ${admin?'':'disabled'} onchange="waGuardarConfig({pausaMin:+this.value})">
+          ${opciones.map(([v,t]) => `<option value="${v}" ${+waEstado.pausaMin===v?'selected':''}>${t}</option>`).join('')}
+        </select></div>
+      <div><label>Números de prueba</label>
+        <input type="text" ${admin?'':'disabled'} placeholder="Ej: +56 9 1234 5678, +56 9 8765 4321" value="${esc((waEstado.pruebas||[]).map(waFmtTel).join(', '))}"
+          onchange="waGuardarConfig({pruebas:this.value.split(',').map(x=>x.trim()).filter(Boolean)})" />
+        <p class="rem-note" style="margin:4px 0 0">Con el asistente <strong>apagado</strong>, igual les responde a estos números. Sirve para probarlo.</p></div>
+    </div>
+    <label>Pausar un chat a mano</label>
+    <div class="resp-fila" style="margin-bottom:12px">
+      <input type="tel" id="waPausaTel" placeholder="+56 9 1234 5678" style="max-width:200px" />
+      <select id="waPausaMin" style="max-width:170px">
+        ${[[60,'1 hora'],[240,'4 horas'],[1440,'24 horas'],[0,'Hasta reactivarlo']].map(([v,t]) => `<option value="${v}">${t}</option>`).join('')}
+      </select>
+      <button class="btn-g" onclick="waPausarManual()">Pausar asistente en ese chat</button>
+    </div>
+    ${(waEstado.pausas||[]).length ? `<div class="tabla-scroll"><table class="ctbl">
+      <thead><tr><th>Chat en pausa</th><th>Motivo</th><th>Vuelve a responder</th><th></th></tr></thead>
+      <tbody>${waEstado.pausas.map(p => `<tr>
+        <td><strong>${esc(waNombre(p.tel) || waFmtTel(p.tel))}</strong>${waNombre(p.tel) ? '<br><small>' + esc(waFmtTel(p.tel)) + '</small>' : ''}</td>
+        <td>${esc(p.motivo||'')}</td><td>${vence(p)}</td>
+        <td style="text-align:right"><button class="mini-btn" onclick="waReanudar('${p.tel}')">▶ Reactivar asistente</button></td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="rem-note">Ningún chat en pausa: el asistente responde en todos (si está encendido).</p>'}`
+}
+async function waGuardarConfig(cambio){
+  try{ waEstado = await waApi(Object.assign({ accion:'config' }, cambio)); toast('Guardado', 'success'); pintarWaControl() }
+  catch(e){ toast(e.message, 'error') }
+}
+async function waPausarManual(){
+  const tel = document.getElementById('waPausaTel').value, minutos = +document.getElementById('waPausaMin').value
+  try{ await waApi({ accion:'pausar', tel, minutos }); toast('Asistente en pausa para ese chat', 'success'); pintarWaControl() }
+  catch(e){ toast(e.message, 'error') }
+}
+async function waReanudar(tel){
+  try{ await waApi({ accion:'reanudar', tel }); toast('El asistente vuelve a responder en ese chat', 'success'); pintarWaControl() }
+  catch(e){ toast(e.message, 'error') }
+}
+
 /* ── ASISTENTE / BOT ── */
 let botCfg={active:false, welcome:'', tone:'', handoff_keywords:'', faq:[]}
 let botSim=[]
@@ -7712,6 +7802,7 @@ async function loadBotConfig(){
 }
 function renderAsistente(){
   document.getElementById('botActive').checked=!!botCfg.active
+  pintarWaControl()
   document.getElementById('botName').value=botCfg.bot_name||''
   document.getElementById('botWelcome').value=botCfg.welcome||''
   document.getElementById('botTone').value=botCfg.tone||''

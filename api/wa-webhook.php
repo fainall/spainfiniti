@@ -38,6 +38,21 @@ if (!hash_equals('sha256=' . hash_hmac('sha256', $raw, $secret), $firma)) {
     http_response_code(403); exit('bad signature');
 }
 
+/* ── Luis respondio desde la app del celular: el asistente se calla en ese chat ──
+   Con el numero en coexistencia, cada mensaje que el equipo envia desde la app
+   WhatsApp Business llega aqui como "smb_message_echoes". */
+require_once __DIR__ . '/wa-pausas.php';
+$cambio = json_decode($raw, true)['entry'][0]['changes'][0] ?? [];
+if (($cambio['field'] ?? '') === 'smb_message_echoes') {
+    $minutos = wa_control_leer()['pausaMin'];
+    if ($minutos > 0) {
+        foreach ((array)($cambio['value']['message_echoes'] ?? []) as $eco) {
+            if (!empty($eco['to'])) wa_pausar($eco['to'], $minutos, 'Respondieron desde el celular');
+        }
+    }
+    http_response_code(200); exit('ok');
+}
+
 /* ── ¿Está encendido el asistente? ──
    La casilla "Activo" del panel se guardaba pero no la miraba nadie: el bot
    habria seguido respondiendo aunque se apagara. Se consulta aqui, no en
@@ -49,7 +64,7 @@ curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>8,
     CURLOPT_HTTPHEADER=>['apikey: ' . supa_key(), 'Authorization: Bearer ' . supa_key()]]);
 $cfgBot = json_decode(curl_exec($ch), true); curl_close($ch);
 $encendido = is_array($cfgBot) && count($cfgBot) ? ($cfgBot[0]['active'] ?? false) : false;
-if (!$encendido) { http_response_code(200); exit('ok'); }   // apagado: no se contesta
+/* apagado: no se contesta, salvo a los numeros de prueba (se revisa mas abajo, con el numero) */
 
 /* ── Mensaje entrante ── */
 $body = json_decode($raw, true);
@@ -60,6 +75,20 @@ $from  = preg_replace('/\D/', '', (string)($msg['from'] ?? ''));
 $text  = (string)($msg['text']['body'] ?? '');
 $msgId = (string)($msg['id'] ?? '');
 if ($from === '' || $text === '') { echo 'ok'; exit; }
+if (!$encendido && !wa_es_prueba($from)) { http_response_code(200); exit('ok'); }
+
+/* chat en pausa (alguien del equipo lo esta atendiendo): se guarda lo que escribio
+   el cliente, para que el asistente tenga el contexto cuando vuelva, pero no responde */
+if (wa_en_pausa($from)) {
+    $dirP = __DIR__ . '/bot-sessions';
+    @mkdir($dirP, 0755, true);
+    $fileP = $dirP . '/' . $from . '.json';
+    $histP = file_exists($fileP) ? (json_decode(file_get_contents($fileP), true) ?: []) : [];
+    $histP[] = ['role' => 'user', 'content' => mb_substr($text, 0, 2000)];
+    if (count($histP) > 16) $histP = array_slice($histP, -16);
+    @file_put_contents($fileP, json_encode($histP, JSON_UNESCAPED_UNICODE));
+    http_response_code(200); exit('ok');
+}
 
 /* ── Meta reintenta si tarda la respuesta: se contesta ya y se sigue trabajando ── */
 $dir = __DIR__ . '/bot-sessions';
@@ -101,5 +130,6 @@ if (!empty($cfg['waToken']) && !empty($cfg['waPhoneId'])) {
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>15, CURLOPT_POST=>true,
         CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$cfg['waToken'], 'Content-Type: application/json'],
         CURLOPT_POSTFIELDS=>json_encode(['messaging_product'=>'whatsapp','to'=>$from,'type'=>'text','text'=>['body'=>$reply]])]);
-    curl_exec($ch); curl_close($ch);
+    $resEnvio = curl_exec($ch); $codEnvio = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    if ($codEnvio < 200 || $codEnvio >= 300) error_log('wa-webhook: envio fallo ' . $codEnvio . ' ' . substr((string)$resEnvio, 0, 300));
 }
