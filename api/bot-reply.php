@@ -264,7 +264,7 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 
 LO QUE NO HACES:
 - No inventas servicios, precios, promociones ni horarios: usa solo lo que aparece aquí abajo.
-- Si te preguntan algo que no está en esta información (estacionamiento, metro cercano, formas de pago, convenios), NO lo adivines. Di con naturalidad que lo confirmas con el equipo y ofrece que alguien le escriba.
+- Si te preguntan algo que no está en esta información (estacionamiento, formas de pago, convenios, si un tratamiento sirve para un caso puntual), NO lo adivines: usa ask_team para preguntárselo al equipo por WhatsApp y dile al cliente que lo estás confirmando y que le respondes en cuanto te contesten. Una consulta por duda, no repitas la misma.
 - No das diagnósticos ni indicaciones médicas. Para eso, invitas a evaluación con la podóloga.
 
 DÓNDE ESTAMOS:
@@ -460,6 +460,10 @@ $tools = [
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD de la reserva'],
       'time'=>['type'=>'string','description'=>'Hora HH:MM de la reserva']
     ],'required'=>['date','time']]]],
+  ['type'=>'function','function'=>['name'=>'ask_team','description'=>'Le pregunta por WhatsApp al equipo del spa (Luis) algo que no sabes y que no está en esta información: convenios, formas de pago, estacionamiento, si un tratamiento sirve para un caso particular, un precio especial, una excepción. Úsala en vez de inventar o de prometer que alguien le escribirá. Después dile al cliente que lo estás consultando y que le respondes en cuanto te confirmen.',
+    'parameters'=>['type'=>'object','properties'=>[
+      'pregunta'=>['type'=>'string','description'=>'La duda concreta, escrita para que el equipo la entienda sin leer la conversación. Incluye el contexto necesario.']
+    ],'required'=>['pregunta']]]],
   ['type'=>'function','function'=>['name'=>'cancel_booking','description'=>'Cancela una reserva existente del cliente. Usala cuando pida anular o cuando cambie la hora y no se haya usado replace_date. Nunca digas que una hora fue cancelada sin llamar a esta funcion.',
     'parameters'=>['type'=>'object','properties'=>[
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD de la reserva a cancelar'],
@@ -668,6 +672,18 @@ function do_confirm($args) {
         return is_array($r) ? ['ok'=>true, 'confirmed'=>$date.' '.$time] : ['ok'=>false,'reason'=>'error al guardar'];
     }
     return ['ok'=>false,'reason'=>'no encontré una reserva suya en esa fecha y hora'];
+}
+
+/* Mariet le pregunta al equipo lo que no sabe, en vez de inventarlo o de
+   prometer que alguien escribirá y que ahí muera la cosa (pedido de Luis). */
+function do_ask_team($args) {
+    global $cfg, $phone, $clienteConocido, $esWebhook;
+    if (!$esWebhook || $phone === '') return ['ok'=>false, 'reason'=>'esto solo funciona en una conversación real de WhatsApp'];
+    require_once __DIR__ . '/wa-consultas.php';
+    $r = wa_consultar_al_equipo($cfg, $args['pregunta'] ?? '', $phone, $clienteConocido['nombre'] ?? '');
+    if (!empty($r['ya_respondida'])) return $r;
+    if (empty($r['ok'])) return $r;
+    return ['ok'=>true, 'aviso'=>'La consulta ya salió al WhatsApp del equipo. Dile al cliente que lo estás confirmando y que le respondes en cuanto te contesten; no prometas un plazo exacto.'];
 }
 
 function do_cancel($args) {
@@ -881,6 +897,16 @@ if ($ejemplos) {
     }
 }
 
+/* ── Lo que el equipo ya aclaró cuando Mariet preguntó ──
+   Así una duda se consulta una sola vez: la próxima ya la sabe. */
+require_once __DIR__ . '/wa-consultas.php';
+$aclaraciones = wa_consultas_resueltas();
+if ($aclaraciones) {
+    $txtAcl = '';
+    foreach ($aclaraciones as $a) $txtAcl .= "\n- Duda: " . $a['pregunta'] . "\n  El equipo respondió: " . $a['respuesta'];
+    $system .= "\n\nACLARACIONES QUE YA DIO EL EQUIPO (son válidas, úsalas como propias y no vuelvas a consultarlas):" . $txtAcl;
+}
+
 $clienteConocido = $phone ? cliente_por_telefono($phone) : null;
 /* ya se le pregunto el nombre en esta conversacion? (no se repite) */
 $yaPreguntoNombre = (bool)array_filter($convo, fn($m) => $m['role'] === 'assistant' && preg_match('/a nombre de/iu', $m['content']));
@@ -956,7 +982,7 @@ for ($i=0; $i<4; $i++) {
         foreach ($m['tool_calls'] as $tc) {
             $args = json_decode($tc['function']['arguments'] ?? '{}', true) ?: [];
             $name = $tc['function']['name'];
-            $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : ($name==='confirm_booking' ? do_confirm($args) : ($name==='free_slots' ? do_free_slots($args) : do_book($args))));
+            $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : ($name==='confirm_booking' ? do_confirm($args) : ($name==='free_slots' ? do_free_slots($args) : ($name==='ask_team' ? do_ask_team($args) : do_book($args)))));
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
             /* traza para diagnosticar: solo con la clave interna y pidiendola */

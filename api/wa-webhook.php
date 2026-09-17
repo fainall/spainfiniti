@@ -197,6 +197,29 @@ if ($botonClave === 'confirmo' || $botonClave === 'cancelar') {
 }
 if ($text === '') { echo 'ok'; exit; }
 
+/* ── ¿Es Luis respondiendo una duda que Mariet le preguntó? ──
+   Si contesta ese mensaje (o si es la única consulta abierta), su respuesta le
+   llega al cliente que estaba esperando y queda guardada para no volver a
+   preguntar lo mismo. */
+require_once __DIR__ . '/wa-consultas.php';
+if (wa_es_equipo($cfg, $from)) {
+    $i = wa_consulta_que_responde((string)($msg['context']['id'] ?? ''));
+    if ($i !== null) {
+        $c = wa_consulta_responder($i, $text);
+        $paraCliente = "Ya lo confirmé con el equipo 😊\n\n" . trim($text);
+        $okCli = $c && wa_enviar_texto($cfg, $c['cliente'], $paraCliente);
+        if ($c) {
+            /* el mensaje de Luis ya quedó en su chat más arriba */
+            wa_log($c['cliente'], 'asistente', $paraCliente, $okCli ? [] : ['error' => 'No se pudo enviar']);
+            wa_contexto_agregar($c['cliente'], 'assistant', $paraCliente);
+            wa_enviar_texto($cfg, $from, $okCli
+                ? '¡Gracias! Se lo pasé al cliente y me quedo con la respuesta para la próxima 🙌'
+                : 'Gracias, la guardé, pero no pude escribirle al cliente (pasaron más de 24 horas desde su último mensaje). Habría que escribirle desde el celular.');
+        }
+        echo 'ok'; exit;
+    }
+}
+
 /* ── ¿Contesto con nota de voz? ──
    Solo si el cliente lo pidió. Desde ahí se le sigue hablando en audio en ese
    chat, hasta que pida texto o pase un día sin escribir. Se anota aquí, antes
