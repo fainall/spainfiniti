@@ -157,7 +157,7 @@ if ($botonClave === 'confirmo' || $botonClave === 'cancelar') {
         $confirma = $botonClave === 'confirmo';
         supa_escribir_cita($rec['appt'], $confirma ? 'confirmed' : 'cancelled');
         $respuesta = $confirma
-            ? "¡Gracias! 😊 Tu hora de {$rec['servicio']} del {$rec['fecha']} a las {$rec['hora']} quedó confirmada. Te esperamos en Santo Domingo 1083, Of. 502, Santiago Centro ✨"
+            ? "¡Listo, confirmada! Te esperamos el {$rec['fecha']} a las {$rec['hora']} ✨"
             : "Listo, anulé tu hora de {$rec['servicio']} del {$rec['fecha']} a las {$rec['hora']}. ¿Quieres que te busque otro día y hora? 😊";
         wa_contexto_agregar($from, 'user', $confirma ? 'Confirmo mi cita' : 'Quiero cancelar mi cita');
         wa_contexto_agregar($from, 'assistant', $respuesta);
