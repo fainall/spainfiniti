@@ -1322,6 +1322,8 @@ body.sin-scroll{overflow:hidden}
 .qv .wa-menu i{font-size:.74rem}
 .qv .qv-dots{margin-top:16px;padding-top:14px;gap:8px}
 .qv .qv-dots > span{color:#111 !important}
+/* nunca mas alta que la pantalla: si no cabe, se desplaza por dentro */
+.qv{max-height:calc(100vh - 16px);overflow-y:auto}
 
 /* aviso de cuándo se actualizó la agenda */
 .refresco{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--light);white-space:nowrap}
@@ -5748,8 +5750,12 @@ function openApptQuickView(id){
   }
   const el=document.querySelector(`.appt[data-id="${id}"]`)
   const r=el?el.getBoundingClientRect():{right:window.innerWidth/2,left:window.innerWidth/2,top:120}
-  let left=r.right+8; if(left+352>window.innerWidth) left=Math.max(8, r.left-352)
-  let top=r.top; if(top+360>window.innerHeight) top=Math.max(8, window.innerHeight-370)
+  /* se mide la ficha ya armada: con la letra mas grande y mas lineas (total cobrado,
+     notas) media mas de lo supuesto y la parte de abajo (estados, pagar) quedaba
+     fuera de la pantalla */
+  const anchoQv = qv.offsetWidth || 370, altoQv = qv.offsetHeight || 460
+  let left=r.right+8; if(left+anchoQv+8>window.innerWidth) left=Math.max(8, r.left-anchoQv-8)
+  let top=r.top; if(top+altoQv+8>window.innerHeight) top=Math.max(8, window.innerHeight-altoQv-8)
   qv.style.left=left+'px'; qv.style.top=top+'px'
 }
 function closeQuickView(){
