@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/supa-key.php';
-require_once __DIR__ . '/wa-pausas.php';
+require_once __DIR__ . '/wa-recordatorio-lib.php';
 /**
  * Envío AUTOMÁTICO de recordatorios — Spa Infinity
  * Lo llama un cron cada ~30 min:  php send-reminders-cron.php   (o por web con ?key=cronKey)
@@ -35,8 +35,6 @@ $channel = $bot['rem_channel'] ?? 'email';
 $tpl = $bot['rem_template'] ?: 'Hola {cliente} 👋 Te recordamos tu cita en Spa Infinity el {fecha} a las {hora} ({servicio}). ¡Te esperamos!';
 $li = is_array($bot['local_info'] ?? null) ? $bot['local_info'] : [];
 $direccion = trim(($li['address'] ?? ($cfg['address'] ?? 'Santo Domingo 1083, Of. 502, Santiago Centro')));
-const WA_PLANTILLA = 'recordatorio_cita_base_v1';
-const WA_CONTACTO  = '+56 9 8668 8771';
 
 $now = time();
 $appts = supa('GET','appointments?select=*&reminded_at=is.null&appt_date=gte.'.date('Y-m-d', $now).'&appt_date=lte.'.date('Y-m-d', $now + $hours*3600).'&status=in.(reserved,confirmed,pending,waiting)') ?: [];
@@ -44,7 +42,6 @@ $appts = supa('GET','appointments?select=*&reminded_at=is.null&appt_date=gte.'.d
 $MONTHS=['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 $DOWS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 
-function waPhone($raw){ $d=preg_replace('/\D/','',(string)$raw); if(!$d)return ''; if(strpos($d,'56')===0)return $d; if(strlen($d)===9&&$d[0]==='9')return '56'.$d; if(strlen($d)===8)return '569'.$d; return $d; }
 
 $enviados = ['email'=>0, 'whatsapp'=>0]; $errores = []; $simulados = [];
 foreach ($appts as $a) {
@@ -74,29 +71,13 @@ foreach ($appts as $a) {
     }
 
     if (in_array($channel, ['whatsapp','both'], true) && !empty($cfg['waToken']) && !empty($cfg['waPhoneId'])) {
-        $wp = waPhone($a['client_phone'] ?? '');
-        if ($wp) {
-            $params = [$primerNombre, 'Spa Infinity', ucfirst($fecha), $hora, $direccion, WA_CONTACTO];
-            $texto = "Hola {$params[0]}.\n\nEste es un recordatorio de tu cita en {$params[1]}, programada para el {$params[2]} a las {$params[3]}, en {$params[4]}.\n\nPuedes comunicarte al {$params[5]} si necesitas ayuda.\n[Confirmo] [Cancelar]";
-            if ($simular) { $simulados[] = ['whatsapp'=>'…'.substr($wp,-4), 'cita'=>$fecha.' '.$hora, 'servicio'=>$a['service_name']]; }
-            else {
-                $ch = curl_init('https://graph.facebook.com/v23.0/'.$cfg['waPhoneId'].'/messages');
-                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>20, CURLOPT_POST=>true,
-                    CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$cfg['waToken'], 'Content-Type: application/json'],
-                    CURLOPT_POSTFIELDS=>json_encode(['messaging_product'=>'whatsapp', 'to'=>$wp, 'type'=>'template',
-                        'template'=>['name'=>WA_PLANTILLA, 'language'=>['code'=>'es'],
-                            'components'=>[['type'=>'body', 'parameters'=>array_map(fn($p) => ['type'=>'text', 'text'=>(string)$p], $params)]]]], JSON_UNESCAPED_UNICODE)]);
-                $r = json_decode((string)curl_exec($ch), true); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
-                if ($code >= 200 && $code < 300) {
-                    $enviados['whatsapp']++; $usedWa = true;
-                    /* queda en el chat, en la memoria de Mariet y ligado a la cita para los botones */
-                    wa_log($wp, 'asistente', $texto, ['recordatorio' => $a['id'], 'id' => (string)($r['messages'][0]['id'] ?? '')]);
-                    wa_contexto_agregar($wp, 'assistant', "Recordatorio enviado al cliente: cita de {$a['service_name']} el {$fecha} a las {$hora}. Botones: Confirmo / Cancelar.");
-                    wa_recordatorio_guardar($wp, $a['id'], (string)($r['messages'][0]['id'] ?? ''), $fecha, $hora, (string)$a['service_name']);
-                } else {
-                    $errores[] = '…'.substr($wp,-4).': '.($r['error']['message'] ?? ('error '.$code));
-                }
-            }
+        if ($simular) {
+            $wp = wa_rec_telefono($a['client_phone'] ?? '');
+            if ($wp) $simulados[] = ['whatsapp'=>'…'.substr($wp,-4), 'cita'=>$fecha.' '.$hora, 'como'=>wa_ventana_abierta($wp) ? 'mensaje de Mariet' : 'plantilla'];
+        } else {
+            $rw = wa_enviar_recordatorio($cfg, $a, $direccion);
+            if ($rw['ok']) { $enviados['whatsapp']++; $usedWa = true; }
+            elseif (($rw['error'] ?? '') !== 'La cita no tiene un teléfono válido') $errores[] = substr((string)($a['client_phone'] ?? ''), -4) . ': ' . $rw['error'];
         }
     }
 

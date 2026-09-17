@@ -14744,6 +14744,11 @@ function renderRecordatorios(){
   const tabs=[['pendientes','Pendientes',pend.length],['enviados','Enviados',enviados.length],['sincontacto','Sin contacto',sinContacto.length]]
   document.getElementById('remTabs').innerHTML=tabs.map(([k,l,n])=>
     `<button class="${k===remTab?'on':''}" onclick="remTab='${k}';renderRecordatorios()">${l}${n?` (${n})`:''}</button>`).join('')
+    + (() => {
+        const aMariet = pend.filter(a => waPhone(a.client_phone) && a.status !== 'cancelled' && a.status !== 'attending' && a.status !== 'no_show')
+        window.__remPendMariet = aMariet.map(a => a.id)
+        return aMariet.length ? `<button class="btn-primary" style="margin-left:auto;align-self:center" onclick="recordarConMariet(window.__remPendMariet)">🤖 Enviar todos los pendientes con Mariet (${aMariet.length})</button>` : ''
+      })()
 
   const shown = remTab==='enviados'?enviados : remTab==='sincontacto'?sinContacto : pend
   if(!shown.length){
@@ -14765,13 +14770,43 @@ function renderRecordatorios(){
           ? '<span class="badge paid">Enviado'+(a.reminded_channel==='whatsapp'?' · WhatsApp':a.reminded_channel==='email'?' · Email':'')+'</span>'
           : '<span class="badge" style="background:#eee;color:#3A3F47">Pendiente</span>'}</td>
         <td class="cacts" style="text-align:right;white-space:nowrap">
-          ${phone?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" onclick="sendReminder('${a.id}')">WhatsApp</button>`:''}
+          ${phone && !a.reminded_at?`<button class="mini-btn" style="background:#25D366;color:#fff;border-color:#25D366" title="Lo envía Mariet por el WhatsApp del spa y atiende la respuesta" onclick="recordarConMariet(['${a.id}'])">🤖 Enviar con Mariet</button>`:''}
+          ${phone?`<button class="mini-btn" title="Abre WhatsApp en este equipo para enviarlo tú" onclick="sendReminder('${a.id}')">Desde mi WhatsApp</button>`:''}
           ${email?`<button class="mini-btn" onclick="sendReminderEmail('${a.id}')">Email</button>`:''}
           ${(!phone&&!email)?'<span style="font-size:.72rem;color:var(--light)">Sin contacto</span>':''}
         </td></tr>`}).join('')}</tbody></table>`
 }
+/* Mariet envia el recordatorio por el WhatsApp del spa: como mensaje suyo si el
+   cliente escribio en las ultimas 24 horas, o con la plantilla aprobada por Meta
+   si no. La respuesta (Confirmo / Cancelar / lo que escriba) la atiende ella. */
+async function recordarConMariet(ids){
+  ids = (ids || []).slice(0, 60)
+  if(!ids.length) return
+  if(!await confirmar(ids.length === 1 ? 'Mariet le enviará el recordatorio por WhatsApp y atenderá su respuesta.' : 'Mariet enviará ' + ids.length + ' recordatorios por WhatsApp y atenderá las respuestas.',
+    { titulo: ids.length === 1 ? '¿Enviar recordatorio?' : '¿Enviar ' + ids.length + ' recordatorios?', ok: 'Sí, enviar', suave: true })) return
+  toast('Enviando…', 'success')
+  try{
+    if(typeof sesionLista === 'function') await sesionLista()
+    const res = await fetch('/api/wa-recordar.php', { method:'POST', cache:'no-store', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify({ ids }) })
+    const j = await res.json().catch(() => ({}))
+    if(!res.ok) throw new Error(j.error || ('Error ' + res.status))
+    const errores = Object.values(j.resultados || {}).filter(r => !r.ok)
+    const partes = []
+    if(j.como_mensaje) partes.push(j.como_mensaje + ' como mensaje de Mariet')
+    if(j.con_plantilla) partes.push(j.con_plantilla + ' con la plantilla de WhatsApp')
+    if(j.enviados) toast('Enviados: ' + partes.join(' y '), 'success')
+    if(errores.length) toast((j.enviados ? 'No se enviaron ' + errores.length + ': ' : 'No se envió: ') + [...new Set(errores.map(e => e.error))].join(' · '), 'error')
+    const fuente = Array.isArray(state.remCitas) ? state.remCitas : []
+    Object.entries(j.resultados || {}).forEach(([id, r]) => {
+      if(!r.ok) return
+      ;[fuente.find(x => x.id === id), findAppt(id)].forEach(a => { if(a){ a.reminded_at = new Date().toISOString(); a.reminded_channel = 'whatsapp' } })
+    })
+    renderRecordatorios()
+  }catch(e){ toast('No se pudo enviar: ' + e.message, 'error') }
+}
 async function sendReminder(id){
-  const a=findAppt(id); if(!a) return
+  /* la lista puede traer citas fuera de la semana cargada en la agenda */
+  const a=findAppt(id) || (Array.isArray(state.remCitas) ? state.remCitas.find(x=>x.id===id) : null); if(!a) return
   const phone=waPhone(a.client_phone)
   if(!phone){ toast('El cliente no tiene teléfono','error'); return }
   const msg=encodeURIComponent(buildReminderMsg(a))
@@ -14782,7 +14817,7 @@ async function sendReminder(id){
   }catch(e){ console.warn('No se pudo marcar como enviado:', e) }
 }
 async function sendReminderEmail(id){
-  const a=findAppt(id); if(!a) return
+  const a=findAppt(id) || (Array.isArray(state.remCitas) ? state.remCitas.find(x=>x.id===id) : null); if(!a) return
   const c=state.clients.find(x=>x.id===a.client_id)
   const email=c&&c.email
   if(!email){ toast('El cliente no tiene email','error'); return }

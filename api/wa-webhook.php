@@ -138,6 +138,15 @@ $botonTxt = '';
 if (($msg['type'] ?? '') === 'button') $botonTxt = (string)($msg['button']['text'] ?? $msg['button']['payload'] ?? '');
 if (($msg['type'] ?? '') === 'interactive') $botonTxt = (string)($msg['interactive']['button_reply']['title'] ?? '');
 $botonClave = strtolower(trim(strtr($botonTxt, ['Á'=>'a','á'=>'a'])));
+/* tambien si lo escribe (el recordatorio de texto de Mariet pide responder asi), dentro de 48 h */
+if ($botonClave === '' && ($msg['type'] ?? '') === 'text') {
+    $escrito = trim(preg_replace('/[^a-z ]/', '', strtolower(strtr($text, ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','Á'=>'a','É'=>'e']))));
+    $recReciente = wa_recordatorio_de($from);
+    if ($recReciente && $recReciente['t'] > time() - 48 * 3600) {
+        if (in_array($escrito, ['confirmo', 'si confirmo', 'confirmado', 'confirmo mi hora', 'confirmo mi cita', 'si voy', 'confirmo asistencia'], true)) $botonClave = 'confirmo';
+        if (in_array($escrito, ['cancelar', 'cancelo', 'quiero cancelar', 'no voy', 'anular'], true)) $botonClave = 'cancelar';
+    }
+}
 if ($botonClave === 'confirmo' || $botonClave === 'cancelar') {
     $rec = wa_recordatorio_de($from, (string)($msg['context']['id'] ?? ''));
     if ($rec) {
