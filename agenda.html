@@ -11760,7 +11760,7 @@ function admProfesionales(){
         const propias = Object.keys((commCfg.services||{})[p.id]||{}).length
         const cero = !Number(commDefaultOf(p.id))
         const txt = propias ? `Comisión ${propias} servicios · ${commDefaultOf(p.id)}% por defecto` : `Comisión ${commDefaultOf(p.id)}%`
-        return cero ? `<span class="falta" title="Sin porcentaje por defecto: las ventas sin detalle se pagan a cero">${txt} ⚠</span>` : txt
+        return (cero && !propias) ? `<span class="falta" title="Sin porcentaje por defecto: las ventas sin detalle se pagan a cero">${txt} ⚠</span>` : txt
       })()}</span>
       <span class="adm-dot ${p.active===false?'off':''}">● ${p.active===false?'Inactivo':'Activo'}</span>
       <button class="mini-btn" onclick="openProModal('${p.id}')">✎ Editar</button></div>`}).join('')
@@ -13798,7 +13798,9 @@ function renderPropinas(){
 /* profesionales activos con 0% general: sus ventas sin detalle, o de un
    servicio no configurado, se pagarían a cero sin avisar */
 function sinComisionConfigurada(){
-  return state.professionals.filter(p => p.active!==false && !Number(commDefaultOf(p.id)))
+  /* si tiene porcentajes servicio por servicio, se rige por esos: no se avisa */
+  return state.professionals.filter(p => p.active!==false && !Number(commDefaultOf(p.id))
+    && !Object.values((commCfg.services||{})[p.id]||{}).some(v => Number(v) > 0))
 }
 function avisoComisionFaltante(){
   const faltan = sinComisionConfigurada()
