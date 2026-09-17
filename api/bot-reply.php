@@ -878,6 +878,15 @@ CÓMO USARLO:
 " . $system;
 }
 
+/* lo que se va a escuchar se escribe distinto: corrido, sin listas ni emojis */
+if (!empty($input['voz'])) {
+    $system .= '\n\nESTA RESPUESTA SE VA A ESCUCHAR, NO A LEER:\n'
+      . 'El cliente pidio que le contestes con una nota de voz: tu respuesta se convierte en audio con una voz real.\n'
+      . '- Escribe corto y de corrido, como si lo dijeras en voz alta: 3 o 4 frases, sin listas, sin vinetas, sin emojis, sin direcciones web.\n'
+      . '- Los precios y las horas en palabras normales: veinte mil pesos, las cuatro y media.\n'
+      . '- No digas que le escribiste ni que le mandas un mensaje: se lo estas diciendo.\n'
+      . '- Si tienes que ofrecer horarios, nombra dos o tres, no mas.\n';
+}
 $messages = array_merge([['role'=>'system','content'=>$system]], $convo);
 
 /* Los modelos GPT-5 no aceptan max_tokens (piden max_completion_tokens) y

@@ -228,12 +228,20 @@ $history = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: 
 $history[] = ['role' => 'user', 'content' => mb_substr($text, 0, 2000)];
 if (count($history) > 16) $history = array_slice($history, -16);
 
+/* ── ¿Contesto con nota de voz? ──
+   Solo si el cliente lo pidió. Desde ahí se le sigue hablando en audio en ese
+   chat, hasta que pida texto o pase un día sin escribir. */
+require_once __DIR__ . '/wa-voz.php';
+$conVoz = wa_voz_activa($from);
+if (wa_pide_texto($text)) { wa_voz_marcar($from, false); $conVoz = false; }
+elseif (wa_pide_audio($text)) { wa_voz_marcar($from, true); $conVoz = true; }
+
 /* ── Consultar al cerebro (con la clave interna que lo distingue de un extraño) ── */
 $internalKey = hash('sha256', (string)($cfg['openaiKey'] ?? '') . '|spa-internal');
 $ch = curl_init('https://spainfinity.cl/api/bot-reply.php');
 curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>45, CURLOPT_POST=>true,
     CURLOPT_HTTPHEADER=>['Content-Type: application/json', 'X-Internal-Key: ' . $internalKey],
-    CURLOPT_POSTFIELDS=>json_encode(['messages'=>$history, 'phone'=>$from])]);
+    CURLOPT_POSTFIELDS=>json_encode(['messages'=>$history, 'phone'=>$from, 'voz'=>$conVoz])]);
 $brain = json_decode(curl_exec($ch), true); curl_close($ch);
 $reply = $brain['reply'] ?? 'Disculpa, no pude procesar tu mensaje. Escríbenos y te ayudamos 🙏';
 
@@ -251,6 +259,18 @@ if (wa_en_pausa($from)) {
     }
     @file_put_contents($file, json_encode(array_values($actual), JSON_UNESCAPED_UNICODE));
     exit;
+}
+if ($conVoz) {
+    $voz = wa_voz_generar($cfg, $reply);
+    if ($voz && wa_enviar_audio($cfg, $from, $voz['bytes'], $voz['mime'])) {
+        require_once __DIR__ . '/wa-media.php';
+        $arch = wa_media_guardar($from, 'voz' . time(), $voz['bytes'], $voz['mime']);
+        wa_log($from, 'asistente', $reply, ['media' => ['tipo'=>'audio', 'archivo'=>$arch, 'mime'=>$voz['mime']], 'voz' => $voz['voz']]);
+        /* si la respuesta era larga, el audio va cortado: el texto completo también se manda */
+        if (mb_strlen(wa_voz_texto_limpio($reply)) > WA_VOZ_MAX) wa_enviar_texto($cfg, $from, $reply);
+        exit;
+    }
+    error_log('wa-webhook: no se pudo mandar la voz; se responde por texto');
 }
 if (!empty($cfg['waToken']) && !empty($cfg['waPhoneId'])) {
     $url = 'https://graph.facebook.com/v20.0/' . $cfg['waPhoneId'] . '/messages';
