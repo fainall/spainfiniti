@@ -128,7 +128,7 @@ $today = date('Y-m-d');
 $dow = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][date('w')];
 
 /* ── quién es y cómo habla ── */
-$botName = trim($bot['bot_name'] ?? '') ?: 'Julia';
+$botName = trim($bot['bot_name'] ?? '') ?: 'Mariet';
 $negocio = $cfg['businessName'] ?? 'Spa Infinity';
 
 /* datos del local, para responder dónde están y cómo llegar */
