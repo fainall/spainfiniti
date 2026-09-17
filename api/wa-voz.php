@@ -77,7 +77,12 @@ function wa_voz_texto_limpio($texto) {
     $t = preg_replace('/\s+/u', ' ', $t);
     /* la máquina lee "$20.000" y "19:00" de forma rara: se dicen como los decimos acá */
     $t = preg_replace_callback('/\$\s?([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]+)/u', fn($m) => wa_voz_plata($m[1]), $t);
-    $t = preg_replace_callback('/\b([0-2]?[0-9]):([0-5][0-9])\b/u', fn($m) => wa_voz_hora((int)$m[1], (int)$m[2]), $t);
+    /* el "a las" que ya venía escrito se aprovecha, para no decir "a las las siete" */
+    $t = preg_replace_callback('/\b(a\s+las\s+|a\s+la\s+|las\s+|la\s+)?([0-2]?[0-9]):([0-5][0-9])\b/u', function ($m) {
+        $hora = wa_voz_hora((int)$m[2], (int)$m[3]);
+        $previo = trim((string)($m[1] ?? ''));
+        return ($previo !== '' && strpos($previo, 'a ') === 0 ? 'a ' : '') . $hora;
+    }, $t);
     return trim($t);
 }
 
