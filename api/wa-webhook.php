@@ -14,6 +14,25 @@
 $cfgFile = __DIR__ . '/bot-config.php';
 $cfg = file_exists($cfgFile) ? require $cfgFile : [];
 
+function wa_enviar_texto($cfg, $to, $texto) {
+    if (empty($cfg['waToken']) || empty($cfg['waPhoneId'])) return false;
+    $ch = curl_init('https://graph.facebook.com/v23.0/' . $cfg['waPhoneId'] . '/messages');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>15, CURLOPT_POST=>true,
+        CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$cfg['waToken'], 'Content-Type: application/json'],
+        CURLOPT_POSTFIELDS=>json_encode(['messaging_product'=>'whatsapp','to'=>$to,'type'=>'text','text'=>['body'=>$texto]])]);
+    $r = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    if ($code < 200 || $code >= 300) error_log('wa-webhook: envio fallo ' . $code . ' ' . substr((string)$r, 0, 300));
+    return $code >= 200 && $code < 300;
+}
+function supa_escribir_cita($id, $estado) {
+    require_once __DIR__ . '/supa-key.php';
+    $ch = curl_init(supa_url() . '/rest/v1/appointments?id=eq.' . urlencode($id) . '&status=neq.cancelled');
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_CUSTOMREQUEST=>'PATCH', CURLOPT_TIMEOUT=>10,
+        CURLOPT_HTTPHEADER=>['apikey: '.supa_key(), 'Authorization: Bearer '.supa_key(), 'Content-Type: application/json'],
+        CURLOPT_POSTFIELDS=>json_encode(['status'=>$estado])]);
+    curl_exec($ch); curl_close($ch);
+}
+
 /* ── Verificación (Meta llama con GET al configurar el webhook) ── */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $mode = $_GET['hub_mode'] ?? ($_GET['hub.mode'] ?? '');
@@ -111,6 +130,31 @@ if ($msgId !== '' && in_array($msgId, $idsPrev, true)) { echo 'ok'; exit; }
 $nombrePerfil = (string)($body['entry'][0]['changes'][0]['value']['contacts'][0]['profile']['name'] ?? '');
 wa_log($from, 'cliente', wa_texto_de($msg), ['id' => $msgId, 'nombre' => $nombrePerfil]);
 if ($msgId !== '') { $idsPrev[] = $msgId; @file_put_contents($idsFile, json_encode(array_slice($idsPrev, -500))); }
+/* ── Botones del recordatorio: Confirmo / Cancelar ──
+   Se resuelven aqui mismo, sin depender de la IA: la cita cambia de estado en
+   la agenda y el cliente recibe la respuesta. Si cancela, Mariet sigue la
+   conversacion para ofrecerle otra hora. */
+$botonTxt = '';
+if (($msg['type'] ?? '') === 'button') $botonTxt = (string)($msg['button']['text'] ?? $msg['button']['payload'] ?? '');
+if (($msg['type'] ?? '') === 'interactive') $botonTxt = (string)($msg['interactive']['button_reply']['title'] ?? '');
+$botonClave = strtolower(trim(strtr($botonTxt, ['Á'=>'a','á'=>'a'])));
+if ($botonClave === 'confirmo' || $botonClave === 'cancelar') {
+    $rec = wa_recordatorio_de($from, (string)($msg['context']['id'] ?? ''));
+    if ($rec) {
+        $confirma = $botonClave === 'confirmo';
+        supa_escribir_cita($rec['appt'], $confirma ? 'confirmed' : 'cancelled');
+        $respuesta = $confirma
+            ? "¡Gracias! 😊 Tu hora de {$rec['servicio']} del {$rec['fecha']} a las {$rec['hora']} quedó confirmada. Te esperamos en Santo Domingo 1083, Of. 502, Santiago Centro ✨"
+            : "Listo, anulé tu hora de {$rec['servicio']} del {$rec['fecha']} a las {$rec['hora']}. ¿Quieres que te busque otro día y hora? 😊";
+        wa_contexto_agregar($from, 'user', $confirma ? 'Confirmo mi cita' : 'Quiero cancelar mi cita');
+        wa_contexto_agregar($from, 'assistant', $respuesta);
+        if ($encendido || wa_es_prueba($from)) {
+            $okEnvio = wa_enviar_texto($cfg, $from, $respuesta);
+            wa_log($from, 'asistente', $respuesta, $okEnvio ? [] : ['error' => 'No se pudo enviar']);
+        }
+    }
+    echo 'ok'; exit;
+}
 if (($msg['type'] ?? '') !== 'text' || $text === '') { echo 'ok'; exit; }
 if (!$encendido && !wa_es_prueba($from)) { http_response_code(200); exit('ok'); }
 

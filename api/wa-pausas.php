@@ -176,3 +176,19 @@ function wa_aprender($tel, $respuesta, $autor) {
             'autor' => (string)$autor, 'activo' => true];
     wa_aprende_guardar($l);
 }
+
+/* ══ Recordatorios enviados por WhatsApp, para atender los botones ══ */
+const WA_RECORD_ARCHIVO = __DIR__ . '/bot-sessions/_recordatorios.json';
+function wa_recordatorio_guardar($tel, $apptId, $wamid, $fecha, $hora, $servicio) {
+    $l = is_file(WA_RECORD_ARCHIVO) ? (json_decode((string)file_get_contents(WA_RECORD_ARCHIVO), true) ?: []) : [];
+    $l[] = ['tel' => wa_tel($tel), 'appt' => $apptId, 'wamid' => $wamid, 'fecha' => $fecha, 'hora' => $hora, 'servicio' => $servicio, 't' => time()];
+    $l = array_values(array_filter($l, fn($x) => $x['t'] > time() - 7 * 86400));
+    @file_put_contents(WA_RECORD_ARCHIVO, json_encode($l, JSON_UNESCAPED_UNICODE));
+}
+/* el recordatorio al que responde el cliente: por el id del mensaje citado, o el ultimo que se le envio */
+function wa_recordatorio_de($tel, $wamidCitado = '') {
+    $l = is_file(WA_RECORD_ARCHIVO) ? (json_decode((string)file_get_contents(WA_RECORD_ARCHIVO), true) ?: []) : [];
+    $suyos = array_values(array_filter($l, fn($x) => $x['tel'] === wa_tel($tel)));
+    if ($wamidCitado !== '') foreach ($suyos as $x) if ($x['wamid'] === $wamidCitado) return $x;
+    return $suyos ? end($suyos) : null;
+}
