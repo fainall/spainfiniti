@@ -50,7 +50,10 @@ function wa_pide_texto($texto) {
     return (bool)preg_match('/\b(escribeme|escribemelo|escrito|por escrito|por texto|en texto|mensaje escrito)\b/', $t);
 }
 
-/* ── Preferencia por chat, guardada junto a las pausas ── */
+/* ── Preferencia por chat ──
+   Ya no se usa para decidir: la voz se decide mensaje por mensaje (Luis no quería
+   que el chat entero saliera en audio). Se conservan por si algún día se quiere
+   volver a la preferencia pegada. */
 function wa_voz_activa($tel) {
     $c = is_file(WA_CONTROL_ARCHIVO) ? json_decode((string)file_get_contents(WA_CONTROL_ARCHIVO), true) : [];
     $v = (is_array($c) && is_array($c['voz'] ?? null)) ? $c['voz'] : [];

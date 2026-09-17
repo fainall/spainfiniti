@@ -221,17 +221,13 @@ if (wa_es_equipo($cfg, $from)) {
 }
 
 /* ── ¿Contesto con nota de voz? ──
-   Solo si el cliente lo pidió. Desde ahí se le sigue hablando en audio en ese
-   chat, hasta que pida texto o pase un día sin escribir. Se anota aquí, antes
-   de mirar las pausas: si lo pidió mientras el equipo atendía el chat, cuando
-   la IA vuelva ya sabe que le tiene que hablar. */
+   Mensaje por mensaje, como pidió Luis: solo si en ESTE mensaje pidió audio, o
+   si lo que mandó fue una nota de voz (ahí se le responde en el mismo formato).
+   Antes la preferencia quedaba pegada un día entero y el chat completo salía en
+   audio, que es justo lo que no quería. */
 require_once __DIR__ . '/wa-voz.php';
-$conVoz = false;
-if (wa_voz_habilitada($cfg)) {
-    $conVoz = wa_voz_activa($from);
-    if (wa_pide_audio($text)) { wa_voz_marcar($from, true); $conVoz = true; }
-    elseif (wa_pide_texto($text)) { wa_voz_marcar($from, false); $conVoz = false; }
-}
+$esNotaDeVoz = in_array($tipoMsg, ['audio', 'voice'], true);
+$conVoz = wa_voz_habilitada($cfg) && !wa_pide_texto($text) && ($esNotaDeVoz || wa_pide_audio($text));
 
 if (!$encendido && !wa_es_prueba($from)) { http_response_code(200); exit('ok'); }
 
