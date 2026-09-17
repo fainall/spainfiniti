@@ -720,7 +720,7 @@ function enmascarar_correo($e) {
     $e = trim((string)$e);
     if (!preg_match('/^([^@]+)@(.+)$/', $e, $m)) return '';
     $u = $m[1];
-    return mb_substr($u, 0, 2) . str_repeat('*', max(3, mb_strlen($u) - 2)) . '@' . $m[2];
+    return mb_substr($u, 0, 2) . '***@' . $m[2];
 }
 function cliente_por_telefono($telefono) {
     $dig = preg_replace('/\D/', '', (string)$telefono);
