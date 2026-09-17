@@ -203,9 +203,12 @@ if ($text === '') { echo 'ok'; exit; }
    de mirar las pausas: si lo pidió mientras el equipo atendía el chat, cuando
    la IA vuelva ya sabe que le tiene que hablar. */
 require_once __DIR__ . '/wa-voz.php';
-$conVoz = wa_voz_activa($from);
-if (wa_pide_audio($text)) { wa_voz_marcar($from, true); $conVoz = true; }
-elseif (wa_pide_texto($text)) { wa_voz_marcar($from, false); $conVoz = false; }
+$conVoz = false;
+if (wa_voz_habilitada($cfg)) {
+    $conVoz = wa_voz_activa($from);
+    if (wa_pide_audio($text)) { wa_voz_marcar($from, true); $conVoz = true; }
+    elseif (wa_pide_texto($text)) { wa_voz_marcar($from, false); $conVoz = false; }
+}
 
 if (!$encendido && !wa_es_prueba($from)) { http_response_code(200); exit('ok'); }
 

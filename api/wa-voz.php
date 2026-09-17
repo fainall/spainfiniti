@@ -19,6 +19,14 @@ const WA_VOZ_INSTRUCCION = 'Habla en español de Chile, con acento chileno natur
     . 'que contesta un audio de WhatsApp: cálida, tranquila y espontánea, nunca de locutora ni de publicidad. '
     . 'Ritmo pausado, con pausas naturales entre frases, entonación suave y sin exagerar.';
 
+/* ── ¿Están activadas las respuestas por voz? ──
+   Luis las probó y prefirió dejarlas apagadas. El código queda listo: se
+   enciende poniendo vozActiva en true en bot-config.php. Esto NO afecta a los
+   audios que manda el cliente: esos se siguen escuchando y transcribiendo. */
+function wa_voz_habilitada($cfg) {
+    return !empty($cfg['vozActiva']);
+}
+
 /* ── ¿Me lo está pidiendo en audio? ── */
 function wa_pide_audio($texto) {
     $t = ' ' . trim(preg_replace('/\s+/', ' ', strtolower(strtr((string)$texto,
