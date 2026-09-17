@@ -131,7 +131,13 @@ function wa_voz_generar($cfg, $texto) {
     if ($t === '') return null;
     if (mb_strlen($t) > WA_VOZ_MAX) $t = mb_substr($t, 0, WA_VOZ_MAX);
 
-    if (!empty($cfg['elevenKey'])) {
+    /* Qué voz manda. Luis escuchó las dos y eligió la de OpenAI (shimmer): suena
+       más conversacional y con acento chileno, porque en el plan gratuito de
+       ElevenLabs las voces latinas no se pueden usar por API. Para volver a
+       ElevenLabs basta con poner ttsProveedor en elevenlabs en bot-config.php. */
+    $proveedor = !empty($cfg['ttsProveedor']) ? strtolower($cfg['ttsProveedor']) : 'openai';
+
+    if ($proveedor === 'elevenlabs' && !empty($cfg['elevenKey'])) {
         $voz = !empty($cfg['elevenVoiceId']) ? $cfg['elevenVoiceId'] : 'EXAVITQu4vr4xnSDxMaL';   // Sarah, voz femenina
         $modelo = !empty($cfg['elevenModel']) ? $cfg['elevenModel'] : 'eleven_multilingual_v2';
         $ch = curl_init('https://api.elevenlabs.io/v1/text-to-speech/' . rawurlencode($voz) . '?output_format=mp3_44100_128');
@@ -148,7 +154,8 @@ function wa_voz_generar($cfg, $texto) {
     $ch = curl_init('https://api.openai.com/v1/audio/speech');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>90, CURLOPT_POST=>true,
         CURLOPT_HTTPHEADER=>['Authorization: Bearer ' . $cfg['openaiKey'], 'Content-Type: application/json'],
-        CURLOPT_POSTFIELDS=>json_encode(['model'=>'gpt-4o-mini-tts', 'voice'=>'shimmer', 'input'=>$t,
+        CURLOPT_POSTFIELDS=>json_encode(['model'=>'gpt-4o-mini-tts',
+            'voice'=>(!empty($cfg['ttsVoz']) ? $cfg['ttsVoz'] : 'shimmer'), 'input'=>$t,
             'instructions'=>WA_VOZ_INSTRUCCION,
             'response_format'=>'mp3'], JSON_UNESCAPED_UNICODE)]);
     $b = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
