@@ -22,9 +22,9 @@ header('Cache-Control: no-store');
 date_default_timezone_set('America/Santiago');
 
 const GC_DIAS_VALIDEZ = 45;   // lo que promete la pagina de gift cards
-/* Categorias que se agendan en la agenda propia. El resto sigue en AgendaPro
-   (decision de Luis). Es la misma lista que AGENDA_PROPIA en servicio.html. */
-const GC_AGENDA_PROPIA = ['desintoxicantes', 'pestanas-cejas'];
+/* Desde el 16-09-2026 todos los servicios se agendan en la agenda propia
+   (Luis). Lista vacia = todos; se deja por si hubiera que volver atras. */
+const GC_AGENDA_PROPIA = [];
 
 function responder($status, $data) {
     http_response_code($status);
@@ -128,7 +128,7 @@ foreach ($servicios as $i => $s) {
             $servicios[$i]['svc'] = $c['id'];
             $servicios[$i]['duracion'] = $c['duration'] ?? '';
             /* se agenda aqui solo si su categoria usa la agenda propia */
-            $servicios[$i]['propia'] = in_array($c['cat_id'] ?? '', GC_AGENDA_PROPIA, true);
+            $servicios[$i]['propia'] = !GC_AGENDA_PROPIA || in_array($c['cat_id'] ?? '', GC_AGENDA_PROPIA, true);
             $link = (string)($c['link'] ?? '');
             if (preg_match('#^https://[a-z0-9.-]*agendapro\.com/#i', $link)) $servicios[$i]['agendapro'] = $link;
             break;

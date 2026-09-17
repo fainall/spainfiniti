@@ -569,10 +569,9 @@ if (!result) {
   document.getElementById('svcImg').alt = svc.name
 
   const waLink = `https://wa.me/56986688771?text=Hola,%20quiero%20reservar%20${encodeURIComponent(svc.name)}`
-  /* Categorías con agenda propia: el cliente elige día y hora en nuestro sistema */
-  const AGENDA_PROPIA = ['desintoxicantes', 'pestanas-cejas']
-  const usaAgendaPropia = AGENDA_PROPIA.includes(cat.id)
-  const bookUrl = usaAgendaPropia ? `/reservar.html?svc=${svc.id}` : (svc.link || waLink)
+  /* Todos los servicios se reservan en la agenda propia (Luis, 16-09-2026).
+     Antes solo desintoxicantes y pestañas-cejas; el resto iba a AgendaPro. */
+  const bookUrl = `/reservar.html?svc=${svc.id}`
   // Links que no admiten iframe → abrir en nueva pestaña
   const noIframe = ['wa.me','api.whatsapp.com','whatsapp.com','instagram.com','facebook.com','m.me']
   const opensExternal = noIframe.some(d => bookUrl.includes(d))
