@@ -14,6 +14,10 @@ require_once __DIR__ . '/wa-pausas.php';
 
 const WA_VOZ_MAX = 850;             // más largo que esto no se manda en audio
 const WA_VOZ_VENCE = 24 * 3600;     // la preferencia dura un día sin hablar
+/* Cómo tiene que sonar Mariet: estamos en Chile y se tiene que notar */
+const WA_VOZ_INSTRUCCION = 'Habla en español de Chile, con acento chileno natural y cercano, como una recepcionista de spa '
+    . 'que contesta un audio de WhatsApp: cálida, tranquila y espontánea, nunca de locutora ni de publicidad. '
+    . 'Ritmo pausado, con pausas naturales entre frases, entonación suave y sin exagerar.';
 
 /* ── ¿Me lo está pidiendo en audio? ── */
 function wa_pide_audio($texto) {
@@ -71,7 +75,49 @@ function wa_voz_texto_limpio($texto) {
     $t = preg_replace('/\s*\n+\s*/u', '. ', $t);
     $t = preg_replace('/\.\s*\./u', '.', $t);
     $t = preg_replace('/\s+/u', ' ', $t);
+    /* la máquina lee "$20.000" y "19:00" de forma rara: se dicen como los decimos acá */
+    $t = preg_replace_callback('/\$\s?([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]+)/u', fn($m) => wa_voz_plata($m[1]), $t);
+    $t = preg_replace_callback('/\b([0-2]?[0-9]):([0-5][0-9])\b/u', fn($m) => wa_voz_hora((int)$m[1], (int)$m[2]), $t);
     return trim($t);
+}
+
+/* "27.000" -> "veintisiete mil pesos" (acá no se leen los decimales) */
+function wa_voz_plata($num) {
+    $n = (int)preg_replace('/[^0-9]/', '', $num);
+    if ($n <= 0) return $num . ' pesos';
+    if ($n % 1000 === 0 && $n < 1000000) return wa_voz_numero(intdiv($n, 1000)) . ' mil pesos';
+    return wa_voz_numero($n) . ' pesos';
+}
+/* 19:00 -> "las siete de la tarde"; 10:30 -> "las diez y media de la mañana" */
+function wa_voz_hora($h, $m) {
+    $franja = $h < 12 ? ' de la mañana' : ($h < 20 ? ' de la tarde' : ' de la noche');
+    $h12 = $h % 12; if ($h12 === 0) $h12 = 12;
+    $hora = $h12 === 1 ? 'la una' : 'las ' . wa_voz_numero($h12);
+    if ($m === 0)  return $hora . $franja;
+    if ($m === 30) return $hora . ' y media' . $franja;
+    if ($m === 15) return $hora . ' y cuarto' . $franja;
+    return $hora . ' ' . wa_voz_numero($m) . $franja;
+}
+/* números en palabras, hasta los millones, que es todo lo que se dice aquí */
+function wa_voz_numero($n) {
+    $n = (int)$n;
+    $u = ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce',
+          'quince','dieciséis','diecisiete','dieciocho','diecinueve','veinte','veintiuno','veintidós','veintitrés',
+          'veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
+    if ($n < 30) return $u[$n];
+    $d = [3=>'treinta', 4=>'cuarenta', 5=>'cincuenta', 6=>'sesenta', 7=>'setenta', 8=>'ochenta', 9=>'noventa'];
+    if ($n < 100) return $d[intdiv($n, 10)] . ($n % 10 ? ' y ' . $u[$n % 10] : '');
+    $c = [1=>'cien', 2=>'doscientos', 3=>'trescientos', 4=>'cuatrocientos', 5=>'quinientos',
+          6=>'seiscientos', 7=>'setecientos', 8=>'ochocientos', 9=>'novecientos'];
+    if ($n < 1000) {
+        $cen = intdiv($n, 100); $resto = $n % 100;
+        return (($cen === 1 && $resto) ? 'ciento' : $c[$cen]) . ($resto ? ' ' . wa_voz_numero($resto) : '');
+    }
+    if ($n < 1000000) {
+        $mil = intdiv($n, 1000); $resto = $n % 1000;
+        return ($mil === 1 ? 'mil' : wa_voz_numero($mil) . ' mil') . ($resto ? ' ' . wa_voz_numero($resto) : '');
+    }
+    return (string)$n;
 }
 
 /* ── Generar la voz ── */
@@ -98,7 +144,7 @@ function wa_voz_generar($cfg, $texto) {
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>90, CURLOPT_POST=>true,
         CURLOPT_HTTPHEADER=>['Authorization: Bearer ' . $cfg['openaiKey'], 'Content-Type: application/json'],
         CURLOPT_POSTFIELDS=>json_encode(['model'=>'gpt-4o-mini-tts', 'voice'=>'shimmer', 'input'=>$t,
-            'instructions'=>'Habla en español de Chile, como una recepcionista de spa: cálida, cercana y tranquila.',
+            'instructions'=>WA_VOZ_INSTRUCCION,
             'response_format'=>'mp3'], JSON_UNESCAPED_UNICODE)]);
     $b = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
     if ($code >= 200 && $code < 300 && is_string($b) && strlen($b) > 1000) return ['bytes'=>$b, 'mime'=>'audio/mpeg', 'voz'=>'openai'];
