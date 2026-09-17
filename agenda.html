@@ -1322,8 +1322,7 @@ body.sin-scroll{overflow:hidden}
 .qv .wa-menu i{font-size:.74rem}
 .qv .qv-dots{margin-top:16px;padding-top:14px;gap:8px}
 .qv .qv-dots > span{color:#111 !important}
-/* nunca mas alta que la pantalla: si no cabe, se desplaza por dentro */
-.qv{max-height:calc(100vh - 16px);overflow-y:auto}
+
 
 /* aviso de cuándo se actualizó la agenda */
 .refresco{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--light);white-space:nowrap}
@@ -5756,6 +5755,9 @@ function openApptQuickView(id){
   const anchoQv = qv.offsetWidth || 370, altoQv = qv.offsetHeight || 460
   let left=r.right+8; if(left+anchoQv+8>window.innerWidth) left=Math.max(8, r.left-anchoQv-8)
   let top=r.top; if(top+altoQv+8>window.innerHeight) top=Math.max(8, window.innerHeight-altoQv-8)
+  /* solo si la ficha no cabe en la pantalla se desplaza por dentro: con desplazamiento
+     siempre activo, el menu de WhatsApp (que se abre hacia abajo) quedaba cortado */
+  if(altoQv + 16 > window.innerHeight){ qv.style.maxHeight = (window.innerHeight - 16) + 'px'; qv.style.overflowY = 'auto' }
   qv.style.left=left+'px'; qv.style.top=top+'px'
 }
 function closeQuickView(){

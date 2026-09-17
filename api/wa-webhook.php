@@ -214,6 +214,17 @@ $history[] = ['role' => 'assistant', 'content' => $reply];
 @file_put_contents($file, json_encode($history, JSON_UNESCAPED_UNICODE));
 
 /* ── Enviar respuesta por WhatsApp ── */
+/* mientras la IA pensaba (unos segundos) alguien del equipo pudo responder: no se pisa */
+if (wa_en_pausa($from)) {
+    /* la respuesta de la IA no se envio: se saca de su memoria, releyendo el archivo
+       porque la respuesta del equipo pudo agregarse mientras tanto */
+    $actual = json_decode((string)@file_get_contents($file), true) ?: [];
+    foreach (array_reverse(array_keys($actual)) as $i) {
+        if (($actual[$i]['role'] ?? '') === 'assistant' && ($actual[$i]['content'] ?? '') === $reply) { array_splice($actual, $i, 1); break; }
+    }
+    @file_put_contents($file, json_encode(array_values($actual), JSON_UNESCAPED_UNICODE));
+    exit;
+}
 if (!empty($cfg['waToken']) && !empty($cfg['waPhoneId'])) {
     $url = 'https://graph.facebook.com/v20.0/' . $cfg['waPhoneId'] . '/messages';
     $ch = curl_init($url);
