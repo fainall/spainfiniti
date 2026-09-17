@@ -5254,6 +5254,7 @@ async function refrescarAgenda(forzado){
 function pintarUltimoRefresco(){
   const el = document.getElementById('refrescoTxt'); if(!el) return
   const min = Math.floor((Date.now() - ultimoRefresco) / 60000)
+  if(typeof RT !== 'undefined' && RT.conectado){ el.textContent = '● En vivo'; return }
   el.textContent = min < 1 ? 'Actualizado recién'
                  : min === 1 ? 'Actualizado hace 1 min'
                  : 'Actualizado hace ' + min + ' min'
@@ -5261,6 +5262,7 @@ function pintarUltimoRefresco(){
 
 function iniciarRefresco(){
   if(refrescoTimer) return
+  iniciarTiempoReal()
   refrescoTimer = setInterval(refrescarAgenda, 30000)
   setInterval(pintarUltimoRefresco, 20000)
   /* las demas pantallas (Ventas, Caja, Comisiones...) tambien se ponen al dia
@@ -5283,6 +5285,82 @@ function iniciarRefresco(){
     if(v && v !== 'agenda') refrescarPantalla(v, true)
   })
 }
+
+/* ── TIEMPO REAL ──
+   Supabase avisa por websocket cada vez que cambia una reserva, un pago o un
+   cliente, venga del panel, de otra pestaña, del celular, de la web o de
+   Mariet. Al llegar el aviso la pantalla se relee al instante; el refresco
+   cada 30 s queda solo de respaldo por si se corta la conexion.
+   Se habla el protocolo de Realtime directo (sin la libreria supabase-js, que
+   choca con nuestra variable global "supabase"). */
+const RT = { ws:null, ref:0, latido:null, reintento:1000, pendiente:false, timer:null, conectado:false, tablas:new Set() }
+const RT_TABLAS = ['appointments','sales','clients']
+function rtToken(){ return supaAuthHeader().replace(/^Bearer /,'') }
+function rtEnviar(topic, event, payload){
+  if(RT.ws && RT.ws.readyState === 1)
+    RT.ws.send(JSON.stringify({ topic, event, payload, ref:String(++RT.ref), join_ref: topic==='phoenix' ? undefined : '1' }))
+}
+function iniciarTiempoReal(){
+  if(!('WebSocket' in window)) return
+  if(RT.ws && RT.ws.readyState <= 1) return
+  const url = SUPABASE_URL.replace(/^http/,'ws') + '/realtime/v1/websocket?apikey=' + encodeURIComponent(SUPABASE_ANON_KEY) + '&vsn=1.0.0'
+  let ws
+  try{ ws = new WebSocket(url) }catch(e){ return }
+  RT.ws = ws
+  ws.onopen = () => {
+    RT.reintento = 1000
+    rtEnviar('realtime:panel-spa', 'phx_join', {
+      config:{ broadcast:{ self:false }, presence:{ key:'' }, private:false,
+        postgres_changes: RT_TABLAS.map(table => ({ event:'*', schema:'public', table })) },
+      access_token: rtToken() })
+    clearInterval(RT.latido)
+    RT.latido = setInterval(() => {
+      rtEnviar('phoenix', 'heartbeat', {})
+      /* la sesion del panel se renueva cada hora: el socket necesita el token nuevo */
+      rtEnviar('realtime:panel-spa', 'access_token', { access_token: rtToken() })
+    }, 25000)
+  }
+  ws.onmessage = ev => {
+    let m; try{ m = JSON.parse(ev.data) }catch(e){ return }
+    if(m.event === 'phx_reply' && m.topic === 'realtime:panel-spa'){
+      const ok = m.payload && m.payload.status === 'ok'
+      if(!RT.conectado && ok){ RT.conectado = true; pintarUltimoRefresco() }
+      if(!ok) console.warn('tiempo real:', JSON.stringify(m.payload))
+      return
+    }
+    if(m.event === 'system' && m.payload && m.payload.status === 'error') console.warn('tiempo real:', m.payload.message)
+    if(m.event === 'postgres_changes' && m.payload && m.payload.data){
+      RT.tablas.add(m.payload.data.table)
+      rtAvisar()
+    }
+  }
+  ws.onclose = () => {
+    RT.conectado = false; clearInterval(RT.latido); RT.ws = null
+    pintarUltimoRefresco()
+    setTimeout(iniciarTiempoReal, RT.reintento)
+    RT.reintento = Math.min(RT.reintento * 2, 30000)
+  }
+  ws.onerror = () => { try{ ws.close() }catch(e){} }
+}
+/* varios cambios seguidos (un cobro escribe venta + reserva) = una sola relectura */
+function rtAvisar(){
+  clearTimeout(RT.timer)
+  RT.timer = setTimeout(rtAplicar, 250)
+}
+async function rtAplicar(){
+  /* con una ventana abierta no se repinta debajo: se aplica apenas se cierre */
+  if(hayAlgoAbierto() || refrescando){ RT.pendiente = true; return }
+  RT.pendiente = false
+  const tablas = new Set(RT.tablas); RT.tablas.clear()
+  if(tablas.has('clients') && typeof loadClients === 'function') await loadClients().catch(()=>{})
+  const v = pantallaAbierta()
+  if(v === 'agenda' || !v) await refrescarAgenda(true)
+  else refrescarPantalla(v, true)
+}
+setInterval(() => { if(RT.pendiente && !hayAlgoAbierto()) rtAplicar() }, 700)
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && (!RT.ws || RT.ws.readyState > 1)) iniciarTiempoReal()
+})
 
 async function loadAndRender(){ await loadAppointments(); ultimoRefresco=Date.now(); render(); pintarUltimoRefresco() }
 
@@ -7338,6 +7416,14 @@ function openClientModal(standalone, id){
   document.getElementById('clNotes').value = c ? (c.notes||'') : ''
   openModal('clientModal')
 }
+/* PATCH a todas las filas que cumplan un filtro (supabase.update solo toma un id) */
+async function patchDonde(tabla, filtro, datos){
+  const r = await conSesion(() => fetch(`${SUPABASE_URL}/rest/v1/${tabla}?${filtro}`, {
+    method:'PATCH',
+    headers:{ apikey:SUPABASE_ANON_KEY, Authorization:supaAuthHeader(), 'Content-Type':'application/json', Prefer:'return=minimal' },
+    body: JSON.stringify(datos) }))
+  if(!r.ok) throw new Error(tabla + ': ' + r.status)
+}
 async function saveClient(){
   const name=document.getElementById('clName').value.trim()
   if(!name){ toast('Falta el nombre','error'); return }
@@ -7353,7 +7439,21 @@ async function saveClient(){
   const id=document.getElementById('clId').value
   try{
     let created=null
-    if(id) await supabase.update('clients',id,row)
+    if(id){
+      const antes = (state.clients||[]).find(c=>c.id===id)
+      await supabase.update('clients',id,row)
+      /* las reservas y los pagos guardan su propia copia del nombre: sin esto la
+         agenda seguia diciendo "Cliente" despues de corregir la ficha (Luis) */
+      if(!antes || antes.name !== name){
+        await Promise.all([
+          patchDonde('appointments', 'client_id=eq.' + encodeURIComponent(id), { client_name: name }),
+          patchDonde('sales', 'client_id=eq.' + encodeURIComponent(id), { client_name: name })
+        ]).catch(e => console.warn('nombre en reservas:', e.message))
+        state.appointments.forEach(a => { if(a.client_id===id) a.client_name = name })
+        state.sales.forEach(s => { if(s.client_id===id) s.client_name = name })
+        if(document.getElementById('view-agenda').classList.contains('on')) render()
+      }
+    }
     else { const res=await supabase.insert('clients',row); created=Array.isArray(res)?res[0]:res }
     await loadClients()
     closeModal('clientModal'); toast('Cliente guardado','success')

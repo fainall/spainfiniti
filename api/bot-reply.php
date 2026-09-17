@@ -530,6 +530,24 @@ function do_check($args) {
 }
 /* Busca al cliente por los ultimos 8 digitos del telefono; si no esta, lo
    crea. Devuelve su id para que la reserva quede ligada a su ficha. */
+/* Un nombre de verdad: nada de "Cliente", "Usuario", "Sin nombre"... El modelo
+   llego a agendar a nombre de "Cliente" sin haberle preguntado nada (Luis). */
+function nombre_generico($n) {
+    $k = svc_clave($n);
+    if (strlen(preg_replace('/[^a-z]/', '', $k)) < 2) return true;
+    return (bool)preg_match('/^(el |la )?(cliente|clienta|client|usuario|usuaria|sin nombre|nombre|nombre apellido|no indica|no informado|desconocido|anonimo|anonima|whatsapp|test|prueba|n a|na|nn|x+)( [0-9a-z]{0,3})?$/', $k);
+}
+/* el nombre tiene que haberlo escrito el cliente en la conversacion (o venir de su ficha) */
+function nombre_dicho_por_cliente($n) {
+    global $convo;
+    $dicho = ' ' . svc_clave(implode(' ', array_map(fn($m) => is_string($m['content'] ?? null) ? $m['content'] : '',
+        array_filter($convo ?? [], fn($m) => ($m['role'] ?? '') === 'user')))) . ' ';
+    foreach (explode(' ', svc_clave($n)) as $p) {
+        if (strlen($p) >= 2 && strpos($dicho, ' ' . $p . ' ') !== false) return true;
+    }
+    return false;
+}
+
 function ficha_de_cliente($nombre, $telefono, $correo) {
     $dig = preg_replace('/\D/', '', (string)$telefono);
     if (strlen($dig) >= 8) {
@@ -545,6 +563,10 @@ function ficha_de_cliente($nombre, $telefono, $correo) {
                 $nuevo = supa('POST', 'clients', ['name' => trim($nombre), 'phone' => $telefono, 'email' => $correo ?: null,
                                                   'notes' => 'Creado por el asistente de WhatsApp (mismo teléfono que ' . ($c['name'] ?? '') . ')']);
                 return (is_array($nuevo) && count($nuevo) && !empty($nuevo[0]['id'])) ? $nuevo[0]['id'] : $c['id'];
+            }
+            if (nombre_generico($c['name'] ?? '') && !nombre_generico($nombre)) {
+                supa('PATCH', 'clients?id=eq.' . urlencode($c['id']), ['name' => trim($nombre)]);
+                return $c['id'];
             }
             /* si llega un correo y la ficha no lo tenia, se completa */
             if ($correo && empty($c['email'])) {
@@ -649,7 +671,11 @@ function do_book($args) {
         if (trim((string)($args['client_name'] ?? '')) === '')  $args['client_name']  = $clienteConocido['nombre'];
         if (trim((string)($args['client_email'] ?? '')) === '') $args['client_email'] = $clienteConocido['correo'];
     }
-    if (trim((string)($args['client_name'] ?? '')) === '') return ['ok'=>false,'reason'=>'falta el nombre y apellido del cliente'];
+    if (trim((string)($args['client_name'] ?? '')) === '' || nombre_generico($args['client_name']))
+        return ['ok'=>false,'reason'=>'NO AGENDADO: falta el nombre real del cliente. Pregúntale su nombre y apellido y vuelve a llamar create_booking con ese nombre. No digas que quedó agendado.'];
+    $esDeFicha = $clienteConocido && svc_clave($args['client_name']) === svc_clave($clienteConocido['nombre']);
+    if (!$esDeFicha && !nombre_dicho_por_cliente($args['client_name']))
+        return ['ok'=>false,'reason'=>'NO AGENDADO: el cliente no ha dicho ese nombre en la conversación. Pregúntale su nombre y apellido antes de agendar. No digas que quedó agendado.'];
     /* el servicio tal como esta en el catalogo: su nombre, su duracion y su precio */
     $svc = svc_del_catalogo($args['service_name'] ?? '');
     if (!$svc) return ['ok'=>false,'reason'=>'no encuentro ese servicio en el catálogo; usa el nombre exacto de la lista'];
@@ -763,7 +789,7 @@ function cliente_por_telefono($telefono) {
     $dig = preg_replace('/\D/', '', (string)$telefono);
     if (strlen($dig) < 8) return null;
     $hay = supa('GET', 'clients?select=id,name,email,rut&phone=like.*' . substr($dig, -8) . '&order=created_at.asc&limit=1');
-    if (!is_array($hay) || !count($hay) || trim((string)($hay[0]['name'] ?? '')) === '') return null;
+    if (!is_array($hay) || !count($hay) || nombre_generico($hay[0]['name'] ?? '')) return null;
     $c = $hay[0];
     $hoy = date('Y-m-d');
     $citas = supa('GET', 'appointments?select=appt_date,start_time,service_name,status,professional_id&client_id=eq.' . urlencode($c['id']) . '&order=appt_date.desc,start_time.desc&limit=40') ?: [];
