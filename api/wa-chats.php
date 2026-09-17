@@ -102,6 +102,6 @@ wa_log($tel, 'panel', $texto, ['autor' => $autor, 'id' => (string)($res['message
 wa_contexto_agregar($tel, 'assistant', $texto);
 /* quien interviene toma el chat: la IA se calla ahi */
 $min = wa_control_leer()['pausaMin'];
-wa_pausar($tel, $min > 0 ? $min : 120, 'Respondió ' . $autor . ' desde el panel');
+wa_pausar($tel, $min > 0 ? $min : 30, 'Respondió ' . $autor . ' desde el panel');
 
 echo json_encode(['ok' => true, 'mensajes' => wa_chat_leer($tel), 'pausa' => estado_pausa($tel)], JSON_UNESCAPED_UNICODE);

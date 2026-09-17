@@ -27,7 +27,7 @@ function wa_control_leer() {
     $c = is_file(WA_CONTROL_ARCHIVO) ? json_decode((string)file_get_contents(WA_CONTROL_ARCHIVO), true) : null;
     $c = is_array($c) ? $c : [];
     return [
-        'pausaMin' => isset($c['pausaMin']) ? max(0, (int)$c['pausaMin']) : 120,
+        'pausaMin' => isset($c['pausaMin']) ? max(0, (int)$c['pausaMin']) : 0,   // 0: responder desde el celular no calla a la IA (Luis)
         'pruebas'  => array_values(array_filter(array_map('wa_tel', (array)($c['pruebas'] ?? [])))),
         'pausas'   => is_array($c['pausas'] ?? null) ? $c['pausas'] : [],
     ];
