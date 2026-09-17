@@ -5235,7 +5235,7 @@ async function refrescarAgenda(forzado){
   try{
     const antes = state.appointments.length
     const antesIds = new Set(state.appointments.map(a=>a.id))
-    await loadAppointments()
+    await Promise.all([loadAppointments(), loadSales().catch(e=>console.warn('pagos:', e.message))])
     const nuevas = state.appointments.filter(a=>!antesIds.has(a.id))
     ultimoRefresco = Date.now()
     render()
@@ -8904,19 +8904,19 @@ function commDefaultOf(profId){
 /* Todo lo que hizo un profesional en el periodo, servicio por servicio.
    Cada línea lleva su propio porcentaje; la comisión total es la suma
    de esas líneas, nunca un porcentaje único sobre el total. */
+/* Desglose de la comision: un renglon por cada servicio vendido, con su fecha y
+   cliente. Antes se juntaban los iguales ("Tipo 2 ×2"), pero el mismo servicio
+   puede cobrarse a distinto valor y Luis necesita ver cada uno. */
 function detalleComision(profId, ventas){
-  const porItem = {}
+  const lineas = []
   ventas.filter(s => s.professional_id === profId).forEach(s => {
     lineasComision(s).forEach(it => {
       const pct = commPctFor(profId, it.name, tipoDeItem(it.name))
-      const k = it.name + '|' + pct
-      porItem[k] = porItem[k] || { name:it.name, pct, veces:0, monto:0, comm:0 }
-      porItem[k].veces += it.qty
-      porItem[k].monto += it.monto
-      porItem[k].comm  += Math.round(it.monto * pct / 100)
+      lineas.push({ name:it.name, pct, veces:it.qty || 1, monto:it.monto, comm:Math.round(it.monto * pct / 100),
+                    fecha:s.sale_date || '', cliente:s.client_name || '' })
     })
   })
-  return Object.values(porItem).sort((a,b) => b.comm - a.comm)
+  return lineas.sort((a,b) => String(a.fecha).localeCompare(String(b.fecha)) || b.monto - a.monto)
 }
 function toggleDesglose(profId){
   const fila = document.getElementById('dg-' + profId)
@@ -13918,14 +13918,16 @@ function renderComisiones(){
       </tr>
       ${det.length?`<tr class="dg-fila" id="dg-${r.id}"><td colspan="5">
         <table class="dg-tabla">
-          <thead><tr><th>Servicio</th><th class="r">Vendido</th><th class="r">%</th><th class="r">Comisión</th></tr></thead>
+          <thead><tr><th>Servicio</th><th>Fecha</th><th>Cliente</th><th class="r">Vendido</th><th class="r">%</th><th class="r">Comisión</th></tr></thead>
           <tbody>${det.map(d=>`<tr>
             <td>${esc(d.name)}${d.veces>1?` <span class="dg-veces">×${d.veces}</span>`:''}</td>
+            <td>${d.fecha ? d.fecha.split('-').reverse().slice(0,2).join('/') : '—'}</td>
+            <td>${esc(d.cliente || '—')}</td>
             <td class="r">${fmtMoney(d.monto)}</td>
             <td class="r">${d.pct}%</td>
             <td class="r"><strong>${fmtMoney(d.comm)}</strong></td></tr>`).join('')}
           </tbody>
-          <tfoot><tr><td colspan="3" class="r">${(()=>{const n=det.reduce((a,d)=>a+d.veces,0)
+          <tfoot><tr><td colspan="5" class="r">${(()=>{const n=det.reduce((a,d)=>a+d.veces,0)
               return n + (n===1 ? ' servicio realizado' : ' servicios realizados')})()}</td>
             <td class="r"><strong>${fmtMoney(det.reduce((a,d)=>a+d.comm,0))}</strong></td></tr></tfoot>
         </table></td></tr>`:''}`
@@ -13993,7 +13995,7 @@ function exportComisiones(){
     tSales += d.sales; tComm += d.comm; tTips += d.tips
     /* debajo de cada profesional, en qué servicios ganó esa comisión */
     detalleComision(p.id, list).forEach(x => {
-      rows.push(['', '', '', '', '', x.name, x.veces, x.monto, x.pct + '%', x.comm])
+      rows.push(['', '', '', '', '', x.name, x.fecha, x.cliente, x.veces, x.monto, x.pct + '%', x.comm])
     })
   })
   if(!rows.length){ toast('No hay datos para exportar','error'); return }
@@ -14002,7 +14004,7 @@ function exportComisiones(){
   const nombre = 'comisiones-' + (desde||'') + '-a-' + (hasta||'') + '.csv'
   downloadCSV(nombre,
     ['Profesional o Staff','Ventas totales','% Comisión','Monto comisión','Propinas',
-     'Servicio','Veces','Vendido','% del servicio','Comisión del servicio'],
+     'Servicio','Fecha','Cliente','Cantidad','Vendido','% del servicio','Comisión del servicio'],
     rows)
 }
 
