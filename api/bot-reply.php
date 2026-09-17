@@ -812,14 +812,15 @@ if ($clienteConocido) {
 - Próximas reservas: " . ($k['proximas'] ? implode('; ', $k['proximas']) : 'ninguna') . "
 CÓMO USARLO:
 - Salúdalo por su primer nombre, con naturalidad, sin decir que lo buscaste en una base de datos.
-- NO le pidas nombre ni correo desde cero. Antes de agendar, CONFÍRMALOS en una sola pregunta, por ejemplo:
-  \"¿Agendo a nombre de {$k['nombre']}" . ($k['correo'] ? " y te envío la confirmación a {$k['correo_oculto']}" : '') . "?\"
-  Muestra el correo tal cual aparece arriba (con asteriscos): nunca lo escribas completo.
+- NO le pidas nombre ni correo. Confirma el nombre UNA SOLA VEZ en toda la conversación, corto y junto con la hora que le ofreces, por ejemplo:
+  \"Tengo el viernes a las 19:00 con Keidy. ¿Te la dejo a nombre de {$k['nombre']}?\"
+  Si ya lo confirmó antes en esta conversación (aunque sea para otra hora), NO lo vuelvas a preguntar: agenda directo.
+  No menciones el correo ni prometas enviar una confirmación por correo: no se envía ningún correo al agendar.
 - Si confirma, llama a create_booking SIN client_name ni client_email: el sistema usa los de la ficha.
 - Si dice que el nombre o el correo cambió, o que la hora es para otra persona, pídele el dato correcto y pásalo en create_booking.
-" . ($k['correo'] ? '' : "- La ficha no tiene correo: pídeselo una vez, junto con la confirmación del nombre.\n") . "- Si pregunta por sus horas, usa las próximas reservas de arriba. Si quiere cambiar una, usa replace_date y replace_time.
+" . ($k['correo'] ? '' : "- La ficha no tiene correo: puedes pedírselo una sola vez, al final, como opcional (\"si quieres, déjame tu correo para tu ficha\"). Si no lo da, agenda igual.\n") . "- Si pregunta por sus horas, usa las próximas reservas de arriba. Si quiere cambiar una, usa replace_date y replace_time.
 - Si le enviamos un recordatorio y responde que sí asistirá (\"sí\", \"confirmo\", \"ahí estaré\"), llama a confirm_booking con esa fecha y hora. Solo di que quedó confirmada si la función respondió ok.
-- IMPORTANTE: en el mensaje donde pides confirmar los datos, escribe el nombre y el correo enmascarado tal cual. Nunca digas solo \"confirma tu nombre y correo\".
+- Nunca escribas el correo del cliente, ni completo ni enmascarado, salvo que él pregunte qué correo tenemos (ahí usa el enmascarado).
 
 " . $system;
 }
