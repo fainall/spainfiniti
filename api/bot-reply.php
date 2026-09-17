@@ -678,6 +678,15 @@ function do_book($args) {
     /* la profesional que se le nombro al cliente; si ya no esta libre se avisa
        en vez de agendar con otra a escondidas */
     $prof = null;
+    /* si el modelo no paso la profesional, se usa la que le nombro al cliente en su ultimo mensaje:
+       ofrecia "16:00 con Keidy" y agendaba con otra */
+    if (trim((string)($args['professional_name'] ?? '')) === '') {
+        global $convo;
+        $ultAsis = '';
+        foreach (array_reverse((array)$convo) as $m) if ($m['role'] === 'assistant') { $ultAsis = svc_clave($m['content']); break; }
+        $nombradas = array_values(array_filter($chk['professionals'], fn($p) => $ultAsis !== '' && strpos(' ' . $ultAsis . ' ', ' ' . explode(' ', svc_clave($p['name']))[0] . ' ') !== false));
+        if (count($nombradas) === 1) $args['professional_name'] = $nombradas[0]['name'];
+    }
     $pedida = svc_clave($args['professional_name'] ?? '');
     if ($pedida !== '') {
         foreach ($chk['professionals'] as $p) {
