@@ -803,6 +803,8 @@ if ($ejemplos) {
 }
 
 $clienteConocido = $phone ? cliente_por_telefono($phone) : null;
+/* ya se le pregunto el nombre en esta conversacion? (no se repite) */
+$yaPreguntoNombre = (bool)array_filter($convo, fn($m) => $m['role'] === 'assistant' && preg_match('/a nombre de/iu', $m['content']));
 if ($clienteConocido) {
     $k = $clienteConocido;
     $system = "CLIENTE QUE YA CONOCEMOS (encontrado por su número de WhatsApp):
@@ -815,6 +817,9 @@ CÓMO USARLO:
 - NO le pidas nombre ni correo. Confirma el nombre UNA SOLA VEZ en toda la conversación, corto y junto con la hora que le ofreces, por ejemplo:
   \"Tengo el viernes a las 19:00 con Keidy. ¿Te la dejo a nombre de {$k['nombre']}?\"
   Si ya lo confirmó antes en esta conversación (aunque sea para otra hora), NO lo vuelvas a preguntar: agenda directo.
+  Pregúntalo solo cuando el cliente YA eligió la hora, no en el mensaje donde le ofreces opciones.
+" . ($yaPreguntoNombre ? "  ⚠ YA LE PREGUNTASTE EL NOMBRE EN ESTA CONVERSACIÓN: no vuelvas a escribir \"a nombre de\". Cuando elija hora, agenda directo con create_booking.
+" : "") . "
   No menciones el correo ni prometas enviar una confirmación por correo: no se envía ningún correo al agendar.
 - Si confirma, llama a create_booking SIN client_name ni client_email: el sistema usa los de la ficha.
 - Si dice que el nombre o el correo cambió, o que la hora es para otra persona, pídele el dato correcto y pásalo en create_booking.
