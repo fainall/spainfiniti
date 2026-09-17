@@ -91,7 +91,17 @@ if (($cambio['field'] ?? '') === 'smb_message_echoes') {
     foreach ((array)($cambio['value']['message_echoes'] ?? []) as $eco) {
         if (empty($eco['to'])) continue;
         $txtEco = wa_texto_de($eco);
-        wa_log($eco['to'], 'equipo', $txtEco, ['id' => (string)($eco['id'] ?? '')]);
+        $extraEco = ['id' => (string)($eco['id'] ?? '')];
+        if (in_array(($eco['type'] ?? ''), ['image', 'audio', 'voice', 'sticker', 'document', 'video'], true)) {
+            require_once __DIR__ . '/wa-media.php';
+            $tipoEco = (string)$eco['type'];
+            $bajEco = wa_media_bajar($cfg, (string)($eco[$tipoEco]['id'] ?? ''));
+            if ($bajEco) {
+                $arch = wa_media_guardar($eco['to'], (string)($eco[$tipoEco]['id'] ?? ''), $bajEco['bytes'], $bajEco['mime']);
+                $extraEco['media'] = ['tipo' => $tipoEco, 'archivo' => $arch, 'mime' => explode(';', (string)$bajEco['mime'])[0]];
+            }
+        }
+        wa_log($eco['to'], 'equipo', $txtEco, $extraEco);
         if (($eco['type'] ?? '') === 'text') { wa_contexto_agregar($eco['to'], 'assistant', $txtEco); wa_aprender($eco['to'], $txtEco, 'Celular'); }
     }
     http_response_code(200); exit('ok');
@@ -125,11 +135,28 @@ $idsFile = __DIR__ . '/bot-sessions/_procesados.json';
 @mkdir(dirname($idsFile), 0755, true);
 $idsPrev = file_exists($idsFile) ? (json_decode(file_get_contents($idsFile), true) ?: []) : [];
 if ($msgId !== '' && in_array($msgId, $idsPrev, true)) { echo 'ok'; exit; }
+/* se marca antes de trabajar: bajar una foto y transcribir un audio toma unos
+   segundos y Meta reintenta el mismo mensaje si tardamos */
+if ($msgId !== '') { $idsPrev[] = $msgId; @file_put_contents($idsFile, json_encode(array_slice($idsPrev, -500))); }
+
+/* ── Fotos y audios: se convierten a texto ──
+   Antes llegaban como "📷 Imagen" y Mariet no entendia nada. Ahora el audio se
+   transcribe y la foto se describe, y el resto sigue igual que con un texto. */
+$extraLog = ['id' => $msgId];
+$tipoMsg = (string)($msg['type'] ?? '');
+if (in_array($tipoMsg, ['image', 'audio', 'voice', 'sticker', 'document', 'video'], true)) {
+    require_once __DIR__ . '/wa-media.php';
+    $leido = wa_mensaje_a_texto($cfg, $from, $msg);
+    if (is_array($leido) && trim((string)$leido['texto']) !== '') {
+        $text = $leido['texto'];
+        $extraLog = array_merge($extraLog, $leido['extra']);
+    }
+}
 
 /* todo lo que escribe el cliente queda en su chat, se responda o no */
 $nombrePerfil = (string)($body['entry'][0]['changes'][0]['value']['contacts'][0]['profile']['name'] ?? '');
-wa_log($from, 'cliente', wa_texto_de($msg), ['id' => $msgId, 'nombre' => $nombrePerfil]);
-if ($msgId !== '') { $idsPrev[] = $msgId; @file_put_contents($idsFile, json_encode(array_slice($idsPrev, -500))); }
+$extraLog['nombre'] = $nombrePerfil;
+wa_log($from, 'cliente', $text !== '' ? $text : wa_texto_de($msg), $extraLog);
 /* ── Botones del recordatorio: Confirmo / Cancelar ──
    Se resuelven aqui mismo, sin depender de la IA: la cita cambia de estado en
    la agenda y el cliente recibe la respuesta. Si cancela, Mariet sigue la
@@ -168,7 +195,7 @@ if ($botonClave === 'confirmo' || $botonClave === 'cancelar') {
     }
     echo 'ok'; exit;
 }
-if (($msg['type'] ?? '') !== 'text' || $text === '') { echo 'ok'; exit; }
+if ($text === '') { echo 'ok'; exit; }
 if (!$encendido && !wa_es_prueba($from)) { http_response_code(200); exit('ok'); }
 
 /* chat en pausa (alguien del equipo lo esta atendiendo): se guarda lo que escribio

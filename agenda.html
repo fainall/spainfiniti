@@ -98,6 +98,10 @@ input,select,textarea{font-family:inherit}
 .wa-msg.asistente{align-self:flex-end;background:#e7f0fb}
 .wa-msg.equipo,.wa-msg.panel{align-self:flex-end;background:#d9fdd3}
 .wa-msg .err{color:var(--red);font-weight:600}
+.wa-msg .wa-adj{margin-bottom:5px}
+.wa-msg .wa-adj img,.wa-msg .wa-adj video{display:block;max-width:230px;max-height:260px;border-radius:7px;cursor:zoom-in}
+.wa-msg .wa-adj audio{display:block;width:230px;max-width:100%}
+.wa-msg .wa-adj-cargando{font-size:.74rem;color:#667}
 .wa-escribir{display:flex;gap:8px;padding:10px 14px;background:#f0f2f5;border-top:1px solid var(--border);align-items:flex-end}
 .wa-escribir textarea{flex:1;resize:none;border:1px solid var(--border);border-radius:18px;padding:9px 14px;font-family:inherit;font-size:.86rem;max-height:140px}
 .wa-escribir button{border-radius:18px}
@@ -7898,6 +7902,40 @@ function pantallaAbierta(){
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
 
+/* ── Fotos y audios del chat ──
+   El archivo no está publicado en la web: lo entrega api/wa-media-ver.php y
+   solo con sesión de panel, así que no sirve poner la dirección en un <img>.
+   Se pide con el token y se muestra desde la memoria del navegador. */
+const waMediaCache = new Map()
+function waAdjunto(m){
+  const md = m.media; if(!md || !md.archivo) return ''
+  const tipo = md.tipo === 'sticker' ? 'image' : md.tipo
+  const clase = tipo === 'audio' || tipo === 'voice' ? 'wa-audio' : 'wa-foto'
+  return `<div class="wa-adj ${clase}" data-media="${esc(md.archivo)}" data-tipo="${esc(tipo)}">
+    <span class="wa-adj-cargando">${tipo === 'audio' || tipo === 'voice' ? '🎤 audio…' : '📷 foto…'}</span></div>`
+}
+async function waCargarAdjuntos(){
+  for(const caja of document.querySelectorAll('.wa-adj[data-media]')){
+    const nombre = caja.dataset.media, tipo = caja.dataset.tipo
+    caja.removeAttribute('data-media')
+    try{
+      let url = waMediaCache.get(nombre)
+      if(!url){
+        if(typeof sesionLista === 'function') await sesionLista()
+        const r = await fetch('/api/wa-media-ver.php?f=' + encodeURIComponent(nombre), { headers: authHeaders(), cache:'no-store' })
+        if(!r.ok) throw new Error('no se pudo abrir')
+        url = URL.createObjectURL(await r.blob())
+        waMediaCache.set(nombre, url)
+      }
+      caja.innerHTML = tipo === 'audio' || tipo === 'voice'
+        ? `<audio controls preload="metadata" src="${url}"></audio>`
+        : tipo === 'video'
+          ? `<video controls preload="metadata" src="${url}"></video>`
+          : `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Foto que envió el cliente"></a>`
+    }catch(e){ caja.innerHTML = '<span class="wa-adj-cargando">No se pudo abrir el archivo</span>' }
+  }
+}
+
 /* ── Aprendizaje del asistente ── */
 let waEjemplos = []
 async function waAprendeApi(cuerpo){
@@ -8033,7 +8071,7 @@ async function abrirWaChat(tel, silencioso){
     const d = new Date(m.t * 1000).toLocaleDateString('es-CL', { weekday:'long', day:'numeric', month:'long' })
     const sep = d !== dia ? (dia = d, `<div class="wa-dia">${d}</div>`) : ''
     const autor = m.quien === 'panel' && m.autor ? m.autor : (quienTxt[m.quien] || '')
-    return sep + `<div class="wa-msg ${m.quien}">${esc(m.texto)}${m.error ? '<br><span class="err">⚠ ' + esc(m.error) + '</span>' : ''}<span class="meta">${autor ? esc(autor) + ' · ' : ''}${m.antiguo ? '' : new Date(m.t * 1000).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</span></div>`
+    return sep + `<div class="wa-msg ${m.quien}">${waAdjunto(m)}${esc(m.texto)}${m.error ? '<br><span class="err">⚠ ' + esc(m.error) + '</span>' : ''}<span class="meta">${autor ? esc(autor) + ' · ' : ''}${m.antiguo ? '' : new Date(m.t * 1000).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}</span></div>`
   }).join('')
   const cli = (state.clients||[]).find(x => String(x.phone||'').replace(/\D/g,'').slice(-8) === tel.slice(-8))
   box.innerHTML = `
@@ -8056,6 +8094,8 @@ async function abrirWaChat(tel, silencioso){
   const t = document.getElementById('waTexto'); if(t){ t.value = borrador }
   if(window.innerWidth <= 820){ const v = document.getElementById('waVolver'); if(v) v.style.display = '' }
   const cont = document.getElementById('waMsgs'); if(cont) cont.scrollTop = cont.scrollHeight
+  /* las fotos y los audios se piden aparte, con la sesión del panel */
+  waCargarAdjuntos().then(() => { if(cont) cont.scrollTop = cont.scrollHeight })
 }
 async function waEnviar(){
   const t = document.getElementById('waTexto'), btn = document.getElementById('waEnviarBtn')
