@@ -196,6 +196,17 @@ if ($botonClave === 'confirmo' || $botonClave === 'cancelar') {
     echo 'ok'; exit;
 }
 if ($text === '') { echo 'ok'; exit; }
+
+/* ── ¿Contesto con nota de voz? ──
+   Solo si el cliente lo pidió. Desde ahí se le sigue hablando en audio en ese
+   chat, hasta que pida texto o pase un día sin escribir. Se anota aquí, antes
+   de mirar las pausas: si lo pidió mientras el equipo atendía el chat, cuando
+   la IA vuelva ya sabe que le tiene que hablar. */
+require_once __DIR__ . '/wa-voz.php';
+$conVoz = wa_voz_activa($from);
+if (wa_pide_audio($text)) { wa_voz_marcar($from, true); $conVoz = true; }
+elseif (wa_pide_texto($text)) { wa_voz_marcar($from, false); $conVoz = false; }
+
 if (!$encendido && !wa_es_prueba($from)) { http_response_code(200); exit('ok'); }
 
 /* chat en pausa (alguien del equipo lo esta atendiendo): se guarda lo que escribio
@@ -227,14 +238,6 @@ $file = $dir . '/' . $from . '.json';
 $history = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: []) : [];
 $history[] = ['role' => 'user', 'content' => mb_substr($text, 0, 2000)];
 if (count($history) > 16) $history = array_slice($history, -16);
-
-/* ── ¿Contesto con nota de voz? ──
-   Solo si el cliente lo pidió. Desde ahí se le sigue hablando en audio en ese
-   chat, hasta que pida texto o pase un día sin escribir. */
-require_once __DIR__ . '/wa-voz.php';
-$conVoz = wa_voz_activa($from);
-if (wa_pide_audio($text)) { wa_voz_marcar($from, true); $conVoz = true; }
-elseif (wa_pide_texto($text)) { wa_voz_marcar($from, false); $conVoz = false; }
 
 /* ── Consultar al cerebro (con la clave interna que lo distingue de un extraño) ── */
 $internalKey = hash('sha256', (string)($cfg['openaiKey'] ?? '') . '|spa-internal');

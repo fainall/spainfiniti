@@ -35,6 +35,10 @@ function wa_control_leer() {
 
 function wa_control_guardar($c) {
     @mkdir(dirname(WA_CONTROL_ARCHIVO), 0755, true);
+    /* wa_control_leer solo devuelve pausaMin, pruebas y pausas: lo demas que
+       haya en el archivo (la preferencia de audio de cada chat) se conserva */
+    $antes = is_file(WA_CONTROL_ARCHIVO) ? json_decode((string)file_get_contents(WA_CONTROL_ARCHIVO), true) : [];
+    if (is_array($antes)) $c = array_merge($antes, $c);
     /* las pausas vencidas se limpian al guardar */
     $ahora = time();
     foreach ($c['pausas'] as $tel => $p) {
