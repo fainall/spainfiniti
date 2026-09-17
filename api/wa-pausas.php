@@ -127,3 +127,52 @@ function wa_texto_de($m) {
     $cap = $m[$tipo]['caption'] ?? ($m['button']['text'] ?? ($m['interactive']['button_reply']['title'] ?? ($m['reaction']['emoji'] ?? '')));
     return ($nombres[$tipo] ?? ('[' . $tipo . ']')) . ($cap ? ': ' . $cap : '');
 }
+
+/* ══ Aprendizaje: la IA toma como ejemplo lo que responde el equipo ══
+   Cada vez que alguien responde a un cliente (desde el celular o el panel) se
+   guarda el par "lo que pregunto el cliente → lo que respondio el equipo".
+   bot-reply.php usa los mas parecidos a la consulta actual como ejemplos.
+   Desde el panel se pueden descartar los que no sirvan. */
+const WA_APRENDE_ARCHIVO = __DIR__ . '/bot-sessions/_aprendizaje.json';
+
+function wa_aprende_leer() {
+    $l = is_file(WA_APRENDE_ARCHIVO) ? json_decode((string)file_get_contents(WA_APRENDE_ARCHIVO), true) : [];
+    return is_array($l) ? $l : [];
+}
+function wa_aprende_guardar($l) {
+    @mkdir(dirname(WA_APRENDE_ARCHIVO), 0755, true);
+    $fp = @fopen(WA_APRENDE_ARCHIVO, 'c+');
+    if (!$fp) return;
+    flock($fp, LOCK_EX);
+    ftruncate($fp, 0); rewind($fp);
+    fwrite($fp, json_encode(array_values(array_slice($l, -300)), JSON_UNESCAPED_UNICODE));
+    flock($fp, LOCK_UN); fclose($fp);
+}
+/* datos personales fuera: correos, telefonos, RUT */
+function wa_aprende_limpiar($t) {
+    $t = preg_replace('/[\w.+-]+@[\w-]+\.[\w.]+/u', '[correo]', (string)$t);
+    $t = preg_replace('/\+?\d[\d\s-]{7,}\d/', '[teléfono]', $t);
+    $t = preg_replace('/\b\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]\b/', '[rut]', $t);
+    return trim($t);
+}
+function wa_aprender($tel, $respuesta, $autor) {
+    $respuesta = trim((string)$respuesta);
+    /* "ok", "hola", "un momento": no enseñan nada */
+    if (mb_strlen($respuesta) < 25) return;
+    /* lo que escribio el cliente justo antes, desde el ultimo mensaje que no fue suyo */
+    $chat = wa_chat_leer($tel);
+    array_pop($chat);                                    // la respuesta recien guardada
+    $preg = [];
+    for ($i = count($chat) - 1; $i >= 0; $i--) {
+        if (($chat[$i]['quien'] ?? '') !== 'cliente') break;
+        array_unshift($preg, (string)$chat[$i]['texto']);
+    }
+    if (!$preg) return;
+    if (time() - (int)(end($chat)['t'] ?? 0) > 6 * 3600) return;   // respuesta a algo muy antiguo: sin contexto claro
+    $l = wa_aprende_leer();
+    $l[] = ['id' => substr(md5($tel . microtime()), 0, 10), 't' => time(), 'tel' => substr(wa_tel($tel), -4),
+            'cliente' => mb_substr(wa_aprende_limpiar(implode("\n", $preg)), 0, 600),
+            'respuesta' => mb_substr(wa_aprende_limpiar($respuesta), 0, 1200),
+            'autor' => (string)$autor, 'activo' => true];
+    wa_aprende_guardar($l);
+}

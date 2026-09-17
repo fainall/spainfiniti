@@ -744,6 +744,35 @@ function cliente_por_telefono($telefono) {
             'correo_oculto' => enmascarar_correo($c['email'] ?? ''), 'atendidas' => $atendidas, 'ultima' => $ultima,
             'proximas' => array_reverse($proximas)];
 }
+/* ── Aprendizaje: como responde el equipo (Luis) ──
+   Se eligen las respuestas reales del equipo mas parecidas a lo que pregunta
+   ahora el cliente, mas un par de las recientes, como ejemplos de estilo y de
+   informacion. Lo que diga el catalogo y la agenda manda sobre los ejemplos. */
+require_once __DIR__ . '/wa-pausas.php';
+$ejemplos = array_values(array_filter(wa_aprende_leer(), fn($e) => !empty($e['activo'])));
+if ($ejemplos) {
+    $ultimoCliente = '';
+    foreach (array_reverse($convo) as $m) if ($m['role'] === 'user') { $ultimoCliente = $m['content']; break; }
+    $pal = array_values(array_filter(explode(' ', svc_clave($ultimoCliente)), fn($w) => mb_strlen($w) > 3));
+    foreach ($ejemplos as $i => $e) {
+        $pe = explode(' ', svc_clave($e['cliente']));
+        $ejemplos[$i]['pts'] = count(array_intersect($pal, $pe)) * 10 + $i / 1000;   // empate: el mas reciente
+    }
+    usort($ejemplos, fn($a, $b) => $b['pts'] <=> $a['pts']);
+    $elegidos = array_slice(array_filter($ejemplos, fn($e) => $e['pts'] >= 10), 0, 5);
+    $ids = array_column($elegidos, 'id');
+    $recientes = array_reverse(array_values(array_filter(wa_aprende_leer(), fn($e) => !empty($e['activo']) && !in_array($e['id'], $ids, true))));
+    $elegidos = array_merge($elegidos, array_slice($recientes, 0, 3));
+    if ($elegidos) {
+        $txt = '';
+        foreach ($elegidos as $e) $txt .= "\n— Cliente: " . str_replace("\n", ' / ', $e['cliente']) . "\n  Respuesta del equipo: " . str_replace("\n", ' / ', $e['respuesta']) . "\n";
+        $system .= "\n\nASÍ RESPONDE EL EQUIPO DEL SPA (respuestas reales de Luis y su equipo; aprende de ellas):" . $txt .
+            "\nCÓMO USAR ESTOS EJEMPLOS:\n- Imita su tono, su forma de explicar y la información útil que entregan (qué recomiendan, cómo lo explican, qué preguntan).\n" .
+            "- Si un ejemplo contradice el catálogo, la disponibilidad o los precios de estas instrucciones, manda el catálogo: los ejemplos pueden ser de antes de un cambio.\n" .
+            "- No copies nombres, fechas ni datos de otros clientes. No digas que estás usando ejemplos.";
+    }
+}
+
 $clienteConocido = $phone ? cliente_por_telefono($phone) : null;
 if ($clienteConocido) {
     $k = $clienteConocido;

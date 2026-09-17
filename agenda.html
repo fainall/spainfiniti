@@ -3550,6 +3550,13 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         el asistente se calla <strong>en ese chat</strong> durante el tiempo que elijas. También puedes pausar o reactivar un chat a mano.</p>
         <div id="waControlBody"><p class="rem-note">Cargando…</p></div>
       </div>
+      <div class="fbox" id="waAprende" style="margin:0 0 18px">
+        <h3 class="cd-h3" style="margin-top:0">Lo que aprende de las respuestas del equipo</h3>
+        <p class="rem-note" style="margin:0 0 10px">Cada vez que alguien responde a un cliente desde el celular o desde el panel, la respuesta queda
+        como ejemplo y el asistente la usa para contestar parecido en consultas similares. Las respuestas muy cortas ("ok", "hola") no se guardan,
+        y los correos, teléfonos y RUT se ocultan. Si una respuesta no debe repetirse, <strong>desactívala</strong> o <strong>corrígela</strong>.</p>
+        <div id="waAprendeBody"><p class="rem-note">Cargando…</p></div>
+      </div>
       <div class="bot-grid">
         <div>
           <div class="rep-block">
@@ -7783,6 +7790,51 @@ function pantallaAbierta(){
 }
 function toggleAcc(id){ document.getElementById(id).classList.toggle('open') }
 
+/* ── Aprendizaje del asistente ── */
+let waEjemplos = []
+async function waAprendeApi(cuerpo){
+  if(typeof sesionLista === 'function') await sesionLista()
+  const res = await fetch('/api/wa-aprendizaje.php', cuerpo
+    ? { method:'POST', cache:'no-store', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(cuerpo) }
+    : { cache:'no-store', headers: authHeaders() })
+  const j = await res.json().catch(() => ({}))
+  if(!res.ok) throw new Error(j.error || ('Error ' + res.status))
+  return j
+}
+async function pintarWaAprende(){
+  const el = document.getElementById('waAprendeBody'); if(!el) return
+  try{ waEjemplos = (await waAprendeApi()).ejemplos || [] }
+  catch(e){ el.innerHTML = '<p class="rem-note">' + esc(e.message) + '</p>'; return }
+  if(!waEjemplos.length){ el.innerHTML = '<p class="rem-note">Todavía no hay respuestas del equipo guardadas. Se irán sumando solas.</p>'; return }
+  const activos = waEjemplos.filter(e => e.activo).length
+  el.innerHTML = `<p class="rem-note" style="margin:0 0 8px"><strong>${activos}</strong> en uso · ${waEjemplos.length - activos} desactivadas</p>
+    <div class="tabla-scroll"><table class="ctbl">
+      <thead><tr><th style="width:30%">El cliente preguntó</th><th>El equipo respondió</th><th style="width:110px">Cuándo</th><th style="width:170px"></th></tr></thead>
+      <tbody>${waEjemplos.map(e => `<tr style="${e.activo ? '' : 'opacity:.5'}">
+        <td style="white-space:pre-wrap;font-size:.8rem">${esc(e.cliente)}</td>
+        <td style="white-space:pre-wrap;font-size:.8rem" id="waEj-${e.id}">${esc(e.respuesta)}${e.editado ? '<br><small class="rem-note">corregida por ' + esc(e.editado) + '</small>' : ''}</td>
+        <td style="font-size:.75rem">${new Date(e.t * 1000).toLocaleString('es-CL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}<br><small>${esc(e.autor || '')}</small></td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="mini-btn" onclick="waEjemploEditar('${e.id}')">✎ Corregir</button>
+          <button class="mini-btn" onclick="waEjemploActivo('${e.id}', ${!e.activo})">${e.activo ? 'Desactivar' : 'Usar'}</button>
+        </td></tr>`).join('')}</tbody></table></div>`
+}
+async function waEjemploActivo(id, activo){
+  try{ await waAprendeApi({ accion:'activo', id, activo }); pintarWaAprende() }
+  catch(e){ toast(e.message, 'error') }
+}
+function waEjemploEditar(id){
+  const e = waEjemplos.find(x => x.id === id); const td = document.getElementById('waEj-' + id); if(!e || !td) return
+  td.innerHTML = `<textarea id="waEjTxt-${id}" rows="4" style="width:100%;font-size:.8rem">${esc(e.respuesta)}</textarea>
+    <div style="margin-top:4px"><button class="mini-btn" onclick="waEjemploGuardar('${id}')">Guardar</button>
+    <button class="mini-btn" onclick="pintarWaAprende()">Cancelar</button></div>`
+}
+async function waEjemploGuardar(id){
+  const respuesta = document.getElementById('waEjTxt-' + id)?.value || ''
+  try{ await waAprendeApi({ accion:'editar', id, respuesta }); toast('Corregida: el asistente usará esta versión', 'success'); pintarWaAprende() }
+  catch(e){ toast(e.message, 'error') }
+}
+
 /* ══════════════ BANDEJA DE WHATSAPP ══════════════
    Ver lo que el asistente habla con cada cliente y responder desde el panel.
    Quien responde aqui toma el chat: la IA se pausa en esa conversacion. */
@@ -8012,6 +8064,7 @@ async function loadBotConfig(){
 function renderAsistente(){
   document.getElementById('botActive').checked=!!botCfg.active
   pintarWaControl()
+  if(isAdmin() || (me && me.role === 'admin_local')) pintarWaAprende(); else { const b = document.getElementById('waAprende'); if(b) b.hidden = true }
   document.getElementById('botName').value=botCfg.bot_name||''
   document.getElementById('botWelcome').value=botCfg.welcome||''
   document.getElementById('botTone').value=botCfg.tone||''

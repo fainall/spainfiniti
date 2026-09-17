@@ -100,6 +100,7 @@ if ($code < 200 || $code >= 300) {
 $autor = trim((string)($yo['name'] ?? '')) ?: (string)($yo['email'] ?? 'Equipo');
 wa_log($tel, 'panel', $texto, ['autor' => $autor, 'id' => (string)($res['messages'][0]['id'] ?? '')]);
 wa_contexto_agregar($tel, 'assistant', $texto);
+wa_aprender($tel, $texto, $autor);
 /* quien interviene toma el chat: la IA se calla ahi */
 $min = wa_control_leer()['pausaMin'];
 wa_pausar($tel, $min > 0 ? $min : 30, 'Respondió ' . $autor . ' desde el panel');

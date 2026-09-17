@@ -73,7 +73,7 @@ if (($cambio['field'] ?? '') === 'smb_message_echoes') {
         if (empty($eco['to'])) continue;
         $txtEco = wa_texto_de($eco);
         wa_log($eco['to'], 'equipo', $txtEco, ['id' => (string)($eco['id'] ?? '')]);
-        if (($eco['type'] ?? '') === 'text') wa_contexto_agregar($eco['to'], 'assistant', $txtEco);
+        if (($eco['type'] ?? '') === 'text') { wa_contexto_agregar($eco['to'], 'assistant', $txtEco); wa_aprender($eco['to'], $txtEco, 'Celular'); }
     }
     http_response_code(200); exit('ok');
 }
