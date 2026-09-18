@@ -260,7 +260,8 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
 - No preguntes con qué profesional quiere: si hay varias libres, agenda con la primera y dile con quién quedó. Solo si el cliente pide a alguien en particular, o si tú ya le nombraste a una, pásala en professional_name: no se agenda con otra sin avisarle.
 - Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si tenía VARIOS servicios ese día y cambia de día, crea cada uno en el día nuevo y luego cancela CADA UNO de los anteriores con cancel_booking (una llamada por reserva; create_booking te devuelve la lista en otras_reservas_vigentes). Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok. Y al revés: si create_booking devolvió previous_cancelled true, o cancel_booking respondió ok, la anterior YA está cancelada: dilo como hecho, no preguntes si quiere cancelarla.
-- Si no hay disponibilidad, ofrece alternativas cercanas.
+- Si no hay disponibilidad, usa next_available y ofrece la PRIMERA hora real que exista, aunque sea mañana o pasado. Nunca saltes a la semana siguiente ni a la subsiguiente por tu cuenta: los feriados y los días llenos los descarta la función, tú ofreces el primer día con horas.
+- Si el cliente dice lo antes posible, cuanto antes o urgente, usa next_available desde hoy.
 - Cuando la reserva ya quedó creada y el cliente solo responde 'sí' o 'gracias', NO vuelvas a llamar a create_booking: despídete o pregunta si necesita algo más.
 
 LO QUE NO HACES:
@@ -638,6 +639,40 @@ function ficha_de_cliente($nombre, $telefono, $correo) {
 /* Todas las horas libres de un dia para un servicio, cada 30 minutos. Antes el
    bot probaba una o dos horas al azar (a veces ya pasadas) y si esas estaban
    tomadas decia que no habia disponibilidad aunque la agenda estuviera libre. */
+/* La primera hora disponible de verdad, buscando día por día hacia adelante.
+   Antes, si el día pedido estaba lleno (o era feriado), el modelo se saltaba a
+   la semana siguiente a ojo y dejaba pasar días con horas libres (Luis). */
+function do_next_slots($args) {
+    $desde = (string)($args['from'] ?? date('Y-m-d'));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $desde)) $desde = date('Y-m-d');
+    if ($desde < date('Y-m-d')) $desde = date('Y-m-d');
+    $svc = !empty($args['service_name']) ? svc_del_catalogo($args['service_name']) : null;
+    $dias = max(1, min(21, (int)($args['days'] ?? 14)));
+    $encontrados = [];
+    $cerrados = [];
+    for ($i = 0; $i < $dias && count($encontrados) < 3; $i++) {
+        $fecha = date('Y-m-d', strtotime($desde . ' +' . $i . ' day'));
+        $r = do_free_slots(['date' => $fecha, 'service_name' => $svc ? $svc['name'] : '']);
+        if (!empty($r['free'])) {
+            $encontrados[] = ['date' => $fecha, 'dia' => dia_es($fecha),
+                              'free' => array_slice($r['free'], 0, 6), 'total' => $r['total']];
+        } else {
+            $cerrados[] = $fecha;
+        }
+    }
+    return ['ok' => true, 'desde' => $desde, 'service' => $svc ? $svc['name'] : null,
+            'dias_revisados' => $dias, 'dias_sin_horas' => $cerrados, 'proximos' => $encontrados,
+            'nota' => $encontrados
+                ? 'Ofrece las horas del primer día de la lista; los días que aparecen en dias_sin_horas están cerrados o llenos, no los ofrezcas ni los saltes en silencio.'
+                : 'No hay horas en el rango revisado: dile que le avisas en cuanto se libere una, o consulta con el equipo.'];
+}
+/* "viernes 25 de septiembre", para nombrar los días como se hablan */
+function dia_es($fecha) {
+    $dow = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][date('w', strtotime($fecha))];
+    $mes = ['','enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][(int)date('n', strtotime($fecha))];
+    return $dow . ' ' . (int)date('j', strtotime($fecha)) . ' de ' . $mes;
+}
+
 function do_free_slots($args) {
     global $pros;
     $date = (string)($args['date'] ?? '');
@@ -983,7 +1018,10 @@ for ($i=0; $i<4; $i++) {
         foreach ($m['tool_calls'] as $tc) {
             $args = json_decode($tc['function']['arguments'] ?? '{}', true) ?: [];
             $name = $tc['function']['name'];
-            $out = $name==='check_availability' ? do_check($args) : ($name==='cancel_booking' ? do_cancel($args) : ($name==='confirm_booking' ? do_confirm($args) : ($name==='free_slots' ? do_free_slots($args) : ($name==='ask_team' ? do_ask_team($args) : do_book($args)))));
+            $herramientas = ['check_availability'=>'do_check', 'cancel_booking'=>'do_cancel', 'confirm_booking'=>'do_confirm',
+                             'free_slots'=>'do_free_slots', 'next_available'=>'do_next_slots', 'ask_team'=>'do_ask_team'];
+            $fn = $herramientas[$name] ?? 'do_book';
+            $out = $fn($args);
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
             /* traza para diagnosticar: solo con la clave interna y pidiendola */
