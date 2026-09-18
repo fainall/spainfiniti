@@ -5145,10 +5145,13 @@ async function apptMouseUp(){
   const a=findAppt(d.id); if(!a) return
   if(!canEditAppt(a)){ toast('Esa hora es de otro profesional','error'); render(); return }
   if(!d.moved){ if(a.status==='block') openBlockModal(null,a); else openApptQuickView(d.id); return }
-  if(a.appt_date===d.targetDate && a.start_time.slice(0,5)===d.targetStart){ render(); return }
+  const profDestino = d.targetProf || a.professional_id
+  /* OJO: antes solo se miraba la fecha y la hora, así que arrastrarla a otra
+     profesional a la MISMA hora se tomaba como "no cambió nada" y no pasaba
+     nada, sin avisar (Luis). Si cambia la persona, también es un movimiento. */
+  if(a.appt_date===d.targetDate && a.start_time.slice(0,5)===d.targetStart && profDestino===a.professional_id){ render(); return }
   const _m=checkServiceRules({serviceName:a.service_name, date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id})
   if(_m){ toast(_m,'error'); render(); return }
-  const profDestino = d.targetProf || a.professional_id
   /* no se traga el arrastre en silencio: se explica el motivo y se deja decidir */
   const _asig=checkProfServicio(profDestino, a.service_name)
   if(_asig && !await seguirPeseA(_asig,'mover')){ render(); return }
