@@ -653,7 +653,7 @@ function do_next_slots($args) {
     $cerrados = [];
     for ($i = 0; $i < $dias && count($encontrados) < 3; $i++) {
         $fecha = date('Y-m-d', strtotime($desde . ' +' . $i . ' day'));
-        $r = do_free_slots(['date' => $fecha, 'service_name' => $svc ? $svc['name'] : '']);
+        $r = do_free_slots(['date' => $fecha, 'service_name' => $svc ? $svc['name'] : '', 'sin_siguientes' => true]);
         if (!empty($r['free'])) {
             $encontrados[] = ['date' => $fecha, 'dia' => dia_es($fecha),
                               'free' => array_slice($r['free'], 0, 6), 'total' => $r['total']];
@@ -689,8 +689,20 @@ function do_free_slots($args) {
         $r = do_check(['date'=>$date, 'time'=>$hh, 'duration'=>$dur, 'service_name'=>$svc ? $svc['name'] : '']);
         if (!empty($r['available'])) $libres[] = ['time'=>$hh, 'professionals'=>array_column($r['professionals'], 'name')];
     }
-    return ['date'=>$date, 'service'=>$svc ? $svc['name'] : null, 'duration'=>$dur, 'now'=>date('H:i'),
-            'free'=>$libres, 'total'=>count($libres)];
+    $salida = ['date'=>$date, 'service'=>$svc ? $svc['name'] : null, 'duration'=>$dur, 'now'=>date('H:i'),
+               'free'=>$libres, 'total'=>count($libres)];
+    /* Si ese día no hay nada, la respuesta ya trae los días siguientes con horas
+       reales: así Mariet ofrece la más próxima en el mismo mensaje y no se
+       inventa que "la próxima es la otra semana" (Luis). */
+    if (!$libres && empty($args['sin_siguientes'])) {
+        $sig = do_next_slots(['service_name' => $svc ? $svc['name'] : '', 'from' => $date, 'days' => 14]);
+        $salida['proximas_fechas_con_horas'] = $sig['proximos'];
+        $salida['dias_sin_horas'] = $sig['dias_sin_horas'];
+        $salida['nota'] = $sig['proximos']
+            ? 'Ese día no hay. Dilo y ofrece en el MISMO mensaje dos o tres horas del primer día de proximas_fechas_con_horas, con su fecha. No preguntes si quiere que busques: ya están buscadas.'
+            : 'No hay horas en las próximas dos semanas: ofrécele que el equipo le avise apenas se libere una.';
+    }
+    return $salida;
 }
 
 /* confirma la reserva del cliente en esa fecha y hora (por su telefono o su ficha) */
