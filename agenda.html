@@ -5149,8 +5149,9 @@ async function apptMouseUp(){
   const _m=checkServiceRules({serviceName:a.service_name, date:d.targetDate, start:d.targetStart, dur:d.dur, apptId:d.id})
   if(_m){ toast(_m,'error'); render(); return }
   const profDestino = d.targetProf || a.professional_id
+  /* no se traga el arrastre en silencio: se explica el motivo y se deja decidir */
   const _asig=checkProfServicio(profDestino, a.service_name)
-  if(_asig){ toast(_asig,'error'); render(); return }
+  if(_asig && !await seguirPeseA(_asig,'mover')){ render(); return }
   const _hor=checkProfHours(profDestino, d.targetDate, d.targetStart, d.dur)
   if(_hor && !await seguirPeseA(_hor,'mover')){ render(); return }
   const _reglas=checkReglasCuenta({ profId:profDestino, clientId:a.client_id,
@@ -5388,11 +5389,17 @@ function profHaceServicio(profId, serviceName){
   if(!sv || sv === 'all') return true          // sin restricción: los hace todos
   return sv.includes(serviceName)
 }
-/* mensaje de bloqueo si no lo realiza */
+/* por qué no se puede: se dice el motivo y quién sí lo hace (pedido de Luis,
+   que arrastraba una reserva y no entendía por qué no se movía) */
 function checkProfServicio(profId, serviceName){
   if(profHaceServicio(profId, serviceName)) return null
   const nombre = (state.professionals.find(x=>x.id===profId)||{}).name || 'Ese profesional'
-  return `${nombre} no tiene asignado "${serviceName}". Asígnaselo en Administración → Profesionales, o elige a otra persona.`
+  const otros = profesionalesDe(serviceName).filter(p=>p.id!==profId).map(p=>p.name)
+  const quienes = otros.length
+    ? ` Ese servicio lo tienen asignado: ${otros.slice(0,4).join(', ')}${otros.length>4?' y otras':''}.`
+    : ' Por ahora nadie lo tiene asignado.'
+  return `${nombre} no tiene asignado el servicio “${serviceName}”.${quienes}`
+    + ' Si igual lo va a atender, asígnaselo en Administración → Profesionales → Editar → Servicios.'
 }
 /* quiénes pueden atender este servicio */
 function profesionalesDe(serviceName){
@@ -6909,7 +6916,7 @@ async function reGuardar(id, campo, valor){
     cambio.end_time = valor + ':00'
   } else if(campo === 'prof'){
     const motivo = checkProfServicio(valor, a.service_name)
-    if(motivo){ toast(motivo,'error'); renderApptTab(); return }
+    if(motivo && !await seguirPeseA(motivo,'mover')){ renderApptTab(); return }
     cambio.professional_id = valor
   } else if(campo === 'servicio'){
     const sv = state.services.find(x=>x.name===valor)
@@ -7260,10 +7267,10 @@ async function saveAppt(){
     toast('Este cliente necesita al menos un teléfono o un correo. Puedes desactivarlo en Administración → Configuración','error'); return }
   if(!date||!start){ toast('Falta fecha u hora','error'); return }
   const svcName0=(document.getElementById('apptServiceName').value||'').trim()
-  /* que el profesional realice el servicio no se puede saltar: eso es un
-     error de configuración, no una excepción del día a día */
+  /* si no tiene el servicio asignado se explica el motivo y se puede seguir
+     igual: la reserva queda marcada con el ⚠ en la agenda */
   const _asignado=checkProfServicio(profId, svcName0)
-  if(_asignado){ toast(_asignado,'error'); return }
+  if(_asignado && !await seguirPeseA(_asignado)) return
 
   /* los demás avisos sí se pueden forzar */
   let forzada = false
@@ -15231,7 +15238,9 @@ document.addEventListener('keydown', e=>{
   if(cf && cf.classList.contains('open')) confirmarResponder(false)
 })
 let toastT
-function toast(msg,type){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+(type||''); clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast',2600) }
+function toast(msg,type,ms){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+(type||''); clearTimeout(toastT)
+  /* los mensajes largos necesitan más tiempo: nadie alcanza a leer un motivo entero en 2 segundos */
+  toastT=setTimeout(()=>t.className='toast', ms || (String(msg).length > 90 ? 7000 : 2600)) }
 
 /* ── BOOT ── */
 async function boot(){
