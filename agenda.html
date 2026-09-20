@@ -604,6 +604,10 @@ label.chk input{width:auto;margin:0}
 /* tarjeta vista rápida de reserva */
 .qv{position:fixed;z-index:850;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.28);width:340px;max-width:92vw;padding:16px;font-size:.85rem}
 .qv-head{display:flex;justify-content:flex-end;gap:6px;margin-bottom:6px}
+/* la ficha se puede tomar y mover: el cursor lo anuncia */
+.qv{cursor:grab}
+.qv.moviendo{cursor:grabbing;user-select:none;box-shadow:0 24px 60px rgba(0,0,0,.34)}
+.qv button,.qv a,.qv .qv-dot,.qv .link-cliente{cursor:pointer}
 .qv-icon{border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;padding:6px 10px;font-size:.8rem;font-family:inherit;color:var(--texto)}
 .qv-icon:hover{border-color:var(--gold)}
 .qv-name{font-weight:700;font-size:1.05rem;color:var(--texto);margin-bottom:4px}
@@ -5851,6 +5855,39 @@ function openApptQuickView(id){
      siempre activo, el menu de WhatsApp (que se abre hacia abajo) quedaba cortado */
   if(altoQv + 16 > window.innerHeight){ qv.style.maxHeight = (window.innerHeight - 16) + 'px'; qv.style.overflowY = 'auto' }
   qv.style.left=left+'px'; qv.style.top=top+'px'
+  hacerArrastrable(qv)
+}
+
+/* La ficha rápida se puede tomar con el mouse y correr por la pantalla, para
+   destaparla de la agenda cuando tapa justo la hora que se quiere mirar (Luis).
+   Se arrastra desde cualquier parte vacía: los botones, los estados y los
+   enlaces siguen funcionando como siempre. */
+function hacerArrastrable(caja){
+  if(window.innerWidth <= 820) return          // en el teléfono va centrada, no se mueve
+  let mov=null
+  caja.addEventListener('mousedown', e => {
+    if(e.button!==0) return
+    if(e.target.closest('button, a, input, select, textarea, .qv-dot, .link-cliente, .wa-menu')) return
+    const r=caja.getBoundingClientRect()
+    mov={ dx:e.clientX-r.left, dy:e.clientY-r.top }
+    caja.classList.add('moviendo')
+    e.preventDefault()
+    document.addEventListener('mousemove', mover)
+    document.addEventListener('mouseup', soltar)
+  })
+  function mover(e){
+    if(!mov) return
+    const r=caja.getBoundingClientRect()
+    /* que no se escape de la pantalla: siempre queda un borde agarrable */
+    const x=Math.min(Math.max(8, e.clientX-mov.dx), window.innerWidth - r.width - 8)
+    const y=Math.min(Math.max(8, e.clientY-mov.dy), window.innerHeight - r.height - 8)
+    caja.style.left=x+'px'; caja.style.top=y+'px'
+  }
+  function soltar(){
+    mov=null; caja.classList.remove('moviendo')
+    document.removeEventListener('mousemove', mover)
+    document.removeEventListener('mouseup', soltar)
+  }
 }
 function closeQuickView(){
   const q=document.getElementById('apptQV'); if(q) q.remove()
