@@ -264,7 +264,8 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
 - No preguntes con qué profesional quiere: si hay varias libres, agenda con la primera y dile con quién quedó. Solo si el cliente pide a alguien en particular, o si tú ya le nombraste a una, pásala en professional_name: no se agenda con otra sin avisarle.
 - Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si tenía VARIOS servicios ese día y cambia de día, crea cada uno en el día nuevo y luego cancela CADA UNO de los anteriores con cancel_booking (una llamada por reserva; create_booking te devuelve la lista en otras_reservas_vigentes). Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok. Y al revés: si create_booking devolvió previous_cancelled true, o cancel_booking respondió ok, la anterior YA está cancelada: dilo como hecho, no preguntes si quiere cancelarla.
-- REGLA DE ORO: por WhatsApp solo se agenda dentro de los próximos 8 días (hasta el " . dia_es(tope_agenda()) . ").
+- REGLA DE ORO: por WhatsApp solo se agenda dentro de los próximos 8 días: hasta el " . dia_es(tope_visible()) . ".
+- LOS DOMINGOS NO SE ATIENDE: no ofrezcas domingos ni los nombres como fecha posible, ni siquiera como tope.
   Si el cliente pide una fecha más lejana, dile con naturalidad que esas fechas las coordina el equipo y ofrécele horas dentro de esta semana.
   Si insiste en esa fecha, usa ask_team para preguntarle al equipo si se puede hacer una excepción, y dile que se lo estás consultando.
 - Si no hay disponibilidad, usa next_available y ofrece la PRIMERA hora real que exista, aunque sea mañana o pasado. Nunca saltes a la semana siguiente ni a la subsiguiente por tu cuenta: los feriados y los días llenos los descarta la función, tú ofreces el primer día con horas.
@@ -675,6 +676,16 @@ function do_next_slots($args) {
 }
 /* Hasta dónde se puede agendar por WhatsApp: 8 días (regla de oro de Luis) */
 function tope_agenda() { return date('Y-m-d', strtotime('+8 day')); }
+/* El último día del plazo en que sí se atiende: si el tope cae domingo (o en un
+   día que nadie trabaja), no tiene sentido nombrarlo como fecha límite. */
+function tope_visible() {
+    global $pros;
+    for ($i = 0; $i < 7; $i++) {
+        $f = date('Y-m-d', strtotime(tope_agenda() . ' -' . $i . ' day'));
+        foreach ($pros as $p) if (jornada_de($p, $f)) return $f;
+    }
+    return tope_agenda();
+}
 
 /* "viernes 25 de septiembre", para nombrar los días como se hablan */
 function dia_es($fecha) {
@@ -688,7 +699,7 @@ function do_free_slots($args) {
     $date = (string)($args['date'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return ['ok'=>false,'reason'=>'fecha no válida'];
     if ($date < date('Y-m-d')) return ['ok'=>false,'reason'=>'esa fecha ya pasó'];
-    if ($date > tope_agenda()) return ['ok'=>false,'reason'=>'por aquí solo se agenda hasta el ' . dia_es(tope_agenda()) . '; para después lo coordina el equipo'];
+    if ($date > tope_agenda()) return ['ok'=>false,'reason'=>'por aquí solo se agenda hasta el ' . dia_es(tope_visible()) . '; para después lo coordina el equipo'];
     $svc = !empty($args['service_name']) ? svc_del_catalogo($args['service_name']) : null;
     $dur = $svc ? svc_minutos($svc) : 60;
     $desde = 24*60; $hasta = 0;
@@ -801,7 +812,7 @@ function do_book($args) {
     /* Regla de oro de Luis: por WhatsApp solo se agenda dentro de los próximos
        7 días. Más allá lo coordina el equipo. */
     if (($args['date'] ?? '') > tope_agenda())
-        return ['ok'=>false, 'reason'=>'NO AGENDADO: por aquí solo se agenda hasta el ' . dia_es(tope_agenda())
+        return ['ok'=>false, 'reason'=>'NO AGENDADO: por aquí solo se agenda hasta el ' . dia_es(tope_visible())
             . ' (8 días). Dile que para una fecha más lejana lo coordina el equipo, y ofrécele horas dentro de esa semana.'
             . ' Si el cliente insiste en la fecha lejana, usa ask_team para preguntarle a Luis si se puede hacer una excepción.'];
     $args['service_name'] = $svc['name'];
