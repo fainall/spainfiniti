@@ -1048,7 +1048,23 @@ function openai($KEY, $MODEL, $tools, $messages) {
 
 $booked=null;
 $traza=[];
-for ($i=0; $i<4; $i++) {
+/* ── Guardia contra horas inventadas ──
+   El 20/09 Mariet ofreció el sábado a las 11:00 y a las 15:00 sin haberlo
+   consultado: ese día estaba copado. Toda hora que ofrezca tiene que haber
+   salido de la agenda (free_slots, next_available, check_availability,
+   create_booking) o estar ya en la conversación. Si no, se le devuelve la
+   respuesta para que consulte antes de ofrecerla. */
+$horasVistas = [];
+$anotarHoras = function ($texto) use (&$horasVistas) {
+    if (preg_match_all('/([01]?d|2[0-3]):([0-5]d)/', (string)$texto, $mm, PREG_SET_ORDER))
+        foreach ($mm as $h) $horasVistas[sprintf('%02d:%s', (int)$h[1], $h[2])] = true;
+};
+foreach ($convo as $mc) $anotarHoras(is_string($mc['content'] ?? null) ? $mc['content'] : '');
+$anotarHoras($horarioTxt);
+$anotarHoras($tips);
+$anotarHoras(date('H:i'));
+$yaCorregido = false;
+for ($i=0; $i<5; $i++) {
     list($code,$resp)=openai($KEY,$MODEL,$tools,$messages);
     if ($code!==200 || !isset($resp['choices'][0]['message'])) {
         error_log('bot-reply openai '.$code.': '.($resp['error']['message'] ?? ''));
@@ -1066,9 +1082,20 @@ for ($i=0; $i<4; $i++) {
             $out = $fn($args);
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
+            $anotarHoras(json_encode($out, JSON_UNESCAPED_UNICODE));
             /* traza para diagnosticar: solo con la clave interna y pidiendola */
             if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>$name, 'args'=>$args, 'out'=>$out];
         }
+        continue;
+    }
+    $inventadas = [];
+    if (preg_match_all('/([01]?d|2[0-3]):([0-5]d)/', (string)($m['content'] ?? ''), $mm, PREG_SET_ORDER))
+        foreach ($mm as $h) { $k = sprintf('%02d:%s', (int)$h[1], $h[2]); if (empty($horasVistas[$k])) $inventadas[] = $k; }
+    if ($inventadas && !$yaCorregido) {
+        $yaCorregido = true;
+        if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>'guardia', 'args'=>[], 'out'=>['horas_sin_consultar'=>$inventadas]];
+        $messages[] = ['role'=>'user', 'content'=>'[Aviso interno del sistema, no lo menciones al cliente] Ibas a ofrecer horas que no consultaste en la agenda ('
+            . implode(', ', array_unique($inventadas)) . '). Consulta con free_slots o check_availability y responde solo con horas que devuelvan esas funciones.'];
         continue;
     }
     $salida = ['reply'=>trim($m['content'] ?? '') ?: '¿Podrías darme más detalles? 🙂', 'booked'=>$booked];

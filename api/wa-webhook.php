@@ -255,11 +255,36 @@ echo 'ok';
 if (function_exists('fastcgi_finish_request')) { fastcgi_finish_request(); }
 else { @ob_end_flush(); @flush(); }
 
-/* ── Sesión de conversación (archivo por número) ── */
+/* ── Sesión de conversación (archivo por número) ──
+   El cliente muchas veces escribe en dos o tres mensajes seguidos ("A la 11" /
+   "Estaría bien"). Antes cada mensaje se procesaba por separado y a la vez:
+   cada uno leía la conversación sin el otro, y salían dos respuestas que se
+   contradecían ("no hay a las 11" y "¿a las 11 o a las 15?") y encima una
+   borraba a la otra de la memoria (pasó el 20/09). Ahora:
+   1. el mensaje se anota en la conversación con candado;
+   2. se esperan unos segundos: si llegó otro mensaje del mismo cliente, este
+      proceso se retira y el último contesta todo junto;
+   3. la respuesta se arma con candado, de a una por cliente. */
 $file = $dir . '/' . $from . '.json';
-$history = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: []) : [];
+$candado = @fopen($dir . '/' . $from . '.lock', 'c');
+$leerHist = function () use ($file) {
+    return file_exists($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
+};
+if ($candado) flock($candado, LOCK_EX);
+$history = $leerHist();
 $history[] = ['role' => 'user', 'content' => mb_substr($text, 0, 2000)];
 if (count($history) > 16) $history = array_slice($history, -16);
+@file_put_contents($file, json_encode($history, JSON_UNESCAPED_UNICODE));
+@file_put_contents($dir . '/' . $from . '.ultimo', $msgId);
+if ($candado) flock($candado, LOCK_UN);
+
+sleep(4);
+if (trim((string)@file_get_contents($dir . '/' . $from . '.ultimo')) !== $msgId) exit;   // contesta el mensaje más nuevo
+
+if ($candado) flock($candado, LOCK_EX);
+$history = $leerHist();
+/* si justo antes se contestó (otro proceso), ya no queda nada nuevo por responder */
+if (!$history || (end($history)['role'] ?? '') !== 'user') { if ($candado) flock($candado, LOCK_UN); exit; }
 
 /* ── Consultar al cerebro (con la clave interna que lo distingue de un extraño) ── */
 $internalKey = hash('sha256', (string)($cfg['openaiKey'] ?? '') . '|spa-internal');
