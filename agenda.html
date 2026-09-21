@@ -551,7 +551,13 @@ label.chk input{width:auto;margin:0}
 .side h3{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--light);font-weight:700;margin:0 0 8px}
 .side .field{margin-bottom:20px}
 .side select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--white)}
-.prof-list{display:flex;flex-direction:column;gap:4px}
+.prof-list{display:flex;flex-direction:column;gap:4px;max-height:232px;overflow-y:auto;overscroll-behavior:contain;padding-right:4px;scrollbar-width:thin}
+/* la lista de profesionales se pliega con la flecha y, si crece, se desplaza dentro de su espacio */
+.side-plegar{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;padding:0;cursor:pointer;font-family:inherit}
+.side-plegar h3{margin:0 0 8px}
+.side-flecha{font-size:.8rem;color:var(--light);margin-bottom:8px;transition:transform .2s}
+.side-plegar[aria-expanded="false"] .side-flecha{transform:rotate(-90deg)}
+.prof-list.plegada,.prof-list.plegada + .side-link{display:none}
 .prof-group-label{font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--light);font-weight:700;margin:14px 0 6px}
 .prof-chip{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:.82rem;cursor:pointer;border:1px solid transparent}
 .prof-chip:hover{background:var(--cream-2)}
@@ -1741,7 +1747,8 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     <div class="side-backdrop" id="sideBackdrop" onclick="toggleSide(false)"></div>
     <aside class="side" id="sidePanel">
       <div class="field">
-        <h3>Profesional</h3>
+        <button class="side-plegar" id="profPlegar" onclick="plegarProfesionales()" aria-expanded="true">
+          <h3>Profesional</h3><span class="side-flecha">▾</span></button>
         <div class="prof-list" id="profList"></div>
         <button class="side-link" id="btnProfsFiltro" onclick="openProfManager()">+ Gestionar profesionales</button>
       </div>
@@ -5244,6 +5251,17 @@ async function apptMouseUp(){
 
 /* ── MÓVIL ── */
 const esMovil = () => window.matchMedia('(max-width:820px)').matches
+/* la lista de profesionales del costado: se pliega con la flecha y se recuerda */
+function plegarProfesionales(forzar){
+  const lista = document.getElementById('profList'), btn = document.getElementById('profPlegar'); if(!lista || !btn) return
+  const plegar = forzar !== undefined ? forzar : !lista.classList.contains('plegada')
+  lista.classList.toggle('plegada', plegar)
+  btn.setAttribute('aria-expanded', plegar ? 'false' : 'true')
+  try{ localStorage.setItem('spa_prof_plegada', plegar ? '1' : '0') }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', () => {
+  try{ if(localStorage.getItem('spa_prof_plegada') === '1') plegarProfesionales(true) }catch(e){}
+})
 function toggleSide(forzar){
   const el=document.getElementById('sidePanel'), bg=document.getElementById('sideBackdrop')
   if(!el) return
