@@ -665,6 +665,9 @@ label.chk input{width:auto;margin:0}
 /* las ventanas se toman del encabezado y se mueven */
 @media (min-width:821px){ .modal .cd-head,.modal .modal-head-row,.modal > h2{cursor:grab} .modal.moviendo{user-select:none;box-shadow:0 30px 80px rgba(0,0,0,.38)} .modal.moviendo .cd-head,.modal.moviendo .modal-head-row{cursor:grabbing} }
 .modal-head-row h2{margin:0}
+.re-aviso{align-self:center;font-size:.78rem;color:var(--light);margin-right:4px}
+.re-aviso.pend{color:#b7791f;font-weight:700}
+#reGuardarBtn:disabled,#reDescartarBtn:disabled{opacity:.45;cursor:default}
 .status-wrap{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:20px;padding:5px 12px;background:var(--white)}
 .status-dot{width:9px;height:9px;border-radius:50%;background:#4a90d9;flex-shrink:0}
 .status-wrap select{border:none;font-size:.76rem;font-weight:600;padding:0;background:transparent;outline:none;cursor:pointer;width:auto}
@@ -3837,7 +3840,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <h2 id="adTitle" style="margin-bottom:2px">Reserva</h2>
         <div id="adChip"></div>
       </div>
-      <button class="qv-icon" onclick="closeModal('apptDetailModal')">✕</button>
+      <button class="qv-icon" onclick="cerrarDetalleReserva()">✕</button>
     </div>
     <div class="ad-tabs" id="adTabs"></div>
     <div id="adContent"></div>
@@ -6868,23 +6871,23 @@ function reservaEditable(a){
   const aptos = profesionalesDe(a.service_name)
   const profOpts = state.professionals.filter(p=>p.active!==false).map(p=>{
     const puede = aptos.some(x=>x.id===p.id)
-    return `<option value="${p.id}" ${p.id===a.professional_id?'selected':''} ${puede?'':'disabled'}>${esc(p.name)}${puede?'':' — no realiza este servicio'}</option>`
+    return `<option value="${p.id}" ${p.id===reVal(a,'prof',a.professional_id)?'selected':''} ${puede?'':'disabled'}>${esc(p.name)}${puede?'':' — no realiza este servicio'}</option>`
   }).join('')
 
   const byCat = {}
   state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
   const svcOpts = Object.entries(byCat).map(([cat,list])=>
     `<optgroup label="${esc(cat)}">${list.map(s=>
-      `<option value="${esc(s.name)}" ${s.name===a.service_name?'selected':''}>${esc(s.name)} · ${esc(s.price||'')}</option>`).join('')}</optgroup>`).join('')
+      `<option value="${esc(s.name)}" ${s.name===reVal(a,'servicio',a.service_name)?'selected':''}>${esc(s.name)} · ${esc(s.price||'')}</option>`).join('')}</optgroup>`).join('')
 
   return `
     <div class="re-fila3">
       <div><label>Fecha</label>
-        <input type="date" id="reFecha" value="${a.appt_date}" onchange="reGuardar('${a.id}','fecha',this.value)" /></div>
+        <input type="date" id="reFecha" value="${reVal(a,'fecha',a.appt_date)}" onchange="reMarcar('${a.id}','fecha',this.value)" /></div>
       <div><label>Hora</label>
-        <input type="time" id="reIni" value="${ini}" step="300" onchange="reGuardar('${a.id}','inicio',this.value)" /></div>
+        <input type="time" id="reIni" value="${reVal(a,'inicio',ini)}" step="300" onchange="reMarcar('${a.id}','inicio',this.value)" /></div>
       <div><label>Fin</label>
-        <input type="time" id="reFin" value="${fin}" step="300" onchange="reGuardar('${a.id}','fin',this.value)" /></div>
+        <input type="time" id="reFin" value="${reVal(a,'fin',fin)}" step="300" onchange="reMarcar('${a.id}','fin',this.value)" /></div>
     </div>
     <p class="re-dur">Duración: <strong>${dur} minutos</strong>
       <span class="re-origen">${ORIGENES[origenDe(a)].icono || '🏠'} ${esc(ORIGENES[origenDe(a)].nombre)}</span></p>
@@ -6941,19 +6944,19 @@ function reservaEditable(a){
 
     <label class="re-lbl">Profesional</label>
     <div class="re-select">
-      <select onchange="reGuardar('${a.id}','prof',this.value)">${profOpts}</select>
+      <select onchange="reMarcar('${a.id}','prof',this.value)">${profOpts}</select>
       <span class="re-candado" title="Solo se pueden elegir profesionales que realicen este servicio">🔒</span>
     </div>
 
     <label class="re-lbl">Servicios</label>
-    <select class="re-input" onchange="reGuardar('${a.id}','servicio',this.value)">${svcOpts}</select>
+    <select class="re-input" onchange="reMarcar('${a.id}','servicio',this.value)">${svcOpts}</select>
 
     <label class="re-lbl">Precio${precioAjustado(a) ? ' <span class="re-ajustado">ajustado</span>' : ''}</label>
     <div class="re-precio">
       <span>$</span>
-      <input type="text" inputmode="numeric" value="${esc(milesCL(money2num(a.price)))}"
-        onchange="reGuardar('${a.id}','precio',this.value)" />
-      ${precioAjustado(a) ? `<button class="mini-link" onclick="reGuardar('${a.id}','precio','${esc(precioDeCatalogo(a))}')" title="Volver al precio del servicio">Restaurar ${esc(precioDeCatalogo(a))}</button>` : ''}
+      <input type="text" inputmode="numeric" value="${esc(milesCL(money2num(reVal(a,'precio',a.price))))}"
+        onchange="reMarcar('${a.id}','precio',this.value)" />
+      ${precioAjustado(a) ? `<button class="mini-link" onclick="reMarcar('${a.id}','precio','${esc(precioDeCatalogo(a))}');renderApptTab()" title="Volver al precio del servicio">Restaurar ${esc(precioDeCatalogo(a))}</button>` : ''}
     </div>
     <p class="rem-note" style="margin:5px 0 0">Cámbialo si acordaste otro valor con el cliente. Se usa para cobrar y para los reportes.</p>
 
@@ -6964,11 +6967,13 @@ function reservaEditable(a){
 
     <label class="re-lbl">Nota interna</label>
     <textarea class="re-input" rows="2" placeholder="Solo la ve el equipo"
-      onchange="reGuardar('${a.id}','notas',this.value)">${esc(a.notes||'')}</textarea>
+      onchange="reMarcar('${a.id}','notas',this.value)">${esc(reVal(a,'notas',a.notes||''))}</textarea>
 
     <div style="display:flex;gap:8px;margin-top:20px">
       <button class="btn-danger" onclick="qvDelete('${a.id}');closeModal('apptDetailModal')">Eliminar reserva</button>
-      <span style="margin-left:auto;align-self:center;font-size:.76rem;color:var(--light)">Los cambios se guardan solos</span>
+      <span id="reAviso" class="re-aviso" style="margin-left:auto"></span>
+      <button class="mini-btn" id="reDescartarBtn" onclick="reDescartar()">Descartar</button>
+      <button class="btn-primary" id="reGuardarBtn" onclick="reConfirmar('${a.id}')">Guardar cambios</button>
     </div>`
 }
 function cfgRecordatorio(){
@@ -6978,22 +6983,68 @@ function cfgRecordatorio(){
 }
 
 /* guarda el campo que se acaba de cambiar */
-async function reGuardar(id, campo, valor){
-  const a = findAppt(id); if(!a) return
+/* ── Editar la reserva con botón Guardar ──
+   Antes cada campo se guardaba apenas se cambiaba. Luis pidió que no: ahora
+   los cambios quedan anotados y se guardan todos juntos con "Guardar cambios",
+   o se descartan. Si se cierra la ventana con cambios pendientes, se pregunta. */
+let reCambios = { id:null, v:{} }
+function reVal(a, campo, actual){
+  return (reCambios.id === a.id && reCambios.v[campo] !== undefined) ? reCambios.v[campo] : actual
+}
+function reMarcar(id, campo, valor){
+  if(reCambios.id !== id) reCambios = { id, v:{} }
+  reCambios.v[campo] = valor
+  reBarra()
+}
+function reHayCambios(){ return reCambios.id && Object.keys(reCambios.v).length > 0 }
+function reBarra(){
+  const hay = reHayCambios()
+  const av = document.getElementById('reAviso'), g = document.getElementById('reGuardarBtn'), d = document.getElementById('reDescartarBtn')
+  if(av) av.textContent = hay ? '● Cambios sin guardar' : 'Sin cambios'
+  if(av) av.classList.toggle('pend', !!hay)
+  if(g) g.disabled = !hay
+  if(d) d.disabled = !hay
+}
+function reDescartar(){ reCambios = { id:null, v:{} }; renderApptTab() }
+async function reConfirmar(id){
+  if(!reHayCambios()) return
+  const btn = document.getElementById('reGuardarBtn'); if(btn){ btn.disabled = true; btn.textContent = 'Guardando…' }
+  /* en orden: primero el día y la hora, después quién, qué y cuánto */
+  const orden = ['fecha','inicio','fin','prof','servicio','precio','notas']
+  let todos = true
+  for(const campo of orden){
+    if(reCambios.v[campo] === undefined) continue
+    const ok = await reGuardar(id, campo, reCambios.v[campo], true)
+    if(!ok){ todos = false; break }            // si uno no se pudo, los demás quedan pendientes
+    delete reCambios.v[campo]
+  }
+  if(!reHayCambios()) reCambios = { id:null, v:{} }
+  render(); renderApptTab()
+  if(todos) toast('Cambios guardados','success')
+}
+async function cerrarDetalleReserva(){
+  if(reHayCambios() && !await confirmar('Tienes cambios sin guardar en esta reserva. ¿Quieres descartarlos?',
+       { titulo:'Cambios sin guardar', ok:'Descartar cambios' })) return
+  reCambios = { id:null, v:{} }
+  closeModal('apptDetailModal')
+}
+
+async function reGuardar(id, campo, valor, silencioso){
+  const a = findAppt(id); if(!a) return false
   const cambio = {}
   if(campo === 'fecha'){
-    if(!valor) return
+    if(!valor) return false
     cambio.appt_date = valor
   } else if(campo === 'inicio'){
     const dur = toMin(a.end_time.slice(0,5)) - toMin(a.start_time.slice(0,5))
     cambio.start_time = valor + ':00'
     cambio.end_time = toHHMM(toMin(valor) + dur) + ':00'
   } else if(campo === 'fin'){
-    if(toMin(valor) <= toMin(a.start_time.slice(0,5))){ toast('La hora de fin debe ser posterior al inicio','error'); renderApptTab(); return }
+    if(toMin(valor) <= toMin(a.start_time.slice(0,5))){ toast('La hora de fin debe ser posterior al inicio','error'); renderApptTab(); return false }
     cambio.end_time = valor + ':00'
   } else if(campo === 'prof'){
     const motivo = checkProfServicio(valor, a.service_name)
-    if(motivo && !await seguirPeseA(motivo,'mover')){ renderApptTab(); return }
+    if(motivo && !await seguirPeseA(motivo,'mover')){ renderApptTab(); return false }
     cambio.professional_id = valor
   } else if(campo === 'servicio'){
     const sv = state.services.find(x=>x.name===valor)
@@ -7010,7 +7061,7 @@ async function reGuardar(id, campo, valor){
       toast('Ojo: ' + (profName(a.professional_id)||'ese profesional') + ' no tiene asignado este servicio','error')
   } else if(campo === 'precio'){
     const v = money2num(valor)
-    if(v <= 0 && String(valor).trim() !== '0'){ toast('Escribe un precio válido','error'); renderApptTab(); return }
+    if(v <= 0 && String(valor).trim() !== '0'){ toast('Escribe un precio válido','error'); renderApptTab(); return false }
     cambio.price = v > 0 ? ('$' + milesCL(v)) : '$0'
   } else if(campo === 'notas'){
     cambio.notes = valor
@@ -7022,20 +7073,20 @@ async function reGuardar(id, campo, valor){
   const dur = toMin(nueva.end_time.slice(0,5)) - toMin(ini)
   if(['fecha','inicio','fin','prof'].includes(campo)){
     const m1 = checkProfHours(nueva.professional_id, nueva.appt_date, ini, dur)
-    if(m1 && !await seguirPeseA(m1)){ renderApptTab(); return }
+    if(m1 && !await seguirPeseA(m1)){ renderApptTab(); return false }
     const m2 = checkReglasCuenta({ profId:nueva.professional_id, clientId:a.client_id,
       date:nueva.appt_date, start:ini, dur, apptId:a.id })
-    if(m2 && !await seguirPeseA(m2)){ renderApptTab(); return }
+    if(m2 && !await seguirPeseA(m2)){ renderApptTab(); return false }
     const m3 = checkRecursos({ serviceName:nueva.service_name, date:nueva.appt_date, start:ini, dur, apptId:a.id })
-    if(m3 && !cfgCuenta.sobrecargaRecursos && !await seguirPeseA(m3)){ renderApptTab(); return }
+    if(m3 && !cfgCuenta.sobrecargaRecursos && !await seguirPeseA(m3)){ renderApptTab(); return false }
   }
 
   try{
     await supabase.update('appointments', id, cambio)
     Object.assign(a, cambio)
-    render(); renderApptTab()
-    toast('Reserva actualizada','success')
-  }catch(e){ console.error(e); toast('No se pudo guardar el cambio','error'); renderApptTab() }
+    if(!silencioso){ render(); renderApptTab(); toast('Reserva actualizada','success') }
+    return true
+  }catch(e){ console.error(e); toast('No se pudo guardar el cambio: ' + (e.message||''),'error'); return false }
 }
 
 /* ══════════ INFORMACIÓN DEL CLIENTE EN LA RESERVA ══════════
@@ -7201,6 +7252,7 @@ function openApptDetail(id){
   if(isPro()){ toast('Las reservas las modifica la recepción. Desde aquí puedes ver y crear fichas.', 'error'); return }
   const a=findAppt(id); if(!a) return
   adState={id, tab:'reserva', hist:'cliente'}
+  reCambios = { id:null, v:{} }
   document.getElementById('adTitle').textContent='Reserva de '+(a.client_name||'—')
   document.getElementById('adChip').innerHTML=a.service_name?`<span class="ad-chip">${esc(a.service_name)}</span>`:''
   document.getElementById('adTabs').innerHTML=AD_TABS.map(([k,l])=>`<button class="ad-tab ${k==='reserva'?'on':''}" data-tab="${k}" onclick="setApptTab('${k}')">${l}</button>`).join('')
@@ -7220,6 +7272,7 @@ function renderApptTab(){
   const t=adState.tab
   if(t==='reserva'){
     el.innerHTML = reservaEditable(a)
+    reBarra()
   } else if(t==='pago'){
     el.innerHTML = pagoDeReserva(a)
   } else if(t==='recordatorios'){
