@@ -5,9 +5,9 @@
  * Antes, cuando algo no estaba en el catálogo ni en las preguntas frecuentes,
  * Mariet decía "lo confirmo con el equipo" y ahí moría: nadie se enteraba.
  * Ahora le escribe la duda a Luis por WhatsApp, le avisa al cliente que está
- * consultando, y cuando Luis responde (respondiendo a ese mensaje o, si es la
- * única consulta abierta, escribiendo nomás) la respuesta le llega al cliente
- * y queda guardada para no volver a preguntar lo mismo.
+ * consultando, y cuando Luis usa "Responder" sobre ese mensaje, la respuesta le
+ * llega al cliente y queda guardada para no volver a preguntar lo mismo.
+ * Si el equipo le contesta directo al cliente, la consulta se cierra sola.
  */
 require_once __DIR__ . '/wa-pausas.php';
 
@@ -57,6 +57,9 @@ function wa_consultar_al_equipo($cfg, $pregunta, $clienteTel, $clienteNombre = '
     if ($pregunta === '') return ['ok' => false, 'reason' => 'la pregunta viene vacía'];
     $equipo = wa_equipo_tel($cfg);
     if ($equipo === '') return ['ok' => false, 'reason' => 'no hay número del equipo configurado (equipoTel en bot-config.php)'];
+    /* una duda abierta por cliente: el 19/09 salieron tres casi iguales seguidas */
+    if (wa_consulta_abierta_de($clienteTel))
+        return ['ok' => false, 'reason' => 'ya hay una consulta de este cliente esperando respuesta del equipo: no mandes otra. Dile que apenas le confirmen le avisas.'];
     if (wa_consultas_ultima_hora() >= WA_CONSULTAS_POR_HORA)
         return ['ok' => false, 'reason' => 'ya se enviaron muchas consultas esta hora; resuélvelo con lo que sabes y ofrece que el equipo le escriba'];
 
@@ -71,7 +74,7 @@ function wa_consultar_al_equipo($cfg, $pregunta, $clienteTel, $clienteNombre = '
     $texto = "🤖 Mariet necesita una aclaración\n\n"
            . "Cliente: {$quien} (+{$clienteTel})\n\n"
            . "❓ {$pregunta}\n\n"
-           . "Responde este mensaje y le paso tu respuesta al cliente. La guardo para no volver a preguntar lo mismo.";
+           . "👉 Mantén presionado este mensaje y elige *Responder*: así le paso tu respuesta al cliente y la guardo para la próxima. Si no usas Responder, no se envía nada.";
 
     $ch = curl_init('https://graph.facebook.com/v23.0/' . $cfg['waPhoneId'] . '/messages');
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>20, CURLOPT_POST=>true,
@@ -99,19 +102,38 @@ function svc_clave_consulta($t) {
     return trim(preg_replace('/[^a-z0-9]+/', ' ', $t));
 }
 
-/**
- * ¿Este mensaje del equipo es la respuesta a una consulta?
- * Primero por el mensaje citado; si no cita, la única consulta abierta reciente.
- */
+/* SOLO cuenta como respuesta si Luis usa "Responder" sobre el mensaje de la
+   consulta. Antes también valía cualquier mensaje suelto cuando había una sola
+   consulta abierta, y eso mandó a clientes mensajes de prueba que Luis le
+   escribía a Mariet desde su número ("Ya lo confirmé con el equipo 😊 hola,
+   cuanto cuesta..."). Nunca más se adivina. */
 function wa_consulta_que_responde($contextoId = '') {
-    $l = wa_consultas_leer();
-    if ($contextoId !== '') {
-        foreach ($l as $i => $c) if (($c['wamid'] ?? '') === $contextoId && empty($c['respuesta'])) return $i;
+    if ($contextoId === '') return null;
+    foreach (wa_consultas_leer() as $i => $c)
+        if (($c['wamid'] ?? '') === $contextoId && empty($c['respuesta'])
+            && ($c['t'] ?? 0) > time() - WA_CONSULTA_VENCE) return $i;
+    return null;
+}
+/* El equipo le contestó directo al cliente en su chat: sus consultas abiertas
+   quedan cerradas, para no mandarle después la misma respuesta repetida. */
+function wa_consultas_cerrar_de_cliente($clienteTel, $respuesta) {
+    $l = wa_consultas_leer(); $cambio = false;
+    foreach ($l as $i => $c) {
+        if (empty($c['respuesta']) && wa_tel($c['cliente'] ?? '') === wa_tel($clienteTel)) {
+            $l[$i]['respuesta'] = trim((string)$respuesta);
+            $l[$i]['respondida'] = time();
+            $l[$i]['directo'] = true;
+            $cambio = true;
+        }
     }
-    $abiertas = [];
-    foreach ($l as $i => $c)
-        if (empty($c['respuesta']) && ($c['t'] ?? 0) > time() - WA_CONSULTA_VENCE) $abiertas[] = $i;
-    return (count($abiertas) === 1 && $contextoId === '') ? $abiertas[0] : null;
+    if ($cambio) wa_consultas_guardar($l);
+}
+/* ¿ya hay una consulta abierta de este cliente, reciente? */
+function wa_consulta_abierta_de($clienteTel) {
+    foreach (wa_consultas_leer() as $c)
+        if (empty($c['respuesta']) && wa_tel($c['cliente'] ?? '') === wa_tel($clienteTel)
+            && ($c['t'] ?? 0) > time() - 3 * 3600) return $c;
+    return null;
 }
 function wa_consulta_responder($i, $respuesta) {
     $l = wa_consultas_leer();

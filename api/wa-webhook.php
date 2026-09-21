@@ -102,7 +102,12 @@ if (($cambio['field'] ?? '') === 'smb_message_echoes') {
             }
         }
         wa_log($eco['to'], 'equipo', $txtEco, $extraEco);
-        if (($eco['type'] ?? '') === 'text') { wa_contexto_agregar($eco['to'], 'assistant', $txtEco); wa_aprender($eco['to'], $txtEco, 'Celular'); }
+        if (($eco['type'] ?? '') === 'text') {
+            wa_contexto_agregar($eco['to'], 'assistant', $txtEco); wa_aprender($eco['to'], $txtEco, 'Celular');
+            /* le contestaron directo: su consulta pendiente ya no se reenvía */
+            require_once __DIR__ . '/wa-consultas.php';
+            wa_consultas_cerrar_de_cliente($eco['to'], $txtEco);
+        }
     }
     http_response_code(200); exit('ok');
 }

@@ -472,7 +472,7 @@ $tools = [
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD de la reserva'],
       'time'=>['type'=>'string','description'=>'Hora HH:MM de la reserva']
     ],'required'=>['date','time']]]],
-  ['type'=>'function','function'=>['name'=>'ask_team','description'=>'Le pregunta por WhatsApp al equipo del spa (Luis) algo que no sabes y que no está en esta información: convenios, formas de pago, estacionamiento, si un tratamiento sirve para un caso particular, un precio especial, una excepción. Úsala en vez de inventar o de prometer que alguien le escribirá. Después dile al cliente que lo estás consultando y que le respondes en cuanto te confirmen.',
+  ['type'=>'function','function'=>['name'=>'ask_team','description'=>'Le pregunta por WhatsApp al equipo del spa (Luis) algo que no sabes y que no está en esta información: convenios, formas de pago, estacionamiento, si un tratamiento sirve para un caso particular, un precio especial, una excepción. Úsala en vez de inventar o de prometer que alguien le escribirá. NUNCA la uses para precios, duraciones ni para saber qué servicios hay: eso está en el catálogo. Después dile al cliente que lo estás consultando y que le respondes en cuanto te confirmen.',
     'parameters'=>['type'=>'object','properties'=>[
       'pregunta'=>['type'=>'string','description'=>'La duda concreta, escrita para que el equipo la entienda sin leer la conversación. Incluye el contexto necesario.']
     ],'required'=>['pregunta']]]],
@@ -752,6 +752,10 @@ function do_ask_team($args) {
     global $cfg, $phone, $clienteConocido, $esWebhook;
     if (!$esWebhook || $phone === '') return ['ok'=>false, 'reason'=>'esto solo funciona en una conversación real de WhatsApp'];
     require_once __DIR__ . '/wa-consultas.php';
+    /* precios y duraciones están en el catálogo: se consultaban igual (el 18/09
+       salieron cuatro consultas por el valor del ácido nítrico) */
+    if (preg_match('/(precio|valor|cu[aá]nto (cuesta|sale|vale)|duraci[oó]n|cu[aá]nto dura)/iu', (string)($args['pregunta'] ?? '')))
+        return ['ok'=>false, 'reason'=>'NO consultado: los precios y las duraciones están en el catálogo de estas instrucciones; respóndelo con eso. Si el servicio no aparece en el catálogo, ofrece la evaluación podológica.'];
     $r = wa_consultar_al_equipo($cfg, $args['pregunta'] ?? '', $phone, $clienteConocido['nombre'] ?? '');
     if (!empty($r['ya_respondida'])) return $r;
     if (empty($r['ok'])) return $r;
