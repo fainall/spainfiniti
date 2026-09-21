@@ -662,6 +662,8 @@ label.chk input{width:auto;margin:0}
 .row2>*,.row3>*{min-width:0}
 .row2 input,.row3 input,.row2 select,.row3 select{min-width:0}
 .modal-head-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+/* las ventanas se toman del encabezado y se mueven */
+@media (min-width:821px){ .modal .cd-head,.modal .modal-head-row,.modal > h2{cursor:grab} .modal.moviendo{user-select:none;box-shadow:0 30px 80px rgba(0,0,0,.38)} .modal.moviendo .cd-head,.modal.moviendo .modal-head-row{cursor:grabbing} }
 .modal-head-row h2{margin:0}
 .status-wrap{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);border-radius:20px;padding:5px 12px;background:var(--white)}
 .status-dot{width:9px;height:9px;border-radius:50%;background:#4a90d9;flex-shrink:0}
@@ -15251,8 +15253,35 @@ async function deleteProf(id,name){
 /* ── UTIL ── */
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])) }
 let _zModal = 900
+/* ── Ventanas que se pueden mover ──
+   La ficha del cliente (y las demás ventanas) se toman desde su encabezado y se
+   corren por la pantalla, igual que la ficha rápida de la reserva (Luis). Cada
+   vez que se abren vuelven a su lugar. */
+document.addEventListener('mousedown', e => {
+  if(e.button!==0 || window.innerWidth <= 820) return
+  const asa = e.target.closest('.modal .cd-head, .modal .modal-head-row, .modal > h2')
+  if(!asa || e.target.closest('button, a, input, select, textarea, label')) return
+  const caja = asa.closest('.modal'); if(!caja) return
+  const previo = (caja.style.transform.match(/-?[\d.]+/g) || [0,0]).map(Number)
+  const ini = { x:e.clientX, y:e.clientY, dx:previo[0]||0, dy:previo[1]||0 }
+  caja.classList.add('moviendo'); e.preventDefault()
+  const mover = ev => {
+    const r = caja.getBoundingClientRect()
+    let dx = ini.dx + ev.clientX - ini.x, dy = ini.dy + ev.clientY - ini.y
+    /* que siempre quede a la vista un pedazo del encabezado para volver a tomarla */
+    const base = { left:r.left - (parseFloat(caja.dataset.dx)||0), top:r.top - (parseFloat(caja.dataset.dy)||0) }
+    dx = Math.min(Math.max(dx, -base.left - r.width + 120), window.innerWidth - base.left - 120)
+    dy = Math.min(Math.max(dy, -base.top), window.innerHeight - base.top - 60)
+    caja.style.transform = `translate(${dx}px, ${dy}px)`
+    caja.dataset.dx = dx; caja.dataset.dy = dy
+  }
+  const soltar = () => { caja.classList.remove('moviendo'); document.removeEventListener('mousemove', mover); document.removeEventListener('mouseup', soltar) }
+  document.addEventListener('mousemove', mover); document.addEventListener('mouseup', soltar)
+})
 function openModal(id){
   const el = document.getElementById(id); if(!el) return
+  /* al abrirse, la ventana vuelve a su lugar */
+  const cajaM = el.querySelector('.modal'); if(cajaM){ cajaM.style.transform = ''; cajaM.dataset.dx = 0; cajaM.dataset.dy = 0 }
   /* cada modal que se abre queda por encima del anterior: un contador que
      solo sube evita empates, que dejaban al de abajo tapando al de arriba */
   _zModal += 10
