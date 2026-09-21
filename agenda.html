@@ -1350,6 +1350,41 @@ body.sin-scroll{overflow:hidden}
 
 /* registro fotográfico dentro de una ficha */
 .ff-fotos{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+/* ── antes y después ── */
+.ad-cab{display:flex;gap:14px;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap}
+.ad-card{border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:14px;background:#fff}
+.ad-top{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.ad-titulo{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:.88rem;font-weight:600}
+.ad-par{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ad-lado{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ad-rot{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mid)}
+.ad-lado img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;cursor:zoom-in;background:#f3f1ec}
+.ad-vacio{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;aspect-ratio:4/3;border:2px dashed var(--border);border-radius:10px;cursor:pointer;font-size:1.8rem;color:var(--mid)}
+.ad-vacio span{font-size:.78rem;font-weight:600}
+.ad-vacio:hover{border-color:var(--gold);color:var(--gold-d)}
+.ad-cambiar{font-size:.74rem;cursor:pointer;align-self:flex-start}
+.ad-sub{font-size:.72rem;color:var(--mid)}
+.ad-notas{width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit;resize:vertical}
+.ad-visor{position:fixed;inset:0;background:rgba(15,20,30,.78);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
+.ad-visor-caja{background:#fff;border-radius:14px;max-width:1100px;width:100%;max-height:94vh;overflow:auto;padding:16px}
+.ad-visor-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.ad-visor-top strong{flex:1}
+.ad-modos{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.ad-modos button{border:0;background:#fff;padding:6px 12px;font-size:.78rem;cursor:pointer;font-family:inherit}
+.ad-modos button.on{background:var(--dark);color:#fff}
+.ad-visor-lado{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ad-visor-lado figure{margin:0}
+.ad-visor-lado img{width:100%;max-height:72vh;object-fit:contain;border-radius:10px;background:#f3f1ec}
+.ad-visor-lado figcaption{font-size:.8rem;font-weight:600;color:var(--mid);margin-top:6px;text-align:center}
+.ad-barra-marco{position:relative;max-width:760px;margin:0 auto;border-radius:10px;overflow:hidden;background:#f3f1ec}
+.ad-barra-marco img{display:block;width:100%;max-height:70vh;object-fit:contain}
+.ad-b-despues-caja{position:absolute;inset:0;clip-path:inset(0 0 0 50%)}
+.ad-b-despues-caja img{width:100%;height:100%;object-fit:contain}
+.ad-b-et{position:absolute;top:10px;background:rgba(0,0,0,.55);color:#fff;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:6px}
+.ad-b-et.izq{left:10px} .ad-b-et.der{right:10px}
+.ad-rango{display:block;width:100%;max-width:760px;margin:12px auto 0}
+.ad-visor-notas{margin:12px 0 0;font-size:.85rem;color:var(--texto);white-space:pre-wrap}
+@media (max-width:600px){ .ad-par,.ad-visor-lado{grid-template-columns:1fr} }
 .ff-miniaturas{display:flex;flex-wrap:wrap;gap:8px}
 .ff-mini{position:relative;display:inline-block}
 .ff-mini img{width:88px;height:88px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block}
@@ -7538,6 +7573,7 @@ async function openClientDetail(id){
   cdCliente = state.clients.find(x=>x.id===id); if(!cdCliente) return
   cdTab = isPro() ? 'fichas' : 'actividad'
   fichasCliente = []
+  comparaciones = []
   cdCitas = null
   renderClientDetail()
   openModal('clientDetailModal')
@@ -7549,9 +7585,136 @@ async function openClientDetail(id){
   if(!consentimientos.length) await cargarConsentimientos()
   await cargarFichasDe(id)
   await cargarFirmasDe(id)
+  await cargarComparaciones(id)
   if(document.getElementById('clientDetailModal').classList.contains('open')) renderClientDetail()
 }
 function cdSetTab(t){ cdTab=t; renderClientDetail() }
+
+/* ══════════ ANTES Y DESPUÉS ══════════
+   Dos fotos para comparar el resultado de un tratamiento: la del inicio y la
+   de después (pedido de Luis). En el celular o la tableta el botón abre
+   directo la cámara; en el computador deja elegir un archivo. Las fotos van
+   a la carpeta privada "fichas": solo se ven con sesión del panel. */
+let comparaciones = []
+async function cargarComparaciones(clientId){
+  try{ comparaciones = await supabase.fetch('client_comparisons',
+    { filters:'client_id=eq.' + clientId, order:'created_at.desc' }) || [] }
+  catch(e){ console.warn('antes y despues:', e.message); comparaciones = [] }
+}
+const fechaCorta = f => f ? f.split('-').reverse().join('/') : ''
+function cdAntesDespues(){
+  const lado = (c, cual) => {
+    const url = c[cual + '_url'], fecha = c[cual + '_fecha']
+    const titulo = cual === 'antes' ? 'Antes' : 'Después'
+    return `<div class="ad-lado">
+      <div class="ad-rot">${titulo}${fecha ? ' · ' + fechaCorta(fecha) : ''}</div>
+      ${url
+        ? `<img src="${esc(url)}" alt="${titulo}" onclick="verComparacion('${c.id}')">
+           <label class="mini-link ad-cambiar">Cambiar foto
+             <input type="file" accept="image/*" capture="environment" hidden onchange="subirComparacion('${c.id}','${cual}',this)"></label>`
+        : `<label class="ad-vacio">📷<span>Tomar foto de ${titulo.toLowerCase()}</span>
+             <input type="file" accept="image/*" capture="environment" hidden onchange="subirComparacion('${c.id}','${cual}',this)"></label>`}
+      <span class="ad-sub" id="adsub-${c.id}-${cual}"></span>
+    </div>`
+  }
+  const tarjetas = comparaciones.map(c => `<div class="ad-card">
+      <div class="ad-top">
+        <input class="ad-titulo" value="${esc(c.titulo || '')}" placeholder="¿Qué se trata? (ej. uñas pie derecho)"
+          onchange="guardarComparacion('${c.id}',{titulo:this.value})">
+        ${c.antes_url && c.despues_url ? `<button class="mini-btn" onclick="verComparacion('${c.id}')">Comparar</button>` : ''}
+        ${isPro() ? '' : `<button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="borrarComparacion('${c.id}')">🗑</button>`}
+      </div>
+      <div class="ad-par">${lado(c,'antes')}${lado(c,'despues')}</div>
+      <textarea class="ad-notas" rows="2" placeholder="Notas (sesiones realizadas, producto usado, cómo evolucionó...)"
+        onchange="guardarComparacion('${c.id}',{notas:this.value})">${esc(c.notas || '')}</textarea>
+    </div>`).join('')
+  return `<div class="ad-cab">
+      <p class="rem-note" style="margin:0">Toma una foto al empezar el tratamiento y otra al final, siempre con la misma luz y el mismo ángulo, para comparar el resultado.</p>
+      <button class="btn-primary" onclick="nuevaComparacion()">+ Nueva comparación</button>
+    </div>
+    ${tarjetas || '<div class="empty-state">Todavía no hay fotos de antes y después para este cliente.</div>'}`
+}
+async function nuevaComparacion(){
+  if(!cdCliente) return
+  try{
+    const r = await supabase.insert('client_comparisons', { client_id: cdCliente.id, titulo: '' })
+    const nueva = Array.isArray(r) ? r[0] : r
+    comparaciones.unshift(nueva)
+    renderClientDetail()
+  }catch(e){ console.error(e); toast('No se pudo crear la comparación: ' + e.message, 'error') }
+}
+async function guardarComparacion(id, cambios){
+  try{
+    await supabase.update('client_comparisons', id, cambios)
+    const c = comparaciones.find(x => x.id === id); if(c) Object.assign(c, cambios)
+  }catch(e){ toast('No se pudo guardar: ' + e.message, 'error') }
+}
+async function subirComparacion(id, cual, input){
+  const f = (input.files || [])[0]; if(!f || !cdCliente) return
+  if(!/^image\//.test(f.type)){ toast('Solo se pueden subir imágenes', 'error'); return }
+  const aviso = document.getElementById('adsub-' + id + '-' + cual)
+  if(!await sesionLista()){ toast('Tu sesión caducó. Vuelve a entrar y reintenta la foto.', 'error'); return }
+  try{
+    if(aviso) aviso.textContent = 'Subiendo…'
+    const blob = await reducirImagen(f, 1600, 0.85)
+    const nombre = cdCliente.id + '/antes-despues/' + id + '-' + cual + '-' + Date.now() + '.jpg'
+    const subir = () => fetch(SUPABASE_URL + '/storage/v1/object/fichas/' + nombre, { method:'POST',
+      headers:{ Authorization: supaAuthHeader(), apikey: SUPABASE_ANON_KEY, 'Content-Type':'image/jpeg' }, body: blob })
+    let r = await subir()
+    if(r.status === 401 || r.status === 403){ await supaAuth.ensureFresh(); r = await subir() }
+    if(!r.ok) throw new Error(await r.text())
+    const cambios = { [cual + '_url']: SUPABASE_URL + '/storage/v1/object/public/fichas/' + nombre,
+                      [cual + '_fecha']: isoDate(new Date()) }
+    await guardarComparacion(id, cambios)
+    toast(cual === 'antes' ? 'Foto de antes guardada' : 'Foto de después guardada', 'success')
+    renderClientDetail()
+  }catch(e){
+    console.error(e)
+    toast(/401|403|security/i.test(String(e.message)) ? 'Tu sesión caducó. Vuelve a entrar y reintenta la foto.' : 'No se pudo subir la foto', 'error')
+    if(aviso) aviso.textContent = ''
+  }
+}
+async function borrarComparacion(id){
+  if(!await confirmar('¿Eliminar esta comparación con sus dos fotos?', { titulo:'Eliminar antes y después', ok:'Eliminar' })) return
+  try{
+    await supabase.delete('client_comparisons', id)
+    comparaciones = comparaciones.filter(x => x.id !== id)
+    renderClientDetail(); toast('Comparación eliminada', 'success')
+  }catch(e){ toast('No se pudo eliminar: ' + e.message, 'error') }
+}
+/* Vista grande para comparar: las dos fotos lado a lado, o una encima de la
+   otra con una barra que se desliza para ir descubriendo el después. */
+function verComparacion(id){
+  const c = comparaciones.find(x => x.id === id); if(!c) return
+  const cerrar = () => { const v = document.getElementById('adVisor'); if(v) v.remove() }
+  cerrar()
+  const v = document.createElement('div'); v.id = 'adVisor'; v.className = 'ad-visor'
+  const ambas = c.antes_url && c.despues_url
+  v.innerHTML = `<div class="ad-visor-caja">
+      <div class="ad-visor-top"><strong>${esc(c.titulo || 'Antes y después')}</strong>
+        ${ambas ? `<div class="ad-modos"><button class="on" data-m="lado">Lado a lado</button><button data-m="barra">Deslizar</button></div>` : ''}
+        <button class="qv-icon" onclick="document.getElementById('adVisor').remove()">✕</button></div>
+      <div class="ad-visor-lado">
+        ${c.antes_url ? `<figure><img src="${esc(c.antes_url)}"><figcaption>Antes ${fechaCorta(c.antes_fecha)}</figcaption></figure>` : ''}
+        ${c.despues_url ? `<figure><img src="${esc(c.despues_url)}"><figcaption>Después ${fechaCorta(c.despues_fecha)}</figcaption></figure>` : ''}
+      </div>
+      ${ambas ? `<div class="ad-visor-barra" hidden>
+        <div class="ad-barra-marco"><img src="${esc(c.antes_url)}" class="ad-b-antes">
+          <div class="ad-b-despues-caja"><img src="${esc(c.despues_url)}" class="ad-b-despues"></div>
+          <span class="ad-b-et izq">Antes</span><span class="ad-b-et der">Después</span></div>
+        <input type="range" min="0" max="100" value="50" class="ad-rango"></div>` : ''}
+      ${c.notas ? `<p class="ad-visor-notas">${esc(c.notas)}</p>` : ''}
+    </div>`
+  v.addEventListener('click', e => { if(e.target === v) cerrar() })
+  document.body.appendChild(v)
+  v.querySelectorAll('.ad-modos button').forEach(b => b.onclick = () => {
+    v.querySelectorAll('.ad-modos button').forEach(x => x.classList.toggle('on', x === b))
+    v.querySelector('.ad-visor-lado').hidden = b.dataset.m !== 'lado'
+    v.querySelector('.ad-visor-barra').hidden = b.dataset.m !== 'barra'
+  })
+  const rango = v.querySelector('.ad-rango')
+  if(rango) rango.oninput = () => { v.querySelector('.ad-b-despues-caja').style.clipPath = 'inset(0 0 0 ' + rango.value + '%)' }
+}
 
 /* las reservas y ventas de este cliente */
 /* Antes la ficha tomaba las reservas cargadas en la agenda, que son solo las
@@ -7595,10 +7758,12 @@ function renderClientDetail(){
   const todas = [['actividad','Actividad'],['asistencia','Asistencia'],
                 ['pagos','Pagos y deudas'],['fichas','Fichas ('+fichasCliente.length+')'],
                 ['consent','Consentimientos ('+firmasCliente.length+')'],
+                ['antesdespues','Antes y después ('+comparaciones.length+')'],
                 ['bonos','Bonos ('+bonos.length+')']]
-  /* una profesional solo ve y crea fichas y consentimientos */
-  const tabs = pro ? todas.filter(([k]) => k === 'fichas' || k === 'consent') : todas
-  if(pro && cdTab !== 'fichas' && cdTab !== 'consent') cdTab = 'fichas'
+  /* una profesional ve y crea fichas, consentimientos y fotos de antes y después */
+  const PRO_TABS = ['fichas','consent','antesdespues']
+  const tabs = pro ? todas.filter(([k]) => PRO_TABS.includes(k)) : todas
+  if(pro && !PRO_TABS.includes(cdTab)) cdTab = 'fichas'
   document.getElementById('cdTabs').innerHTML = tabs.map(([k,t])=>
     `<button class="${cdTab===k?'on':''}" onclick="cdSetTab('${k}')">${t}</button>`).join('')
 
@@ -7608,6 +7773,7 @@ function renderClientDetail(){
   else if(cdTab==='pagos') body.innerHTML = cdPagos(sales, appts)
   else if(cdTab==='fichas') body.innerHTML = cdFichas()
   else if(cdTab==='consent') body.innerHTML = cdConsent()
+  else if(cdTab==='antesdespues') body.innerHTML = cdAntesDespues()
   else body.innerHTML = cdBonos(bonos)
 
   document.getElementById('cdEditBtn').onclick=()=>{ closeModal('clientDetailModal'); openClientModal(true,c.id) }
@@ -10257,7 +10423,7 @@ new MutationObserver(() => { clearTimeout(relojFotos); relojFotos = setTimeout(f
    tablas a un archivo, usando la sesion de quien lo pide. */
 const TABLAS_RESPALDO = ['appointments','clients','professionals','services','categories',
   'sales','products','stock_movements','cash_movements','plans','record_templates',
-  'client_records','consents','client_consents','payment_links','panel_users','bot_config',
+  'client_records','consents','client_consents','client_comparisons','payment_links','panel_users','bot_config',
   'surveys','survey_responses','campaigns','gift_card_uses']
 
 /* Supabase entrega como maximo 1.000 filas por consulta: la copia anterior
