@@ -1367,6 +1367,12 @@ body.sin-scroll{overflow:hidden}
 .ad-vacio:hover{border-color:var(--gold);color:var(--gold-d)}
 .ad-cambiar{font-size:.74rem;cursor:pointer;align-self:flex-start}
 .ad-sub{font-size:.72rem;color:var(--mid)}
+.doc-fila{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.doc-ico{font-size:1.4rem}
+.doc-datos{flex:1;min-width:0;display:flex;flex-direction:column}
+.doc-datos strong{font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-datos span{font-size:.74rem;color:var(--mid)}
+.doc-subir{display:inline-block;margin-top:14px;cursor:pointer}
 .ad-guardar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px}
 .ad-notas{width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit;resize:vertical}
 .ad-visor{position:fixed;inset:0;background:rgba(15,20,30,.78);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -2851,6 +2857,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <button class="on" onclick="proTab('basicos',this)">Datos básicos</button>
         <button onclick="proTab('horario',this)">Horario</button>
         <button onclick="proTab('perfil',this)">Perfil</button>
+        <button onclick="proTab('documentos',this)">Documentos</button>
       </div>
 
       <div class="mtab-pane on" id="prtab-basicos">
@@ -2917,6 +2924,15 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
               <p class="rem-note" id="proCommNota" style="margin:4px 0 0"></p></div>
             <div><label>Estado</label><select id="proActive"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
           </div>
+        </div>
+      </div>
+
+      <div class="mtab-pane" id="prtab-documentos">
+        <div class="fbox">
+          <h3 style="font-size:.95rem;font-weight:600">Documentos</h3>
+          <p class="rem-note" style="margin:2px 0 12px">Contratos, certificados, títulos, carnet... en PDF o imagen, hasta 15 MB cada uno.
+            Se guardan en una carpeta privada: solo administración los puede ver.</p>
+          <div id="proDocsBox"></div>
         </div>
       </div>
 
@@ -10472,7 +10488,7 @@ document.addEventListener('click', e=>{ if(!e.target.closest('#addFicha')) cerra
    guardado el enlace de siempre; al mostrarlo, el panel pide a Supabase un
    enlace firmado que vence en una hora, y solo alguien con sesion del panel
    puede pedirlo. Se aplica solo a cualquier imagen o enlace que aparezca. */
-const FOTO_PRIV_RE = /\/storage\/v1\/object\/public\/(fichas|consentimientos)\/([^?#"']+)/
+const FOTO_PRIV_RE = /\/storage\/v1\/object\/public\/(fichas|consentimientos|documentos)\/([^?#"']+)/
 const fotoFirmada = {}
 let firmandoFotos = false, otraVueltaFotos = false, relojFotos = null
 async function firmarFotosPrivadas(){
@@ -10516,7 +10532,7 @@ new MutationObserver(() => { clearTimeout(relojFotos); relojFotos = setTimeout(f
    tablas a un archivo, usando la sesion de quien lo pide. */
 const TABLAS_RESPALDO = ['appointments','clients','professionals','services','categories',
   'sales','products','stock_movements','cash_movements','plans','record_templates',
-  'client_records','consents','client_consents','client_comparisons','payment_links','panel_users','bot_config',
+  'client_records','consents','client_consents','client_comparisons','professional_documents','payment_links','panel_users','bot_config',
   'surveys','survey_responses','campaigns','gift_card_uses']
 
 /* Supabase entrega como maximo 1.000 filas por consulta: la copia anterior
@@ -12216,11 +12232,88 @@ function admProfesionales(){
     <div class="adm-head"><span></span><button class="btn-primary" onclick="openProModal()">+ Nuevo profesional</button></div>
     ${rows || '<div class="empty-state">Aún no hay profesionales.</div>'}`
 }
+const PRO_TABS_ADM = ['basicos','horario','perfil','documentos']
 function proTab(name,btn){
-  ;['basicos','horario','perfil'].forEach(n=>document.getElementById('prtab-'+n).classList.toggle('on',n===name))
+  PRO_TABS_ADM.forEach(n=>document.getElementById('prtab-'+n).classList.toggle('on',n===name))
   const btns=[...document.querySelectorAll('#proTabs button')]
   btns.forEach(b=>b.classList.remove('on'))
-  ;(btn||btns[['basicos','horario','perfil'].indexOf(name)]).classList.add('on')
+  ;(btn||btns[PRO_TABS_ADM.indexOf(name)]).classList.add('on')
+  if(name==='documentos') pintarDocsPro()
+}
+
+/* ══════════ DOCUMENTOS DE LA PROFESIONAL ══════════
+   PDF e imágenes (contrato, certificados, carnet) en la carpeta privada
+   "documentos". Solo administración y admin local pueden verlos: lo exigen las
+   reglas de la base y de la carpeta, no solo esta pantalla. */
+let docsPro = []
+async function cargarDocsPro(profId){
+  try{ docsPro = await supabase.fetch('professional_documents', { filters:'professional_id=eq.' + profId, order:'created_at.desc' }) || [] }
+  catch(e){ console.warn('documentos:', e.message); docsPro = [] }
+}
+const pesoLegible = b => !b ? '' : b < 1048576 ? Math.round(b/1024) + ' KB' : (b/1048576).toFixed(1) + ' MB'
+async function pintarDocsPro(){
+  const box = document.getElementById('proDocsBox'); if(!box) return
+  const profId = document.getElementById('proId').value
+  if(!profId){ box.innerHTML = '<p class="rem-note">Guarda primero a la profesional y después podrás subirle documentos.</p>'; return }
+  box.innerHTML = '<p class="rem-note">Cargando…</p>'
+  await sesionLista()
+  await cargarDocsPro(profId)
+  const filas = docsPro.map(d => {
+    const esPdf = /pdf/i.test(d.tipo || '') || /\.pdf$/i.test(d.nombre)
+    return `<div class="doc-fila">
+      <span class="doc-ico">${esPdf ? '📄' : '🖼'}</span>
+      <div class="doc-datos"><strong>${esc(d.nombre)}</strong>
+        <span>${new Date(d.created_at).toLocaleDateString('es-CL')} · ${pesoLegible(d.tamano)}</span></div>
+      <a class="mini-btn" href="${esc(d.url)}" target="_blank" rel="noopener">Ver</a>
+      <button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="borrarDocPro('${d.id}')">🗑</button>
+    </div>`
+  }).join('')
+  box.innerHTML = `${filas || '<div class="empty-state" style="padding:18px">Todavía no hay documentos.</div>'}
+    <label class="btn-g doc-subir">⬆ Subir PDF o imagen
+      <input type="file" accept="application/pdf,image/*" multiple hidden onchange="subirDocsPro(this)"></label>
+    <span class="rem-note" id="proDocsAviso"></span>`
+}
+async function subirDocsPro(input){
+  const profId = document.getElementById('proId').value
+  const files = [...(input.files || [])]; if(!files.length || !profId) return
+  const aviso = document.getElementById('proDocsAviso')
+  if(!await sesionLista()){ toast('Tu sesión caducó. Vuelve a entrar y reintenta.','error'); return }
+  let ok = 0
+  for(const [i, f] of files.entries()){
+    if(!/^(application\/pdf|image\/)/.test(f.type)){ toast('"' + f.name + '" no es PDF ni imagen','error'); continue }
+    if(f.size > 15 * 1048576){ toast('"' + f.name + '" pesa más de 15 MB','error'); continue }
+    if(aviso) aviso.textContent = 'Subiendo ' + (i+1) + ' de ' + files.length + '…'
+    try{
+      const limpio = f.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'-').slice(-80)
+      const ruta = profId + '/' + Date.now() + '-' + limpio
+      const subir = () => fetch(SUPABASE_URL + '/storage/v1/object/documentos/' + ruta, { method:'POST',
+        headers:{ Authorization: supaAuthHeader(), apikey: SUPABASE_ANON_KEY, 'Content-Type': f.type }, body: f })
+      let r = await subir()
+      if(r.status === 401 || r.status === 403){ await supaAuth.ensureFresh(); r = await subir() }
+      if(!r.ok) throw new Error(await r.text())
+      await supabase.insert('professional_documents', { professional_id: profId, nombre: f.name,
+        url: SUPABASE_URL + '/storage/v1/object/public/documentos/' + ruta, tipo: f.type, tamano: f.size })
+      ok++
+    }catch(e){
+      console.error(e)
+      toast(/row-level|403|Unauthorized/i.test(String(e.message)) ? 'Solo administración puede subir documentos' : 'No se pudo subir "' + f.name + '"', 'error')
+    }
+  }
+  if(aviso) aviso.textContent = ''
+  if(ok) toast(ok === 1 ? 'Documento guardado' : ok + ' documentos guardados', 'success')
+  pintarDocsPro()
+}
+async function borrarDocPro(id){
+  const d = docsPro.find(x => x.id === id); if(!d) return
+  if(!await confirmar('¿Eliminar "' + d.nombre + '"? No se puede recuperar.', { titulo:'Eliminar documento', ok:'Eliminar' })) return
+  try{
+    await supabase.delete('professional_documents', id)
+    const ruta = decodeURIComponent(String(d.url).split('/object/public/documentos/')[1] || '')
+    if(ruta) await conSesion(() => fetch(SUPABASE_URL + '/storage/v1/object/documentos', { method:'DELETE',
+      headers:{ apikey:SUPABASE_ANON_KEY, Authorization:supaAuthHeader(), 'Content-Type':'application/json' },
+      body: JSON.stringify({ prefixes:[ruta] }) }))
+    toast('Documento eliminado','success'); pintarDocsPro()
+  }catch(e){ toast('No se pudo eliminar: ' + e.message,'error') }
 }
 function proToggleAllSvc(on){ document.querySelectorAll('#proSvcTree input[type=checkbox]').forEach(c=>c.checked=on); proSyncSvc() }
 /* mantiene coherentes el interruptor "todos" y el de cada categoría con lo que hay marcado abajo */

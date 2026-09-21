@@ -46,7 +46,7 @@ function responder($code, $data) {
 
 $DIR = dir_respaldos();
 $CFG = $DIR . '/config.json';
-const BUCKETS = ['fichas', 'consentimientos'];
+const BUCKETS = ['fichas', 'consentimientos', 'documentos'];   // documentos: PDF e imagenes de cada profesional
 const PATRON_NOMBRE = '/^respaldo-(\d{4}-\d{2}-\d{2})-(\d{6})-([a-z-]+)\.(json\.gz|zip)$/';
 
 function leer_config($CFG) {
