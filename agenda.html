@@ -1367,6 +1367,7 @@ body.sin-scroll{overflow:hidden}
 .ad-vacio:hover{border-color:var(--gold);color:var(--gold-d)}
 .ad-cambiar{font-size:.74rem;cursor:pointer;align-self:flex-start}
 .ad-sub{font-size:.72rem;color:var(--mid)}
+.ad-guardar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px}
 .ad-notas{width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit;resize:vertical}
 .ad-visor{position:fixed;inset:0;background:rgba(15,20,30,.78);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
 .ad-visor-caja{background:#fff;border-radius:14px;max-width:1100px;width:100%;max-height:94vh;overflow:auto;padding:16px}
@@ -3783,7 +3784,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     <div class="mtabs" id="cdTabs"></div>
     <div id="cdBody"></div>
     <div class="modal-actions">
-      <button class="btn-ghost" onclick="closeModal('clientDetailModal')">Cerrar</button>
+      <button class="btn-ghost" onclick="cerrarFichaCliente()">Cerrar</button>
       <button class="btn-primary" id="cdEditBtn">Editar cliente</button>
     </div>
   </div>
@@ -6962,7 +6963,7 @@ function reservaEditable(a){
 
     <label class="re-lbl">Estado</label>
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-      ${statusDotsRow(a.id,a.status)} <strong style="margin-left:4px">${STATUS_LABEL[a.status]||''}</strong>
+      ${statusDotsRow(a.id,reVal(a,'estado',a.status),true)} <strong style="margin-left:4px">${STATUS_LABEL[reVal(a,'estado',a.status)]||''}</strong>
     </div>
 
     <label class="re-lbl">Nota interna</label>
@@ -7010,7 +7011,7 @@ async function reConfirmar(id){
   if(!reHayCambios()) return
   const btn = document.getElementById('reGuardarBtn'); if(btn){ btn.disabled = true; btn.textContent = 'Guardando…' }
   /* en orden: primero el día y la hora, después quién, qué y cuánto */
-  const orden = ['fecha','inicio','fin','prof','servicio','precio','notas']
+  const orden = ['fecha','inicio','fin','prof','servicio','precio','notas','estado']
   let todos = true
   for(const campo of orden){
     if(reCambios.v[campo] === undefined) continue
@@ -7065,6 +7066,10 @@ async function reGuardar(id, campo, valor, silencioso){
     cambio.price = v > 0 ? ('$' + milesCL(v)) : '$0'
   } else if(campo === 'notas'){
     cambio.notes = valor
+  } else if(campo === 'estado'){
+    /* anular pasa por el mismo camino de siempre (queda en el historial) */
+    if(valor === 'cancelled'){ await qvDelete(id); return true }
+    cambio.status = valor
   }
 
   /* comprobaciones antes de mover la reserva */
@@ -7260,9 +7265,11 @@ function openApptDetail(id){
   openModal('apptDetailModal')
 }
 function setApptTab(t){ adState.tab=t; document.querySelectorAll('#adTabs .ad-tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===t)); renderApptTab() }
-function statusDotsRow(id, status){
+function statusDotsRow(id, status, pendiente){
+  /* en la ventana de edición el estado queda anotado y se guarda con el botón */
+  const accion = s => pendiente ? `reMarcar('${id}','estado','${s}');renderApptTab()` : `setApptStatus('${id}','${s}'); setTimeout(renderApptTab,200)`
   return ['reserved','confirmed','attending','no_show','pending','waiting','cancelled']
-    .map(s=>`<span class="qv-dot ${status===s?'on':''}" title="${STATUS_LABEL[s]}" style="background:${STATUS_COLORS[s]}" onclick="setApptStatus('${id}','${s}'); setTimeout(renderApptTab,200)"></span>`).join('')
+    .map(s=>`<span class="qv-dot ${status===s?'on':''}" title="${STATUS_LABEL[s]}" style="background:${STATUS_COLORS[s]}" onclick="${accion(s)}"></span>`).join('')
 }
 function renderApptTab(){
   const a=findAppt(adState.id); if(!a) return
@@ -7627,6 +7634,7 @@ async function openClientDetail(id){
   cdTab = isPro() ? 'fichas' : 'actividad'
   fichasCliente = []
   comparaciones = []
+  adPend = {}
   cdCitas = null
   renderClientDetail()
   openModal('clientDetailModal')
@@ -7672,14 +7680,19 @@ function cdAntesDespues(){
   }
   const tarjetas = comparaciones.map(c => `<div class="ad-card">
       <div class="ad-top">
-        <input class="ad-titulo" value="${esc(c.titulo || '')}" placeholder="¿Qué se trata? (ej. uñas pie derecho)"
-          onchange="guardarComparacion('${c.id}',{titulo:this.value})">
+        <input class="ad-titulo" value="${esc(adVal(c,'titulo'))}" placeholder="¿Qué se trata? (ej. uñas pie derecho)"
+          oninput="adMarcar('${c.id}','titulo',this.value)">
         ${c.antes_url && c.despues_url ? `<button class="mini-btn" onclick="verComparacion('${c.id}')">Comparar</button>` : ''}
         ${isPro() ? '' : `<button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="borrarComparacion('${c.id}')">🗑</button>`}
       </div>
       <div class="ad-par">${lado(c,'antes')}${lado(c,'despues')}</div>
       <textarea class="ad-notas" rows="2" placeholder="Notas (sesiones realizadas, producto usado, cómo evolucionó...)"
-        onchange="guardarComparacion('${c.id}',{notas:this.value})">${esc(c.notas || '')}</textarea>
+        oninput="adMarcar('${c.id}','notas',this.value)">${esc(adVal(c,'notas'))}</textarea>
+      <div class="ad-guardar" id="adg-${c.id}" ${adPend[c.id] ? '' : 'hidden'}>
+        <span class="re-aviso pend">● Cambios sin guardar</span>
+        <button class="mini-btn" onclick="adDescartar('${c.id}')">Descartar</button>
+        <button class="btn-primary" onclick="adGuardar('${c.id}')">Guardar</button>
+      </div>
     </div>`).join('')
   return `<div class="ad-cab">
       <p class="rem-note" style="margin:0">Toma una foto al empezar el tratamiento y otra al final, siempre con la misma luz y el mismo ángulo, para comparar el resultado.</p>
@@ -7695,6 +7708,25 @@ async function nuevaComparacion(){
     comparaciones.unshift(nueva)
     renderClientDetail()
   }catch(e){ console.error(e); toast('No se pudo crear la comparación: ' + e.message, 'error') }
+}
+/* el título y las notas se guardan con el botón, no solos (pedido de Luis) */
+let adPend = {}
+const adVal = (c, campo) => (adPend[c.id] && adPend[c.id][campo] !== undefined) ? adPend[c.id][campo] : (c[campo] || '')
+function adMarcar(id, campo, valor){
+  adPend[id] = Object.assign(adPend[id] || {}, { [campo]: valor })
+  const b = document.getElementById('adg-' + id); if(b) b.hidden = false
+}
+function adDescartar(id){ delete adPend[id]; renderClientDetail() }
+async function adGuardar(id){
+  if(!adPend[id]) return
+  await guardarComparacion(id, adPend[id])
+  delete adPend[id]; renderClientDetail(); toast('Cambios guardados', 'success')
+}
+async function cerrarFichaCliente(){
+  if(Object.keys(adPend).length && !await confirmar('Tienes cambios sin guardar en Antes y después. ¿Quieres descartarlos?',
+       { titulo:'Cambios sin guardar', ok:'Descartar cambios' })) return
+  adPend = {}
+  closeModal('clientDetailModal')
 }
 async function guardarComparacion(id, cambios){
   try{
