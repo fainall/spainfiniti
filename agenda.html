@@ -1272,6 +1272,11 @@ body.sin-scroll{overflow:hidden}
 .mini-day.fuera{color:var(--light);opacity:.55}
 .mini-sep{height:1px;background:var(--border);margin:14px 2px 12px}
 .mini-cal{user-select:none}
+.mini-cal.mc-sube{animation:mcSube .32s cubic-bezier(.22,.61,.36,1)}
+.mini-cal.mc-baja{animation:mcBaja .32s cubic-bezier(.22,.61,.36,1)}
+@keyframes mcSube{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes mcBaja{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.mini-cal.mc-sube,.mini-cal.mc-baja{animation:none}}
 /* la hora actual */
 #calGrid .gutter{position:relative}
 .now-tag{position:absolute;right:4px;transform:translateY(-50%);background:var(--red);color:#fff;
@@ -4754,6 +4759,13 @@ function renderMiniCal(){
   el.innerHTML = mesChico(year, month, { flechas:true }) +
     `<div class="mini-sep"></div>` +
     mesChico(sig.getFullYear(), sig.getMonth(), { flechas:false })
+  /* al cambiar de mes el calendario se desliza suave en vez de saltar (Luis):
+     hacia arriba si avanza, hacia abajo si retrocede */
+  if(state.miniDir){
+    el.classList.remove('mc-sube','mc-baja'); void el.offsetWidth
+    el.classList.add(state.miniDir > 0 ? 'mc-sube' : 'mc-baja')
+    state.miniDir = 0
+  }
   if(!el.dataset.rueda){
     el.dataset.rueda = '1'
     let ultima = 0
@@ -4767,7 +4779,7 @@ function renderMiniCal(){
   }
 }
 
-function miniNav(dir){ const m=new Date(state.miniMonth); m.setMonth(m.getMonth()+dir); state.miniMonth=m; renderMiniCal() }
+function miniNav(dir){ const m=new Date(state.miniMonth); m.setMonth(m.getMonth()+dir); state.miniMonth=m; state.miniDir=dir; renderMiniCal() }
 function pickMiniDay(y,mo,d){ state.anchor=new Date(y,mo,d); state.miniMonth=new Date(y,mo,1); loadAndRender() }
 function renderRangeLabel(){
   const el=document.getElementById('rangeLabel')
