@@ -145,6 +145,7 @@ function wa_consulta_responder($i, $respuesta) {
 }
 /* las aclaraciones ya respondidas, para que el prompt las tenga a mano */
 function wa_consultas_resueltas($max = 12) {
-    $l = array_values(array_filter(wa_consultas_leer(), fn($c) => !empty($c['respuesta'])));
-    return array_slice($l, -$max);
+    /* solo lo que el equipo respondió de verdad: las vencidas no son una respuesta */
+    $l = array_values(array_filter(wa_consultas_leer(), fn($c) => !empty($c['respuesta']) && empty($c['vencida'])));
+    return array_map(function ($c) { $c['respuesta'] = mb_substr($c['respuesta'], 0, 500); return $c; }, array_slice($l, -$max));
 }
