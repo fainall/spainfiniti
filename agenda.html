@@ -7656,7 +7656,8 @@ async function subirComparacion(id, cual, input){
   if(!await sesionLista()){ toast('Tu sesión caducó. Vuelve a entrar y reintenta la foto.', 'error'); return }
   try{
     if(aviso) aviso.textContent = 'Subiendo…'
-    const blob = await reducirImagen(f, 1600, 0.85)
+    /* si achicar la foto se demora (celulares lentos), se sube tal cual */
+    const blob = await Promise.race([ reducirImagen(f, 1600, 0.85).catch(() => f), new Promise(r => setTimeout(() => r(f), 10000)) ])
     const nombre = cdCliente.id + '/antes-despues/' + id + '-' + cual + '-' + Date.now() + '.jpg'
     const subir = () => fetch(SUPABASE_URL + '/storage/v1/object/fichas/' + nombre, { method:'POST',
       headers:{ Authorization: supaAuthHeader(), apikey: SUPABASE_ANON_KEY, 'Content-Type':'image/jpeg' }, body: blob })
@@ -7677,7 +7678,14 @@ async function subirComparacion(id, cual, input){
 async function borrarComparacion(id){
   if(!await confirmar('¿Eliminar esta comparación con sus dos fotos?', { titulo:'Eliminar antes y después', ok:'Eliminar' })) return
   try{
+    const c = comparaciones.find(x => x.id === id) || {}
     await supabase.delete('client_comparisons', id)
+    /* las fotos también se borran de la carpeta, para no dejar archivos sueltos */
+    const rutas = [c.antes_url, c.despues_url].filter(Boolean)
+      .map(u => decodeURIComponent(String(u).split('/object/public/fichas/')[1] || '')).filter(Boolean)
+    if(rutas.length) conSesion(() => fetch(SUPABASE_URL + '/storage/v1/object/fichas', { method:'DELETE',
+      headers:{ apikey:SUPABASE_ANON_KEY, Authorization:supaAuthHeader(), 'Content-Type':'application/json' },
+      body: JSON.stringify({ prefixes: rutas }) })).catch(() => {})
     comparaciones = comparaciones.filter(x => x.id !== id)
     renderClientDetail(); toast('Comparación eliminada', 'success')
   }catch(e){ toast('No se pudo eliminar: ' + e.message, 'error') }
