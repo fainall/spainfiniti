@@ -2857,7 +2857,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <button class="on" onclick="proTab('basicos',this)">Datos básicos</button>
         <button onclick="proTab('horario',this)">Horario</button>
         <button onclick="proTab('perfil',this)">Perfil</button>
-        <button onclick="proTab('documentos',this)">Documentos</button>
+        <button onclick="proTab('documentos',this)" id="proTabDocs">Documentos</button>
       </div>
 
       <div class="mtab-pane on" id="prtab-basicos">
@@ -2931,7 +2931,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <div class="fbox">
           <h3 style="font-size:.95rem;font-weight:600">Documentos</h3>
           <p class="rem-note" style="margin:2px 0 12px">Contratos, certificados, títulos, carnet... en PDF o imagen, hasta 15 MB cada uno.
-            Se guardan en una carpeta privada: solo administración los puede ver.</p>
+            Se guardan en una carpeta privada: solo el administrador los puede ver.</p>
           <div id="proDocsBox"></div>
         </div>
       </div>
@@ -12238,7 +12238,7 @@ function proTab(name,btn){
   const btns=[...document.querySelectorAll('#proTabs button')]
   btns.forEach(b=>b.classList.remove('on'))
   ;(btn||btns[PRO_TABS_ADM.indexOf(name)]).classList.add('on')
-  if(name==='documentos') pintarDocsPro()
+  if(name==='documentos'){ if(!isAdmin()) return proTab('basicos'); pintarDocsPro() }
 }
 
 /* ══════════ DOCUMENTOS DE LA PROFESIONAL ══════════
@@ -12296,7 +12296,7 @@ async function subirDocsPro(input){
       ok++
     }catch(e){
       console.error(e)
-      toast(/row-level|403|Unauthorized/i.test(String(e.message)) ? 'Solo administración puede subir documentos' : 'No se pudo subir "' + f.name + '"', 'error')
+      toast(/row-level|403|Unauthorized/i.test(String(e.message)) ? 'Solo el administrador puede subir documentos' : 'No se pudo subir "' + f.name + '"', 'error')
     }
   }
   if(aviso) aviso.textContent = ''
@@ -12430,6 +12430,8 @@ function openProModal(id){
   avisarComisionCero(document.getElementById('proComm'))
   document.getElementById('proActive').value=p&&p.active===false?'0':'1'
   document.getElementById('proDelBtn').style.display=p?'block':'none'
+  /* los documentos de las profesionales son solo para el administrador (Luis) */
+  document.getElementById('proTabDocs').hidden = !isAdmin()
   proTab('basicos')
   openModal('proModal')
 }
