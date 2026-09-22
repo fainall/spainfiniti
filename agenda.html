@@ -5435,7 +5435,12 @@ async function deslizarAgenda(dir, cambiar, opciones){
   salida.forEach(a => a.cancel())
   const entrada = partes.map(p => p.animate([{ transform:entra, opacity: empuje ? 1 : 0 }, { transform:'none', opacity:1 }],
                                             { duration: empuje ? 400 : 280, easing: CURVA_IOS }))
-  if(wrap) Promise.all(entrada.map(a => esperarAnim(a, 600))).then(() => { wrap.style.overflowX = '' })
+  /* al terminar (o si la pestaña estuvo en segundo plano y quedaron a medias)
+     se limpian, para que la agenda nunca quede corrida */
+  Promise.all(entrada.map(x => esperarAnim(x, 900))).then(() => {
+    entrada.forEach(x => { try{ x.cancel() }catch(e){} })
+    if(wrap) wrap.style.overflowX = ''
+  })
 }
 function navDate(dir){
   state.anchor=addDays(state.anchor, (state.view==='day'||state.view==='rec')?dir:dir*7); state.miniMonth=new Date(state.anchor)
