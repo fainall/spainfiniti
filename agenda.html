@@ -15889,7 +15889,7 @@ function closeModal(id){
   if(el.classList.contains('open') && !sinMovimiento() && el.animate){
     const copia = el.cloneNode(true)
     copia.removeAttribute('id'); copia.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'))
-    copia.style.pointerEvents = 'none'; copia.classList.add('modal-saliendo')
+    copia.style.pointerEvents = 'none'; copia.classList.add('modal-saliendo'); copia.classList.remove('open')   // es solo el fantasma que se desvanece: no cuenta como ventana abierta
     document.body.appendChild(copia)
     const caja = copia.querySelector('.modal')
     const an = copia.animate([{ opacity:1 }, { opacity:0 }], { duration:160, easing:'ease-in', fill:'forwards' })
@@ -15943,7 +15943,7 @@ function cerrarBuscador(){ const ov = document.getElementById('buscador'); if(ov
    es lo mismo que apretar "Cancelar": así nada queda esperando respuesta. */
 const CERRAR_PROPIO = { apptDetailModal:'cerrarDetalleReserva', clientDetailModal:'cerrarFichaCliente' }
 function cerrarVentanaDeArriba(){
-  const abiertas = [...document.querySelectorAll('.modal-ov.open')]
+  const abiertas = [...document.querySelectorAll('.modal-ov.open:not(.modal-saliendo)')]
   if(!abiertas.length) return false
   const arriba = abiertas.sort((a,b) => (parseInt(a.style.zIndex)||900) - (parseInt(b.style.zIndex)||900)).pop()
   const id = arriba.id
