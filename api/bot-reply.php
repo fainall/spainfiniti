@@ -1068,6 +1068,9 @@ $anotarHoras = function ($texto) use (&$horasVistas) {
    del local (11:00 a 19:00) dejaba pasar cualquier hora redonda */
 foreach ($convo as $mc) if (($mc['role'] ?? '') === 'user') $anotarHoras(is_string($mc['content'] ?? null) ? $mc['content'] : '');
 if ($clienteConocido) $anotarHoras(implode(' ', $clienteConocido['proximas'] ?? []));
+$anotarHoras($horarioTxt);     // el horario de atención se puede decir
+$anotarHoras(date('H:i'));
+$miroLaAgenda = false;         // ¿se consultó disponibilidad en esta respuesta?
 $yaCorregido = 0;
 for ($i=0; $i<5; $i++) {
     list($code,$resp)=openai($KEY,$MODEL,$tools,$messages);
@@ -1088,14 +1091,22 @@ for ($i=0; $i<5; $i++) {
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
             $anotarHoras(json_encode($out, JSON_UNESCAPED_UNICODE));
+            if (in_array($name, ['free_slots','next_available','check_availability','create_booking'], true)) $miroLaAgenda = true;
             /* traza para diagnosticar: solo con la clave interna y pidiendola */
             if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>$name, 'args'=>$args, 'out'=>$out];
         }
         continue;
     }
     $inventadas = [];
-    if (preg_match_all('/\b([01]?\d|2[0-3]):([0-5]\d)\b/', (string)($m['content'] ?? ''), $mm, PREG_SET_ORDER))
+    $texto = (string)($m['content'] ?? '');
+    if (preg_match_all('/\b([01]?\d|2[0-3]):([0-5]\d)\b/', $texto, $mm, PREG_SET_ORDER))
         foreach ($mm as $h) { $k = sprintf('%02d:%s', (int)$h[1], $h[2]); if (empty($horasVistas[$k])) $inventadas[] = $k; }
+    /* ofrecer horas sin haber mirado la agenda tampoco vale, aunque las horas
+       salgan del horario de atención ("puedo ofrecerte 11:00, 14:00 y 17:00") */
+    if (!$inventadas && !$miroLaAgenda && preg_match('/\b([01]?\d|2[0-3]):([0-5]\d)\b/', $texto)
+        && preg_match('/(ofrec|tengo|disponible|te dejo|te reservo|acomoda|opciones|libre)/iu', $texto)
+        && !preg_match('/(atendemos|horario de atenci|abrimos|cerramos|de lunes a)/iu', $texto))
+        $inventadas[] = 'sin consultar la agenda';
     if ($inventadas && $yaCorregido < 2) {
         $yaCorregido++;
         if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>'guardia', 'args'=>[], 'out'=>['horas_sin_consultar'=>$inventadas]];
