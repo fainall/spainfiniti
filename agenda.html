@@ -615,6 +615,8 @@ label.chk input{width:auto;margin:0}
 .cal-head .dcol{flex:1;text-align:center;padding:10px 4px;border-right:1px solid var(--reja);min-width:0;background:var(--white)}
 .cal-head .dcol .dow{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);font-weight:600}
 .cal-head .dcol .dnum{font-size:1.05rem;font-weight:600;margin-top:2px}
+.cal-head .dcol.dia-link{cursor:pointer;transition:background .15s}
+.cal-head .dcol.dia-link:hover{background:var(--cream-2,#f4efe6)}
 .cal-head .dcol.today .dnum{background:var(--gold);color:#fff;width:30px;height:30px;line-height:30px;border-radius:50%;display:inline-block;margin-top:0}
 .cal-grid{display:flex;position:relative;z-index:0}
 .gutter{width:var(--gutter-w);flex-shrink:0;border-right:1px solid var(--border)}
@@ -5124,7 +5126,8 @@ function renderCalendar(){
   let head=`<div class="gutter"></div>`
   days.forEach(dd=>{
     const isToday=isoDate(dd)===todayIso
-    head+=`<div class="dcol ${isToday?'today':''}">
+    /* apretar el día abre ese día solo, como pidió Luis */
+    head+=`<div class="dcol dia-link ${isToday?'today':''}" title="Ver solo este día" onclick="verEsteDia('${isoDate(dd)}')">
       <div class="dow">${DOW[dd.getDay()]}</div>
       <div class="dnum">${dd.getDate()}</div></div>`
   })
@@ -5386,6 +5389,16 @@ function actualizarSegRec(){
   const hay=resources.some(r=>r.active!==false)
   b.style.display = hay ? '' : 'none'
   if(!hay && state.view==='rec') setView('day')
+}
+/* de la vista semana al día que se apretó en la cabecera */
+function verEsteDia(iso){
+  const nueva = new Date(iso + 'T12:00:00')
+  const dir = isoDate(nueva) === isoDate(state.anchor) ? 0 : (nueva < state.anchor ? -1 : 1)
+  state.anchor = nueva; state.miniMonth = new Date(nueva.getFullYear(), nueva.getMonth(), 1)
+  state.view = 'day'
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v==='day'))
+  setTimeout(()=>requestAnimationFrame(ajustarAlturaAgenda), 80)
+  deslizarAgenda(dir, loadAndRender)
 }
 function setView(v){ state.view=v; setTimeout(()=>requestAnimationFrame(ajustarAlturaAgenda),80); document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
 /* ── Movimiento suave (pedido de Luis) ──
