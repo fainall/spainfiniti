@@ -653,7 +653,20 @@ label.chk input{width:auto;margin:0}
 
 /* ── MODAL ── */
 .modal-ov{position:fixed;inset:0;background:rgba(26,36,54,.5);display:none;align-items:flex-start;justify-content:center;z-index:900;padding:40px 16px;overflow-y:auto}
-.modal-ov.open{display:flex}
+.modal-ov.open{display:flex;animation:ovEntra .2s ease-out}
+.modal-ov.open > .modal{animation:modalEntra .26s cubic-bezier(.22,.61,.36,1)}
+.modal-ov{backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.modal-saliendo{display:flex !important}
+@keyframes ovEntra{from{opacity:0}to{opacity:1}}
+@keyframes modalEntra{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+/* reserva recién llegada: late con un brillo dorado unos segundos */
+.appt.appt-nueva{animation:apptBrillo 1.5s ease-in-out 5;z-index:5}
+@keyframes apptBrillo{
+  0%,100%{box-shadow:0 0 0 0 rgba(197,164,103,0)}
+  45%{box-shadow:0 0 0 3px rgba(197,164,103,.95),0 0 18px 5px rgba(197,164,103,.55)}}
+@media (prefers-reduced-motion:reduce){
+  .modal-ov.open,.modal-ov.open > .modal{animation:none}
+  .appt.appt-nueva{animation:none;box-shadow:0 0 0 3px rgba(197,164,103,.95)}}
 .modal{background:var(--white);border-radius:14px;width:440px;max-width:100%;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
 .modal h2{font-family:'Playfair Display',serif;font-size:1.25rem;margin-bottom:18px}
 .modal label{display:block;font-size:.7rem;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;margin-top:12px}
@@ -4662,6 +4675,7 @@ function render(){
   /* con setTimeout y no requestAnimationFrame: los frames se pausan cuando
      la ventana no está a la vista, y la línea quedaba sin dibujar al volver */
   setTimeout(pintarHoraActual, 30)
+  setTimeout(aplicarBrillo, 40)
   if(typeof bloquearSiSoloLectura==='function') setTimeout(bloquearSiSoloLectura, 30)
   if(document.getElementById('view-cobros') && document.getElementById('view-cobros').classList.contains('on')) renderCobros()
 }
@@ -4802,7 +4816,11 @@ function miniNav(dir){
   anim.onfinish = cerrar
   setTimeout(cerrar, 520)          // por si el navegador no avisa el final (pestaña en segundo plano)
 }
-function pickMiniDay(y,mo,d){ state.anchor=new Date(y,mo,d); state.miniMonth=new Date(y,mo,1); loadAndRender() }
+function pickMiniDay(y,mo,d){
+  const nueva = new Date(y,mo,d), dir = isoDate(nueva) === isoDate(state.anchor) ? 0 : (nueva < state.anchor ? -1 : 1)
+  state.anchor=nueva; state.miniMonth=new Date(y,mo,1)
+  deslizarAgenda(dir, loadAndRender)
+}
 function renderRangeLabel(){
   const el=document.getElementById('rangeLabel')
   if(state.view==='day'||state.view==='rec'){
@@ -5325,8 +5343,33 @@ function actualizarSegRec(){
   if(!hay && state.view==='rec') setView('day')
 }
 function setView(v){ state.view=v; setTimeout(()=>requestAnimationFrame(ajustarAlturaAgenda),80); document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
-function navDate(dir){ state.anchor=addDays(state.anchor, (state.view==='day'||state.view==='rec')?dir:dir*7); state.miniMonth=new Date(state.anchor); loadAndRender() }
-function goToday(){ state.anchor=new Date(); state.miniMonth=new Date(); loadAndRender() }
+/* ── Movimiento suave (pedido de Luis) ──
+   Al pasar de semana o de día la agenda se desliza: la que se va sale hacia un
+   lado y la nueva entra desde el otro, igual que el calendario chico. Todo
+   corto, y sin animación si el computador tiene "reducir movimiento". */
+const sinMovimiento = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)
+const esperarAnim = (an, ms) => Promise.race([an.finished.catch(()=>{}), new Promise(r => setTimeout(r, ms))])
+async function deslizarAgenda(dir, cambiar){
+  const partes = ['calHead','calGrid'].map(i => document.getElementById(i)).filter(Boolean)
+  if(!dir || sinMovimiento() || !partes.length || !partes[0].animate){ await cambiar(); return }
+  const dx = 42
+  const salida = partes.map(p => p.animate([{ transform:'none', opacity:1 }, { transform:`translateX(${-dir*dx}px)`, opacity:0 }],
+                                           { duration:150, easing:'ease-in', fill:'forwards' }))
+  /* mientras sale, ya se van pidiendo los datos de la semana nueva */
+  await Promise.all([cambiar(), ...salida.map(a => esperarAnim(a, 260))])
+  salida.forEach(a => a.cancel())
+  partes.forEach(p => p.animate([{ transform:`translateX(${dir*dx}px)`, opacity:0 }, { transform:'none', opacity:1 }],
+                                { duration:280, easing:'cubic-bezier(.22,.61,.36,1)' }))
+}
+function navDate(dir){
+  state.anchor=addDays(state.anchor, (state.view==='day'||state.view==='rec')?dir:dir*7); state.miniMonth=new Date(state.anchor)
+  deslizarAgenda(dir, loadAndRender)
+}
+function goToday(){
+  const hoy = new Date(), dir = hoy < state.anchor ? -1 : (isoDate(hoy) === isoDate(state.anchor) ? 0 : 1)
+  state.anchor=hoy; state.miniMonth=new Date()
+  deslizarAgenda(dir, loadAndRender)
+}
 /* ══════════════ REFRESCO AUTOMÁTICO DE LA AGENDA ══════════════
    Las reservas que entran por el sitio web o por el bot no aparecían
    hasta recargar la página. Ahora la agenda se vuelve a consultar
@@ -5360,6 +5403,9 @@ async function refrescarAgenda(forzado){
     const nuevas = state.appointments.filter(a=>!antesIds.has(a.id))
     ultimoRefresco = Date.now()
     render()
+    /* las que acaban de entrar (web, Mariet, otra pantalla) brillan unos
+       segundos, para que Luis vea cuál es nueva sin leer toda la agenda */
+    if(nuevas.length && antes) resaltarNuevas(nuevas.map(a => a.id))
     if(nuevas.length && antes){
       /* solo se avisa de lo que llegó solo, no de lo que uno acaba de crear */
       const dedondeviene = nuevas.filter(a=>/sitio web|bot|whatsapp/i.test(a.notes||''))
@@ -5372,6 +5418,21 @@ async function refrescarAgenda(forzado){
   finally{ refrescando = false; pintarUltimoRefresco() }
 }
 
+const brilloHasta = {}
+function resaltarNuevas(ids){
+  const hasta = Date.now() + 9000
+  ids.forEach(id => brilloHasta[id] = hasta)
+  aplicarBrillo()
+}
+/* se vuelve a aplicar después de cada repintado mientras dure el brillo */
+function aplicarBrillo(){
+  const ahora = Date.now()
+  Object.keys(brilloHasta).forEach(id => {
+    if(brilloHasta[id] < ahora){ delete brilloHasta[id]; return }
+    const el = document.querySelector(`.appt[data-id="${id}"]`)
+    if(el && !el.classList.contains('appt-nueva')) el.classList.add('appt-nueva')
+  })
+}
 function pintarUltimoRefresco(){
   const el = document.getElementById('refrescoTxt'); if(!el) return
   const min = Math.floor((Date.now() - ultimoRefresco) / 60000)
@@ -5964,6 +6025,13 @@ function openApptQuickView(id){
      siempre activo, el menu de WhatsApp (que se abre hacia abajo) quedaba cortado */
   if(altoQv + 16 > window.innerHeight){ qv.style.maxHeight = (window.innerHeight - 16) + 'px'; qv.style.overflowY = 'auto' }
   qv.style.left=left+'px'; qv.style.top=top+'px'
+  /* se despliega desde la reserva en la que se hizo clic */
+  if(!sinMovimiento() && qv.animate && window.innerWidth > 820){
+    const desdeIzq = r.right <= left
+    qv.style.transformOrigin = (desdeIzq ? 'left' : 'right') + ' ' + Math.max(0, Math.min(altoQv, r.top + 14 - top)) + 'px'
+    qv.animate([{ opacity:0, transform:`scale(.9) translateX(${desdeIzq ? -10 : 10}px)` }, { opacity:1, transform:'none' }],
+               { duration:200, easing:'cubic-bezier(.22,.61,.36,1)' })
+  }
   hacerArrastrable(qv)
 }
 
@@ -15696,6 +15764,18 @@ function openModal(id){
 }
 function closeModal(id){
   const el = document.getElementById(id); if(!el) return
+  /* se va con un fundido: se anima una copia, así la ventana real ya queda
+     cerrada al tiro y nada del resto del panel tiene que esperar */
+  if(el.classList.contains('open') && !sinMovimiento() && el.animate){
+    const copia = el.cloneNode(true)
+    copia.removeAttribute('id'); copia.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'))
+    copia.style.pointerEvents = 'none'; copia.classList.add('modal-saliendo')
+    document.body.appendChild(copia)
+    const caja = copia.querySelector('.modal')
+    const an = copia.animate([{ opacity:1 }, { opacity:0 }], { duration:160, easing:'ease-in', fill:'forwards' })
+    if(caja) caja.animate([{ transform: caja.style.transform || 'none' }, { transform: (caja.style.transform || '') + ' translateY(8px) scale(.97)' }], { duration:160, easing:'ease-in', fill:'forwards' })
+    esperarAnim(an, 260).then(() => copia.remove())
+  }
   el.classList.remove('open')
   el.style.zIndex = ''
   /* si no queda ninguno abierto, el contador vuelve al principio */
