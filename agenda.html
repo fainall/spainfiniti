@@ -4647,7 +4647,10 @@ async function loadAppointments(){
   const sf=document.getElementById('statusFilter').value
   if(sf!=='all') filters += `&status=in.(${sf},block)`
   try{
-    state.appointments = await supabase.fetch('appointments',{filters,order:'start_time.asc'}) || []
+    /* publicidad no puede leer la tabla de reservas: la base solo le deja ver
+       una vista con la hora, el servicio y la profesional, sin el cliente */
+    const tabla = soloMira() ? 'agenda_publicidad' : 'appointments'
+    state.appointments = await supabase.fetch(tabla,{filters,order:'start_time.asc'}) || []
     if(sf !== 'cancelled') state.appointments = state.appointments.filter(a => a.status !== 'cancelled')
   }
   catch(e){ state.appointments=[]; console.warn(e) }
