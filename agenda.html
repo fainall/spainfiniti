@@ -5393,31 +5393,49 @@ function actualizarSegRec(){
 /* de la vista semana al día que se apretó en la cabecera */
 function verEsteDia(iso){
   const nueva = new Date(iso + 'T12:00:00')
-  const dir = isoDate(nueva) === isoDate(state.anchor) ? 0 : (nueva < state.anchor ? -1 : 1)
   state.anchor = nueva; state.miniMonth = new Date(nueva.getFullYear(), nueva.getMonth(), 1)
   state.view = 'day'
   document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v==='day'))
   setTimeout(()=>requestAnimationFrame(ajustarAlturaAgenda), 80)
-  deslizarAgenda(dir, loadAndRender)
+  deslizarAgenda(1, loadAndRender, { empuje:true })
 }
-function setView(v){ state.view=v; setTimeout(()=>requestAnimationFrame(ajustarAlturaAgenda),80); document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); loadAndRender() }
+const ORDEN_VISTAS = ['week','day','rec']
+function setView(v){
+  const dir = ORDEN_VISTAS.indexOf(v) >= ORDEN_VISTAS.indexOf(state.view) ? 1 : -1
+  state.view=v
+  setTimeout(()=>requestAnimationFrame(ajustarAlturaAgenda),80)
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v))
+  deslizarAgenda(dir, loadAndRender, { empuje:true })
+}
 /* ── Movimiento suave (pedido de Luis) ──
    Al pasar de semana o de día la agenda se desliza: la que se va sale hacia un
    lado y la nueva entra desde el otro, igual que el calendario chico. Todo
    corto, y sin animación si el computador tiene "reducir movimiento". */
 const sinMovimiento = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)
 const esperarAnim = (an, ms) => Promise.race([an.finished.catch(()=>{}), new Promise(r => setTimeout(r, ms))])
-async function deslizarAgenda(dir, cambiar){
+/* La curva y los tiempos son los del iPhone al entrar y salir de una pantalla:
+   arranca rápido y frena largo. `empuje` es el paso de semana a día y de vuelta:
+   la pantalla nueva entra entera desde el borde y la anterior se va un poco
+   hacia el otro lado, como las pantallas apiladas de iOS. */
+const CURVA_IOS = 'cubic-bezier(.32,.72,0,1)'
+async function deslizarAgenda(dir, cambiar, opciones){
+  const o = opciones || {}
+  const wrap = document.getElementById('calWrap')
   const partes = ['calHead','calGrid'].map(i => document.getElementById(i)).filter(Boolean)
   if(!dir || sinMovimiento() || !partes.length || !partes[0].animate){ await cambiar(); return }
-  const dx = 42
-  const salida = partes.map(p => p.animate([{ transform:'none', opacity:1 }, { transform:`translateX(${-dir*dx}px)`, opacity:0 }],
-                                           { duration:150, easing:'ease-in', fill:'forwards' }))
-  /* mientras sale, ya se van pidiendo los datos de la semana nueva */
-  await Promise.all([cambiar(), ...salida.map(a => esperarAnim(a, 260))])
+  const empuje = !!o.empuje
+  const fuera = empuje ? `translateX(${-dir*26}%)` : `translateX(${-dir*42}px)`
+  const entra = empuje ? `translateX(${dir*100}%)` : `translateX(${dir*42}px)`
+  if(wrap) wrap.style.overflowX = 'hidden'
+  const salida = partes.map(p => p.animate(
+    [{ transform:'none', opacity:1 }, { transform:fuera, opacity: empuje ? .35 : 0 }],
+    { duration: empuje ? 210 : 150, easing: empuje ? CURVA_IOS : 'ease-in', fill:'forwards' }))
+  /* mientras sale, ya se van pidiendo los datos de lo que viene */
+  await Promise.all([cambiar(), ...salida.map(a => esperarAnim(a, 320))])
   salida.forEach(a => a.cancel())
-  partes.forEach(p => p.animate([{ transform:`translateX(${dir*dx}px)`, opacity:0 }, { transform:'none', opacity:1 }],
-                                { duration:280, easing:'cubic-bezier(.22,.61,.36,1)' }))
+  const entrada = partes.map(p => p.animate([{ transform:entra, opacity: empuje ? 1 : 0 }, { transform:'none', opacity:1 }],
+                                            { duration: empuje ? 400 : 280, easing: CURVA_IOS }))
+  if(wrap) Promise.all(entrada.map(a => esperarAnim(a, 600))).then(() => { wrap.style.overflowX = '' })
 }
 function navDate(dir){
   state.anchor=addDays(state.anchor, (state.view==='day'||state.view==='rec')?dir:dir*7); state.miniMonth=new Date(state.anchor)
