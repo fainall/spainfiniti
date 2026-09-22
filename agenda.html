@@ -4775,7 +4775,7 @@ let miniAnim = null
 function miniNav(dir){
   const el = document.getElementById('miniCal')
   /* si todavía se estaba moviendo, termina al tiro y sigue desde ahí */
-  if(miniAnim){ miniAnim.finish(); }
+  if(miniAnim){ const prev = miniAnim; miniAnim = null; prev.cancel(); el.style.height = ''; el.style.overflow = ''; renderMiniCal() }
   const antes = new Date(state.miniMonth)
   const m = new Date(state.miniMonth); m.setMonth(m.getMonth()+dir); state.miniMonth = m
   const quieto = !el || !el.animate || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -4794,11 +4794,11 @@ function miniNav(dir){
   const bloque = cinta.children[0].offsetHeight + cinta.children[1].offsetHeight
                  + parseFloat(getComputedStyle(cinta.children[1]).marginTop) + parseFloat(getComputedStyle(cinta.children[1]).marginBottom)
   const desde = dir > 0 ? 0 : -bloque, hasta = dir > 0 ? -bloque : 0
-  miniAnim = cinta.animate([{ transform:'translateY(' + desde + 'px)' }, { transform:'translateY(' + hasta + 'px)' }],
+  const anim = cinta.animate([{ transform:'translateY(' + desde + 'px)' }, { transform:'translateY(' + hasta + 'px)' }],
                            { duration:420, easing:'cubic-bezier(.22,.61,.36,1)', fill:'forwards' })
-  const fin = () => { miniAnim = null; el.style.height = ''; el.style.overflow = ''; renderMiniCal() }
-  miniAnim.onfinish = fin
-  miniAnim.oncancel = fin
+  miniAnim = anim
+  /* solo la animación vigente deja todo en su lugar: una anterior cortada no pisa a la nueva */
+  anim.onfinish = () => { if(miniAnim !== anim) return; miniAnim = null; el.style.height = ''; el.style.overflow = ''; renderMiniCal() }
 }
 function pickMiniDay(y,mo,d){ state.anchor=new Date(y,mo,d); state.miniMonth=new Date(y,mo,1); loadAndRender() }
 function renderRangeLabel(){
