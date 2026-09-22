@@ -1272,11 +1272,7 @@ body.sin-scroll{overflow:hidden}
 .mini-day.fuera{color:var(--light);opacity:.55}
 .mini-sep{height:1px;background:var(--border);margin:14px 2px 12px}
 .mini-cal{user-select:none}
-.mini-cal.mc-sube{animation:mcSube .32s cubic-bezier(.22,.61,.36,1)}
-.mini-cal.mc-baja{animation:mcBaja .32s cubic-bezier(.22,.61,.36,1)}
-@keyframes mcSube{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-@keyframes mcBaja{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.mini-cal.mc-sube,.mini-cal.mc-baja{animation:none}}
+.mini-cinta{will-change:transform}
 /* la hora actual */
 #calGrid .gutter{position:relative}
 .now-tag{position:absolute;right:4px;transform:translateY(-50%);background:var(--red);color:#fff;
@@ -4759,13 +4755,6 @@ function renderMiniCal(){
   el.innerHTML = mesChico(year, month, { flechas:true }) +
     `<div class="mini-sep"></div>` +
     mesChico(sig.getFullYear(), sig.getMonth(), { flechas:false })
-  /* al cambiar de mes el calendario se desliza suave en vez de saltar (Luis):
-     hacia arriba si avanza, hacia abajo si retrocede */
-  if(state.miniDir){
-    el.classList.remove('mc-sube','mc-baja'); void el.offsetWidth
-    el.classList.add(state.miniDir > 0 ? 'mc-sube' : 'mc-baja')
-    state.miniDir = 0
-  }
   if(!el.dataset.rueda){
     el.dataset.rueda = '1'
     let ultima = 0
@@ -4779,7 +4768,38 @@ function renderMiniCal(){
   }
 }
 
-function miniNav(dir){ const m=new Date(state.miniMonth); m.setMonth(m.getMonth()+dir); state.miniMonth=m; state.miniDir=dir; renderMiniCal() }
+/* Cambiar de mes se ve como un desplazamiento de verdad (Luis): los meses
+   están en una cinta que sube o baja, y se ve cómo el mes que sale se va y el
+   que entra llega, en vez de cambiar de golpe. */
+let miniAnim = null
+function miniNav(dir){
+  const el = document.getElementById('miniCal')
+  /* si todavía se estaba moviendo, termina al tiro y sigue desde ahí */
+  if(miniAnim){ miniAnim.finish(); }
+  const antes = new Date(state.miniMonth)
+  const m = new Date(state.miniMonth); m.setMonth(m.getMonth()+dir); state.miniMonth = m
+  const quieto = !el || !el.animate || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)
+  if(quieto){ renderMiniCal(); return }
+
+  /* la cinta: tres meses seguidos; se ven dos a la vez */
+  const primero = dir > 0 ? antes : m                  // el de más arriba en la cinta
+  const meses = [0,1,2].map(i => new Date(primero.getFullYear(), primero.getMonth()+i, 1))
+  const altoVista = el.offsetHeight
+  el.style.height = altoVista + 'px'
+  el.style.overflow = 'hidden'
+  el.innerHTML = '<div class="mini-cinta">' + meses.map((f,i) =>
+      (i ? '<div class="mini-sep"></div>' : '') + '<div class="mini-mes">' + mesChico(f.getFullYear(), f.getMonth(), { flechas:false }) + '</div>'
+    ).join('') + '</div>'
+  const cinta = el.firstElementChild
+  const bloque = cinta.children[0].offsetHeight + cinta.children[1].offsetHeight
+                 + parseFloat(getComputedStyle(cinta.children[1]).marginTop) + parseFloat(getComputedStyle(cinta.children[1]).marginBottom)
+  const desde = dir > 0 ? 0 : -bloque, hasta = dir > 0 ? -bloque : 0
+  miniAnim = cinta.animate([{ transform:'translateY(' + desde + 'px)' }, { transform:'translateY(' + hasta + 'px)' }],
+                           { duration:420, easing:'cubic-bezier(.22,.61,.36,1)', fill:'forwards' })
+  const fin = () => { miniAnim = null; el.style.height = ''; el.style.overflow = ''; renderMiniCal() }
+  miniAnim.onfinish = fin
+  miniAnim.oncancel = fin
+}
 function pickMiniDay(y,mo,d){ state.anchor=new Date(y,mo,d); state.miniMonth=new Date(y,mo,1); loadAndRender() }
 function renderRangeLabel(){
   const el=document.getElementById('rangeLabel')
