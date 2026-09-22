@@ -687,6 +687,8 @@ label.chk input{width:auto;margin:0}
 @keyframes ovEntra{from{opacity:0}to{opacity:1}}
 @keyframes modalEntra{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
 /* reserva recién llegada: late con un brillo dorado unos segundos */
+body.solo-mirar{user-select:none;-webkit-user-select:none}
+body.solo-mirar .appt{cursor:default}
 .appt.appt-nueva{animation:apptBrillo 1.5s ease-in-out 5;z-index:5}
 @keyframes apptBrillo{
   0%,100%{box-shadow:0 0 0 0 rgba(197,164,103,0)}
@@ -4449,14 +4451,14 @@ function applyRole(){
     if(agenda) agenda.style.display=''
     const wa=nav.querySelector('[data-view="whatsapp"]')
     if(wa && vePantalla('whatsapp')) wa.style.display=''
-    if(!nav.querySelector('.pro-only')){
+    if(!nav.querySelector('.pro-only') && vePantalla('misingresos')){
       const b=document.createElement('button')
       b.className='pro-only'; b.dataset.view='misingresos'
       b.textContent='Mis ingresos'
       b.onclick=()=>switchView('misingresos')
       nav.appendChild(b)
     }
-    nav.querySelector('.pro-only').style.display=''
+    const propio = nav.querySelector('.pro-only'); if(propio) propio.style.display=''
     if(myProfId()) state.profId=myProfId()
   }
   if(me){
