@@ -1440,6 +1440,8 @@ body.sin-scroll{overflow:hidden}
 .ad-b-et{position:absolute;top:10px;background:rgba(0,0,0,.55);color:#fff;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:6px}
 .ad-b-et.izq{left:10px} .ad-b-et.der{right:10px}
 .ad-rango{display:block;width:100%;max-width:760px;margin:12px auto 0}
+.ad-visor-desc{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.ff-descargar{font-weight:600;cursor:pointer}
 .ad-visor-notas{margin:12px 0 0;font-size:.85rem;color:var(--texto);white-space:pre-wrap}
 @media (max-width:600px){ .ad-par,.ad-visor-lado{grid-template-columns:1fr} }
 .ff-miniaturas{display:flex;flex-wrap:wrap;gap:8px}
@@ -7844,6 +7846,37 @@ async function openClientDetail(id){
 }
 function cdSetTab(t){ cdTab=t; renderClientDetail() }
 
+/* ── Descargar con "Guardar como" (pedido de Luis) ──
+   Antes, "Descargar" abría la foto en otra pestaña: las fotos están en otro
+   dominio (Supabase) y el navegador ignora la descarga directa. Ahora se baja
+   el archivo y se abre al tiro la ventana para elegir dónde guardarlo. En los
+   navegadores que no tienen esa ventana (Safari, Firefox, celulares), se
+   descarga igual a la carpeta de Descargas. */
+function nombreFotoFicha(campo, n){
+  const cli = cdCliente ? cdCliente.name : 'cliente'
+  return (cli + ' - ' + campo + (n ? ' ' + (n+1) : '')).replace(/[\/:*?"<>|]+/g, ' ').replace(/s+/g, ' ').trim()
+}
+async function guardarArchivo(url, nombre){
+  try{
+    const r = await fetch(url); if(!r.ok) throw new Error('No se pudo bajar el archivo (' + r.status + ')')
+    const blob = await r.blob()
+    const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg','jpg').replace('svg+xml','svg')
+    const archivo = /.[a-z0-9]{2,4}$/i.test(nombre) ? nombre : nombre + '.' + ext
+    if(window.showSaveFilePicker){
+      try{
+        const h = await window.showSaveFilePicker({ suggestedName: archivo,
+          types: [{ description: blob.type.startsWith('image/') ? 'Imagen' : 'Archivo', accept: { [blob.type || 'application/octet-stream']: ['.' + ext] } }] })
+        const w = await h.createWritable(); await w.write(blob); await w.close()
+        toast('Guardado: ' + (h.name || archivo), 'success'); return
+      }catch(e){ if(e && e.name === 'AbortError') return }   // cerró la ventana sin guardar
+    }
+    const u = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = u; a.download = archivo
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(u), 4000)
+  }catch(e){ console.error(e); toast('No se pudo descargar: ' + e.message, 'error') }
+}
+
 /* ══════════ ANTES Y DESPUÉS ══════════
    Dos fotos para comparar el resultado de un tratamiento: la del inicio y la
    de después (pedido de Luis). En el celular o la tableta el botón abre
@@ -7989,6 +8022,10 @@ function verComparacion(id){
           <div class="ad-b-despues-caja"><img src="${esc(c.despues_url)}" class="ad-b-despues"></div>
           <span class="ad-b-et izq">Antes</span><span class="ad-b-et der">Después</span></div>
         <input type="range" min="0" max="100" value="50" class="ad-rango"></div>` : ''}
+      <div class="ad-visor-desc">
+        ${c.antes_url ? `<a href="${esc(c.antes_url)}" class="mini-btn" onclick="event.preventDefault(); guardarArchivo(this.href, nombreFotoFicha('${esc((c.titulo||'antes y despues').replace(/'/g,''))} - antes'))">⬇ Descargar antes</a>` : ''}
+        ${c.despues_url ? `<a href="${esc(c.despues_url)}" class="mini-btn" onclick="event.preventDefault(); guardarArchivo(this.href, nombreFotoFicha('${esc((c.titulo||'antes y despues').replace(/'/g,''))} - despues'))">⬇ Descargar después</a>` : ''}
+      </div>
       ${c.notas ? `<p class="ad-visor-notas">${esc(c.notas)}</p>` : ''}
     </div>`
   v.addEventListener('click', e => { if(e.target === v) cerrar() })
@@ -10193,7 +10230,8 @@ function formularioFicha(tpl, datos, soloLectura){
             campo = urls.length
               ? `<div class="ff-galeria">${urls.map((u,n)=>`<figure>
                   <a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" loading="lazy" /></a>
-                  <figcaption><a href="${esc(u)}" target="_blank" rel="noopener" download>Descargar</a></figcaption>
+                  <figcaption><a href="${esc(u)}" class="ff-descargar"
+                    onclick="event.preventDefault(); guardarArchivo(this.href, nombreFotoFicha(${JSON.stringify(f.label||'foto').replace(/"/g,'&quot;')}, ${n}))">⬇ Descargar</a></figcaption>
                 </figure>`).join('')}</div>`
               : '<div class="ff-valor">Sin fotos</div>'
           } else {
@@ -12442,6 +12480,7 @@ async function pintarDocsPro(){
       <div class="doc-datos"><strong>${esc(d.nombre)}</strong>
         <span>${new Date(d.created_at).toLocaleDateString('es-CL')} · ${pesoLegible(d.tamano)}</span></div>
       <a class="mini-btn" href="${esc(d.url)}" target="_blank" rel="noopener">Ver</a>
+      <a class="mini-btn" href="${esc(d.url)}" onclick="event.preventDefault(); guardarArchivo(this.href, ${JSON.stringify(d.nombre).replace(/"/g,'&quot;')})">⬇</a>
       <button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="borrarDocPro('${d.id}')">🗑</button>
     </div>`
   }).join('')
