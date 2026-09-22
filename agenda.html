@@ -4306,8 +4306,12 @@ const ROLES = {
   pro:          { nombre:'Profesional', desc:'Ve y gestiona su propia agenda, sus fichas y sus ingresos.',
                   vistas:['agenda','misingresos'], edita:true, soloSuyo:true },
   pro_ro:       { nombre:'Profesional (sin edición)', desc:'Solo mira su agenda. No puede crear ni cambiar reservas.',
-                  vistas:['agenda','misingresos'], edita:false, soloSuyo:true }
+                  vistas:['agenda','misingresos'], edita:false, soloSuyo:true },
+  publicidad:   { nombre:'Publicidad (solo mirar)', desc:'Ve la agenda de las profesionales para planificar campañas: qué horas están ocupadas y con qué servicio. No ve datos de clientes ni puede crear, editar, copiar ni descargar nada.',
+                  vistas:['agenda'], edita:false, soloMirar:true }
 }
+/* perfil de publicidad: mira la agenda y nada más */
+function soloMira(){ return !!(me && rolDe().soloMirar) }
 /* sin perfil, el rol mas restringido: nunca administrador por omision */
 function rolDe(){ return ROLES[(me && me.role) || 'pro_ro'] || ROLES.pro_ro }
 function puedeEditar(){ return !!me && rolDe().edita !== false }
@@ -4431,7 +4435,27 @@ async function loadMe(){
   }
 }
 /* adapta la interfaz al rol */
+/* Con el perfil de publicidad la pantalla queda "de solo mirar": no se puede
+   seleccionar texto, ni copiar, ni imprimir, ni guardar la página, ni abrir el
+   menú del botón derecho. No impide una foto a la pantalla, pero evita sacar
+   los datos de la agenda de un copiar y pegar (pedido de Luis). */
+function modoSoloMirar(){
+  if(!soloMira()) return
+  document.body.classList.add('solo-mirar')
+  const frenar = e => { e.preventDefault(); return false }
+  ;['copy','cut','contextmenu','dragstart','selectstart'].forEach(ev => document.addEventListener(ev, frenar))
+  document.addEventListener('keydown', e => {
+    const k = (e.key || '').toLowerCase()
+    if((e.ctrlKey || e.metaKey) && ['c','x','s','p','u','a'].includes(k)){ e.preventDefault(); toast('Tu perfil solo permite mirar la agenda', 'error') }
+  })
+}
 function applyRole(){
+  modoSoloMirar()
+  if(soloMira()){
+    ;['btnProfs','btnProfsFiltro'].forEach(i => { const el = document.getElementById(i); if(el) el.style.display = 'none' })
+    const nuevo = document.querySelector('.cal-top .btn-primary'); if(nuevo) nuevo.style.display = 'none'
+    const buscar = document.querySelector('.topnav-buscar'); if(buscar) buscar.style.display = 'none'
+  }
   { const b = document.getElementById('apAbrir'); if(b) b.hidden = !isAdmin() }
   /* las profesionales no administran al equipo (Luis) */
   ;['btnProfs','btnProfsFiltro'].forEach(i => { const el=document.getElementById(i); if(el) el.style.display = isPro() ? 'none' : '' })
@@ -4470,6 +4494,11 @@ function applyRole(){
     span.onclick=openPassModal
     right.insertBefore(span, right.firstChild)
   }
+}
+/* Publicidad no ve de quién es la hora: solo que está ocupada. */
+function nombreEnBloque(a){
+  if(!soloMira()) return a.client_name || '—'
+  return a.status === 'block' ? 'Bloqueado' : 'Reservado'
 }
 /* el profesional solo puede tocar sus propias citas */
 function canEditAppt(a){
@@ -4972,7 +5001,7 @@ function renderCalendarRec(){
       return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="top:${top}px;height:${hgt}px;left:calc(${left}% + 3px);width:calc(${w}% - 6px);background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
-        <div class="n">${esc(a.client_name||'—')}</div>
+        <div class="n">${esc(nombreEnBloque(a))}</div>
         <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}</div>`
     }).join('')
     cols += `<div class="dcol pcol" style="height:${gridH}px" data-date="${fecha}" data-rec="${r.id}"
@@ -5059,7 +5088,7 @@ function renderCalendarDia(){
       return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
-        <div class="n">${esc(a.client_name||'—')}</div>
+        <div class="n">${esc(nombreEnBloque(a))}</div>
         <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}</div>`
     }).join('')
 
@@ -5172,7 +5201,7 @@ function renderCalendar(){
       return `<div class="appt${apptPagada(a)?' pagada':apptAbonada(a)?' abonada':''}${profHaceServicio(a.professional_id,a.service_name)?'':' ojo'}" data-id="${a.id}" style="${pos};background:${bgSuave(color)};border-left-color:${color}"
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)}</div>
-        <div class="n">${esc(a.client_name||'—')}</div>
+        <div class="n">${esc(nombreEnBloque(a))}</div>
         <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}
         ${profHaceServicio(a.professional_id,a.service_name)?'':'<span class="ojo-ico" title="Este profesional no tiene asignado este servicio">⚠</span>'}</div>`
     }).join('')
@@ -5251,7 +5280,7 @@ document.addEventListener('click',e=>{
 /* ── ARRASTRAR RESERVAS (drag & drop) ── */
 let drag=null
 function apptMouseDown(e, id){
-  if(e.button!==0) return
+  if(e.button!==0 || soloMira()) return
   e.preventDefault(); e.stopPropagation()
   const a=findAppt(id); if(!a) return
   clearGhost()
@@ -6058,6 +6087,7 @@ function enviarWa(apptId, tplId){
 /* ── VISTA RÁPIDA DE RESERVA (al hacer clic) ── */
 function fmtLongDate(iso){ const [y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d); return `${DOW_FULL[dt.getDay()].toLowerCase()}, ${d} de ${MONTHS[m-1].toLowerCase()}` }
 function openApptQuickView(id){
+  if(soloMira()){ toast('Tu perfil solo permite mirar la agenda', 'error'); return }
   closeQuickView()
   const a=findAppt(id); if(!a) return
   const p=state.professionals.find(x=>x.id===a.professional_id)
@@ -15973,6 +16003,7 @@ const PANTALLAS_BUS = [
   ['productos','Productos','🧴'], ['movstock','Movimientos de stock','📦'], ['planes','Planes y bonos','🎟'], ['giftcards','Gift cards','🎁'],
   ['encuestas','Encuestas','📝'], ['misingresos','Mis ingresos','💰']]
 function abrirBuscador(){
+  if(soloMira()){ toast('Tu perfil solo permite mirar la agenda', 'error'); return }
   const ov = document.getElementById('buscador'); if(!ov) return
   ov.hidden = false
   const inp = document.getElementById('busTexto'); inp.value = ''
