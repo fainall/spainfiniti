@@ -15959,7 +15959,7 @@ document.addEventListener('keydown', e => {
   if(k !== 'escape') return
   if(!document.getElementById('buscador')?.hidden){ cerrarBuscador(); return }
   /* un desplegable abierto (el menú de WhatsApp) se cierra primero */
-  if(document.querySelector('.wa-menu.open')){ if(typeof cerrarWaMenus === 'function') cerrarWaMenus(); return }
+  if(document.querySelector('.wa-menu.on')){ if(typeof cerrarWaMenus === 'function') cerrarWaMenus(); return }
   if(cerrarVentanaDeArriba()) return
   if(document.getElementById('apptQV')) closeQuickView()
 })
