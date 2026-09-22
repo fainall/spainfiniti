@@ -754,7 +754,7 @@ function do_ask_team($args) {
     require_once __DIR__ . '/wa-consultas.php';
     /* precios y duraciones están en el catálogo: se consultaban igual (el 18/09
        salieron cuatro consultas por el valor del ácido nítrico) */
-    if (preg_match('/(precio|valor|cu[aá]nto (cuesta|sale|vale)|duraci[oó]n|cu[aá]nto dura)/iu', (string)($args['pregunta'] ?? '')))
+    if (preg_match('/\b(precio|valor|cu[aá]nto (cuesta|sale|vale)|duraci[oó]n|cu[aá]nto dura)\b/iu', (string)($args['pregunta'] ?? '')))
         return ['ok'=>false, 'reason'=>'NO consultado: los precios y las duraciones están en el catálogo de estas instrucciones; respóndelo con eso. Si el servicio no aparece en el catálogo, ofrece la evaluación podológica.'];
     $r = wa_consultar_al_equipo($cfg, $args['pregunta'] ?? '', $phone, $clienteConocido['nombre'] ?? '');
     if (!empty($r['ya_respondida'])) return $r;
@@ -1060,14 +1060,15 @@ $traza=[];
    respuesta para que consulte antes de ofrecerla. */
 $horasVistas = [];
 $anotarHoras = function ($texto) use (&$horasVistas) {
-    if (preg_match_all('/([01]?d|2[0-3]):([0-5]d)/', (string)$texto, $mm, PREG_SET_ORDER))
+    if (preg_match_all('/\b([01]?\d|2[0-3]):([0-5]\d)\b/', (string)$texto, $mm, PREG_SET_ORDER))
         foreach ($mm as $h) $horasVistas[sprintf('%02d:%s', (int)$h[1], $h[2])] = true;
 };
-foreach ($convo as $mc) $anotarHoras(is_string($mc['content'] ?? null) ? $mc['content'] : '');
-$anotarHoras($horarioTxt);
-$anotarHoras($tips);
-$anotarHoras(date('H:i'));
-$yaCorregido = false;
+/* solo valen las horas que dijo el CLIENTE y las que devuelve la agenda: las
+   de mensajes anteriores del asistente pueden venir inventadas, y el horario
+   del local (11:00 a 19:00) dejaba pasar cualquier hora redonda */
+foreach ($convo as $mc) if (($mc['role'] ?? '') === 'user') $anotarHoras(is_string($mc['content'] ?? null) ? $mc['content'] : '');
+if ($clienteConocido) $anotarHoras(implode(' ', $clienteConocido['proximas'] ?? []));
+$yaCorregido = 0;
 for ($i=0; $i<5; $i++) {
     list($code,$resp)=openai($KEY,$MODEL,$tools,$messages);
     if ($code!==200 || !isset($resp['choices'][0]['message'])) {
@@ -1093,10 +1094,10 @@ for ($i=0; $i<5; $i++) {
         continue;
     }
     $inventadas = [];
-    if (preg_match_all('/([01]?d|2[0-3]):([0-5]d)/', (string)($m['content'] ?? ''), $mm, PREG_SET_ORDER))
+    if (preg_match_all('/\b([01]?\d|2[0-3]):([0-5]\d)\b/', (string)($m['content'] ?? ''), $mm, PREG_SET_ORDER))
         foreach ($mm as $h) { $k = sprintf('%02d:%s', (int)$h[1], $h[2]); if (empty($horasVistas[$k])) $inventadas[] = $k; }
-    if ($inventadas && !$yaCorregido) {
-        $yaCorregido = true;
+    if ($inventadas && $yaCorregido < 2) {
+        $yaCorregido++;
         if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>'guardia', 'args'=>[], 'out'=>['horas_sin_consultar'=>$inventadas]];
         $messages[] = ['role'=>'user', 'content'=>'[Aviso interno del sistema, no lo menciones al cliente] Ibas a ofrecer horas que no consultaste en la agenda ('
             . implode(', ', array_unique($inventadas)) . '). Consulta con free_slots o check_availability y responde solo con horas que devuelvan esas funciones.'];
