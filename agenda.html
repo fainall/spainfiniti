@@ -5423,6 +5423,9 @@ async function deslizarAgenda(dir, cambiar, opciones){
   const wrap = document.getElementById('calWrap')
   const partes = ['calHead','calGrid'].map(i => document.getElementById(i)).filter(Boolean)
   if(!dir || sinMovimiento() || !partes.length || !partes[0].animate){ await cambiar(); return }
+  /* si quedó algo a medias (por ejemplo, la pestaña estuvo en segundo plano)
+     se limpia antes de empezar: así la agenda nunca queda corrida */
+  partes.forEach(p => p.getAnimations().forEach(x => { try{ x.cancel() }catch(e){} }))
   const empuje = !!o.empuje
   const fuera = empuje ? `translateX(${-dir*26}%)` : `translateX(${-dir*42}px)`
   const entra = empuje ? `translateX(${dir*100}%)` : `translateX(${dir*42}px)`
@@ -5622,7 +5625,10 @@ async function rtAplicar(){
 }
 setInterval(() => { if(RT.pendiente && !hayAlgoAbierto()) rtAplicar() }, 700)
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'visible' && (!RT.ws || RT.ws.readyState > 1)) iniciarTiempoReal()
+  if(document.visibilityState !== 'visible') return
+  if(!RT.ws || RT.ws.readyState > 1) iniciarTiempoReal()
+  /* animaciones que quedaron congeladas mientras la pestaña no se veía */
+  ;['calHead','calGrid'].forEach(i => { const el = document.getElementById(i); if(el) el.getAnimations().forEach(x => { try{ x.cancel() }catch(e){} }) })
 })
 
 async function loadAndRender(){ await loadAppointments(); ultimoRefresco=Date.now(); render(); pintarUltimoRefresco() }
