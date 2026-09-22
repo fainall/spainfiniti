@@ -15937,10 +15937,31 @@ function abrirBuscador(){
   if(ov.animate && !sinMovimiento()) ov.firstElementChild.animate([{ opacity:0, transform:'translateY(-10px) scale(.98)' }, { opacity:1, transform:'none' }], { duration:180, easing:'ease-out' })
 }
 function cerrarBuscador(){ const ov = document.getElementById('buscador'); if(ov) ov.hidden = true }
+/* ── Esc cierra lo que esté abierto (pedido de Luis) ──
+   Primero el buscador, después la ventana de más arriba, y si no hay ninguna,
+   la ficha rápida de la reserva. Las preguntas de confirmar se cancelan, que
+   es lo mismo que apretar "Cancelar": así nada queda esperando respuesta. */
+const CERRAR_PROPIO = { apptDetailModal:'cerrarDetalleReserva', clientDetailModal:'cerrarFichaCliente' }
+function cerrarVentanaDeArriba(){
+  const abiertas = [...document.querySelectorAll('.modal-ov.open')]
+  if(!abiertas.length) return false
+  const arriba = abiertas.sort((a,b) => (parseInt(a.style.zIndex)||900) - (parseInt(b.style.zIndex)||900)).pop()
+  const id = arriba.id
+  if(id === 'cfModal'){ confirmarResponder(false); return true }          // equivale a Cancelar
+  if(id === 'forzarModal'){ forzarResponder(false); return true }
+  const propio = CERRAR_PROPIO[id]
+  if(propio && typeof window[propio] === 'function'){ window[propio](); return true }
+  closeModal(id); return true
+}
 document.addEventListener('keydown', e => {
   const k = (e.key || '').toLowerCase()
   if((e.ctrlKey || e.metaKey) && k === 'k'){ e.preventDefault(); abrirBuscador(); return }
-  if(k === 'escape' && !document.getElementById('buscador')?.hidden){ cerrarBuscador() }
+  if(k !== 'escape') return
+  if(!document.getElementById('buscador')?.hidden){ cerrarBuscador(); return }
+  /* un desplegable abierto (el menú de WhatsApp) se cierra primero */
+  if(document.querySelector('.wa-menu.open')){ if(typeof cerrarWaMenus === 'function') cerrarWaMenus(); return }
+  if(cerrarVentanaDeArriba()) return
+  if(document.getElementById('apptQV')) closeQuickView()
 })
 function buscarEscribe(){
   const q = document.getElementById('busTexto')?.value || ''
