@@ -127,8 +127,9 @@ function cr_html($a, $prof, $paraSpa) {
     return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;background:#f5f1ea;font-family:Arial,Helvetica,sans-serif">'
         . '<div style="max-width:560px;margin:0 auto;padding:24px 14px">'
         . '<div style="background:linear-gradient(135deg,#c5a467 0%,#8a7344 100%);color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">'
-        . '<div style="font-family:Georgia,serif;font-size:24px">Spa Infinity</div>'
-        . '<div style="margin-top:6px;font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.9">' . ($paraSpa ? 'Nueva reserva' : 'Reserva confirmada') . '</div></div>'
+        /* el logo en PNG (los correos de Outlook no muestran webp) */
+        . '<img src="' . cliente_dominio() . '/images/logo-correo.png" width="110" height="110" alt="Spa Infinity" style="display:block;margin:0 auto;width:110px;height:110px;border:0;border-radius:50%;background:#fff">'
+        . '<div style="margin-top:12px;font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.95">' . ($paraSpa ? 'Nueva reserva' : 'Reserva confirmada') . '</div></div>'
         . '<div style="background:#fff;padding:24px;border-radius:0 0 12px 12px;line-height:1.5;color:#333">'
         . $saludo . $tabla . $botones . $pie
         . '</div><p style="text-align:center;font-size:11px;color:#aaa;margin:14px 0 0">Spa Infinity · Centro Podológico &amp; Spa · ' . $e(RESERVA_LUGAR) . '</p>'
