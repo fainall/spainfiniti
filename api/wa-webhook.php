@@ -275,6 +275,9 @@ $candado = @fopen($dir . '/' . $from . '.lock', 'c');
 $leerHist = function () use ($file) {
     return file_exists($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
 };
+/* se avisa ANTES de esperar turno: si otro mensaje de este cliente se está
+   respondiendo, ese proceso ve que llegó algo nuevo y descarta su respuesta */
+@file_put_contents($dir . '/' . $from . '.ultimo', $msgId);
 if ($candado) flock($candado, LOCK_EX);
 $history = $leerHist();
 $history[] = ['role' => 'user', 'content' => mb_substr($text, 0, 2000)];
@@ -283,7 +286,7 @@ if (count($history) > 16) $history = array_slice($history, -16);
 @file_put_contents($dir . '/' . $from . '.ultimo', $msgId);
 if ($candado) flock($candado, LOCK_UN);
 
-sleep(4);
+sleep(7);   // la gente escribe en dos o tres mensajes, con 5 a 8 segundos entre uno y otro
 if (trim((string)@file_get_contents($dir . '/' . $from . '.ultimo')) !== $msgId) exit;   // contesta el mensaje más nuevo
 
 if ($candado) flock($candado, LOCK_EX);
@@ -299,6 +302,9 @@ curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>45, CURLO
     CURLOPT_POSTFIELDS=>json_encode(['messages'=>$history, 'phone'=>$from, 'voz'=>$conVoz])]);
 $brain = json_decode(curl_exec($ch), true); curl_close($ch);
 $reply = $brain['reply'] ?? 'Disculpa, no pude procesar tu mensaje. Escríbenos y te ayudamos 🙏';
+/* mientras se pensaba la respuesta el cliente escribió otra cosa: esta respuesta
+   ya quedó vieja y el proceso del mensaje nuevo contesta todo junto */
+if (trim((string)@file_get_contents($dir . '/' . $from . '.ultimo')) !== $msgId) exit;
 
 $history[] = ['role' => 'assistant', 'content' => $reply];
 @file_put_contents($file, json_encode($history, JSON_UNESCAPED_UNICODE));

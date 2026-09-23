@@ -153,8 +153,25 @@ $bienvenidasTxt = $bienvenidas
     ? "\nSi es tu primer mensaje de la conversacion, saluda con esta frase (puedes ajustar alguna palabra, no la cambies entera):\n" . $bienvenidas[array_rand($bienvenidas)]
     : "\nAl saludar por primera vez presentate: \"Hola, soy $botName, de $negocio. En que puedo ayudarte?\"";
 
+/* ── Calendario de los próximos días ──
+   Mariet se equivocaba con el día de la semana ("viernes 24" cuando el 24 es
+   jueves, "viernes 3 de octubre" cuando es sábado, "el sábado está cerrado"):
+   lo calculaba de memoria. Ahora tiene la lista escrita y la copia tal cual. */
+$calendarioTxt = '';
+for ($iCal = 0; $iCal <= 16; $iCal++) {
+    $fCal = date('Y-m-d', strtotime('+' . $iCal . ' day'));
+    $marcasCal = [];
+    if ($iCal === 0) $marcasCal[] = 'HOY';
+    if ($iCal === 1) $marcasCal[] = 'MAÑANA';
+    if (date('w', strtotime($fCal)) === '0') $marcasCal[] = 'domingo: cerrado';
+    if ($fCal > tope_agenda()) $marcasCal[] = 'fuera del plazo para agendar';
+    $calendarioTxt .= "\n- " . dia_es($fCal) . ' = ' . $fCal . ($marcasCal ? ' (' . implode(', ', $marcasCal) . ')' : '');
+}
+
 $system = "Eres $botName y atiendes el WhatsApp de $negocio, un centro podológico y spa en $direccion.
 Hoy es $dow $today y ahora son las " . date('H:i') . ". Atiendes por WhatsApp.
+CALENDARIO (cada vez que nombres un día, cópialo EXACTO de esta lista, con su día de la semana; nunca lo calcules tú):$calendarioTxt
+Cuando el cliente diga el lunes, el próximo viernes, la otra semana o fin de mes, busca en esta lista qué fecha es antes de consultar.
 SOLO PUEDES AGENDAR ENTRE HOY Y EL " . tope_agenda() . " (" . dia_es(tope_visible()) . "), ambos incluidos. Ninguna fecha posterior, ni un día más.
 Los domingos el centro está cerrado: no se agenda ni se ofrece ningún domingo.
 
@@ -265,6 +282,9 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
 - En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
 - No preguntes con qué profesional quiere: si hay varias libres, agenda con la primera y dile con quién quedó. Solo si el cliente pide a alguien en particular, o si tú ya le nombraste a una, pásala en professional_name: no se agenda con otra sin avisarle.
+- Si el cliente quiere CAMBIAR una hora, busca horas para EL MISMO SERVICIO de la reserva que cambia (aparece en sus próximas reservas o en la conversación); no mezcles con otro servicio: uno de 90 minutos no cabe donde cabe uno de 60.
+- Si una hora que ofreciste ya no se puede, dilo una sola vez y claro (\"esa hora se acaba de ocupar\"); no te contradigas diciendo que hay y que no hay.
+- El correo es OPCIONAL: si el cliente no tiene o no sabe, agenda igual sin correo. NUNCA inventes ni sugieras un correo.
 - Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si tenía VARIOS servicios ese día y cambia de día, crea cada uno en el día nuevo y luego cancela CADA UNO de los anteriores con cancel_booking (una llamada por reserva; create_booking te devuelve la lista en otras_reservas_vigentes). Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok. Y al revés: si create_booking devolvió previous_cancelled true, o cancel_booking respondió ok, la anterior YA está cancelada: dilo como hecho, no preguntes si quiere cancelarla.
 - REGLA DE ORO: por WhatsApp solo se agenda dentro de los próximos 8 días: hasta el " . dia_es(tope_visible()) . ".
 - LOS DOMINGOS NO SE ATIENDE: no ofrezcas domingos ni los nombres como fecha posible, ni siquiera como tope.
@@ -535,7 +555,12 @@ function do_check($args) {
     $wd = weekdayIso($date);
     $startM=(int)substr($time,0,2)*60+(int)substr($time,3,2); $endM=$startM+$dur;
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$date)) return ['available'=>false,'professionals'=>[],'motivo'=>'fecha no válida'];
-    $appts = supa('GET', 'appointments?select=professional_id,start_time,end_time&appt_date=eq.'.$date.'&or=(status.is.null,status.neq.cancelled)') ?: [];
+    $appts = supa('GET', 'appointments?select=professional_id,start_time,end_time,client_phone&appt_date=eq.'.$date.'&or=(status.is.null,status.neq.cancelled)') ?: [];
+    /* el teléfono de quien escribe: su propia reserva no es "falta de disponibilidad" */
+    global $phone;
+    $digTel = preg_replace('/\D/', '', (string)$phone);
+    $miTel = strlen($digTel) >= 8 ? substr($digTel, -8) : '';
+    $suyaAhi = '';
     $free=[];
     $svcPedido = $args['service_name'] ?? '';
     if ($svcPedido !== '') {
@@ -560,10 +585,24 @@ function do_check($args) {
         foreach ($appts as $a) { if ($a['professional_id']!==$p['id']) continue;
             $as=(int)substr($a['start_time'],0,2)*60+(int)substr($a['start_time'],3,2);
             $ae=(int)substr($a['end_time'],0,2)*60+(int)substr($a['end_time'],3,2);
-            if ($startM<$ae && $endM>$as) { $busy=true; break; } }
+            if (!($startM<$ae && $endM>$as)) continue;
+            /* ¿esa reserva es del mismo cliente que está escribiendo? */
+            $esSuya = $miTel !== '' && substr(preg_replace('/\D/', '', (string)($a['client_phone'] ?? '')), -8) === $miTel;
+            /* la hora que el cliente está cambiando no le estorba a la nueva */
+            if ($esSuya && !empty($args['replace_date']) && $args['replace_date'] === $date
+                && substr((string)$a['start_time'],0,5) === substr((string)($args['replace_time'] ?? ''),0,5)) continue;
+            if ($esSuya && substr((string)$a['start_time'],0,5) === $time) $suyaAhi = $p['name'];
+            $busy=true; break; }
         if (!$busy) $free[]=['id'=>$p['id'],'name'=>$p['name']];
     }
-    $out = ['available'=>count($free)>0,'professionals'=>$free];
+    $out = ['available'=>count($free)>0,'professionals'=>$free, 'dia'=>dia_es($date)];
+    /* el 22/09 Mariet agendó a las 15:00 y enseguida dijo "a las 15:00 no hay": la
+       hora ocupada era la que acababa de reservarle a ese mismo cliente */
+    if (!$out['available'] && $suyaAhi !== '') {
+        $out['ya_agendada_para_este_cliente'] = true;
+        $out['motivo'] = 'Esa hora YA está reservada a nombre de este mismo cliente con ' . $suyaAhi
+            . '. No digas que no hay disponibilidad: dile que ya la tiene reservada.';
+    }
     // reglas propias del servicio (horario especial, cupos, recursos)
     if (!empty($args['service_name'])) {
         $bloqueo = service_rule_block($args['service_name'], $date, $time, $dur);
@@ -712,7 +751,7 @@ function do_free_slots($args) {
         $r = do_check(['date'=>$date, 'time'=>$hh, 'duration'=>$dur, 'service_name'=>$svc ? $svc['name'] : '']);
         if (!empty($r['available'])) $libres[] = ['time'=>$hh, 'professionals'=>array_column($r['professionals'], 'name')];
     }
-    $salida = ['date'=>$date, 'service'=>$svc ? $svc['name'] : null, 'duration'=>$dur, 'now'=>date('H:i'),
+    $salida = ['date'=>$date, 'dia'=>dia_es($date), 'service'=>$svc ? $svc['name'] : null, 'duration'=>$dur, 'now'=>date('H:i'),
                'free'=>$libres, 'total'=>count($libres)];
     /* Si ese día no hay nada, la respuesta ya trae los días siguientes con horas
        reales: así Mariet ofrece la más próxima en el mismo mensaje y no se
@@ -787,13 +826,13 @@ function otras_reservas($nombre, $excluirId) {
     global $phone;
     $hoy = date('Y-m-d');
     $lista = supa('GET', 'appointments?select=id,appt_date,start_time,service_name,client_name,client_phone&appt_date=gte.'.$hoy.'&status=neq.cancelled&status=neq.block&origen=eq.bot&order=appt_date,start_time') ?: [];
-    $dig = preg_replace('/D/', '', (string)$phone);
+    $dig = preg_replace('/\D/', '', (string)$phone);
     $ult = strlen($dig) >= 8 ? substr($dig, -8) : '';
     $k = svc_clave($nombre);
     $out = [];
     foreach ($lista as $a) {
         if (($a['id'] ?? '') === $excluirId) continue;
-        $mismoTel = $ult !== '' && substr(preg_replace('/D/', '', (string)($a['client_phone'] ?? '')), -8) === $ult;
+        $mismoTel = $ult !== '' && substr(preg_replace('/\D/', '', (string)($a['client_phone'] ?? '')), -8) === $ult;
         $mismoNombre = $k !== '' && svc_clave($a['client_name'] ?? '') === $k;
         if ($mismoTel || $mismoNombre) $out[] = ['date'=>$a['appt_date'], 'time'=>substr($a['start_time'],0,5), 'service'=>$a['service_name']];
     }
@@ -1107,12 +1146,35 @@ for ($i=0; $i<5; $i++) {
         && preg_match('/(ofrec|tengo|disponible|te dejo|te reservo|acomoda|opciones|libre)/iu', $texto)
         && !preg_match('/(atendemos|horario de atenci|abrimos|cerramos|de lunes a)/iu', $texto))
         $inventadas[] = 'sin consultar la agenda';
-    if ($inventadas && $yaCorregido < 2) {
-        $yaCorregido++;
-        if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>'guardia', 'args'=>[], 'out'=>['horas_sin_consultar'=>$inventadas]];
-        $messages[] = ['role'=>'user', 'content'=>'[Aviso interno del sistema, no lo menciones al cliente] Ibas a ofrecer horas que no consultaste en la agenda ('
-            . implode(', ', array_unique($inventadas)) . '). Consulta con free_slots o check_availability y responde solo con horas que devuelvan esas funciones.'];
-        continue;
+    /* el día de la semana tiene que calzar con la fecha: "viernes 24" es un
+       error si el 24 es jueves (pasó varias veces el 22 y 23/09) */
+    $fechasMal = [];
+    if (preg_match_all('/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+(\d{1,2})\b/iu', $texto, $mf, PREG_SET_ORDER)) {
+        foreach ($mf as $x) {
+            $diaNum = (int)$x[2];
+            if ($diaNum < 1 || $diaNum > 31) continue;
+            for ($iF = -3; $iF <= 45; $iF++) {
+                $tsF = strtotime(($iF >= 0 ? '+' : '') . $iF . ' day');
+                if ((int)date('j', $tsF) !== $diaNum) continue;
+                $realF = dia_es(date('Y-m-d', $tsF));
+                if (svc_clave(explode(' ', $realF)[0]) !== svc_clave($x[1]))
+                    $fechasMal[] = $x[1] . ' ' . $diaNum . ' (el ' . $diaNum . ' es ' . $realF . ')';
+                break;
+            }
+        }
+    }
+    if ($inventadas || $fechasMal) {
+        if ($yaCorregido < 2) {
+            $yaCorregido++;
+            if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>'guardia', 'args'=>[], 'out'=>['horas_sin_consultar'=>$inventadas, 'fechas_mal'=>$fechasMal]];
+            $aviso = '[Aviso interno del sistema, no lo menciones al cliente] ';
+            if ($fechasMal) $aviso .= 'Te equivocaste con el día de la semana: ' . implode('; ', $fechasMal)
+                . '. Corrige usando el CALENDARIO de tus instrucciones y, si las horas eran de otro día, vuelve a consultarlas. ';
+            if ($inventadas) $aviso .= 'Ibas a ofrecer horas que no consultaste en la agenda (' . implode(', ', array_unique($inventadas))
+                . '). Consulta con free_slots o check_availability y responde solo con horas que devuelvan esas funciones.';
+            $messages[] = ['role'=>'user', 'content'=>$aviso];
+            continue;
+        }
     }
     $salida = ['reply'=>trim($m['content'] ?? '') ?: '¿Podrías darme más detalles? 🙂', 'booked'=>$booked];
     if ($traza) $salida['traza'] = $traza;
