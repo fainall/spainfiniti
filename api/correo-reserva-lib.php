@@ -136,8 +136,10 @@ function cr_html($a, $prof, $paraSpa) {
         . '</div></body></html>';
 }
 
-/* envía un correo HTML con el .ics adjunto e incrustado (así Gmail y Outlook muestran el evento) */
+/* envía un correo HTML con el .ics solo como adjunto: si el calendario va dentro de
+   multipart/alternative, algunos clientes muestran esa parte en vez del HTML */
 function cr_enviar($para, $asunto, $html, $ics) {
+    $ics = str_replace('METHOD:REQUEST', 'METHOD:PUBLISH', $ics);
     $remitente = cliente_correo();
     $limite = 'spa' . bin2hex(random_bytes(8));
     $alt = 'alt' . bin2hex(random_bytes(8));
@@ -152,9 +154,8 @@ function cr_enviar($para, $asunto, $html, $ics) {
         . "Content-Type: multipart/alternative; boundary=\"$alt\"\r\n\r\n"
         . "--$alt\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n" . chunk_split(base64_encode($texto)) . "\r\n"
         . "--$alt\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n" . chunk_split(base64_encode($html)) . "\r\n"
-        . "--$alt\r\nContent-Type: text/calendar; charset=UTF-8; method=REQUEST\r\nContent-Transfer-Encoding: base64\r\n\r\n" . chunk_split(base64_encode($ics)) . "\r\n"
         . "--$alt--\r\n"
-        . "--$limite\r\nContent-Type: application/ics; name=\"reserva.ics\"\r\nContent-Disposition: attachment; filename=\"reserva.ics\"\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+        . "--$limite\r\nContent-Type: text/calendar; charset=UTF-8; method=PUBLISH; name=\"reserva.ics\"\r\nContent-Disposition: attachment; filename=\"reserva.ics\"\r\nContent-Transfer-Encoding: base64\r\n\r\n"
         . chunk_split(base64_encode($ics)) . "\r\n"
         . "--$limite--";
     return @mail($para, '=?UTF-8?B?' . base64_encode($asunto) . '?=', $cuerpo, implode("\r\n", $cab), '-f' . $remitente);
