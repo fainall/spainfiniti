@@ -598,10 +598,12 @@ function do_check($args) {
     $out = ['available'=>count($free)>0,'professionals'=>$free, 'dia'=>dia_es($date)];
     /* el 22/09 Mariet agendó a las 15:00 y enseguida dijo "a las 15:00 no hay": la
        hora ocupada era la que acababa de reservarle a ese mismo cliente */
-    if (!$out['available'] && $suyaAhi !== '') {
+    if ($suyaAhi !== '') {
+        /* aunque otra profesional esté libre a esa hora, lo primero es decirle que ya la tiene */
         $out['ya_agendada_para_este_cliente'] = true;
-        $out['motivo'] = 'Esa hora YA está reservada a nombre de este mismo cliente con ' . $suyaAhi
-            . '. No digas que no hay disponibilidad: dile que ya la tiene reservada.';
+        $out['nota_reserva_propia'] = 'Este mismo cliente YA tiene reservada esa hora con ' . $suyaAhi
+            . '. Dile que ya la tiene reservada; no digas que no hay disponibilidad ni la agendes de nuevo.';
+        if (!$out['available']) $out['motivo'] = $out['nota_reserva_propia'];
     }
     // reglas propias del servicio (horario especial, cupos, recursos)
     if (!empty($args['service_name'])) {
