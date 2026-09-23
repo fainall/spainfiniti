@@ -384,10 +384,16 @@ function service_rule_block($serviceName, $date, $time, $dur) {
     }
 
     // citas que se cruzan con ese bloque
-    $appts = supa('GET', 'appointments?select=service_name,start_time,end_time,status&appt_date=eq.'.$date) ?: [];
+    $appts = supa('GET', 'appointments?select=service_name,start_time,end_time,status,client_phone&appt_date=eq.'.$date) ?: [];
     $solapan = [];
+    global $phone;
+    $digYo = preg_replace('/\D/', '', (string)$phone);
+    $reemp = $GLOBALS['reemplazo_en_curso'] ?? null;
     foreach ($appts as $a) {
         if (in_array($a['status'] ?? '', ['block','cancelled'])) continue;
+        /* la hora que el cliente está cambiando no le ocupa la camilla a la nueva */
+        if ($reemp && $reemp[0] === $date && substr((string)$a['start_time'],0,5) === $reemp[1]
+            && strlen($digYo) >= 8 && substr(preg_replace('/\D/', '', (string)($a['client_phone'] ?? '')), -8) === substr($digYo, -8)) continue;
         $as = (int)substr($a['start_time'],0,2)*60 + (int)substr($a['start_time'],3,2);
         $ae = (int)substr($a['end_time'] ?: $a['start_time'],0,2)*60 + (int)substr($a['end_time'] ?: $a['start_time'],3,2);
         if ($as < $endM && $ae > $startM) $solapan[] = $a;
@@ -467,8 +473,8 @@ $tools = [
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD'],
       'time'=>['type'=>'string','description'=>'Hora HH:MM (24h)'],
       'duration'=>['type'=>'integer','description'=>'Minutos (default 60)'],
-      'service_name'=>['type'=>'string','description'=>'Servicio consultado; con él se devuelve el precio de esa hora, ya con descuento si corresponde']
-    ],'required'=>['date','time']]]],
+      'service_name'=>['type'=>'string','description'=>'Servicio EXACTO del catálogo. Obligatorio: cada servicio dura distinto y algunos necesitan la camilla']
+    ],'required'=>['date','time','service_name']]]],
   ['type'=>'function','function'=>['name'=>'create_booking','description'=>'Crea la reserva cuando el cliente confirma los datos.',
     'parameters'=>['type'=>'object','properties'=>[
       'service_name'=>['type'=>'string'],'date'=>['type'=>'string'],'time'=>['type'=>'string'],
@@ -485,8 +491,8 @@ $tools = [
   ['type'=>'function','function'=>['name'=>'free_slots','description'=>'Devuelve TODAS las horas libres de un día para un servicio, con qué profesionales. Úsala siempre que el cliente pida un día sin hora exacta, o pregunte qué horas hay.',
     'parameters'=>['type'=>'object','properties'=>[
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD'],
-      'service_name'=>['type'=>'string','description'=>'Nombre exacto del servicio']
-    ],'required'=>['date']]]],
+      'service_name'=>['type'=>'string','description'=>'Nombre exacto del servicio. Obligatorio: sin él las horas que salen pueden no servir']
+    ],'required'=>['date','service_name']]]],
   ['type'=>'function','function'=>['name'=>'confirm_booking','description'=>'Marca como CONFIRMADA una reserva del cliente en la agenda. Úsala cuando el cliente confirme que asistirá (por ejemplo responde "sí", "confirmo", "ahí estaré" a un recordatorio). Nunca digas que una hora quedó confirmada sin llamar a esta función.',
     'parameters'=>['type'=>'object','properties'=>[
       'date'=>['type'=>'string','description'=>'Fecha YYYY-MM-DD de la reserva'],
@@ -551,6 +557,10 @@ function jornada_de($p, $date) {
 
 function do_check($args) {
     global $pros;
+    if (empty($args['service_name']) || !svc_del_catalogo($args['service_name']))
+        return ['available'=>false, 'professionals'=>[], 'motivo'=>'Falta el servicio exacto del catálogo: averígualo y vuelve a consultar. No digas si hay o no hay disponibilidad todavía.'];
+    /* la reserva que se está cambiando no cuenta para la camilla ni para los cupos */
+    $GLOBALS['reemplazo_en_curso'] = !empty($args['replace_date']) ? [$args['replace_date'], substr((string)($args['replace_time'] ?? ''), 0, 5)] : null;
     $date=$args['date']; $time=substr($args['time'],0,5); $dur=$args['duration']??60;
     $wd = weekdayIso($date);
     $startM=(int)substr($time,0,2)*60+(int)substr($time,3,2); $endM=$startM+$dur;
@@ -596,6 +606,15 @@ function do_check($args) {
         if (!$busy) $free[]=['id'=>$p['id'],'name'=>$p['name']];
     }
     $out = ['available'=>count($free)>0,'professionals'=>$free, 'dia'=>dia_es($date)];
+    if ($suyaAhi === '' && $miTel !== '') {
+        foreach ($appts as $a) {
+            if (substr((string)$a['start_time'],0,5) !== $time) continue;
+            if (substr(preg_replace('/\D/', '', (string)($a['client_phone'] ?? '')), -8) !== $miTel) continue;
+            if (!empty($args['replace_date']) && $args['replace_date'] === $date && substr((string)($args['replace_time'] ?? ''),0,5) === $time) continue;
+            foreach ($pros as $pp) if ($pp['id'] === $a['professional_id']) $suyaAhi = $pp['name'];
+            if ($suyaAhi === '') $suyaAhi = 'el equipo';
+        }
+    }
     /* el 22/09 Mariet agendó a las 15:00 y enseguida dijo "a las 15:00 no hay": la
        hora ocupada era la que acababa de reservarle a ese mismo cliente */
     if ($suyaAhi !== '') {
@@ -739,6 +758,9 @@ function dia_es($fecha) {
 
 function do_free_slots($args) {
     global $pros;
+    /* sin servicio las horas no valen: puede faltar la camilla o no alcanzar el tiempo */
+    if (empty($args['service_name']) || !svc_del_catalogo($args['service_name']))
+        return ['ok'=>false, 'reason'=>'Primero averigua qué servicio quiere (el nombre exacto del catálogo) y vuelve a consultar con ese servicio. Sin el servicio no se pueden dar horas: cada uno dura distinto y algunos necesitan la camilla.'];
     $date = (string)($args['date'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) return ['ok'=>false,'reason'=>'fecha no válida'];
     if ($date < date('Y-m-d')) return ['ok'=>false,'reason'=>'esa fecha ya pasó'];
