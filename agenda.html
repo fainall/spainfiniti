@@ -6170,6 +6170,7 @@ function openApptQuickView(id){
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--texto)">${STATUS_LABEL[a.status]||''}</span></div>
     <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
       ${pro ? (canEditAppt(a) ? pagoSoloVer(id) : '') : botonPagar(id)}
+      ${!pro && a.status !== 'block' ? `<button class="mini-btn" title="Enviar de nuevo el correo con la reserva y el calendario" onclick="enviarCorreoReserva('${id}', true)">✉</button>` : ''}
       ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">Ver ficha completa</button>`:''}
     </div>`
   document.body.appendChild(qv)
@@ -7776,9 +7777,28 @@ async function saveAppt(){
   const id=document.getElementById('apptId').value
   try{
     if(id) await supabase.update('appointments',id,row)
-    else await supabase.insert('appointments',row)
+    else {
+      const creada = await supabase.insert('appointments',row)
+      const nuevaId = Array.isArray(creada) ? (creada[0]||{}).id : (creada||{}).id
+      /* confirmación por correo al cliente y al spa, con la invitación de calendario */
+      if(nuevaId && row.status !== 'block') enviarCorreoReserva(nuevaId)
+    }
     closeModal('apptModal'); toast('Reserva guardada','success'); loadAndRender()
   }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+/* manda (o reenvía) el correo de confirmación con la invitación de calendario */
+async function enviarCorreoReserva(id, reenviar){
+  try{
+    if(typeof sesionLista === 'function') await sesionLista()
+    const r = await fetch('/api/correo-reserva.php', { method:'POST', headers: authHeaders({ 'Content-Type':'application/json' }),
+      body: JSON.stringify({ id, reenviar: reenviar ? 1 : 0 }) })
+    const j = await r.json().catch(() => ({}))
+    if(reenviar){
+      if(!r.ok || !j.ok) toast('No se pudo enviar el correo: ' + (j.error || j.motivo || r.status), 'error')
+      else toast(j.cliente && j.cliente.includes('@') ? 'Confirmación enviada a ' + j.cliente : 'El cliente no tiene correo: se envió solo al spa', 'success')
+    }
+    return j
+  }catch(e){ console.warn('correo de reserva:', e.message) }
 }
 async function deleteAppt(){
   { const _id=document.getElementById('apptId').value

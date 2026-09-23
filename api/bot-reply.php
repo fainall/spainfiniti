@@ -952,6 +952,11 @@ function do_book($args) {
     if ($clientId) $row['client_id'] = $clientId;
     $res=supa('POST','appointments',$row);
     if (is_array($res)&&count($res)) {
+        /* confirmación por correo al cliente y al spa, con la invitación de calendario */
+        if (!empty($res[0]['id'])) {
+            try { require_once __DIR__ . '/correo-reserva-lib.php'; enviar_correo_reserva($res[0]['id']); }
+            catch (Throwable $e) { error_log('correo de reserva: ' . $e->getMessage()); }
+        }
         $out = ['ok'=>true,'professional'=>$prof['name'],'service'=>$svc['name'],'price'=>$precio,'appointment'=>$res[0]];
         /* Las demas reservas vigentes del cliente: si pidio cambiar de dia y
            tenia varias, el modelo las ve aqui y las cancela una por una. */
