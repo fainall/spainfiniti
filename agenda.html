@@ -7846,8 +7846,12 @@ async function saveAppt(){
     notes:document.getElementById('apptNotes').value.trim()
   }
   const id=document.getElementById('apptId').value
+  const antes = id ? { ...(findAppt(id) || {}) } : null
   try{
-    if(id) await supabase.update('appointments',id,row)
+    if(id){
+      await supabase.update('appointments',id,row)
+      await abonosAlNuevoServicio(antes, row)
+    }
     else {
       const creada = await supabase.insert('appointments',row)
       const nuevaId = Array.isArray(creada) ? (creada[0]||{}).id : (creada||{}).id
@@ -7856,6 +7860,34 @@ async function saveAppt(){
     }
     closeModal('apptModal'); toast('Reserva guardada','success'); loadAndRender()
   }catch(e){ console.error(e); toast('Error al guardar','error') }
+}
+/* Si la reserva tenía un abono y se le cambia el servicio (Luis agendó Tipo 1,
+   cobró el abono y la pasó a Tipo 2), el abono seguía diciendo "Tipo 1 sobre
+   $27.000": la ficha lo mostraba como un servicio extra y el saldo salía mal.
+   Aquí el abono pasa al servicio nuevo y su base se corre en la diferencia de
+   precio (así se respeta un descuento que se haya hecho al abonar). */
+async function abonosAlNuevoServicio(antes, row){
+  if(!antes || !antes.id || !antes.service_name || antes.service_name === row.service_name) return
+  const norm = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()
+  const precioViejo = money2num(antes.price), precioNuevo = money2num(row.price)
+  for(const v of ventasDe(antes).filter(esAbono)){
+    let items = v.items
+    if(typeof items === 'string'){ try{ items = JSON.parse(items) }catch(e){ items = [] } }
+    if(!Array.isArray(items)) continue
+    const i = items.findIndex(x => norm(x.name || x.service_name) === norm(antes.service_name))
+    if(i < 0) continue
+    const viejoItem = Number(items[i].price) || precioViejo
+    const nuevoItem = precioNuevo || viejoItem
+    items = items.map((x, k) => k === i ? { ...x, name: row.service_name, price: nuevoItem } : x)
+    let notes = String(v.notes || '')
+    const m = notes.match(/sobre \$?\s*([\d.]+)/)
+    if(m){
+      const base = Math.max(0, money2num(m[1]) + (nuevoItem - viejoItem))
+      notes = notes.replace(m[0], 'sobre ' + fmtMoney(base))
+    }
+    try{ await supabase.update('sales', v.id, { items, notes }) }
+    catch(e){ console.warn('abono al nuevo servicio:', e.message); toast('La reserva se guardó, pero el abono quedó con el servicio anterior', 'error') }
+  }
 }
 /* manda (o reenvía) el correo de confirmación con la invitación de calendario */
 async function enviarCorreoReserva(id, reenviar){
