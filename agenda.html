@@ -4688,7 +4688,10 @@ function profInFilter(profId){
 }
 /* ── DATA ── */
 async function loadProfessionals(){
-  try{ state.professionals = await supabase.fetch('professionals',{order:'sort_order.asc,name.asc'}) || [] }
+  /* publicidad no lee la tabla (trae el % de comisión): la base le da una vista
+     con el nombre, el color y el horario, que es lo que la agenda necesita */
+  const tabla = (typeof soloMira === 'function' && soloMira()) ? 'profesionales_publicidad' : 'professionals'
+  try{ state.professionals = await supabase.fetch(tabla,{order:'sort_order.asc,name.asc'}) || [] }
   catch(e){ state.professionals=[]; console.warn(e) }
 }
 async function loadClients(){
