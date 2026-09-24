@@ -118,22 +118,27 @@ function cr_html($a, $prof, $paraSpa) {
         . $fila('Dónde', $e(RESERVA_LUGAR) . '<br><span style="color:#666;font-size:13px">A una cuadra del Metro Plaza de Armas, salida Bandera</span>')
         . ($paraSpa && !empty($a['notes']) ? $fila('Notas', $e($a['notes'])) : '')
         . '</table>';
-    $boton = fn($url, $txt, $fondo) => '<a href="' . $e($url) . '" style="display:inline-block;margin:0 8px 8px 0;padding:11px 18px;border-radius:8px;background:' . $fondo . ';color:#fff;text-decoration:none;font-weight:bold;font-size:14px">' . $txt . '</a>';
+    $boton = fn($url, $txt, $fondo) => '<a href="' . $e($url) . '" style="display:inline-block;margin:0 8px 8px 0;padding:11px 18px;border-radius:8px;background-color:' . $fondo . ';color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px">' . $txt . '</a>';
     $botones = '<p style="margin:0 0 6px;font-size:13px;color:#666">Agrégala a tu calendario:</p>'
         . $boton($g, '📅 Google Calendar', '#1a73e8') . $boton($o, '📅 Outlook', '#0f6cbd')
-        . '<p style="margin:10px 0 0;font-size:12px;color:#999">En iPhone o Mac abre el archivo adjunto <em>reserva.ics</em>.</p>';
+        . '<p style="margin:10px 0 0;font-size:12px;color:#777777">En iPhone o Mac abre el archivo adjunto <em>reserva.ics</em>.</p>';
     $pie = $paraSpa ? '' : '<p style="margin:22px 0 0;font-size:13px;color:#666">¿Necesitas cambiarla? Escríbenos por WhatsApp: '
         . '<a href="https://wa.me/' . $e(cliente_whatsapp()) . '" style="color:#8a7344">+' . $e(cliente_whatsapp()) . '</a></p>';
-    return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;background:#f5f1ea;font-family:Arial,Helvetica,sans-serif">'
-        . '<div style="max-width:560px;margin:0 auto;padding:24px 14px">'
-        . '<div style="background:linear-gradient(135deg,#c5a467 0%,#8a7344 100%);color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">'
+    /* armado con tablas y colores sólidos (bgcolor): Gmail y Outlook borran los degradados,
+       y sin color de respaldo el encabezado quedaba blanco con letras blancas */
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>'
+        . '<body style="margin:0;padding:0;background-color:#f5f1ea;font-family:Arial,Helvetica,sans-serif" bgcolor="#f5f1ea">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f1ea" style="background-color:#f5f1ea"><tr><td align="center" style="padding:24px 14px">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px">'
+        . '<tr><td align="center" bgcolor="#8a7344" style="background-color:#8a7344;background-image:linear-gradient(135deg,#c5a467 0%,#8a7344 100%);color:#ffffff;padding:24px;border-radius:12px 12px 0 0;text-align:center">'
         /* el logo en PNG (los correos de Outlook no muestran webp) */
-        . '<img src="' . cliente_dominio() . '/images/logo-correo.png" width="110" height="110" alt="Spa Infinity" style="display:block;margin:0 auto;width:110px;height:110px;border:0;border-radius:50%;background:#fff">'
-        . '<div style="margin-top:12px;font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.95">' . ($paraSpa ? 'Nueva reserva' : 'Reserva confirmada') . '</div></div>'
-        . '<div style="background:#fff;padding:24px;border-radius:0 0 12px 12px;line-height:1.5;color:#333">'
+        . '<img src="' . cliente_dominio() . '/images/logo-correo.png" width="110" height="110" alt="Spa Infinity" style="display:block;margin:0 auto;width:110px;height:110px;border:0;border-radius:50%;background-color:#ffffff">'
+        . '<div style="margin-top:12px;font-size:13px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#ffffff">' . ($paraSpa ? 'Nueva reserva' : 'Reserva confirmada') . '</div></td></tr>'
+        . '<tr><td bgcolor="#ffffff" style="background-color:#ffffff;padding:24px;border-radius:0 0 12px 12px;line-height:1.5;color:#333333;font-size:15px">'
         . $saludo . $tabla . $botones . $pie
-        . '</div><p style="text-align:center;font-size:11px;color:#aaa;margin:14px 0 0">Spa Infinity · Centro Podológico &amp; Spa · ' . $e(RESERVA_LUGAR) . '</p>'
-        . '</div></body></html>';
+        . '</td></tr>'
+        . '<tr><td align="center" style="font-size:11px;color:#8c8c8c;padding:14px 0 0">Spa Infinity · Centro Podológico &amp; Spa · ' . $e(RESERVA_LUGAR) . '</td></tr>'
+        . '</table></td></tr></table></body></html>';
 }
 
 /* envía un correo HTML con el .ics solo como adjunto: si el calendario va dentro de
