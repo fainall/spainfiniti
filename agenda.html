@@ -617,6 +617,14 @@ label.chk input{width:auto;margin:0}
 .prof-chip{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;font-size:.82rem;cursor:pointer;border:1px solid transparent}
 .prof-chip:hover{background:var(--cream-2)}
 .prof-chip.on{background:var(--gold-pale);border-color:var(--gold)}
+.prof-chip.multi{user-select:none}
+.prof-check{width:16px;height:16px;margin:0;accent-color:var(--gold-d,#9a7d45);cursor:pointer;flex-shrink:0}
+.prof-multi-acc{display:flex;align-items:center;gap:6px;padding:2px 2px 8px}
+.prof-multi-acc button{font:inherit;font-size:.74rem;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--texto)}
+.prof-multi-acc button:hover:not(:disabled){border-color:var(--gold)}
+.prof-multi-acc button:disabled{opacity:.45;cursor:default}
+.prof-multi-acc span{margin-left:auto;font-size:.72rem;color:var(--light)}
+.prof-multi-vacio{font-size:.76rem;color:var(--mid);padding:8px 4px}
 .prof-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
 .prof-chip .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .side-link{margin-top:6px;font-size:.76rem;color:var(--gold-d);font-weight:600;background:none;border:none;padding:6px 0}
@@ -4503,7 +4511,7 @@ function applyRole(){
   }
   { const b = document.getElementById('apAbrir'); if(b) b.hidden = !isAdmin() }
   /* las profesionales no administran al equipo (Luis) */
-  ;['btnProfs','btnProfsFiltro'].forEach(i => { const el=document.getElementById(i); if(el) el.style.display = isPro() ? 'none' : '' })
+  ;['btnProfs','btnProfsFiltro'].forEach(i => { const el=document.getElementById(i); if(el) el.style.display = (isPro() || soloMira()) ? 'none' : '' })
   const nav=document.querySelector('.topnav-tabs')
   const old=document.getElementById('userChip'); if(old) old.remove()
   /* cada botón del menú se muestra solo si el rol abre esa pantalla */
@@ -4666,10 +4674,12 @@ function parseDur(str){
   return n ? parseInt(n[0]) : 60
 }
 
-/* el filtro de la agenda acepta 'all', el id de un profesional, o 'g:idDelGrupo' */
+/* el filtro de la agenda acepta 'all', el id de un profesional, 'g:idDelGrupo'
+   o 'm:id1,id2,...' (varias marcadas a la vez, perfil de publicidad) */
 function profInFilter(profId){
   const f = state.profId
   if(f === 'all') return true
+  if(typeof f === 'string' && f.startsWith('m:')) return f.slice(2).split(',').includes(profId)
   if(typeof f === 'string' && f.startsWith('g:')){
     const g = (typeof profGroups !== 'undefined') ? profGroups.find(x => 'g:' + x.id === f) : null
     return !!g && g.members.includes(profId)
@@ -4962,6 +4972,7 @@ function renderSidebar(){
     const g=document.getElementById('profManageLink'); if(g) g.style.display='none'
     return
   }
+  if(multiProf()){ renderSidebarMulti(el); return }
   let html=`<div class="prof-chip ${state.profId==='all'?'on':''}" onclick="selectProf('all')">
     <span class="prof-dot" style="background:linear-gradient(135deg,#C5A467,#C27B8A)"></span>
     <span class="nm">Todos</span></div>`
@@ -4982,6 +4993,66 @@ function renderSidebar(){
     })
   }
   el.innerHTML=html
+}
+/* ── Varias profesionales a la vez (pedido para la cuenta de publicidad) ──
+   Cada profesional tiene su casilla y se marcan las que se quieran ver;
+   "Todas" y "Ninguna" arriba para no ir de a una. */
+function multiProf(){ return typeof soloMira === 'function' && soloMira() }
+function profsMarcadas(){
+  const activas = state.professionals.filter(p => p.active !== false).map(p => p.id)
+  const f = state.profId
+  if(f === 'all') return activas
+  if(typeof f === 'string' && f.startsWith('m:')) return f.slice(2).split(',').filter(id => activas.includes(id))
+  if(typeof f === 'string' && f.startsWith('g:')){
+    const g = (typeof profGroups !== 'undefined') ? profGroups.find(x => 'g:' + x.id === f) : null
+    return g ? g.members.filter(id => activas.includes(id)) : []
+  }
+  return activas.includes(f) ? [f] : []
+}
+function fijarMarcadas(ids){
+  const activas = state.professionals.filter(p => p.active !== false).map(p => p.id)
+  state.profId = ids.length === activas.length ? 'all' : 'm:' + ids.join(',')
+  render()
+}
+function marcarProf(id){
+  const m = profsMarcadas()
+  fijarMarcadas(m.includes(id) ? m.filter(x => x !== id) : [...m, id])
+}
+function marcarGrupo(gid){
+  const g = (typeof profGroups !== 'undefined') ? profGroups.find(x => x.id === gid) : null
+  if(!g) return
+  const m = profsMarcadas(), activas = state.professionals.filter(p => p.active !== false).map(p => p.id)
+  const miembros = g.members.filter(id => activas.includes(id))
+  /* si el grupo ya está entero, se desmarca; si no, se suma */
+  const entero = miembros.every(id => m.includes(id))
+  fijarMarcadas(entero ? m.filter(id => !miembros.includes(id)) : [...new Set([...m, ...miembros])])
+}
+function renderSidebarMulti(el){
+  const activas = state.professionals.filter(p => p.active !== false)
+  const m = profsMarcadas()
+  let html = `<div class="prof-multi-acc">
+      <button type="button" onclick="fijarMarcadas(state.professionals.filter(p=>p.active!==false).map(p=>p.id))" ${m.length === activas.length ? 'disabled' : ''}>Todas</button>
+      <button type="button" onclick="fijarMarcadas([])" ${m.length ? '' : 'disabled'}>Ninguna</button>
+      <span>${m.length} de ${activas.length}</span></div>`
+  activas.forEach(p => {
+    const on = m.includes(p.id)
+    html += `<label class="prof-chip multi ${on ? 'on' : ''}">
+      <input type="checkbox" class="prof-check" ${on ? 'checked' : ''} onchange="marcarProf('${p.id}')">
+      <span class="prof-dot" style="background:${p.color||'#C5A467'}"></span>
+      <span class="nm">${esc(p.name)}</span></label>`
+  })
+  if(typeof profGroups !== 'undefined' && profGroups.length){
+    html += '<div class="prof-group-label">Grupos</div>'
+    profGroups.forEach(g => {
+      const miembros = g.members.filter(id => activas.some(p => p.id === id))
+      const entero = miembros.length && miembros.every(id => m.includes(id))
+      html += `<label class="prof-chip multi ${entero ? 'on' : ''}">
+        <input type="checkbox" class="prof-check" ${entero ? 'checked' : ''} onchange="marcarGrupo('${g.id}')">
+        <span class="nm">${esc(g.name)} <span style="color:var(--light);font-size:.7rem">(${miembros.length})</span></span></label>`
+    })
+  }
+  if(!m.length) html += '<div class="prof-multi-vacio">Marca al menos una profesional para ver su agenda.</div>'
+  el.innerHTML = html
 }
 function selectProf(id){
   /* el horario visible cambia según a quién se mire */ state.profId=id; render() }
@@ -5165,7 +5236,7 @@ function franjasFueraDeHorario(fecha, minM, maxM, SP, gridH){
   let desde = null, hasta = null, quien = null   // null = es el horario del local
 
   /* si se está mirando a un solo profesional, se usa su horario */
-  if(state.profId && state.profId !== 'all'){
+  if(state.profId && state.profId !== 'all' && !/^[gm]:/.test(state.profId)){
     const hp = profHorarioDia(state.profId, fecha)
     quien = profName(state.profId) || 'Ese profesional'
     if(!hp || !hp.trabaja)
@@ -5451,7 +5522,7 @@ function toggleSide(forzar){
 /* al tocar un profesional o un día en el mini calendario, se cierra solo */
 document.addEventListener('click', e=>{
   if(!esMovil()) return
-  if(e.target.closest('.prof-chip, .mini-day')) setTimeout(()=>toggleSide(false), 120)
+  if(e.target.closest('.prof-chip, .mini-day') && !e.target.closest('.prof-chip.multi')) setTimeout(()=>toggleSide(false), 120)
 })
 /* en el teléfono la semana no se lee: se parte en vista Día */
 function ajustarVistaMovil(){
