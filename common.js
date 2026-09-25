@@ -3,7 +3,16 @@
    ═══════════════════════════════════════════ */
 
 /* ── NAVBAR ─────────────────────────────────────────── */
+/* ¿hay un cliente con sesión? Se mira sin red (cuenta.js es el que la
+   valida de verdad): solo decide si el menú dice "Ingresar" o "Mi cuenta". */
+function clienteConSesion() {
+  try { const s = JSON.parse(localStorage.getItem('spa_cliente_session') || 'null'); return !!(s && s.refresh_token) }
+  catch (e) { return false }
+}
 function renderNavbar(activePage) {
+  const conCuenta = clienteConSesion()
+  const cuentaHref = conCuenta ? '/mi-cuenta' : '/ingresar'
+  const cuentaTxt = conCuenta ? 'Mi cuenta' : 'Ingresar'
   const pages = [
     { href: '/promocion',     label: 'Promociones', promo: true },
     { href: '/index.html',    label: 'Inicio' },
@@ -61,7 +70,9 @@ function renderNavbar(activePage) {
       </label>
       <div class="search-dropdown" id="searchDropdown"></div>
     </div>
+    <a href="${cuentaHref}" class="nav-cuenta" aria-label="${cuentaTxt}"><i class="fa-regular fa-user" aria-hidden="true"></i><span>${cuentaTxt}</span></a>
     <div class="nav-mob-actions">
+      <a href="${cuentaHref}" class="nav-mob-cuenta" aria-label="${cuentaTxt}"><i class="fa-regular fa-user" aria-hidden="true"></i></a>
       <button class="nav-mob-search-btn" onclick="toggleMobSearch()" aria-label="Buscar">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       </button>
@@ -97,6 +108,7 @@ function renderNavbar(activePage) {
       return `<a href="${p.href}" onclick="toggleMobMenu()" class="mob-link">${p.label}</a>`
     }).join('')}
     <a href="${SITE.booking}" target="_blank" class="mob-link" style="color:var(--gold)">Reservar</a>
+    <a href="${cuentaHref}" onclick="toggleMobMenu()" class="mob-link">${cuentaTxt}</a>
   </div>
 
   <!-- Panel 1: Categories -->

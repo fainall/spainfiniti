@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingresar — Spa Infinity</title>
+<meta name="description" content="Ingresa o crea tu cuenta en Spa Infinity para ver tus horas y reservar más rápido.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="/logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/styles.css?v=13">
+<script src="/config-cliente.js?v=3"></script>
+</head>
+<body class="pt-nav">
+
+<div id="navContainer"></div>
+
+<main class="cta-pagina">
+  <section class="cta-tarjeta" aria-live="polite">
+
+    <!-- ── Ingresar ── -->
+    <div class="cta-vista" id="vIngresar">
+      <h1 class="cta-titulo">Ingresa a tu cuenta</h1>
+      <p class="cta-sub">Revisa tus horas y reserva más rápido.</p>
+      <div class="cta-aviso" id="ingAviso" hidden></div>
+      <form id="fIngresar" novalidate>
+        <label class="cta-campo">Correo
+          <input type="email" id="ingCorreo" autocomplete="email" inputmode="email" required>
+        </label>
+        <label class="cta-campo">Contraseña
+          <span class="cta-clave">
+            <input type="password" id="ingClave" autocomplete="current-password" required>
+            <button type="button" class="cta-ver" aria-label="Mostrar contraseña" data-ver="ingClave"><i class="fa-regular fa-eye"></i></button>
+          </span>
+        </label>
+        <div class="cta-error" id="ingError" role="alert" hidden></div>
+        <button type="submit" class="btn btn-gold cta-boton" id="ingBoton">Ingresar</button>
+      </form>
+      <button type="button" class="cta-enlace" data-ir="vRecuperar">¿Olvidaste tu contraseña?</button>
+      <p class="cta-cambio">¿Primera vez? <button type="button" class="cta-enlace" data-ir="vRegistro">Crea tu cuenta</button></p>
+    </div>
+
+    <!-- ── Crear cuenta ── -->
+    <div class="cta-vista" id="vRegistro" hidden>
+      <h1 class="cta-titulo">Crea tu cuenta</h1>
+      <p class="cta-sub">Si ya te has atendido con nosotros, usa el mismo correo que nos diste: verás tus horas anteriores.</p>
+      <form id="fRegistro" novalidate>
+        <div class="cta-fila">
+          <label class="cta-campo">Nombre
+            <input type="text" id="regNombre" autocomplete="given-name" maxlength="80" required>
+          </label>
+          <label class="cta-campo">Apellido
+            <input type="text" id="regApellido" autocomplete="family-name" maxlength="80" required>
+          </label>
+        </div>
+        <label class="cta-campo">Correo
+          <input type="email" id="regCorreo" autocomplete="email" inputmode="email" required>
+        </label>
+        <label class="cta-campo">Teléfono <span class="cta-opc">(para confirmarte tus horas)</span>
+          <input type="tel" id="regFono" autocomplete="tel" inputmode="tel" placeholder="+56 9 1234 5678" required>
+        </label>
+        <label class="cta-campo">RUT <span class="cta-opc">(opcional)</span>
+          <input type="text" id="regRut" placeholder="12.345.678-5" maxlength="12">
+        </label>
+        <label class="cta-campo">Contraseña
+          <span class="cta-clave">
+            <input type="password" id="regClave" autocomplete="new-password" minlength="8" required aria-describedby="regClaveAyuda">
+            <button type="button" class="cta-ver" aria-label="Mostrar contraseña" data-ver="regClave"><i class="fa-regular fa-eye"></i></button>
+          </span>
+          <small id="regClaveAyuda" class="cta-ayuda">Al menos 8 caracteres.</small>
+        </label>
+        <div class="cta-error" id="regError" role="alert" hidden></div>
+        <button type="submit" class="btn btn-gold cta-boton" id="regBoton">Crear cuenta</button>
+        <p class="cta-legal">Al crear tu cuenta aceptas nuestra <a href="/privacidad.html">política de privacidad</a>.</p>
+      </form>
+      <p class="cta-cambio">¿Ya tienes cuenta? <button type="button" class="cta-enlace" data-ir="vIngresar">Ingresa</button></p>
+    </div>
+
+    <!-- ── Revisa tu correo (después de registrarse) ── -->
+    <div class="cta-vista" id="vRevisa" hidden>
+      <div class="cta-icono"><i class="fa-regular fa-envelope"></i></div>
+      <h1 class="cta-titulo">Revisa tu correo</h1>
+      <p class="cta-sub">Te enviamos un enlace a <strong id="revCorreo"></strong> para confirmar tu cuenta.
+        Ábrelo desde este mismo dispositivo. Si no lo ves, revisa la carpeta de spam.</p>
+      <div class="cta-error" id="revError" role="alert" hidden></div>
+      <button type="button" class="btn btn-outline-gold cta-boton" id="revReenviar">Reenviar el correo</button>
+      <button type="button" class="cta-enlace" data-ir="vIngresar">Volver a ingresar</button>
+    </div>
+
+    <!-- ── Recuperar contraseña ── -->
+    <div class="cta-vista" id="vRecuperar" hidden>
+      <h1 class="cta-titulo">Recupera tu contraseña</h1>
+      <p class="cta-sub">Escribe tu correo y te enviaremos un enlace para crear una nueva.</p>
+      <form id="fRecuperar" novalidate>
+        <label class="cta-campo">Correo
+          <input type="email" id="recCorreo" autocomplete="email" inputmode="email" required>
+        </label>
+        <div class="cta-error" id="recError" role="alert" hidden></div>
+        <div class="cta-ok" id="recOk" hidden></div>
+        <button type="submit" class="btn btn-gold cta-boton" id="recBoton">Enviar enlace</button>
+      </form>
+      <button type="button" class="cta-enlace" data-ir="vIngresar">Volver a ingresar</button>
+    </div>
+
+    <!-- ── Confirmando (al volver del correo) ── -->
+    <div class="cta-vista" id="vCargando" hidden>
+      <div class="cta-spinner" aria-hidden="true"></div>
+      <p class="cta-sub">Un momento…</p>
+    </div>
+  </section>
+</main>
+
+<div id="footerContainer"></div>
+<div id="floatingContainer"></div>
+
+<script src="/supabase-client.js?v=19"></script>
+<script src="/data.js?v=7"></script>
+<script src="/common.js?v=19"></script>
+<script src="/cuenta.js?v=1"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('')
+document.getElementById('footerContainer').innerHTML = renderFooter()
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+const $ = id => document.getElementById(id)
+const VISTAS = ['vIngresar', 'vRegistro', 'vRevisa', 'vRecuperar', 'vCargando']
+function ir(vista) {
+  VISTAS.forEach(v => { $(v).hidden = v !== vista })
+  window.scrollTo({ top: 0 })
+  const primero = $(vista).querySelector('input')
+  if (primero && matchMedia('(pointer:fine)').matches) primero.focus()
+  const modo = { vRegistro: 'registro', vRecuperar: 'recuperar' }[vista]
+  const u = new URL(location.href); modo ? u.searchParams.set('modo', modo) : u.searchParams.delete('modo')
+  history.replaceState(null, '', u.pathname + u.search)
+}
+document.querySelectorAll('[data-ir]').forEach(b => b.addEventListener('click', () => ir(b.dataset.ir)))
+document.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => {
+  const i = $(b.dataset.ver), ver = i.type === 'password'
+  i.type = ver ? 'text' : 'password'
+  b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña')
+  b.innerHTML = ver ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>'
+}))
+
+function error(id, texto) { const e = $(id); e.textContent = texto || ''; e.hidden = !texto }
+async function ocupado(boton, texto, fn) {
+  const antes = boton.textContent
+  boton.disabled = true; boton.textContent = texto
+  try { return await fn() } finally { boton.disabled = false; boton.textContent = antes }
+}
+
+/* ── Ingresar ── */
+$('fIngresar').addEventListener('submit', async e => {
+  e.preventDefault(); error('ingError')
+  const correo = $('ingCorreo').value.trim(), clave = $('ingClave').value
+  if (!Validar.correo(correo)) return error('ingError', 'Escribe un correo válido.')
+  if (!clave) return error('ingError', 'Escribe tu contraseña.')
+  await ocupado($('ingBoton'), 'Ingresando…', async () => {
+    try {
+      await Cuenta.ingresar(correo, clave)
+      location.replace(Cuenta.destino())
+    } catch (err) {
+      error('ingError', err.message)
+      if (err.codigo === 'email_not_confirmed') mostrarReenviar(correo)
+    }
+  })
+})
+/* si la cuenta no está confirmada, se ofrece reenviar el correo */
+function mostrarReenviar(correo) {
+  const e = $('ingError')
+  const b = document.createElement('button')
+  b.type = 'button'; b.className = 'cta-enlace'; b.textContent = 'Reenviar el correo de confirmación'
+  b.onclick = async () => {
+    b.disabled = true
+    try { await Cuenta.reenviarConfirmacion(correo); e.textContent = 'Listo: te enviamos el correo de nuevo.' }
+    catch (err) { e.textContent = err.message }
+  }
+  e.appendChild(document.createElement('br')); e.appendChild(b)
+}
+
+/* ── Crear cuenta ── */
+$('fRegistro').addEventListener('submit', async e => {
+  e.preventDefault(); error('regError')
+  const nombre = $('regNombre').value.trim(), apellido = $('regApellido').value.trim()
+  const correo = $('regCorreo').value.trim(), clave = $('regClave').value
+  const telefono = Validar.telefono($('regFono').value), rut = Validar.rut($('regRut').value)
+  if (!nombre || !apellido) return error('regError', 'Escribe tu nombre y tu apellido.')
+  if (!Validar.correo(correo)) return error('regError', 'Escribe un correo válido.')
+  if (!telefono) return error('regError', 'Escribe un teléfono válido, por ejemplo +56 9 1234 5678.')
+  if (rut === null) return error('regError', 'El RUT no es válido. Revisa el número y el dígito verificador.')
+  if (!Validar.contrasena(clave)) return error('regError', 'La contraseña debe tener al menos 8 caracteres.')
+  await ocupado($('regBoton'), 'Creando tu cuenta…', async () => {
+    try {
+      await Cuenta.registrar({ email: correo, password: clave, nombre, apellido, telefono, rut: rut || null })
+      $('revCorreo').textContent = correo
+      ir('vRevisa')
+    } catch (err) { error('regError', err.message) }
+  })
+})
+$('revReenviar').addEventListener('click', async () => {
+  error('revError')
+  await ocupado($('revReenviar'), 'Enviando…', async () => {
+    try { await Cuenta.reenviarConfirmacion($('revCorreo').textContent); $('revReenviar').textContent = 'Correo reenviado' }
+    catch (err) { error('revError', err.message) }
+  })
+})
+
+/* ── Recuperar ── */
+$('fRecuperar').addEventListener('submit', async e => {
+  e.preventDefault(); error('recError'); $('recOk').hidden = true
+  const correo = $('recCorreo').value.trim()
+  if (!Validar.correo(correo)) return error('recError', 'Escribe un correo válido.')
+  await ocupado($('recBoton'), 'Enviando…', async () => {
+    try {
+      await Cuenta.recuperar(correo)
+      /* la misma respuesta exista o no la cuenta: no se revela qué correos están registrados */
+      $('recOk').textContent = 'Si ese correo tiene una cuenta, te llegará un enlace para crear una contraseña nueva. Revisa también la carpeta de spam.'
+      $('recOk').hidden = false
+    } catch (err) { error('recError', err.message) }
+  })
+})
+
+/* ── Al abrir la página ── */
+;(async () => {
+  const enlace = Cuenta.leerEnlace()
+  if (enlace && enlace.error) {
+    ir('vIngresar')
+    const a = $('ingAviso'); a.textContent = enlace.error; a.className = 'cta-aviso error'; a.hidden = false
+    return
+  }
+  if (enlace && enlace.sesion) {
+    /* volvió del correo de confirmación: la cuenta quedó activa y con sesión */
+    ir('vCargando')
+    location.replace('/mi-cuenta?bienvenida=1')
+    return
+  }
+  if (await Cuenta.sesion()) { location.replace(Cuenta.destino()); return }
+  const p = new URLSearchParams(location.search)
+  if (p.get('verificado')) {
+    const a = $('ingAviso'); a.textContent = 'Tu correo quedó confirmado. Ingresa con tu contraseña.'; a.className = 'cta-aviso ok'; a.hidden = false
+  }
+  if (p.get('volver')) {
+    const a = $('ingAviso'); if (a.hidden) { a.textContent = 'Ingresa para continuar.'; a.className = 'cta-aviso'; a.hidden = false }
+  }
+  ir({ registro: 'vRegistro', recuperar: 'vRecuperar' }[p.get('modo')] || 'vIngresar')
+})()
+</script>
+</body>
+</html>

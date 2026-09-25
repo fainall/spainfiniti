@@ -1723,3 +1723,106 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   .seo-dir-cat.open .seo-dir-cat-body { padding-bottom: 20px; }
   .seo-dir-list { grid-template-columns: 1fr; gap: 0; }
 }
+
+/* ═══════════════════════════════════════════
+   CUENTA DEL CLIENTE (ingresar, restablecer, mi cuenta)
+   ═══════════════════════════════════════════ */
+/* acceso en el menú: "Ingresar" o "Mi cuenta" */
+.nav-cuenta {
+  display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
+  font-size: 0.68rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--texto); padding: 9px 14px; border: 1px solid var(--gold-l); border-radius: 999px;
+  transition: background var(--tr), color var(--tr), border-color var(--tr);
+}
+.nav-cuenta:hover { background: var(--gold); border-color: var(--gold); color: var(--white); }
+.nav-cuenta i { font-size: 0.85rem; }
+/* en pantallas medianas el menú no alcanza: queda solo el ícono */
+@media (max-width: 1240px) {
+  .nav-cuenta { padding: 0; width: 38px; height: 38px; justify-content: center; }
+  .nav-cuenta span { display: none; }
+}
+@media (max-width: 1240px) and (min-width: 861px) {
+  .nav-inner { gap: 22px; }
+}
+.nav-mob-cuenta {
+  display: none; align-items: center; justify-content: center; width: 38px; height: 38px;
+  border-radius: 50%; color: var(--navy); font-size: 1.05rem;
+}
+.nav-mob-cuenta:hover { background: rgba(0,0,0,0.05); }
+@media (max-width: 860px) {
+  .nav-cuenta { display: none; }
+  .nav-mob-cuenta { display: flex; }
+}
+
+/* página */
+.cta-pagina { min-height: 62vh; display: flex; justify-content: center; align-items: flex-start; padding: 48px 16px 80px; }
+.cta-pagina.ancha { display: block; max-width: 880px; margin: 0 auto; }
+.cta-tarjeta {
+  width: 100%; max-width: 440px; background: var(--white); border-radius: 16px;
+  box-shadow: var(--sh-lg); border: 1px solid var(--border); padding: 36px 30px 30px;
+}
+.cta-vista { display: flex; flex-direction: column; gap: 14px; }
+.cta-vista[hidden] { display: none; }
+.cta-titulo { font-family: 'Playfair Display', serif; font-size: 1.75rem; line-height: 1.2; color: var(--navy); }
+.cta-sub { font-size: 0.9rem; color: var(--light); line-height: 1.6; }
+.cta-vista form { display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
+.cta-fila { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cta-campo { display: flex; flex-direction: column; gap: 6px; font-size: 0.76rem; font-weight: 600; letter-spacing: 0.04em; color: var(--mid); }
+.cta-opc { font-weight: 400; color: var(--light); letter-spacing: 0; }
+.cta-campo input {
+  font: inherit; font-size: 1rem; font-weight: 400; letter-spacing: 0; color: var(--texto);
+  padding: 12px 14px; border: 1px solid #dcd6cc; border-radius: 10px; background: var(--cream); width: 100%;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+}
+.cta-campo input:focus { outline: none; border-color: var(--gold); background: var(--white); box-shadow: 0 0 0 3px rgba(197,164,103,.2); }
+.cta-clave { position: relative; display: block; }
+.cta-clave input { padding-right: 46px; }
+.cta-ver {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 38px; height: 38px; border: 0; background: none; color: var(--light); cursor: pointer; border-radius: 8px;
+}
+.cta-ver:hover { color: var(--gold-d); }
+.cta-ayuda { font-weight: 400; font-size: 0.74rem; color: var(--light); letter-spacing: 0; }
+.cta-boton { width: 100%; justify-content: center; padding-top: 14px; padding-bottom: 14px; }
+.cta-boton:disabled { opacity: .6; cursor: wait; transform: none; }
+.cta-enlace {
+  background: none; border: 0; padding: 0; font: inherit; font-size: 0.85rem; color: var(--gold-d);
+  text-decoration: underline; text-underline-offset: 3px; cursor: pointer; align-self: center;
+}
+.cta-enlace:hover { color: var(--navy); }
+.cta-cambio { font-size: 0.85rem; color: var(--light); text-align: center; border-top: 1px solid var(--border); padding-top: 16px; margin-top: 4px; }
+.cta-legal { font-size: 0.74rem; color: var(--light); text-align: center; }
+.cta-legal a { color: var(--gold-d); }
+.cta-error, .cta-ok, .cta-aviso { font-size: 0.85rem; line-height: 1.5; border-radius: 10px; padding: 11px 14px; }
+.cta-error { background: #fdecec; color: #9b1c1c; }
+.cta-ok, .cta-aviso.ok { background: #e9f6ee; color: #1d6b3a; }
+.cta-aviso { background: var(--gold-pale); color: var(--mid); }
+.cta-aviso.error { background: #fdecec; color: #9b1c1c; }
+.cta-icono {
+  width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--gold-pale); color: var(--gold-d); font-size: 1.5rem; align-self: center;
+}
+.cta-icono.ok { background: #e9f6ee; color: #1d6b3a; }
+.cta-icono.error { background: #fdecec; color: #9b1c1c; }
+.cta-vista:has(.cta-icono) { text-align: center; }
+.cta-spinner {
+  width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--gold-pale); border-top-color: var(--gold);
+  animation: cta-gira .8s linear infinite; align-self: center; margin: 12px auto;
+}
+.cta-cargando { display: flex; justify-content: center; padding: 60px 0; }
+.cta-cargando[hidden], .mc-bloque[hidden], #contenido[hidden] { display: none; }
+@keyframes cta-gira { to { transform: rotate(360deg); } }
+
+/* mi cuenta */
+.mc-cabeza { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.mc-kicker { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-d); margin-bottom: 6px; }
+.mc-bloque { background: var(--white); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--sh-sm); padding: 24px; margin-top: 18px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.mc-h2 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--navy); }
+
+@media (max-width: 520px) {
+  .cta-pagina { padding: 28px 16px 60px; }
+  .cta-tarjeta { padding: 28px 20px 24px; border-radius: 14px; }
+  .cta-fila { grid-template-columns: 1fr; }
+  .cta-titulo { font-size: 1.5rem; }
+}
+@media (prefers-reduced-motion: reduce) { .cta-spinner { animation-duration: 2s; } }

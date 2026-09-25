@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi cuenta — Spa Infinity</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="/logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/styles.css?v=13">
+<script src="/config-cliente.js?v=3"></script>
+</head>
+<body class="pt-nav">
+
+<div id="navContainer"></div>
+
+<main class="cta-pagina ancha">
+  <div class="cta-cargando" id="cargando"><div class="cta-spinner" aria-hidden="true"></div></div>
+
+  <div id="contenido" hidden>
+    <header class="mc-cabeza">
+      <div>
+        <p class="mc-kicker">Mi cuenta</p>
+        <h1 class="cta-titulo" id="saludo">Hola</h1>
+        <p class="cta-sub" id="correo"></p>
+      </div>
+      <button type="button" class="btn btn-outline-gold" id="salir"><i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar sesión</button>
+    </header>
+
+    <div class="cta-aviso ok" id="bienvenida" hidden>¡Tu cuenta quedó lista! Ya puedes reservar tus horas desde aquí.</div>
+
+    <section class="mc-bloque">
+      <h2 class="mc-h2">¿Necesitas una hora?</h2>
+      <p class="cta-sub">Reserva en línea en menos de un minuto.</p>
+      <a class="btn btn-gold" href="/reservar.html">Reservar una hora</a>
+    </section>
+  </div>
+</main>
+
+<div id="footerContainer"></div>
+<div id="floatingContainer"></div>
+
+<script src="/supabase-client.js?v=19"></script>
+<script src="/data.js?v=7"></script>
+<script src="/common.js?v=19"></script>
+<script src="/cuenta.js?v=1"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('')
+document.getElementById('footerContainer').innerHTML = renderFooter()
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+const $ = id => document.getElementById(id)
+;(async () => {
+  await Cuenta.requerirSesion()           // sin sesión, va a /ingresar y vuelve aquí
+  let p = null
+  try { p = await Cuenta.perfil() } catch (e) { /* se muestra igual, sin el nombre */ }
+  $('saludo').textContent = 'Hola' + (p && p.nombre ? ', ' + p.nombre : '')
+  $('correo').textContent = Cuenta.correo()
+  if (new URLSearchParams(location.search).get('bienvenida')) {
+    $('bienvenida').hidden = false
+    history.replaceState(null, '', location.pathname)
+  }
+  $('cargando').hidden = true
+  $('contenido').hidden = false
+})()
+
+$('salir').addEventListener('click', async () => {
+  $('salir').disabled = true
+  await Cuenta.salir()
+  location.replace('/ingresar')
+})
+</script>
+</body>
+</html>

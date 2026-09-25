@@ -242,6 +242,19 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
+# Correos de la cuenta del cliente, en español (en producción se copian en Authentication → Emails)
+[auth.email.template.confirmation]
+subject = "Confirma tu cuenta en Spa Infinity"
+content_path = "./supabase/templates/confirmacion.html"
+
+[auth.email.template.recovery]
+subject = "Crea tu nueva contraseña — Spa Infinity"
+content_path = "./supabase/templates/recuperacion.html"
+
+[auth.email.template.email_change]
+subject = "Confirma tu nuevo correo — Spa Infinity"
+content_path = "./supabase/templates/cambio-correo.html"
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nueva contraseña — Spa Infinity</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="/logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/styles.css?v=13">
+<script src="/config-cliente.js?v=3"></script>
+</head>
+<body class="pt-nav">
+
+<div id="navContainer"></div>
+
+<main class="cta-pagina">
+  <section class="cta-tarjeta" aria-live="polite">
+    <div class="cta-vista" id="vCargando">
+      <div class="cta-spinner" aria-hidden="true"></div>
+      <p class="cta-sub">Un momento…</p>
+    </div>
+
+    <div class="cta-vista" id="vForm" hidden>
+      <h1 class="cta-titulo">Crea tu nueva contraseña</h1>
+      <p class="cta-sub">Para <strong id="correo"></strong></p>
+      <form id="fClave" novalidate>
+        <label class="cta-campo">Nueva contraseña
+          <span class="cta-clave">
+            <input type="password" id="clave1" autocomplete="new-password" minlength="8" required>
+            <button type="button" class="cta-ver" aria-label="Mostrar contraseña" data-ver="clave1"><i class="fa-regular fa-eye"></i></button>
+          </span>
+          <small class="cta-ayuda">Al menos 8 caracteres.</small>
+        </label>
+        <label class="cta-campo">Repítela
+          <input type="password" id="clave2" autocomplete="new-password" minlength="8" required>
+        </label>
+        <div class="cta-error" id="error" role="alert" hidden></div>
+        <button type="submit" class="btn btn-gold cta-boton" id="boton">Guardar contraseña</button>
+      </form>
+    </div>
+
+    <div class="cta-vista" id="vListo" hidden>
+      <div class="cta-icono ok"><i class="fa-solid fa-check"></i></div>
+      <h1 class="cta-titulo">Contraseña actualizada</h1>
+      <p class="cta-sub">Ya puedes usar tu nueva contraseña.</p>
+      <a class="btn btn-gold cta-boton" href="/mi-cuenta">Ir a mi cuenta</a>
+    </div>
+
+    <div class="cta-vista" id="vInvalido" hidden>
+      <div class="cta-icono error"><i class="fa-solid fa-link-slash"></i></div>
+      <h1 class="cta-titulo">El enlace no sirve</h1>
+      <p class="cta-sub" id="motivo">El enlace expiró o ya se usó.</p>
+      <a class="btn btn-gold cta-boton" href="/ingresar?modo=recuperar">Pedir un enlace nuevo</a>
+    </div>
+  </section>
+</main>
+
+<div id="footerContainer"></div>
+<div id="floatingContainer"></div>
+
+<script src="/supabase-client.js?v=19"></script>
+<script src="/data.js?v=7"></script>
+<script src="/common.js?v=19"></script>
+<script src="/cuenta.js?v=1"></script>
+<script>
+document.getElementById('navContainer').innerHTML = renderNavbar('')
+document.getElementById('footerContainer').innerHTML = renderFooter()
+document.getElementById('floatingContainer').innerHTML = renderFloating()
+
+const $ = id => document.getElementById(id)
+function mostrar(v) { ['vCargando', 'vForm', 'vListo', 'vInvalido'].forEach(x => $(x).hidden = x !== v) }
+document.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => {
+  const i = $(b.dataset.ver), ver = i.type === 'password'
+  i.type = ver ? 'text' : 'password'
+  b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña')
+  b.innerHTML = ver ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>'
+}))
+
+;(async () => {
+  /* el enlace del correo trae la sesión de recuperación en el ancla */
+  const enlace = Cuenta.leerEnlace()
+  if (enlace && enlace.error) { $('motivo').textContent = enlace.error; return mostrar('vInvalido') }
+  if (!(await Cuenta.sesion())) return mostrar('vInvalido')
+  $('correo').textContent = Cuenta.correo()
+  mostrar('vForm')
+  $('clave1').focus()
+})()
+
+$('fClave').addEventListener('submit', async e => {
+  e.preventDefault()
+  const err = $('error'); err.hidden = true
+  const a = $('clave1').value, b = $('clave2').value
+  const fallo = t => { err.textContent = t; err.hidden = false }
+  if (!Validar.contrasena(a)) return fallo('La contraseña debe tener al menos 8 caracteres.')
+  if (a !== b) return fallo('Las dos contraseñas no coinciden.')
+  const boton = $('boton'); boton.disabled = true; boton.textContent = 'Guardando…'
+  try { await Cuenta.cambiarContrasena(a); mostrar('vListo') }
+  catch (x) { fallo(x.message) }
+  finally { boton.disabled = false; boton.textContent = 'Guardar contraseña' }
+})
+</script>
+</body>
+</html>
