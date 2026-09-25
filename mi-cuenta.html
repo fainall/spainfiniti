@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="/styles.css?v=13">
+<link rel="stylesheet" href="/styles.css?v=14">
 <script src="/config-cliente.js?v=3"></script>
 </head>
 <body class="pt-nav">
@@ -25,17 +25,82 @@
       <div>
         <p class="mc-kicker">Mi cuenta</p>
         <h1 class="cta-titulo" id="saludo">Hola</h1>
-        <p class="cta-sub" id="correo"></p>
+        <p class="cta-sub" id="correoCab"></p>
       </div>
-      <button type="button" class="btn btn-outline-gold" id="salir"><i class="fa-solid fa-arrow-right-from-bracket"></i> Cerrar sesión</button>
+      <div class="mc-acciones">
+        <a class="btn btn-gold" href="/reservar.html"><i class="fa-regular fa-calendar-plus"></i> Reservar</a>
+        <button type="button" class="btn btn-outline-gold" id="salir"><i class="fa-solid fa-arrow-right-from-bracket"></i> Salir</button>
+      </div>
     </header>
 
-    <div class="cta-aviso ok" id="bienvenida" hidden>¡Tu cuenta quedó lista! Ya puedes reservar tus horas desde aquí.</div>
+    <div class="cta-aviso ok" id="bienvenida" hidden>¡Tu cuenta quedó lista! Aquí verás tus horas y podrás reservar más rápido.</div>
 
-    <section class="mc-bloque">
-      <h2 class="mc-h2">¿Necesitas una hora?</h2>
-      <p class="cta-sub">Reserva en línea en menos de un minuto.</p>
-      <a class="btn btn-gold" href="/reservar.html">Reservar una hora</a>
+    <nav class="mc-tabs" role="tablist" aria-label="Secciones de mi cuenta">
+      <button role="tab" id="tabHoras" aria-controls="pHoras" aria-selected="true">Mis horas</button>
+      <button role="tab" id="tabDatos" aria-controls="pDatos" aria-selected="false" tabindex="-1">Mis datos</button>
+      <button role="tab" id="tabClave" aria-controls="pClave" aria-selected="false" tabindex="-1">Contraseña</button>
+    </nav>
+
+    <!-- ── Mis horas ── -->
+    <section class="mc-panel" role="tabpanel" id="pHoras" aria-labelledby="tabHoras">
+      <div class="mc-seg" role="group" aria-label="Filtrar horas">
+        <button type="button" data-lista="proximas" aria-pressed="true">Próximas <span id="nProx"></span></button>
+        <button type="button" data-lista="pasadas" aria-pressed="false">Pasadas <span id="nPas"></span></button>
+      </div>
+      <div id="citas" aria-live="polite"></div>
+      <p class="mc-nota">¿Falta alguna hora? Si te atendiste con otro correo o teléfono, escríbenos por
+        <a id="waFalta" href="#" target="_blank" rel="noopener">WhatsApp</a> y la sumamos a tu cuenta.</p>
+    </section>
+
+    <!-- ── Mis datos ── -->
+    <section class="mc-panel" role="tabpanel" id="pDatos" aria-labelledby="tabDatos" hidden>
+      <form id="fDatos" class="mc-form" novalidate>
+        <div class="cta-fila">
+          <label class="cta-campo">Nombre
+            <input type="text" id="dNombre" autocomplete="given-name" maxlength="80" required>
+          </label>
+          <label class="cta-campo">Apellido
+            <input type="text" id="dApellido" autocomplete="family-name" maxlength="80" required>
+          </label>
+        </div>
+        <label class="cta-campo">Correo
+          <input type="email" id="dCorreo" disabled>
+          <small class="cta-ayuda">Es el correo con que ingresas. Para cambiarlo, escríbenos.</small>
+        </label>
+        <div class="cta-fila">
+          <label class="cta-campo">Teléfono
+            <input type="tel" id="dFono" autocomplete="tel" inputmode="tel" placeholder="+56 9 1234 5678">
+          </label>
+          <label class="cta-campo">RUT <span class="cta-opc">(opcional)</span>
+            <input type="text" id="dRut" placeholder="12.345.678-5" maxlength="12">
+          </label>
+        </div>
+        <div class="cta-error" id="dError" role="alert" hidden></div>
+        <div class="cta-ok" id="dOk" role="status" hidden>Tus datos quedaron guardados.</div>
+        <button type="submit" class="btn btn-gold" id="dBoton">Guardar cambios</button>
+      </form>
+    </section>
+
+    <!-- ── Contraseña ── -->
+    <section class="mc-panel" role="tabpanel" id="pClave" aria-labelledby="tabClave" hidden>
+      <form id="fClave" class="mc-form estrecho" novalidate>
+        <label class="cta-campo">Contraseña actual
+          <input type="password" id="cActual" autocomplete="current-password" required>
+        </label>
+        <label class="cta-campo">Nueva contraseña
+          <span class="cta-clave">
+            <input type="password" id="cNueva" autocomplete="new-password" minlength="8" required>
+            <button type="button" class="cta-ver" aria-label="Mostrar contraseña" data-ver="cNueva"><i class="fa-regular fa-eye"></i></button>
+          </span>
+          <small class="cta-ayuda">Al menos 8 caracteres.</small>
+        </label>
+        <label class="cta-campo">Repite la nueva contraseña
+          <input type="password" id="cNueva2" autocomplete="new-password" minlength="8" required>
+        </label>
+        <div class="cta-error" id="cError" role="alert" hidden></div>
+        <div class="cta-ok" id="cOk" role="status" hidden>Tu contraseña quedó cambiada.</div>
+        <button type="submit" class="btn btn-gold" id="cBoton">Cambiar contraseña</button>
+      </form>
     </section>
   </div>
 </main>
@@ -46,25 +111,165 @@
 <script src="/supabase-client.js?v=19"></script>
 <script src="/data.js?v=7"></script>
 <script src="/common.js?v=19"></script>
-<script src="/cuenta.js?v=1"></script>
+<script src="/cuenta.js?v=2"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('')
 document.getElementById('footerContainer').innerHTML = renderFooter()
 document.getElementById('floatingContainer').innerHTML = renderFloating()
 
 const $ = id => document.getElementById(id)
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+let citas = [], lista = 'proximas', perfilActual = null
+
+/* ── Pestañas (con teclado: flechas izquierda y derecha) ── */
+const TABS = [['tabHoras', 'pHoras'], ['tabDatos', 'pDatos'], ['tabClave', 'pClave']]
+function abrirTab(id, foco) {
+  TABS.forEach(([t, p]) => {
+    const on = t === id
+    $(t).setAttribute('aria-selected', on); $(t).tabIndex = on ? 0 : -1; $(p).hidden = !on
+  })
+  if (foco) $(id).focus()
+  history.replaceState(null, '', location.pathname + (id === 'tabHoras' ? '' : '#' + { tabDatos: 'datos', tabClave: 'clave' }[id]))
+}
+TABS.forEach(([t], i) => {
+  $(t).addEventListener('click', () => abrirTab(t))
+  $(t).addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const j = (i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length
+      abrirTab(TABS[j][0], true)
+    }
+  })
+})
+
+/* ── Mis horas ── */
+function estado(c) {
+  if (c.estado === 'cancelled') return ['Cancelada', 'gris']
+  if (c.pasada) return c.estado === 'no_show' ? ['No asististe', 'gris'] : ['Realizada', 'neutro']
+  if (c.estado === 'confirmed') return ['Confirmada', 'verde']
+  return ['Reservada', 'oro']
+}
+function tarjeta(c) {
+  const [y, m, d] = c.fecha.split('-').map(Number)
+  const f = new Date(y, m - 1, d)
+  const [txt, clase] = estado(c)
+  const hora = String(c.inicio).slice(0, 5) + (c.fin ? ' – ' + String(c.fin).slice(0, 5) : '')
+  return `<article class="mc-cita${c.estado === 'cancelled' ? ' cancelada' : ''}">
+    <div class="mc-fecha" aria-hidden="true"><span>${esc(DIAS[f.getDay()].slice(0, 3))}</span><strong>${d}</strong><span>${esc(MESES[m - 1])}</span></div>
+    <div class="mc-info">
+      <h3>${esc(c.servicio || 'Atención')}</h3>
+      <p><span class="sr-only">${esc(DIAS[f.getDay()])} ${d} de ${esc(MESES[m - 1])} ${y}, </span><i class="fa-regular fa-clock" aria-hidden="true"></i> ${esc(hora)} hrs${c.profesional ? ` · <i class="fa-regular fa-user" aria-hidden="true"></i> ${esc(c.profesional)}` : ''}</p>
+      ${c.precio ? `<p class="mc-precio">${esc(c.precio)}</p>` : ''}
+    </div>
+    <span class="mc-estado ${clase}">${esc(txt)}</span>
+  </article>`
+}
+function pintarCitas() {
+  const prox = citas.filter(c => !c.pasada).sort((a, b) => (a.fecha + a.inicio).localeCompare(b.fecha + b.inicio))
+  const pas = citas.filter(c => c.pasada)
+  $('nProx').textContent = prox.length ? '(' + prox.length + ')' : ''
+  $('nPas').textContent = pas.length ? '(' + pas.length + ')' : ''
+  document.querySelectorAll('[data-lista]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lista === lista))
+  const filas = lista === 'proximas' ? prox : pas
+  if (!citas.length) {
+    $('citas').innerHTML = `<div class="mc-vacio"><i class="fa-regular fa-calendar" aria-hidden="true"></i>
+      <p><strong>Aún no tienes citas.</strong><br>Cuando reserves, aparecerán aquí.</p>
+      <a class="btn btn-gold" href="/reservar.html">Reservar mi primera hora</a></div>`
+    return
+  }
+  if (!filas.length) {
+    $('citas').innerHTML = lista === 'proximas'
+      ? `<div class="mc-vacio"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i><p><strong>No tienes horas próximas.</strong></p>
+         <a class="btn btn-gold" href="/reservar.html">Reservar una hora</a></div>`
+      : `<div class="mc-vacio"><i class="fa-regular fa-clock" aria-hidden="true"></i><p><strong>Aún no tienes citas pasadas.</strong></p></div>`
+    return
+  }
+  $('citas').innerHTML = filas.map(tarjeta).join('')
+}
+document.querySelectorAll('[data-lista]').forEach(b => b.addEventListener('click', () => { lista = b.dataset.lista; pintarCitas() }))
+
+async function cargarCitas() {
+  $('citas').innerHTML = '<div class="mc-esqueleto"></div><div class="mc-esqueleto"></div>'
+  try {
+    /* por si el spa le agregó el correo a una ficha después de crear la cuenta */
+    await Cuenta.rpc('vincular_mis_fichas').catch(() => {})
+    citas = await Cuenta.rpc('mis_citas') || []
+    pintarCitas()
+  } catch (e) {
+    $('citas').innerHTML = `<div class="mc-vacio error"><p>${esc(e.message)}</p>
+      <button type="button" class="btn btn-outline-gold" onclick="cargarCitas()">Reintentar</button></div>`
+  }
+}
+
+/* ── Mis datos ── */
+function llenarDatos(p) {
+  $('dNombre').value = p ? p.nombre || '' : ''
+  $('dApellido').value = p ? p.apellido || '' : ''
+  $('dFono').value = p && p.telefono ? p.telefono.replace(/^\+569(\d{4})(\d{4})$/, '+56 9 $1 $2') : ''
+  $('dRut').value = p && p.rut ? p.rut.replace(/^(\d{1,2})(\d{3})(\d{3})-/, '$1.$2.$3-') : ''
+  $('dCorreo').value = Cuenta.correo()
+}
+$('fDatos').addEventListener('submit', async e => {
+  e.preventDefault()
+  const err = t => { $('dError').textContent = t; $('dError').hidden = !t }
+  err(''); $('dOk').hidden = true
+  const nombre = $('dNombre').value.trim(), apellido = $('dApellido').value.trim()
+  const telefono = Validar.telefono($('dFono').value), rut = Validar.rut($('dRut').value)
+  if (!nombre || !apellido) return err('Escribe tu nombre y tu apellido.')
+  if (telefono === null) return err('El teléfono no es válido. Ejemplo: +56 9 1234 5678.')
+  if (rut === null) return err('El RUT no es válido. Revisa el número y el dígito verificador.')
+  const b = $('dBoton'); b.disabled = true; b.textContent = 'Guardando…'
+  try {
+    perfilActual = await Cuenta.guardarPerfil({ nombre, apellido, telefono: telefono || null, rut: rut || null })
+    llenarDatos(perfilActual)
+    $('saludo').textContent = 'Hola, ' + perfilActual.nombre
+    $('dOk').hidden = false
+  } catch (x) { err(x.message) }
+  finally { b.disabled = false; b.textContent = 'Guardar cambios' }
+})
+
+/* ── Contraseña ── */
+document.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => {
+  const i = $(b.dataset.ver), ver = i.type === 'password'
+  i.type = ver ? 'text' : 'password'
+  b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña')
+  b.innerHTML = ver ? '<i class="fa-regular fa-eye-slash"></i>' : '<i class="fa-regular fa-eye"></i>'
+}))
+$('fClave').addEventListener('submit', async e => {
+  e.preventDefault()
+  const err = t => { $('cError').textContent = t; $('cError').hidden = !t }
+  err(''); $('cOk').hidden = true
+  const actual = $('cActual').value, nueva = $('cNueva').value
+  if (!actual) return err('Escribe tu contraseña actual.')
+  if (!Validar.contrasena(nueva)) return err('La nueva contraseña debe tener al menos 8 caracteres.')
+  if (nueva !== $('cNueva2').value) return err('Las dos contraseñas nuevas no coinciden.')
+  if (nueva === actual) return err('La nueva contraseña tiene que ser distinta a la actual.')
+  const b = $('cBoton'); b.disabled = true; b.textContent = 'Cambiando…'
+  try {
+    await Cuenta.cambiarConActual(actual, nueva)
+    $('fClave').reset(); $('cOk').hidden = false
+  } catch (x) { err(x.message) }
+  finally { b.disabled = false; b.textContent = 'Cambiar contraseña' }
+})
+
+/* ── Al abrir ── */
 ;(async () => {
-  await Cuenta.requerirSesion()           // sin sesión, va a /ingresar y vuelve aquí
-  let p = null
-  try { p = await Cuenta.perfil() } catch (e) { /* se muestra igual, sin el nombre */ }
-  $('saludo').textContent = 'Hola' + (p && p.nombre ? ', ' + p.nombre : '')
-  $('correo').textContent = Cuenta.correo()
+  await Cuenta.requerirSesion()            // sin sesión, va a /ingresar y vuelve aquí
+  try { perfilActual = await Cuenta.perfil() } catch (e) { /* se muestra igual */ }
+  $('saludo').textContent = 'Hola' + (perfilActual && perfilActual.nombre ? ', ' + perfilActual.nombre : '')
+  $('correoCab').textContent = Cuenta.correo()
+  llenarDatos(perfilActual)
+  $('waFalta').href = 'https://wa.me/' + (typeof CLIENTE !== 'undefined' ? CLIENTE.whatsapp : '56986688771')
+    + '?text=' + encodeURIComponent('Hola, tengo cuenta en el sitio con el correo ' + Cuenta.correo() + ' y me falta una hora en mi historial.')
   if (new URLSearchParams(location.search).get('bienvenida')) {
     $('bienvenida').hidden = false
     history.replaceState(null, '', location.pathname)
   }
   $('cargando').hidden = true
   $('contenido').hidden = false
+  abrirTab({ '#datos': 'tabDatos', '#clave': 'tabClave' }[location.hash] || 'tabHoras')
+  cargarCitas()
 })()
 
 $('salir').addEventListener('click', async () => {

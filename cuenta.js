@@ -222,6 +222,19 @@ const Cuenta = (() => {
     const filas = await rest('/profiles?id=eq.' + encodeURIComponent(id), { metodo: 'PATCH', cuerpo: datos, prefer: 'return=representation' })
     return filas && filas[0]
   }
+  /* funciones de la base (historial, vinculación) */
+  function rpc(fn, args) { return rest('/rpc/' + fn, { metodo: 'POST', cuerpo: args || {} }) }
+
+  /* cambiar la contraseña pidiendo la actual: se comprueba ingresando con ella */
+  async function cambiarConActual(actual, nueva) {
+    try { await ingresar(correo(), actual) }
+    catch (e) {
+      if (e.codigo === 'invalid_credentials') throw new ErrorCuenta('La contraseña actual no es correcta.', 'clave_actual')
+      throw e
+    }
+    return cambiarContrasena(nueva)
+  }
+
   function idDelToken(t) {
     try { return JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub } catch (e) { return '' }
   }
@@ -232,7 +245,7 @@ const Cuenta = (() => {
   }
 
   return { registrar, reenviarConfirmacion, ingresar, recuperar, cambiarContrasena, salir,
-           sesion, haySesion, leerEnlace, requerirSesion, destino, rest, perfil, guardarPerfil, correo, ErrorCuenta }
+           sesion, haySesion, leerEnlace, requerirSesion, destino, rest, rpc, perfil, guardarPerfil, cambiarConActual, correo, ErrorCuenta }
 })()
 
 /* ── Validaciones del formulario (las mismas reglas que exige la base) ── */
