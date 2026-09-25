@@ -1742,7 +1742,7 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   .nav-cuenta span { display: none; }
 }
 @media (max-width: 1240px) and (min-width: 861px) {
-  .nav-inner { gap: 22px; }
+  .nav-inner:has(.nav-cuenta) { gap: 22px; }
 }
 .nav-mob-cuenta {
   display: none; align-items: center; justify-content: center; width: 38px; height: 38px;

@@ -35,7 +35,13 @@ const CLIENTE = {
   direccion: 'Santo Domingo 1083, of. 502, Santiago',
 
   /* ── Asistente de WhatsApp ── */
-  asistente: 'Julia'
+  asistente: 'Julia',
+
+  /* ── Cuentas de clientes en el sitio (Ingresar / Mi cuenta) ──
+     Apagado hasta que Supabase tenga el SMTP propio: sin él, los correos de
+     confirmación no les llegan a los clientes. Con true aparece "Ingresar" en el
+     menú y la invitación en la página de reserva. */
+  cuentasClientes: false
 }
 
 /* En el computador (localhost) el sitio usa la base LOCAL de Supabase
@@ -45,6 +51,7 @@ if (typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(locat
   CLIENTE.supabaseUrl = 'http://127.0.0.1:54321'
   CLIENTE.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
   CLIENTE.dominio = location.origin
+  CLIENTE.cuentasClientes = true
 }
 
 /* Enlace de WhatsApp con un texto ya escrito */
