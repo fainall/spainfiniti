@@ -618,6 +618,25 @@ label.chk input{width:auto;margin:0}
 .prof-chip:hover{background:var(--cream-2)}
 .prof-chip.on{background:var(--gold-pale);border-color:var(--gold)}
 .prof-chip.multi{user-select:none}
+.perm-box{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}
+.perm-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.perm-aviso{background:var(--cream-2,#f4efe6);border-radius:8px;padding:8px 10px;margin:0 0 8px}
+.perm-grupo{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;background:#fff}
+.perm-cab{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;font:inherit;font-size:.88rem;font-weight:600;
+  padding:11px 14px;cursor:pointer;text-align:left;color:var(--texto)}
+.perm-cab:hover{background:var(--cream-2,#f4efe6)}
+.perm-cuenta{margin-left:auto;font-weight:400;font-size:.74rem;color:var(--light)}
+.perm-flecha{transition:transform .2s;color:var(--mid)}
+.perm-grupo.abierto .perm-flecha{transform:rotate(180deg)}
+.perm-cuerpo{display:none;padding:0 12px 10px;overflow-x:auto}
+.perm-grupo.abierto .perm-cuerpo{display:block}
+.perm-tabla{width:100%;border-collapse:collapse;font-size:.82rem}
+.perm-tabla th{font-weight:600;font-size:.72rem;color:var(--mid);text-align:center;padding:6px 4px;border-bottom:1px solid var(--border);white-space:nowrap}
+.perm-tabla th:first-child,.perm-tabla td:first-child{text-align:left}
+.perm-tabla td{text-align:center;padding:7px 4px;border-bottom:1px solid var(--cream-2,#f4efe6)}
+.perm-tabla tr:last-child td{border-bottom:0}
+.perm-tabla input{width:17px;height:17px;accent-color:var(--gold-d,#9a7d45);cursor:pointer}
+.perm-tabla input:disabled{cursor:not-allowed;opacity:.35}
 .prof-check{width:16px;height:16px;margin:0;accent-color:var(--gold-d,#9a7d45);cursor:pointer;flex-shrink:0}
 .prof-multi-acc{display:flex;align-items:center;gap:6px;padding:2px 2px 8px}
 .prof-multi-acc button{font:inherit;font-size:.74rem;padding:4px 10px;border-radius:999px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--texto)}
@@ -3127,7 +3146,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
 
   <!-- MODAL: cuenta de acceso -->
   <div class="modal-ov" id="userModal">
-    <div class="modal" style="width:560px">
+    <div class="modal" style="width:720px;max-width:96vw">
       <h2 id="usTitle">Nueva cuenta</h2>
       <input type="hidden" id="usId" />
       <div class="fbox">
@@ -3145,6 +3164,11 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <div><label>Estado</label><select id="usActive"><option value="1">Activo</option><option value="0">Desactivado</option></select></div>
         </div>
         <p class="rem-note" id="usRoleDesc" style="margin:8px 0 0"></p>
+        <div class="perm-box">
+          <div class="perm-top"><strong>Permisos</strong>
+            <button type="button" class="mini-link" id="usPermReset" onclick="usPermRestablecer()">Restablecer según el rol</button></div>
+          <div id="usPermisos"></div>
+        </div>
         <label style="margin-top:12px">Ficha de profesional que verá</label>
         <select id="usProf"></select>
         <p class="rem-note" style="margin-top:6px">Es la agenda cuyas horas e ingresos podrá ver y gestionar.</p>
@@ -4367,24 +4391,82 @@ const ROLES = {
 function soloMira(){ return !!(me && rolDe().soloMirar) }
 /* sin perfil, el rol mas restringido: nunca administrador por omision */
 function rolDe(){ return ROLES[(me && me.role) || 'pro_ro'] || ROLES.pro_ro }
-function puedeEditar(){ return !!me && rolDe().edita !== false }
+/* ── Permisos por usuario (pedido de Luis, como en AgendaPro) ──
+   El rol da los permisos de partida; en Administración → Usuarios se pueden
+   ajustar para cada persona, pantalla por pantalla: ver, crear y editar,
+   eliminar y descargar. Se guardan en panel_users.permisos (vacío = los del
+   rol). El administrador general siempre tiene todo, para que nadie pueda
+   dejar la cuenta sin quien la administre. */
+const MODULOS_PERMISO = [
+  { grupo:'Agenda', items:[['agenda','Agenda']] },
+  { grupo:'Ventas', items:[['ventas','Detalle de ventas'],['cobros','Cobros pendientes'],['transacciones','Transacciones'],
+      ['planes','Planes / Bonos'],['giftcards','Gift Cards'],['caja','Caja / Cierre diario'],['propinas','Propinas'],['comisiones','Comisiones']] },
+  { grupo:'Clientes', items:[['clientes','Base de clientes'],['encuestas','Reportes de encuestas'],['recordatorios','Recordatorios']] },
+  { grupo:'Productos', items:[['productos','Inventario'],['ventaprod','Venta de productos'],['movstock','Movimientos de stock']] },
+  { grupo:'Reportes', items:[['reportes','Resumen'],['represervas','Reporte de reservas'],['repventas','Reporte de ventas']] },
+  { grupo:'Otros', items:[['misingresos','Mis ingresos'],['whatsapp','WhatsApp'],['asistente','Asistente'],['admin','Administración']] },
+]
+const ACCIONES_PERMISO = [['ver','Ver'],['editar','Crear y editar'],['eliminar','Eliminar'],['descargar','Descargar']]
+function permisosDeRol(role){
+  const r = ROLES[role] || ROLES.pro_ro, out = {}
+  MODULOS_PERMISO.forEach(g => g.items.forEach(([v]) => {
+    const ver = r.vistas === 'all' || r.vistas.includes(v)
+    const edita = ver && r.edita !== false
+    out[v] = { ver, editar: edita, eliminar: edita, descargar: edita && !r.soloMirar }
+  }))
+  return out
+}
+function permisosDe(u){
+  const base = permisosDeRol(u && u.role)
+  let p = u && u.permisos
+  if(typeof p === 'string'){ try{ p = JSON.parse(p) }catch(e){ p = null } }
+  if(p && typeof p === 'object') Object.keys(base).forEach(v => { if(p[v]) base[v] = { ...base[v], ...p[v] } })
+  return base
+}
+/* ¿el usuario conectado puede hacer esto en esta pantalla? (por omisión, la que está abierta) */
+function permiso(accion, vista){
+  if(!me) return false
+  if(isAdmin()) return true
+  const v = vista || (typeof pantallaAbierta === 'function' && pantallaAbierta()) || 'agenda'
+  const p = permisosDe(me)[v]
+  if(!p || !p.ver) return false
+  return accion === 'ver' ? true : !!p[accion]
+}
+function puedeEditar(){ return permiso('editar') }
 function vePantalla(v){
-  const r = rolDe()
-  return r.vistas === 'all' || r.vistas.includes(v)
+  if(me && isAdmin()) return true
+  if(!me){ const r = rolDe(); return r.vistas === 'all' || r.vistas.includes(v) }
+  return permiso('ver', v)
 }
 /* el profesional solo ve su propia agenda */
 function soloLoSuyo(){ return !!(me && rolDe().soloSuyo) }
 
 /* deja el botón deshabilitado si el rol no puede editar */
+/* Mira los botones de la pantalla abierta y de las ventanas abiertas: los que
+   el permiso no deja usar quedan deshabilitados, y se vuelven a habilitar si
+   en otra pantalla sí se puede (cada pantalla tiene su propio permiso). */
 function bloquearSiSoloLectura(){
-  if(puedeEditar()) return
-  document.querySelectorAll('.btn-primary, .btn-danger, .mini-btn, .btn-g').forEach(b=>{
+  if(!me || isAdmin()) return
+  const edita = permiso('editar'), borra = permiso('eliminar'), baja = permiso('descargar')
+  const zonas = [document.querySelector('.view.on'), ...document.querySelectorAll('.modal-ov.open:not(#passModal)')].filter(Boolean)
+  zonas.forEach(z => z.querySelectorAll('button, .btn-primary, .btn-danger, .mini-btn, .btn-g').forEach(b => {
+    if(b.closest('.prof-multi-acc, .topnav, .mini-cal')) return
     const t = (b.textContent||'').trim()
-    if(/^(\+|✎|⬆|✍|\$ Registrar|💬|🔗)/.test(t) || /Guardar|Eliminar|Borrar|Nuevo|Nueva/i.test(t)){
-      b.disabled = true; b.title = 'Tu perfil solo permite consultar'
+    let ok = null
+    if(/Descargar|Exportar|CSV|Excel|⬇/i.test(t)) ok = baja
+    else if(/Eliminar|Borrar|🗑/i.test(t)) ok = borra
+    else if(/^(\+|✎|⬆|✍|\$ Registrar|💬|🔗)/.test(t) || /Guardar|Nuevo|Nueva|Crear|Agregar|Cobrar/i.test(t)) ok = edita
+    if(ok === null) return
+    if(!ok){
+      if(!b.dataset.bloq){ b.dataset.bloq = '1'; b.dataset.bloqTit = b.title || '' }
+      b.disabled = true; b.title = 'Tu perfil no tiene este permiso'
       b.style.opacity = '.5'; b.style.cursor = 'not-allowed'
+    } else if(b.dataset.bloq){
+      b.disabled = false; b.title = b.dataset.bloqTit || ''
+      b.style.opacity = ''; b.style.cursor = ''
+      delete b.dataset.bloq; delete b.dataset.bloqTit
     }
-  })
+  }))
 }
 
 const isAdmin = () => !!me && me.role === 'admin'
@@ -4523,11 +4605,20 @@ function applyRole(){
     ;[...nav.children].forEach(el=>{ if(!el.classList.contains('pro-only')) el.style.display='' })
     nav.querySelectorAll('.pro-only').forEach(el=>el.remove())
   } else {
-    ;[...nav.children].forEach(el=>{ el.style.display='none' })
-    const agenda=nav.querySelector('[data-view="agenda"]')
-    if(agenda) agenda.style.display=''
-    const wa=nav.querySelector('[data-view="whatsapp"]')
-    if(wa && vePantalla('whatsapp')) wa.style.display=''
+    /* cada botón según el permiso "ver" de su pantalla; un menú desplegable
+       aparece si al menos una de sus pantallas se puede ver */
+    ;[...nav.children].forEach(el=>{
+      if(el.classList.contains('pro-only')) return
+      if(el.classList.contains('topnav-dd')){
+        const visibles = [...el.querySelectorAll('.topnav-dd-menu button')].filter(b => b.style.display !== 'none')
+        el.style.display = visibles.length ? '' : 'none'
+        const cab = el.querySelector(':scope > button')
+        if(cab && visibles.length && !vePantalla(cab.dataset.view)) cab.onclick = () => visibles[0].click()
+        return
+      }
+      const v = el.dataset && el.dataset.view
+      el.style.display = (v && vePantalla(v)) ? '' : 'none'
+    })
     if(!nav.querySelector('.pro-only') && vePantalla('misingresos')){
       const b=document.createElement('button')
       b.className='pro-only'; b.dataset.view='misingresos'
@@ -4556,7 +4647,8 @@ function nombreEnBloque(a){
 /* el profesional solo puede tocar sus propias citas */
 function canEditAppt(a){
   if(isAdmin()) return true
-  return !!a && a.professional_id === myProfId()
+  if(!a || !permiso('editar','agenda')) return false
+  return soloLoSuyo() ? a.professional_id === myProfId() : true
 }
 
 /* ── VISTA: MIS INGRESOS ── */
@@ -8624,6 +8716,7 @@ function switchView(v){
   if(v==='asistente') renderAsistente()
   if(v==='whatsapp'){ if(!botCfg || botCfg.bot_name === undefined) loadBotConfig().then(renderWhatsapp); else renderWhatsapp() }
   refrescarPantalla(v)
+  if(typeof bloquearSiSoloLectura === 'function'){ setTimeout(bloquearSiSoloLectura, 60); setTimeout(bloquearSiSoloLectura, 600) }
 }
 
 /* ── Refresco del resto de las pantallas ──
@@ -10109,7 +10202,7 @@ function admUsuarios(){
     return `<div class="adm-row">
       <span class="ar-name">${esc(u.name||u.email)}</span>
       <span class="ar-meta">${esc(u.email||'')}</span>
-      <span class="ar-meta">${(ROLES[u.role]||{}).nombre || u.role}${prof?' · '+esc(prof.name):''}</span>
+      <span class="ar-meta">${(ROLES[u.role]||{}).nombre || u.role}${prof?' · '+esc(prof.name):''}${u.permisos && u.role !== 'admin' ? ' · permisos a medida' : ''}</span>
       <span class="adm-dot ${u.active===false?'off':''}">● ${u.active===false?'Desactivado':'Activo'}</span>
       <button class="mini-btn" onclick="openUserModal('${u.id}')">✎ Editar</button>
       <button class="mini-btn" onclick="sendUserReset('${esc(u.email)}')">Enviar clave nueva</button>
@@ -10129,6 +10222,66 @@ function pintarDescRol(){
   const k=document.getElementById('usRole').value
   const el=document.getElementById('usRoleDesc'); if(!el) return
   const r=ROLES[k]; el.textContent = r ? r.desc : ''
+  /* al cambiar el rol, los permisos parten de nuevo desde ese rol */
+  if(usPermEdit && usPermEdit._rol !== k) usPermRestablecer()
+}
+/* ── Tabla de permisos en la ventana del usuario ── */
+let usPermEdit = null
+const _usGruposAbiertos = new Set(['Agenda'])
+function usPermRestablecer(){
+  const rol = document.getElementById('usRole').value
+  usPermEdit = permisosDeRol(rol); usPermEdit._rol = rol
+  pintarPermisos()
+}
+function pintarPermisos(){
+  const el = document.getElementById('usPermisos'); if(!el || !usPermEdit) return
+  const rol = document.getElementById('usRole').value
+  const reset = document.getElementById('usPermReset')
+  if(rol === 'admin'){
+    if(reset) reset.hidden = true
+    el.innerHTML = '<p class="rem-note" style="margin:6px 0 0">El administrador general tiene todos los permisos. Así la cuenta nunca queda sin quien la administre.</p>'
+    return
+  }
+  if(reset) reset.hidden = false
+  const aviso = rol === 'publicidad'
+    ? '<p class="rem-note perm-aviso">Con el rol Publicidad la base de datos solo le entrega la agenda, sin datos de clientes. Las otras pantallas se le abrirían vacías.</p>' : ''
+  el.innerHTML = aviso + MODULOS_PERMISO.map(g => {
+    const cuantos = g.items.filter(([v]) => usPermEdit[v] && usPermEdit[v].ver).length
+    const abierto = _usGruposAbiertos.has(g.grupo)
+    return '<div class="perm-grupo' + (abierto ? ' abierto' : '') + '">'
+      + '<button type="button" class="perm-cab" onclick="usPermGrupo(\'' + g.grupo + '\')"><span>' + esc(g.grupo) + '</span>'
+      + '<span class="perm-cuenta">' + (cuantos ? cuantos + ' de ' + g.items.length + ' visibles' : 'Sin acceso') + '</span><span class="perm-flecha">▾</span></button>'
+      + '<div class="perm-cuerpo"><table class="perm-tabla"><thead><tr><th>Pantalla</th>'
+      + ACCIONES_PERMISO.map(([, t]) => '<th>' + t + '</th>').join('') + '</tr></thead><tbody>'
+      + g.items.map(([v, nombre]) => {
+          const p = usPermEdit[v] || {}
+          return '<tr><td>' + esc(nombre) + '</td>' + ACCIONES_PERMISO.map(([a]) =>
+            '<td><input type="checkbox" ' + (p[a] ? 'checked ' : '') + ((a !== 'ver' && !p.ver) ? 'disabled ' : '')
+            + 'onchange="usPermMarcar(\'' + v + '\',\'' + a + '\',this.checked)" aria-label="' + esc(nombre) + ': ' + a + '"></td>').join('') + '</tr>'
+        }).join('')
+      + '</tbody></table></div></div>'
+  }).join('')
+}
+function usPermGrupo(g){ _usGruposAbiertos.has(g) ? _usGruposAbiertos.delete(g) : _usGruposAbiertos.add(g); pintarPermisos() }
+function usPermMarcar(v, a, on){
+  const p = usPermEdit[v] = usPermEdit[v] || { ver:false, editar:false, eliminar:false, descargar:false }
+  p[a] = on
+  /* sin "ver" no hay nada más; y marcar cualquier otra cosa enciende "ver" */
+  if(a === 'ver' && !on){ p.editar = p.eliminar = p.descargar = false }
+  if(a !== 'ver' && on) p.ver = true
+  pintarPermisos()
+}
+/* lo que se guarda: solo si difiere del rol (si no, queda vacío y manda el rol) */
+function usPermParaGuardar(rol){
+  if(!usPermEdit || rol === 'admin') return null
+  const base = permisosDeRol(rol), out = {}
+  let distinto = false
+  MODULOS_PERMISO.forEach(g => g.items.forEach(([v]) => {
+    const p = usPermEdit[v] || {}
+    out[v] = { ver:!!p.ver, editar:!!p.editar, eliminar:!!p.eliminar, descargar:!!p.descargar }
+    if(ACCIONES_PERMISO.some(([a]) => out[v][a] !== !!(base[v]||{})[a])) distinto = true
+  }))
+  return distinto ? out : null
 }
 function openUserModal(id){
   const u=id?panelUsers.find(x=>x.id===id):null
@@ -10142,7 +10295,8 @@ function openUserModal(id){
      Una cuenta que aun lo tenga se abre como Profesional y queda asi al guardar. */
   selRol.innerHTML=Object.entries(ROLES).filter(([k])=>k!=='pro_ro').map(([k,r])=>'<option value="'+k+'">'+r.nombre+'</option>').join('')
   selRol.value=(u&&ROLES[u.role]&&u.role!=='pro_ro')?u.role:'pro'
-  pintarDescRol()
+  usPermEdit = permisosDe(u ? { ...u, role: selRol.value } : { role: selRol.value }); usPermEdit._rol = selRol.value
+  pintarDescRol(); pintarPermisos()
   document.getElementById('usActive').value=(u&&u.active===false)?'0':'1'
   const ps=document.getElementById('usProf')
   ps.innerHTML='<option value="">— Sin vincular —</option>'+state.professionals.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')
@@ -10161,7 +10315,7 @@ async function saveUser(){
   if(!name||!email){ toast('Falta el nombre o el correo','error'); return }
   try{
     if(id){
-      await supabase.update('panel_users',id,{name,role,professional_id:profId,active})
+      await supabase.update('panel_users',id,{name,role,professional_id:profId,active,permisos:usPermParaGuardar(role)})
       toast('Cuenta actualizada','success')
     } else {
       const pass=document.getElementById('usPass').value
@@ -10174,7 +10328,7 @@ async function saveUser(){
       if(!res.ok) throw new Error(j.msg||j.error_description||'No pudimos crear la cuenta')
       const uid=(j.user&&j.user.id)||j.id
       if(!uid) throw new Error('Supabase no devolvió el usuario; revisa que el registro por correo esté habilitado')
-      await supabase.insert('panel_users',{id:uid,email,name,role,professional_id:profId,active:true})
+      await supabase.insert('panel_users',{id:uid,email,name,role,professional_id:profId,active:true,permisos:usPermParaGuardar(role)})
       toast('Cuenta creada — entrégale la contraseña al profesional para que la cambie','success')
     }
     await loadPanelUsers(); closeModal('userModal'); renderAdmin()
@@ -14971,6 +15125,7 @@ function renderComisiones(){
 
 /* ── EXPORTAR CSV (abre en Excel) ── */
 function downloadCSV(filename, header, rows){
+  if(typeof permiso === 'function' && me && !permiso('descargar')){ toast('Tu perfil no permite descargar desde esta pantalla','error'); return }
   const esc=v=>{ v=(v==null?'':String(v)); return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v }
   const csv=[header,...rows].map(r=>r.map(esc).join(';')).join('\r\n')
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'})
@@ -16129,6 +16284,7 @@ function openModal(id){
   _zModal += 10
   el.style.zIndex = _zModal
   el.classList.add('open')
+  if(typeof bloquearSiSoloLectura === 'function') setTimeout(bloquearSiSoloLectura, 40)
 }
 function closeModal(id){
   const el = document.getElementById(id); if(!el) return
