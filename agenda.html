@@ -4544,21 +4544,17 @@ async function createFirstAdmin(){
   if(pass.length<8){ err.textContent='La contraseña necesita al menos 8 caracteres'; err.style.display='block'; return }
   btn.disabled=true; btn.textContent='Creando…'
   try{
-    const res=await fetch(SUPABASE_URL+'/auth/v1/signup',{method:'POST',
-      headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({email,password:pass})})
-    const j=await res.json()
-    if(!res.ok) throw new Error(j.msg||j.error_description||'No pudimos crear la cuenta')
-    // iniciar sesión para poder guardar el perfil
+    /* la cuenta la crea el servidor (ya confirmada) y solo si no hay ningún
+       administrador todavía: así no depende del registro público de Supabase */
+    const res=await fetch('/api/panel-usuarios.php',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({accion:'primer_admin',email,password:pass,name})})
+    const j=await res.json().catch(()=>({}))
+    if(!res.ok || !j.ok) throw new Error(j.error||'No pudimos crear la cuenta')
     await supaAuth.signIn(email, pass)
-    const uid = supaAuth.session().user.id
-    await supabase.insert('panel_users',{ id:uid, email, name, role:'admin', active:true })
     localStorage.setItem('spa_admin_auth','true')
     await boot()
   }catch(e){
-    err.textContent = /confirm/i.test(e.message)
-      ? 'Supabase pide confirmar el correo. Desactiva esa opción en Authentication → Sign In/Providers → Email y vuelve a intentar.'
-      : e.message
+    err.textContent = e.message
     err.style.display='block'
     btn.disabled=false; btn.textContent='Crear cuenta de administrador'
   }
@@ -10447,17 +10443,26 @@ async function saveUser(){
       toast('Cuenta actualizada','success')
     } else {
       const pass=document.getElementById('usPass').value
-      if(pass.length<8){ toast('La contraseña inicial debe tener al menos 8 caracteres','error'); return }
-      // crear el usuario en Supabase Auth
-      const res=await fetch(SUPABASE_URL+'/auth/v1/signup',{method:'POST',
-        headers:{'apikey':SUPABASE_ANON_KEY,'Content-Type':'application/json'},
-        body:JSON.stringify({email,password:pass})})
-      const j=await res.json()
-      if(!res.ok) throw new Error(j.msg||j.error_description||'No pudimos crear la cuenta')
-      const uid=(j.user&&j.user.id)||j.id
-      if(!uid) throw new Error('Supabase no devolvió el usuario; revisa que el registro por correo esté habilitado')
-      await supabase.insert('panel_users',{id:uid,email,name,role,professional_id:profId,active:true,permisos:usPermParaGuardar(role)})
-      toast('Cuenta creada — entrégale la contraseña al profesional para que la cambie','success')
+      /* La cuenta la crea el servidor, ya confirmada (la crea un administrador).
+         Antes se usaba el registro público de Supabase, que obligaba a tener
+         apagada la confirmación de correo que necesitan las cuentas de clientes. */
+      const crear = async (usarExistente) => {
+        if(typeof sesionLista === 'function') await sesionLista()
+        const r = await fetch('/api/panel-usuarios.php', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}),
+          body: JSON.stringify({ accion:'crear', email, password:pass, name, role, professional_id:profId, usar_existente:usarExistente }) })
+        const j = await r.json().catch(() => ({}))
+        if(!r.ok) throw new Error(j.error || 'No pudimos crear la cuenta')
+        return j
+      }
+      let j = await crear(false)
+      if(j.existe){
+        /* el correo ya es de una cuenta (por ejemplo, de cliente del sitio) */
+        if(!confirm(j.mensaje + '\n\n¿Darle acceso al panel a esa cuenta?')) return
+        j = await crear(true)
+      }
+      if(usPermParaGuardar(role)) await supabase.update('panel_users', j.id, { permisos: usPermParaGuardar(role) })
+      toast(j.usada_existente ? 'Listo: esa persona ya puede entrar al panel con su contraseña de siempre'
+        : 'Cuenta creada — entrégale la contraseña para que la cambie al entrar', 'success')
     }
     await loadPanelUsers(); closeModal('userModal'); renderAdmin()
   }catch(e){ console.error(e); toast(e.message,'error') }
