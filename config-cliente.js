@@ -38,6 +38,15 @@ const CLIENTE = {
   asistente: 'Julia'
 }
 
+/* En el computador (localhost) el sitio usa la base LOCAL de Supabase
+   (npx supabase start). La llave es la de desarrollo que trae Supabase por
+   defecto: no abre nada en producción. */
+if (typeof location !== 'undefined' && ['localhost', '127.0.0.1'].includes(location.hostname)) {
+  CLIENTE.supabaseUrl = 'http://127.0.0.1:54321'
+  CLIENTE.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+  CLIENTE.dominio = location.origin
+}
+
 /* Enlace de WhatsApp con un texto ya escrito */
 function waLink(texto){
   return 'https://wa.me/' + CLIENTE.whatsapp +

@@ -4561,7 +4561,11 @@ async function loadMe(){
   if(!s || !s.user){ me=null; return }
   try{
     const rows=await supabase.fetch('panel_users',{filters:'id=eq.'+s.user.id})
-    me = rows && rows[0] ? rows[0] : { id:s.user.id, email:s.user.email, name:s.user.email, role:'pro', professional_id:null }
+    /* Con las cuentas de clientes del sitio, tener sesión ya no significa ser
+       del equipo: una cuenta sin fila en panel_users (o desactivada) no entra.
+       Antes caía al rol de profesional. */
+    if(!rows || !rows[0] || rows[0].active === false){ me = null; return 'sin-acceso' }
+    me = rows[0]
   }catch(e){
     /* si no se pudo leer el perfil, se entra con lo minimo, no con todo */
     me = { id:s.user.id, email:s.user.email, name:s.user.email, role:'pro_ro', professional_id:null }
@@ -16547,7 +16551,15 @@ function toast(msg,type,ms){ const t=document.getElementById('toast'); t.textCon
 async function boot(){
   // sesión: si hay cuenta, refrescar token y cargar perfil
   const _sess = supaAuth.session()
-  if(_sess){ const ok = await supaAuth.ensureFresh(); if(!ok){ doLogout(); return } await loadMe() }
+  if(_sess){
+    const ok = await supaAuth.ensureFresh(); if(!ok){ doLogout(); return }
+    if(await loadMe() === 'sin-acceso'){
+      supaAuth.signOut(); localStorage.removeItem('spa_admin_auth')
+      const err = document.getElementById('loginErr')
+      if(err){ err.textContent = 'Esta cuenta no tiene acceso al panel. Si eres del equipo, pídele a un administrador que te cree una.'; err.style.display = 'block' }
+      return
+    }
+  }
   else {
     /* sin sesión no se entra: la marca antigua del navegador abría el panel
        entero, y sin perfil el sistema asumía que eras administrador */
