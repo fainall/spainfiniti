@@ -31,6 +31,22 @@ function _http_get($url, $headers) {
 }
 
 /**
+ * Quién llama, sin cortar la respuesta: ['usuario' => [...], 'panel' => perfil|null],
+ * o null si no hay sesión válida. Sirve para los endpoints que atienden tanto al
+ * equipo (panel) como a los clientes con cuenta en el sitio.
+ */
+function sesion_de_quien_llama() {
+    $token = _bearer_token();
+    if (!$token) return null;
+    list($code, $user) = _http_get(supa_url() . '/auth/v1/user', ['apikey: ' . supa_anon(), 'Authorization: Bearer ' . $token]);
+    if ($code !== 200 || empty($user['id'])) return null;
+    list($c2, $rows) = _http_get(supa_url() . '/rest/v1/panel_users?select=id,role,active&id=eq.' . urlencode($user['id']),
+        ['apikey: ' . supa_key(), 'Authorization: Bearer ' . supa_key()]);
+    $perfil = (is_array($rows) && count($rows) && ($rows[0]['active'] ?? true) !== false) ? $rows[0] : null;
+    return ['usuario' => $user, 'panel' => $perfil];
+}
+
+/**
  * Devuelve el perfil del usuario que llama, o corta con 401/403.
  * @param bool $adminOnly  true = solo administradores
  */

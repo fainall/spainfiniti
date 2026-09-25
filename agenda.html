@@ -618,6 +618,32 @@ label.chk input{width:auto;margin:0}
 .prof-chip:hover{background:var(--cream-2)}
 .prof-chip.on{background:var(--gold-pale);border-color:var(--gold)}
 .prof-chip.multi{user-select:none}
+.cw-barra{display:flex;align-items:center;gap:12px;margin:18px 0 12px;flex-wrap:wrap}
+.cw-barra input{flex:1;min-width:220px;max-width:420px;padding:10px 14px;border:1px solid var(--border);border-radius:10px;font:inherit}
+.cw-barra span{font-size:.8rem;color:var(--light)}
+.cw-tabla{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.cw-fila{display:grid;grid-template-columns:1.6fr 1fr 1.1fr 1.1fr 1.6fr;gap:14px;padding:12px 16px;border-top:1px solid var(--border);font-size:.84rem;align-items:start}
+.cw-fila small{color:var(--light)}
+.cw-cab{border-top:0;background:var(--cream-2,#f4efe6);font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mid)}
+.cw-ok{color:#1d6b3a;font-weight:600}
+.cw-no{color:#b45309;font-weight:600}
+.cw-fichas{display:flex;flex-wrap:wrap;gap:6px}
+.cw-ficha{display:inline-flex;align-items:center;gap:2px;background:var(--cream-2,#f4efe6);border-radius:999px;padding:2px 4px 2px 10px}
+.cw-x{border:0;background:none;cursor:pointer;color:var(--light);width:22px;height:22px;border-radius:50%;font-size:.7rem}
+.cw-x:hover{background:#fdecec;color:#9b1c1c}
+.cw-pend{background:#fff8eb;border:1px solid #f3dcae;border-radius:12px;padding:16px;margin-top:16px}
+.cw-pend h3{font-size:1rem;margin-bottom:4px}
+.cw-num{display:inline-block;background:#b45309;color:#fff;border-radius:999px;font-size:.72rem;padding:1px 8px;margin-left:4px;vertical-align:middle}
+.cw-pend-fila{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:center;background:#fff;border-radius:10px;padding:12px 14px;margin-top:10px;font-size:.84rem}
+.cw-pend-fila small{color:var(--light)}
+.cw-et{display:block;font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-d,#9a7d45)}
+.cw-pend-acc{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:900px){
+  .cw-cab{display:none}
+  .cw-fila{grid-template-columns:1fr 1fr}
+  .cw-pend-fila{grid-template-columns:1fr}
+  .cw-pend-acc{justify-content:flex-start}
+}
 .perm-box{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}
 .perm-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .perm-aviso{background:var(--cream-2,#f4efe6);border-radius:8px;padding:8px 10px;margin:0 0 8px}
@@ -1796,6 +1822,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <button onclick="switchView('clientes')">Base de Clientes</button>
           <button onclick="switchView('encuestas')">Reportes de encuestas</button>
           <button onclick="switchView('recordatorios')">Recordatorios</button>
+          <button onclick="switchView('cuentas')">Cuentas web</button>
         </div>
       </div>
       <div class="topnav-dd">
@@ -2003,6 +2030,21 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   </div>
 
   <!-- VISTA: RECORDATORIOS -->
+  <div class="view" id="view-cuentas">
+    <div class="view-inner" style="max-width:1400px">
+      <div class="view-head"><h2>Cuentas web</h2>
+        <button class="btn-ghost" onclick="renderCuentas()">↻ Actualizar</button></div>
+      <div class="inv-notice">ℹ Clientes que crearon su cuenta en el sitio. Al confirmar su correo, sus fichas con ese mismo correo se ligan solas y ven su historial.
+        Cuando un correo lo comparten varias personas (por ejemplo, una familia), la ficha que no coincide queda abajo en <strong>Por revisar</strong>.</div>
+      <div id="cwPendientes"></div>
+      <div class="cw-barra">
+        <input type="search" id="cwBuscar" placeholder="Buscar por nombre, correo o teléfono…" oninput="pintarCuentas()" aria-label="Buscar cuentas">
+        <span id="cwTotal"></span>
+      </div>
+      <div id="cwLista"><div class="empty-state">Cargando…</div></div>
+    </div>
+  </div>
+
   <div class="view" id="view-recordatorios">
     <div class="view-inner" style="max-width:1600px">
       <div class="view-head"><h2>Recordatorios</h2></div>
@@ -3533,6 +3575,12 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
             <span>días por delante</span>
           </div>
           <p class="rem-note" style="margin-top:4px">En el sitio web solo se ofrecen días dentro de ese plazo. Hoy cuenta como el primero.</p>
+          <label style="margin-top:16px" for="lcCancelHoras">Los clientes pueden cancelar o cambiar su hora desde su cuenta hasta</label>
+          <div class="lc-dias">
+            <input type="number" id="lcCancelHoras" min="0" max="168" step="1" />
+            <span>horas antes</span>
+          </div>
+          <p class="rem-note" style="margin-top:4px">Pasado ese plazo, el sitio les pide escribir por WhatsApp. Con 0 pueden hacerlo hasta la hora de la cita.</p>
           <label style="margin-top:16px">Descripción del local</label>
           <textarea id="lcDesc" rows="3" placeholder="Centro Podológico & Spa en Santiago Centro…"></textarea>
         </div>
@@ -4372,10 +4420,10 @@ const ROLES = {
   admin:        { nombre:'Administrador general', desc:'Configura toda la cuenta. Acceso a todo, sin restricciones.',
                   vistas:'all', edita:true },
   admin_local:  { nombre:'Administrador de local', desc:'Encargado del local: ve y edita todo salvo la configuración de la cuenta.',
-                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','recordatorios','encuestas','misingresos','whatsapp'],
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','recordatorios','encuestas','misingresos','whatsapp','cuentas'],
                   edita:true },
   recepcion:    { nombre:'Recepcionista', desc:'Agenda, clientes y cobros del día a día. No entra a reportes ni a administración.',
-                  vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios','whatsapp'],
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios','whatsapp','cuentas'],
                   edita:true },
   recepcion_ro: { nombre:'Recepcionista (sin edición)', desc:'Ve la agenda y los clientes, pero no puede crear ni modificar nada.',
                   vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios'],
@@ -4401,7 +4449,7 @@ const MODULOS_PERMISO = [
   { grupo:'Agenda', items:[['agenda','Agenda']] },
   { grupo:'Ventas', items:[['ventas','Detalle de ventas'],['cobros','Cobros pendientes'],['transacciones','Transacciones'],
       ['planes','Planes / Bonos'],['giftcards','Gift Cards'],['caja','Caja / Cierre diario'],['propinas','Propinas'],['comisiones','Comisiones']] },
-  { grupo:'Clientes', items:[['clientes','Base de clientes'],['encuestas','Reportes de encuestas'],['recordatorios','Recordatorios']] },
+  { grupo:'Clientes', items:[['clientes','Base de clientes'],['encuestas','Reportes de encuestas'],['recordatorios','Recordatorios'],['cuentas','Cuentas web']] },
   { grupo:'Productos', items:[['productos','Inventario'],['ventaprod','Venta de productos'],['movstock','Movimientos de stock']] },
   { grupo:'Reportes', items:[['reportes','Resumen'],['represervas','Reporte de reservas'],['repventas','Reporte de ventas']] },
   { grupo:'Otros', items:[['misingresos','Mis ingresos'],['whatsapp','WhatsApp'],['asistente','Asistente'],['admin','Administración']] },
@@ -7988,6 +8036,81 @@ async function abonosAlNuevoServicio(antes, row){
     catch(e){ console.warn('abono al nuevo servicio:', e.message); toast('La reserva se guardó, pero el abono quedó con el servicio anterior', 'error') }
   }
 }
+/* ── CLIENTES · CUENTAS WEB ──
+   Las cuentas que los clientes crean en el sitio (Supabase Auth + profiles).
+   La base entrega el listado solo al equipo (cuentas_clientes) y las fichas
+   que la vinculación automática no se atrevió a ligar (vinculos_por_revisar). */
+let cuentasWeb = [], cuentasPend = []
+async function renderCuentas(){
+  const lista = document.getElementById('cwLista'); if(!lista) return
+  try{
+    const [c, p] = await Promise.all([ supabase.rpc('cuentas_clientes', {}), supabase.rpc('vinculos_por_revisar', {}) ])
+    cuentasWeb = Array.isArray(c) ? c : []
+    cuentasPend = Array.isArray(p) ? p : []
+  }catch(e){
+    lista.innerHTML = '<div class="empty-state">No se pudieron cargar las cuentas: ' + esc(e.message || e) + '</div>'
+    return
+  }
+  pintarCuentas()
+}
+function cwFecha(f){
+  if(!f) return '—'
+  const d = new Date(String(f).length === 10 ? f + 'T12:00:00' : f)
+  return d.toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' })
+}
+function pintarCuentas(){
+  const puede = permiso('editar', 'cuentas')
+  /* por revisar */
+  const pend = document.getElementById('cwPendientes')
+  pend.innerHTML = cuentasPend.length ? `<div class="cw-pend">
+      <h3>Por revisar <span class="cw-num">${cuentasPend.length}</span></h3>
+      <p class="rem-note">Estas fichas tienen el mismo correo que una cuenta, pero el nombre y el teléfono no coinciden. Liga la ficha solo si es de la misma persona.</p>
+      ${cuentasPend.map(v => `<div class="cw-pend-fila">
+        <div><span class="cw-et">Cuenta</span><strong>${esc(v.cuenta_nombre || '—')}</strong><br><small>${esc(v.correo)}${v.cuenta_telefono ? ' · ' + esc(v.cuenta_telefono) : ''}</small></div>
+        <div><span class="cw-et">Ficha</span><strong>${esc(v.ficha_nombre)}</strong><br><small>${esc(v.ficha_telefono || 'sin teléfono')}</small>
+          <button class="mini-link" onclick="abrirFichaCliente('${v.client_id}')">Ver ficha</button></div>
+        <div class="cw-pend-acc">${puede ? `<button class="btn-primary" onclick="resolverVinculo('${v.user_id}','${v.client_id}',true)">Ligar</button>
+          <button class="btn-ghost" onclick="resolverVinculo('${v.user_id}','${v.client_id}',false)">No es la misma persona</button>` : ''}</div>
+      </div>`).join('')}
+    </div>` : ''
+
+  /* listado */
+  const q = cwNorm(document.getElementById('cwBuscar').value || '')
+  const filas = cuentasWeb.filter(c => !q || cwNorm([c.nombre, c.apellido, c.correo, c.telefono].join(' ')).includes(q))
+  document.getElementById('cwTotal').textContent = filas.length + ' de ' + cuentasWeb.length + ' cuentas'
+  const lista = document.getElementById('cwLista')
+  if(!cuentasWeb.length){ lista.innerHTML = '<div class="empty-state">Todavía ningún cliente ha creado su cuenta en el sitio.</div>'; return }
+  if(!filas.length){ lista.innerHTML = '<div class="empty-state">No hay cuentas que coincidan con la búsqueda.</div>'; return }
+  lista.innerHTML = `<div class="cw-tabla" role="table">
+    <div class="cw-fila cw-cab" role="row"><span>Cliente</span><span>Teléfono</span><span>Cuenta</span><span>Horas</span><span>Fichas ligadas</span></div>
+    ${filas.map(c => {
+      const fichas = Array.isArray(c.fichas) ? c.fichas : []
+      return `<div class="cw-fila" role="row">
+        <span><strong>${esc(((c.nombre || '') + ' ' + (c.apellido || '')).trim() || '—')}</strong><br><small>${esc(c.correo)}</small></span>
+        <span>${esc(c.telefono || '—')}${c.rut ? '<br><small>RUT ' + esc(c.rut) + '</small>' : ''}</span>
+        <span>${c.confirmado ? '<span class="cw-ok">✓ Confirmada</span>' : '<span class="cw-no">Sin confirmar el correo</span>'}<br><small>Creada el ${esc(cwFecha(c.creada))}</small></span>
+        <span>${c.proximas} próxima${c.proximas === 1 ? '' : 's'} · ${c.pasadas} pasada${c.pasadas === 1 ? '' : 's'}<br><small>Última: ${esc(cwFecha(c.ultima_cita))}</small></span>
+        <span class="cw-fichas">${fichas.length ? fichas.map(f => `<span class="cw-ficha"><button class="mini-link" onclick="abrirFichaCliente('${f.id}')">${esc(f.name)}</button>${puede ? `<button class="cw-x" title="Desligar esta ficha de la cuenta" aria-label="Desligar ${esc(f.name)}" onclick="desligarFicha('${f.id}','${esc(f.name).replace(/'/g,'&#39;')}')">✕</button>` : ''}</span>`).join('') : '<small>Ninguna todavía</small>'}</span>
+      </div>`
+    }).join('')}
+  </div>`
+}
+function cwNorm(t){ return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') }
+async function resolverVinculo(user, client, ligar){
+  if(!permiso('editar', 'cuentas')) return
+  try{
+    await supabase.rpc('resolver_vinculo', { p_user: user, p_client: client, p_ligar: ligar })
+    toast(ligar ? 'Ficha ligada: sus horas ya aparecen en la cuenta' : 'Listo: la ficha queda sin ligar', 'success')
+    renderCuentas()
+  }catch(e){ toast('No se pudo guardar: ' + (e.message || e), 'error') }
+}
+async function desligarFicha(client, nombre){
+  if(!permiso('editar', 'cuentas')) return
+  if(!confirm('¿Desligar la ficha de ' + nombre + ' de esta cuenta? Sus horas dejarán de verse en la cuenta del cliente.')) return
+  try{ await supabase.rpc('desligar_ficha', { p_client: client }); toast('Ficha desligada', 'success'); renderCuentas() }
+  catch(e){ toast('No se pudo desligar: ' + (e.message || e), 'error') }
+}
+
 /* manda (o reenvía) el correo de confirmación con la invitación de calendario */
 async function enviarCorreoReserva(id, reenviar){
   try{
@@ -8686,7 +8809,7 @@ function authHeaders(extra){
 
 /* ── VIEW SWITCHING ── */
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones','cobros']
-const CLIENTES_GROUP=['clientes','encuestas','recordatorios']
+const CLIENTES_GROUP=['clientes','encuestas','recordatorios','cuentas']
 const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
 const REPORTES_GROUP=['reportes','represervas','repventas']
 const PRO_VIEWS=['agenda','misingresos']
@@ -8699,6 +8822,7 @@ function switchView(v){
   /* el menu abre Recordatorios directo: sin esto el mensaje y la tabla
      quedaban vacios si antes no se habia pasado por Clientes */
   if(v==='recordatorios') renderRecordatorios()
+  if(v==='cuentas') renderCuentas()
   if(v==='reportes') renderReportes()
   if(v==='ventas') renderSales()
   if(v==='transacciones') renderTransacciones()
@@ -13723,6 +13847,7 @@ function openLocalModal(){
   document.getElementById('lcEmail').value=localInfo.email||''
   document.getElementById('lcOnline').checked=localInfo.online!==false
   document.getElementById('lcMaxDias').value = localInfo.maxDias || 14
+  document.getElementById('lcCancelHoras').value = localInfo.cancelHoras != null && localInfo.cancelHoras !== '' ? localInfo.cancelHoras : 24
   document.getElementById('lcShowPrice').checked=localInfo.showPrice!==false
   document.getElementById('lcShowDur').checked=localInfo.showDur!==false
   document.getElementById('lcDesc').value=localInfo.desc||''
@@ -13761,7 +13886,9 @@ async function saveLocal(){
     hours[d]=[document.querySelector(`[data-lcs="${d}"]`).value, document.querySelector(`[data-lce="${d}"]`).value,
       document.querySelector(`[data-lcd="${d}"]`).checked]
   })
-  localInfo={ name, address:document.getElementById('lcAddress').value.trim(), extra:document.getElementById('lcExtra').value.trim(),
+  const _cancelH = Math.round(Number(document.getElementById('lcCancelHoras').value))
+  localInfo={ ...localInfo, cancelHoras: isFinite(_cancelH) && _cancelH >= 0 ? Math.min(_cancelH, 168) : 24,
+    name, address:document.getElementById('lcAddress').value.trim(), extra:document.getElementById('lcExtra').value.trim(),
     tz:document.getElementById('lcTz').value, phone:document.getElementById('lcPhone').value.trim(),
     wa:document.getElementById('lcWa').checked, email:document.getElementById('lcEmail').value.trim(), hours,
     maxDias:diasValidos(document.getElementById('lcMaxDias').value),

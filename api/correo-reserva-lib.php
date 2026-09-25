@@ -99,7 +99,9 @@ function cr_links($a, $prof) {
     return [$g, $o];
 }
 
-function cr_html($a, $prof, $paraSpa) {
+/* $opc (opcional, para cancelaciones y cambios): titulo, saludo (HTML), aviso (HTML
+   antes de la tabla) y sinCalendario (sin los botones para agregar al calendario) */
+function cr_html($a, $prof, $paraSpa, $opc = []) {
     $e = fn($t) => htmlspecialchars((string)$t, ENT_QUOTES, 'UTF-8');
     [$g, $o] = cr_links($a, $prof);
     $hora = substr($a['start_time'], 0, 5) . ($a['end_time'] ? ' a ' . substr($a['end_time'], 0, 5) : '') . ' hrs';
@@ -122,8 +124,12 @@ function cr_html($a, $prof, $paraSpa) {
     $botones = '<p style="margin:0 0 6px;font-size:13px;color:#666">Agrégala a tu calendario:</p>'
         . $boton($g, '📅 Google Calendar', '#1a73e8') . $boton($o, '📅 Outlook', '#0f6cbd')
         . '<p style="margin:10px 0 0;font-size:12px;color:#777777">En iPhone o Mac abre el archivo adjunto <em>reserva.ics</em>.</p>';
+    if (isset($opc['saludo'])) $saludo = $opc['saludo'];
+    if (!empty($opc['aviso'])) $saludo .= $opc['aviso'];
+    if (!empty($opc['sinCalendario'])) $botones = '';
     $pie = $paraSpa ? '' : '<p style="margin:22px 0 0;font-size:13px;color:#666">¿Necesitas cambiarla? Escríbenos por WhatsApp: '
         . '<a href="https://wa.me/' . $e(cliente_whatsapp()) . '" style="color:#8a7344">+' . $e(cliente_whatsapp()) . '</a></p>';
+    if (!empty($opc['sinPie'])) $pie = '';
     /* armado con tablas y colores sólidos (bgcolor): Gmail y Outlook borran los degradados,
        y sin color de respaldo el encabezado quedaba blanco con letras blancas */
     return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head>'
@@ -133,7 +139,7 @@ function cr_html($a, $prof, $paraSpa) {
         . '<tr><td align="center" bgcolor="#8a7344" style="background-color:#8a7344;background-image:linear-gradient(135deg,#c5a467 0%,#8a7344 100%);color:#ffffff;padding:24px;border-radius:12px 12px 0 0;text-align:center">'
         /* el logo en PNG (los correos de Outlook no muestran webp) */
         . '<img src="' . cliente_dominio() . '/images/logo-correo.png" width="110" height="110" alt="Spa Infinity" style="display:block;margin:0 auto;width:110px;height:110px;border:0;border-radius:50%;background-color:#ffffff">'
-        . '<div style="margin-top:12px;font-size:13px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#ffffff">' . ($paraSpa ? 'Nueva reserva' : 'Reserva confirmada') . '</div></td></tr>'
+        . '<div style="margin-top:12px;font-size:13px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:#ffffff">' . $e($opc['titulo'] ?? ($paraSpa ? 'Nueva reserva' : 'Reserva confirmada')) . '</div></td></tr>'
         . '<tr><td bgcolor="#ffffff" style="background-color:#ffffff;padding:24px;border-radius:0 0 12px 12px;line-height:1.5;color:#333333;font-size:15px">'
         . $saludo . $tabla . $botones . $pie
         . '</td></tr>'
@@ -143,8 +149,9 @@ function cr_html($a, $prof, $paraSpa) {
 
 /* envía un correo HTML con el .ics solo como adjunto: si el calendario va dentro de
    multipart/alternative, algunos clientes muestran esa parte en vez del HTML */
-function cr_enviar($para, $asunto, $html, $ics) {
+function cr_enviar($para, $asunto, $html, $ics, $extra = null) {
     $ics = str_replace('METHOD:REQUEST', 'METHOD:PUBLISH', $ics);
+    $metodo = strpos($ics, 'METHOD:CANCEL') !== false ? 'CANCEL' : 'PUBLISH';
     $remitente = cliente_correo();
     $limite = 'spa' . bin2hex(random_bytes(8));
     $alt = 'alt' . bin2hex(random_bytes(8));
@@ -160,8 +167,10 @@ function cr_enviar($para, $asunto, $html, $ics) {
         . "--$alt\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n" . chunk_split(base64_encode($texto)) . "\r\n"
         . "--$alt\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n" . chunk_split(base64_encode($html)) . "\r\n"
         . "--$alt--\r\n"
-        . "--$limite\r\nContent-Type: text/calendar; charset=UTF-8; method=PUBLISH; name=\"reserva.ics\"\r\nContent-Disposition: attachment; filename=\"reserva.ics\"\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+        . "--$limite\r\nContent-Type: text/calendar; charset=UTF-8; method=$metodo; name=\"reserva.ics\"\r\nContent-Disposition: attachment; filename=\"reserva.ics\"\r\nContent-Transfer-Encoding: base64\r\n\r\n"
         . chunk_split(base64_encode($ics)) . "\r\n"
+        . ($extra ? "--$limite\r\nContent-Type: text/calendar; charset=UTF-8; method=CANCEL; name=\"" . $extra['nombre'] . "\"\r\nContent-Disposition: attachment; filename=\"" . $extra['nombre'] . "\"\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+            . chunk_split(base64_encode($extra['ics'])) . "\r\n" : '')
         . "--$limite--";
     return @mail($para, '=?UTF-8?B?' . base64_encode($asunto) . '?=', $cuerpo, implode("\r\n", $cab), '-f' . $remitente);
 }
@@ -178,8 +187,7 @@ function enviar_correo_reserva($id, $forzar = false) {
 
     $prof = '';
     if (!empty($a['professional_id'])) $prof = cr_supa('GET', 'professionals?select=name&id=eq.' . rawurlencode($a['professional_id']))[0]['name'] ?? '';
-    $correoCliente = '';
-    if (!empty($a['client_id'])) $correoCliente = trim((string)(cr_supa('GET', 'clients?select=email&id=eq.' . rawurlencode($a['client_id']))[0]['email'] ?? ''));
+    $correoCliente = cr_correo_cliente($a);
 
     $res = ['ok' => true, 'cliente' => 'sin correo', 'spa' => false];
     $asunto = 'Tu hora en Spa Infinity: ' . ($a['service_name'] ?? '') . ' · ' . cr_dia($a['appt_date']) . ' ' . substr($a['start_time'], 0, 5);
@@ -193,5 +201,91 @@ function enviar_correo_reserva($id, $forzar = false) {
     $res['spa'] = cr_enviar($spa, $asuntoSpa, cr_html($a, $prof, true), $icsSpa);
 
     cr_supa('PATCH', 'appointments?id=eq.' . rawurlencode($id), ['correo_confirmacion_at' => gmdate('c')]);
+    return $res;
+}
+
+/* el correo del cliente de una reserva: el de su ficha y, si la ficha no tiene,
+   el de la cuenta del sitio con que se hizo (se lee con la llave de servicio) */
+function cr_correo_cliente($a) {
+    $c = '';
+    if (!empty($a['client_id'])) $c = trim((string)(cr_supa('GET', 'clients?select=email&id=eq.' . rawurlencode($a['client_id']))[0]['email'] ?? ''));
+    if (($c === '' || !filter_var($c, FILTER_VALIDATE_EMAIL)) && !empty($a['user_id'])) {
+        $ch = curl_init(supa_url() . '/auth/v1/admin/users/' . rawurlencode($a['user_id']));
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 12,
+            CURLOPT_HTTPHEADER => ['apikey: ' . supa_key(), 'Authorization: Bearer ' . supa_key()]]);
+        $u = json_decode((string)curl_exec($ch), true); curl_close($ch);
+        $c = trim((string)($u['email'] ?? ''));
+    }
+    return filter_var($c, FILTER_VALIDATE_EMAIL) ? $c : '';
+}
+
+function cr_reserva($id) {
+    $a = cr_supa('GET', 'appointments?select=*&id=eq.' . rawurlencode($id))[0] ?? null;
+    if (!$a) return [null, ''];
+    $prof = '';
+    if (!empty($a['professional_id'])) $prof = cr_supa('GET', 'professionals?select=name&id=eq.' . rawurlencode($a['professional_id']))[0]['name'] ?? '';
+    return [$a, $prof];
+}
+
+/**
+ * Aviso de cancelación: al cliente (con el .ics que borra la hora de su
+ * calendario) y al spa. Se usa cuando el cliente cancela desde su cuenta.
+ */
+function enviar_correo_cancelacion($id) {
+    [$a, $prof] = cr_reserva($id);
+    if (!$a) return ['ok' => false, 'motivo' => 'no existe la reserva'];
+    if (($a['status'] ?? '') !== 'cancelled') return ['ok' => false, 'motivo' => 'la reserva no está cancelada'];
+    $e = fn($t) => htmlspecialchars((string)$t, ENT_QUOTES, 'UTF-8');
+    $nombre = explode(' ', trim($a['client_name'] ?? ''))[0] ?: '';
+    $cuando = cr_dia($a['appt_date']) . ' ' . substr($a['start_time'], 0, 5);
+    $res = ['ok' => true, 'cliente' => 'sin correo', 'spa' => false];
+
+    $correo = cr_correo_cliente($a);
+    if ($correo !== '') {
+        $html = cr_html($a, $prof, false, ['titulo' => 'Hora cancelada', 'sinCalendario' => true, 'sinPie' => true,
+            'saludo' => '<p style="margin:0 0 16px">Hola ' . $e($nombre) . ', tu hora quedó <strong>cancelada</strong>. '
+                      . 'Si quieres, puedes reservar otra cuando te acomode desde <a href="' . $e(cliente_dominio()) . '/mi-cuenta" style="color:#8a7344">tu cuenta</a>.</p>']);
+        $ics = cr_ics($a, $prof, ['nombre' => $a['client_name'] ?: 'Cliente', 'correo' => $correo], 'CANCEL');
+        $res['cliente'] = cr_enviar($correo, 'Hora cancelada: ' . ($a['service_name'] ?? '') . ' · ' . $cuando, $html, $ics) ? $correo : 'falló el envío';
+    }
+    $spa = cliente_correo();
+    $htmlSpa = cr_html($a, $prof, true, ['titulo' => 'Reserva cancelada', 'sinCalendario' => true,
+        'saludo' => '<p style="margin:0 0 16px">El cliente <strong>canceló</strong> esta hora desde su cuenta del sitio. Ya quedó libre en la agenda.</p>']);
+    $res['spa'] = cr_enviar($spa, 'Cancelación: ' . ($a['client_name'] ?? '') . ' · ' . ($a['service_name'] ?? '') . ' · ' . $cuando,
+        $htmlSpa, cr_ics($a, $prof, ['nombre' => 'Spa Infinity', 'correo' => $spa], 'CANCEL'));
+    return $res;
+}
+
+/**
+ * Cambio de hora: un solo correo con la hora nueva (y su .ics) y, adjunto, el
+ * .ics que borra la hora anterior del calendario. Al spa, lo mismo.
+ */
+function enviar_correo_cambio($idNueva, $idAnterior) {
+    [$a, $prof] = cr_reserva($idNueva);
+    [$ant, $profAnt] = cr_reserva($idAnterior);
+    if (!$a || !$ant) return ['ok' => false, 'motivo' => 'no existe la reserva'];
+    $e = fn($t) => htmlspecialchars((string)$t, ENT_QUOTES, 'UTF-8');
+    $nombre = explode(' ', trim($a['client_name'] ?? ''))[0] ?: '';
+    $antes = ucfirst(cr_dia($ant['appt_date'])) . ' a las ' . substr($ant['start_time'], 0, 5);
+    $aviso = '<p style="margin:0 0 16px;padding:10px 12px;border-radius:8px;background-color:#f5ede2;font-size:14px;color:#555555">'
+           . 'Reemplaza tu hora anterior del <strong>' . $e($antes) . '</strong>, que quedó cancelada.</p>';
+    $cuando = cr_dia($a['appt_date']) . ' ' . substr($a['start_time'], 0, 5);
+    $res = ['ok' => true, 'cliente' => 'sin correo', 'spa' => false];
+
+    $correo = cr_correo_cliente($a);
+    if ($correo !== '') {
+        $para = ['nombre' => $a['client_name'] ?: 'Cliente', 'correo' => $correo];
+        $html = cr_html($a, $prof, false, ['titulo' => 'Hora cambiada', 'aviso' => $aviso,
+            'saludo' => '<p style="margin:0 0 16px">Hola ' . $e($nombre) . ', tu hora quedó cambiada. Estos son los nuevos datos:</p>']);
+        $res['cliente'] = cr_enviar($correo, 'Tu hora cambió: ' . ($a['service_name'] ?? '') . ' · ' . $cuando, $html,
+            cr_ics($a, $prof, $para), ['nombre' => 'hora-anterior-cancelada.ics', 'ics' => cr_ics($ant, $profAnt, $para, 'CANCEL')]) ? $correo : 'falló el envío';
+    }
+    $spa = cliente_correo();
+    $paraSpa = ['nombre' => 'Spa Infinity', 'correo' => $spa];
+    $htmlSpa = cr_html($a, $prof, true, ['titulo' => 'Cambio de hora', 'aviso' => $aviso,
+        'saludo' => '<p style="margin:0 0 16px">El cliente <strong>cambió su hora</strong> desde su cuenta del sitio.</p>']);
+    $res['spa'] = cr_enviar($spa, 'Cambio de hora: ' . ($a['client_name'] ?? '') . ' · ' . ($a['service_name'] ?? '') . ' · ' . $cuando,
+        $htmlSpa, cr_ics($a, $prof, $paraSpa), ['nombre' => 'hora-anterior-cancelada.ics', 'ics' => cr_ics($ant, $profAnt, $paraSpa, 'CANCEL')]);
+    cr_supa('PATCH', 'appointments?id=eq.' . rawurlencode($idNueva), ['correo_confirmacion_at' => gmdate('c')]);
     return $res;
 }

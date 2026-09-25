@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/supa-key.php';
 require_once __DIR__ . '/wa-recordatorio-lib.php';
+require_once __DIR__ . '/correo-reserva-lib.php';
 /**
  * Envío AUTOMÁTICO de recordatorios — Spa Infinity
  * Lo llama un cron cada ~30 min:  php send-reminders-cron.php   (o por web con ?key=cronKey)
@@ -58,8 +59,8 @@ foreach ($appts as $a) {
     $usedEmail = false; $usedWa = false;
 
     if (in_array($channel, ['email','both'], true)) {
-        $cli = $a['client_id'] ? (supa('GET','clients?select=email&id=eq.'.urlencode($a['client_id']))[0] ?? []) : [];
-        $email = $cli['email'] ?? '';
+        /* el de la ficha o, si no tiene, el de la cuenta del sitio con que se reservó */
+        $email = cr_correo_cliente($a);
         if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
             if ($simular) { $simulados[] = ['email'=>$email, 'cita'=>$fecha.' '.$hora]; }
             else {

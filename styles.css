@@ -1885,3 +1885,24 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
   .mc-tabs button { flex: 1; padding: 12px 6px; font-size: 0.7rem; letter-spacing: 0.04em; }
 }
 @media (prefers-reduced-motion: reduce) { .mc-esqueleto { animation: none; } }
+
+/* mi cuenta: cambiar y cancelar */
+.mc-acciones-cita { grid-column: 2 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.mc-accion {
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.78rem; font-weight: 600;
+  color: var(--gold-d); background: var(--white); border: 1px solid var(--gold-l); border-radius: 999px; padding: 7px 14px; cursor: pointer; text-decoration: none;
+}
+.mc-accion:hover { background: var(--gold-pale); }
+.mc-accion.rojo { color: #9b1c1c; border-color: #f1c4c4; }
+.mc-accion.rojo:hover { background: #fdecec; }
+.mc-plazo { grid-column: 2 / -1; font-size: 0.78rem; color: var(--light); }
+.mc-plazo a { color: var(--gold-d); }
+.mc-dialogo { margin: auto; border: 0; border-radius: 16px; padding: 26px 24px 22px; max-width: min(420px, calc(100vw - 32px)); box-shadow: var(--sh-lg); }
+.mc-dialogo::backdrop { background: rgba(26,36,54,.45); }
+.mc-dialogo h2 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--navy); margin-bottom: 8px; }
+.mc-dialogo p { font-size: 0.9rem; color: var(--mid); line-height: 1.55; margin-bottom: 14px; }
+.mc-dialogo-botones { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.mc-btn-rojo { background: #b42318; color: #ffffff; }
+.mc-btn-rojo:hover { background: #912018; }
+.mc-btn-rojo:disabled { opacity: .6; cursor: wait; }
+@media (max-width: 560px) { .mc-dialogo-botones .btn { flex: 1; justify-content: center; } }

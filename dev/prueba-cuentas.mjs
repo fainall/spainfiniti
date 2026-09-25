@@ -1,4 +1,4 @@
-// Pruebas de las fases 2 y 3 contra la base LOCAL. Antes: npx supabase db reset  ·  Uso: node dev/prueba-fase2.mjs .
+// Pruebas de las cuentas de clientes (fases 2 a 4) contra la base LOCAL. Antes: npx supabase db reset  ·  Uso: node dev/prueba-cuentas.mjs .
 import { execSync } from 'node:child_process'
 const env = Object.fromEntries(execSync('npx supabase status -o env', { cwd: process.argv[2] }).toString()
   .split('\n').filter(l => l.includes('=')).map(l => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1).replace(/^"|"$/g, '')] }))
@@ -85,3 +85,35 @@ ok(malFono.s >= 400 && /tel[eé]fono/i.test(malFono.b.message || ''), 'sin telé
 const fichaN = (await j(`${A}/rest/v1/rpc/reservar_cliente_cuenta`, { method: 'POST', headers: H(tN), body: JSON.stringify({ p_fono: '9 6666 7777' }) })).b
 ok(sql(`select email||'|'||(user_id is not null) from clients where id='${fichaN}'`) === 'nadie@ejemplo.cl|true', 'sin fichas, crea una con su correo y su cuenta')
 ok(sql(`select telefono from profiles p join auth.users u on u.id=p.id where u.email='nadie@ejemplo.cl'`) === '+56966667777', 'y el teléfono queda guardado en su perfil')
+
+console.log('7) Fase 4: cancelar y cambiar desde la cuenta')
+const rpc = (t, fn, args) => j(`${A}/rest/v1/rpc/${fn}`, { method: 'POST', headers: H(t), body: JSON.stringify(args || {}) })
+const futuras = (await rpc(tAna, 'mis_citas')).b.filter(c => !c.pasada && c.estado !== 'cancelled')
+ok(futuras.every(c => 'cambiable' in c && 'limite_cambio' in c && 'servicio_id' in c), 'el historial dice si cada hora se puede cambiar y hasta cuándo')
+const unaAna = futuras.find(c => c.cambiable)
+const ajenaCancel = await rpc(tN, 'cancelar_mi_cita', { p_id: unaAna.id })
+ok(ajenaCancel.s >= 400 && sql(`select status from appointments where id='${unaAna.id}'`) !== 'cancelled', 'otra cuenta no puede cancelar una hora de Ana')
+const hoyMas1 = sql(`insert into appointments (professional_id, client_id, client_name, service_name, appt_date, start_time, end_time, status, origen)
+  values ('11111111-1111-1111-1111-111111111111','c0000000-0000-0000-0000-00000000000a','Ana Pérez','Perfilación de Cejas',
+  ((now() at time zone 'America/Santiago') + interval '3 hours')::date, ((now() at time zone 'America/Santiago') + interval '3 hours')::time(0), ((now() at time zone 'America/Santiago') + interval '3 hours 20 minutes')::time(0), 'reserved','panel') returning id`).split('\n')[0]
+const tarde = await rpc(tAna, 'cancelar_mi_cita', { p_id: hoyMas1 })
+ok(tarde.s >= 400 && /menos de 24 horas/.test(tarde.b.message || ''), 'dentro de las 24 horas no se puede: "' + (tarde.b.message || '').slice(0, 60) + '…"')
+// cambiar a una hora ocupada: debe fallar y la original quedar intacta
+const ocupada = sql(`select professional_id||'|'||appt_date||'|'||start_time||'|'||end_time from appointments where client_name='Marta Soto' and status='reserved' limit 1`).split('|')
+const choque = await rpc(tAna, 'reprogramar_mi_cita', { p_id: unaAna.id, p_profesional: ocupada[0], p_fecha: ocupada[1], p_inicio: ocupada[2], p_fin: ocupada[3] })
+ok(choque.s >= 400 && sql(`select status from appointments where id='${unaAna.id}'`) !== 'cancelled', 'cambiar a una hora ocupada falla y la hora original sigue vigente')
+const cancelada = await rpc(tAna, 'cancelar_mi_cita', { p_id: unaAna.id })
+ok(cancelada.s === 200 && sql(`select status from appointments where id='${unaAna.id}'`) === 'cancelled', 'Ana cancela su hora dentro del plazo')
+ok(/Cancelada por el cliente/.test(sql(`select notes from appointments where id='${unaAna.id}'`)), 'la reserva queda con la nota para el equipo')
+const otraVez = await rpc(tAna, 'cancelar_mi_cita', { p_id: unaAna.id })
+ok(otraVez.s >= 400, 'no se puede cancelar dos veces')
+
+console.log('8) Fase 4: panel')
+const cuentasCli = await rpc(tAna, 'cuentas_clientes')
+ok(cuentasCli.s >= 400, 'un cliente no puede ver el listado de cuentas (' + cuentasCli.s + ')')
+const cuentasEq = await rpc(tKeidy, 'cuentas_clientes')
+ok(Array.isArray(cuentasEq.b) && cuentasEq.b.length === 3 && !cuentasEq.b.some(c => /prueba\.local/.test(c.correo)), 'el equipo ve las 3 cuentas de clientes (sin las del equipo)')
+const pendEq = (await rpc(tKeidy, 'vinculos_por_revisar')).b
+ok(pendEq.length === 1 && pendEq[0].ficha_nombre === 'Carlos Soto', 'y la ficha de Carlos por revisar')
+const ligarCli = await rpc(tMarta, 'resolver_vinculo', { p_user: sql(`select id from auth.users where email='familia.soto@ejemplo.cl'`), p_client: 'c0000000-0000-0000-0000-00000000000c', p_ligar: true })
+ok(ligarCli.s >= 400 && sql(`select user_id is null from clients where id='c0000000-0000-0000-0000-00000000000c'`) === 't', 'un cliente no puede ligarse fichas por su cuenta')

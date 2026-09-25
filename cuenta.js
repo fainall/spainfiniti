@@ -224,6 +224,19 @@ const Cuenta = (() => {
     const filas = await rest('/profiles?id=eq.' + encodeURIComponent(id), { metodo: 'PATCH', cuerpo: datos, prefer: 'return=representation' })
     return filas && filas[0]
   }
+  /* pide al servidor el correo de una cancelación o un cambio (no se espera: si
+     el correo falla, la reserva ya quedó hecha igual) */
+  async function avisarPorCorreo(cuerpo) {
+    try {
+      const s = await sesion()
+      await fetch('/api/correo-reserva.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(s ? { 'Authorization': 'Bearer ' + s.access_token } : {}) },
+        body: JSON.stringify(cuerpo)
+      })
+    } catch (e) { /* el correo es un extra */ }
+  }
+
   /* funciones de la base (historial, vinculación) */
   function rpc(fn, args) { return rest('/rpc/' + fn, { metodo: 'POST', cuerpo: args || {} }) }
 
@@ -247,7 +260,7 @@ const Cuenta = (() => {
   }
 
   return { registrar, reenviarConfirmacion, ingresar, recuperar, cambiarContrasena, salir,
-           sesion, haySesion, leerEnlace, requerirSesion, destino, rest, rpc, perfil, guardarPerfil, cambiarConActual, correo, ErrorCuenta }
+           sesion, haySesion, leerEnlace, requerirSesion, destino, rest, rpc, avisarPorCorreo, perfil, guardarPerfil, cambiarConActual, correo, ErrorCuenta }
 })()
 
 /* ── Validaciones del formulario (las mismas reglas que exige la base) ── */

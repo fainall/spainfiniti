@@ -48,6 +48,8 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .gc-aviso{margin-top:10px;background:#f3ead8;color:#6b5328;border-radius:9px;padding:9px 12px;font-size:.8rem;line-height:1.45}
 .cuenta-datos{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:.86rem;line-height:1.55;color:var(--mid)}
 .cuenta-datos a,.cuenta-invita a{color:var(--gold-d);font-weight:600}
+.cambio-aviso{background:var(--gold-pale);border-left:4px solid var(--gold);border-radius:10px;padding:12px 14px;font-size:.86rem;line-height:1.55;margin-bottom:18px;color:var(--mid)}
+.cambio-aviso a{color:var(--gold-d);font-weight:600;white-space:nowrap}
 .cuenta-invita{font-size:.84rem;color:var(--light);background:var(--gold-pale);border-radius:9px;padding:10px 13px}
 .err{background:#fdecea;color:#c0392b;border-radius:9px;padding:12px 14px;font-size:.84rem;margin-top:14px;display:none}
 .done{text-align:center;padding:44px 24px}
@@ -99,7 +101,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 
 <script src="/supabase-client.js?v=19"></script>
 <script src="/data.js?v=7"></script>
-<script src="/cuenta.js?v=3"></script>
+<script src="/cuenta.js?v=4"></script>
 <script>
 /* ═══════════════════════════════════════════
    RESERVA ONLINE — calcula las horas libres contra la agenda real
@@ -115,6 +117,11 @@ let giftcard = null   // { codigo, para, vence, nombre }
 /* Con la sesión del cliente iniciada, los datos salen de su perfil y la
    reserva queda en su cuenta; sin sesión todo funciona como siempre. */
 let cuentaCliente = null   // { nombre, fono, mail }
+/* Cambiar una hora desde la cuenta: se llega con ?cambiar=<id de la reserva>.
+   Se elige el nuevo día y hora igual que siempre, y al confirmar la base
+   reserva la nueva y cancela la anterior en un solo paso. */
+const idCambiar = params.get('cambiar') || ''
+let citaCambiar = null     // la reserva que se está cambiando
 
 const normNombre = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()
 /* consulta la gift card; devuelve { giftcard } o { error } sin tocar la pantalla */
@@ -135,6 +142,8 @@ async function consultarGiftCard(){
 }
 const DOW_S = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB']
 const MES_S = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+/* 'martes 29 de sep' */
+const fechaLarga = f => { const d = new Date(f + 'T00:00:00'); return ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][d.getDay()] + ' ' + d.getDate() + ' de ' + MES_S[d.getMonth()] }
 
 let servicio = null, config = {}, profesionales = [], citas = []
 let profSel = ''   // '' = cualquiera disponible
@@ -379,7 +388,7 @@ function pintarFormulario(){
         : `Total: <strong>${money(p.precio)}</strong>${p.pct ? ` <span class="sp-tag">−${p.pct}% por horario</span>` : ''}`}
     </div>
     <div class="err" id="err"></div>
-    <button class="btn" id="btnReservar" onclick="reservar()">Confirmar mi reserva</button>`
+    <button class="btn" id="btnReservar" onclick="reservar()">${citaCambiar ? 'Confirmar el cambio' : 'Confirmar mi reserva'}</button>`
 }
 function render(){
   const m = reglasServicio()
@@ -396,6 +405,7 @@ function render(){
       ${m.hourMode === 'range' ? `<span class="sp-tag">Se realiza entre ${m.from} y ${m.to}</span>` : ''}
       ${giftcard ? `<div class="gc-aviso">Gift card <strong>${esc(giftcard.codigo)}</strong>${giftcard.para ? ' de ' + esc(giftcard.para) : ''} · válida hasta el ${giftcard.vence.split('-').reverse().join('/')}. No pagas nada al reservar.</div>` : ''}
     </div>
+    ${citaCambiar ? `<div class="cambio-aviso"><strong>Estás cambiando tu hora</strong> del ${esc(fechaLarga(citaCambiar.fecha))} a las ${esc(String(citaCambiar.inicio).slice(0,5))} hrs. Elige el nuevo día y hora; la anterior se libera al confirmar. <a href="/mi-cuenta">No cambiar</a></div>` : ''}
     ${pintarDias()}
     ${pintarProfesionales()}
     ${pintarHoras()}
@@ -449,6 +459,16 @@ async function reservar(){
     /* La ficha del cliente y la reserva las crea la base, no el navegador:
        así el sitio nunca necesita leer ni escribir esas tablas, y la hora
        se comprueba de nuevo del lado del servidor justo antes de guardar. */
+    if(citaCambiar){
+      const p = precioEn(fechaSel, horaSel)
+      const nueva = await Cuenta.rpc('reprogramar_mi_cita', {
+        p_id: citaCambiar.id, p_profesional: prof.id, p_fecha: fechaSel,
+        p_inicio: horaSel + ':00', p_fin: toHHMM(toMin(horaSel)+dur) + ':00', p_precio: money(p.precio)
+      })
+      Cuenta.avisarPorCorreo({ id: nueva, tipo: 'cambio', anterior: citaCambiar.id })
+      location.replace('/mi-cuenta?cambiada=1')
+      return
+    }
     /* con cuenta, la base elige la ficha de la cuenta (o la crea con el perfil) */
     const clienteId = cuentaCliente
       ? await Cuenta.rpc('reservar_cliente_cuenta', { p_fono: fono || null })
@@ -552,6 +572,18 @@ async function init(){
           mail: Cuenta.correo()
         }
       }catch(e){ cuentaCliente = null }   // sesión vencida: se reserva como invitado
+    }
+    if(idCambiar){
+      if(!cuentaCliente){ await Cuenta.requerirSesion(); return }
+      if(giftcard) giftcard = null
+      const mias = await Cuenta.rpc('mis_citas').catch(() => [])
+      citaCambiar = (mias || []).find(c => c.id === idCambiar) || null
+      if(!citaCambiar || !citaCambiar.cambiable){
+        body.innerHTML = '<p class="empty">' + (citaCambiar
+          ? 'Esa hora ya no se puede cambiar desde el sitio: faltan menos horas de las permitidas o ya no está vigente. Escríbenos por WhatsApp y te ayudamos.'
+          : 'No encontramos esa hora en tu cuenta.') + '<br><br><a href="/mi-cuenta">Volver a mi cuenta</a></p>'
+        return
+      }
     }
     const [cfg, pros] = await Promise.all([
       supabase.fetch('public_pricing').catch(()=>[]),

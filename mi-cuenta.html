@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="/styles.css?v=14">
+<link rel="stylesheet" href="/styles.css?v=16">
 <script src="/config-cliente.js?v=3"></script>
 </head>
 <body class="pt-nav">
@@ -47,6 +47,7 @@
         <button type="button" data-lista="proximas" aria-pressed="true">Próximas <span id="nProx"></span></button>
         <button type="button" data-lista="pasadas" aria-pressed="false">Pasadas <span id="nPas"></span></button>
       </div>
+      <div class="cta-aviso ok" id="avisoHoras" role="status" hidden></div>
       <div id="citas" aria-live="polite"></div>
       <p class="mc-nota">¿Falta alguna hora? Si te atendiste con otro correo o teléfono, escríbenos por
         <a id="waFalta" href="#" target="_blank" rel="noopener">WhatsApp</a> y la sumamos a tu cuenta.</p>
@@ -105,13 +106,23 @@
   </div>
 </main>
 
+<dialog class="mc-dialogo" id="dlgCancelar" aria-labelledby="dlgTitulo">
+  <h2 id="dlgTitulo">¿Cancelar esta hora?</h2>
+  <p id="dlgDetalle"></p>
+  <div class="cta-error" id="dlgError" role="alert" hidden></div>
+  <div class="mc-dialogo-botones">
+    <button type="button" class="btn btn-outline-gold" id="dlgNo">No, mantenerla</button>
+    <button type="button" class="btn mc-btn-rojo" id="dlgSi">Sí, cancelar</button>
+  </div>
+</dialog>
+
 <div id="footerContainer"></div>
 <div id="floatingContainer"></div>
 
 <script src="/supabase-client.js?v=19"></script>
 <script src="/data.js?v=7"></script>
 <script src="/common.js?v=19"></script>
-<script src="/cuenta.js?v=3"></script>
+<script src="/cuenta.js?v=4"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('')
 document.getElementById('footerContainer').innerHTML = renderFooter()
@@ -163,12 +174,59 @@ function tarjeta(c) {
       ${c.precio ? `<p class="mc-precio">${esc(c.precio)}</p>` : ''}
     </div>
     <span class="mc-estado ${clase}">${esc(txt)}</span>
+    ${acciones(c)}
   </article>`
 }
+/* cambiar o cancelar: solo las próximas, vigentes y antes del plazo */
+function acciones(c) {
+  if (c.pasada || c.estado === 'cancelled') return ''
+  if (c.cambiable) {
+    const cambiar = c.servicio_id
+      ? `<a class="mc-accion" href="/reservar.html?svc=${encodeURIComponent(c.servicio_id)}&cambiar=${encodeURIComponent(c.id)}"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Cambiar</a>`
+      : ''
+    return `<div class="mc-acciones-cita">${cambiar}
+      <button type="button" class="mc-accion rojo" data-cancelar="${esc(c.id)}"><i class="fa-regular fa-circle-xmark" aria-hidden="true"></i> Cancelar</button></div>`
+  }
+  const lim = new Date(c.limite_cambio)
+  const cuando = lim.toLocaleString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'America/Santiago' })
+  return `<p class="mc-plazo">El plazo para cambiarla o cancelarla desde aquí terminó el ${esc(cuando)}.
+    Si lo necesitas, escríbenos por <a href="${esc(waHref('Hola, necesito cambiar mi hora de ' + (c.servicio || '') + ' del ' + c.fecha.split('-').reverse().join('/') + ' a las ' + String(c.inicio).slice(0, 5)))}" target="_blank" rel="noopener">WhatsApp</a>.</p>`
+}
+function waHref(texto) {
+  return 'https://wa.me/' + (typeof CLIENTE !== 'undefined' ? CLIENTE.whatsapp : '56986688771') + '?text=' + encodeURIComponent(texto)
+}
+
+/* ── cancelar, con confirmación ── */
+let aCancelar = null
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-cancelar]'); if (!b) return
+  aCancelar = citas.find(c => c.id === b.dataset.cancelar); if (!aCancelar) return
+  const [y, m, d] = aCancelar.fecha.split('-').map(Number)
+  const f = new Date(y, m - 1, d)
+  $('dlgDetalle').textContent = (aCancelar.servicio || 'Tu hora') + ' · ' + DIAS[f.getDay()] + ' ' + d + ' de ' + MESES[m - 1] + ' a las ' + String(aCancelar.inicio).slice(0, 5) + ' hrs.'
+  $('dlgError').hidden = true
+  $('dlgCancelar').showModal()
+  $('dlgNo').focus()
+})
+$('dlgNo').addEventListener('click', () => $('dlgCancelar').close())
+$('dlgSi').addEventListener('click', async () => {
+  const b = $('dlgSi'); b.disabled = true; b.textContent = 'Cancelando…'
+  try {
+    await Cuenta.rpc('cancelar_mi_cita', { p_id: aCancelar.id })
+    Cuenta.avisarPorCorreo({ id: aCancelar.id, tipo: 'cancelacion' })
+    $('dlgCancelar').close()
+    $('avisoHoras').textContent = 'Tu hora quedó cancelada. Te enviamos la confirmación por correo.'
+    $('avisoHoras').hidden = false
+    await cargarCitas()
+  } catch (x) { $('dlgError').textContent = x.message; $('dlgError').hidden = false }
+  finally { b.disabled = false; b.textContent = 'Sí, cancelar' }
+})
+
 function pintarCitas() {
   const prox = citas.filter(c => !c.pasada).sort((a, b) => (a.fecha + a.inicio).localeCompare(b.fecha + b.inicio))
   const pas = citas.filter(c => c.pasada)
-  $('nProx').textContent = prox.length ? '(' + prox.length + ')' : ''
+  const vigentes = prox.filter(c => c.estado !== 'cancelled').length
+  $('nProx').textContent = vigentes ? '(' + vigentes + ')' : ''
   $('nPas').textContent = pas.length ? '(' + pas.length + ')' : ''
   document.querySelectorAll('[data-lista]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lista === lista))
   const filas = lista === 'proximas' ? prox : pas
@@ -262,6 +320,11 @@ $('fClave').addEventListener('submit', async e => {
   llenarDatos(perfilActual)
   $('waFalta').href = 'https://wa.me/' + (typeof CLIENTE !== 'undefined' ? CLIENTE.whatsapp : '56986688771')
     + '?text=' + encodeURIComponent('Hola, tengo cuenta en el sitio con el correo ' + Cuenta.correo() + ' y me falta una hora en mi historial.')
+  if (new URLSearchParams(location.search).get('cambiada')) {
+    $('avisoHoras').textContent = 'Tu hora quedó cambiada. Te enviamos los nuevos datos por correo.'
+    $('avisoHoras').hidden = false
+    history.replaceState(null, '', location.pathname)
+  }
   if (new URLSearchParams(location.search).get('bienvenida')) {
     $('bienvenida').hidden = false
     history.replaceState(null, '', location.pathname)
