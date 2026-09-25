@@ -206,6 +206,8 @@ const Cuenta = (() => {
         throw new ErrorCuenta(/rut/i.test(m) ? 'El RUT no es válido. Revisa el número y el dígito verificador.'
           : /telefono/i.test(m) ? 'El teléfono no es válido.' : 'Hay un dato que no es válido.', '23514')
       }
+      /* P0001 = un aviso escrito en la base para la persona ("Esa hora ya está tomada") */
+      if (j && j.code === 'P0001' && j.message) throw new ErrorCuenta(j.message, 'P0001')
       if (res.status === 401) { borrar(); throw new ErrorCuenta(ERRORES.session_not_found, 'session_not_found') }
       throw new ErrorCuenta('No pudimos guardar los cambios. Inténtalo de nuevo en un momento.', j && j.code)
     }

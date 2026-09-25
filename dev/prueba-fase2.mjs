@@ -1,4 +1,4 @@
-// Prueba de la fase 2 contra la base LOCAL. Antes: npx supabase db reset  ·  Uso: node dev/prueba-fase2.mjs .
+// Pruebas de las fases 2 y 3 contra la base LOCAL. Antes: npx supabase db reset  ·  Uso: node dev/prueba-fase2.mjs .
 import { execSync } from 'node:child_process'
 const env = Object.fromEntries(execSync('npx supabase status -o env', { cwd: process.argv[2] }).toString()
   .split('\n').filter(l => l.includes('=')).map(l => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1).replace(/^"|"$/g, '')] }))
@@ -73,3 +73,15 @@ const nueva = await j(`${A}/rest/v1/appointments`, { method: 'POST', headers: { 
 ok(nueva.s === 201, 'la reserva se crea desde el panel')
 const citas2 = (await j(`${A}/rest/v1/rpc/mis_citas`, { method: 'POST', headers: H(tAna), body: '{}' })).b
 ok(citas2.length === 4 && citas2.filter(c => !c.pasada).length === 2, 'aparece sola en el historial de Ana (la cuenta se toma de la ficha)')
+
+console.log('6) Fase 3: reservar con la cuenta')
+const sinSesion = await j(`${A}/rest/v1/rpc/reservar_cliente_cuenta`, { method: 'POST', headers: H(), body: '{}' })
+ok(sinSesion.s >= 400, 'sin sesión no se puede usar reservar_cliente_cuenta (' + sinSesion.s + ')')
+const fichaAna = (await j(`${A}/rest/v1/rpc/reservar_cliente_cuenta`, { method: 'POST', headers: H(tAna), body: '{}' })).b
+ok(sql(`select count(*) from clients where id='${fichaAna}' and user_id=(select id from auth.users where email='ana.perez@ejemplo.cl')`) === '1', 'con cuenta devuelve una ficha de la propia cuenta')
+ok(sql(`select count(*) from clients c join auth.users u on u.id=c.user_id where u.email='ana.perez@ejemplo.cl'`) === '2', 'no crea fichas duplicadas si ya tiene')
+const malFono = await j(`${A}/rest/v1/rpc/reservar_cliente_cuenta`, { method: 'POST', headers: H(tN), body: JSON.stringify({ p_fono: '123' }) })
+ok(malFono.s >= 400 && /tel[eé]fono/i.test(malFono.b.message || ''), 'sin teléfono en el perfil, uno inválido se rechaza: "' + (malFono.b.message || '') + '"')
+const fichaN = (await j(`${A}/rest/v1/rpc/reservar_cliente_cuenta`, { method: 'POST', headers: H(tN), body: JSON.stringify({ p_fono: '9 6666 7777' }) })).b
+ok(sql(`select email||'|'||(user_id is not null) from clients where id='${fichaN}'`) === 'nadie@ejemplo.cl|true', 'sin fichas, crea una con su correo y su cuenta')
+ok(sql(`select telefono from profiles p join auth.users u on u.id=p.id where u.email='nadie@ejemplo.cl'`) === '+56966667777', 'y el teléfono queda guardado en su perfil')

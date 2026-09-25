@@ -46,6 +46,9 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .btn:disabled{opacity:.45;cursor:default}
 .resumen{background:var(--gold-pale);border-radius:10px;padding:14px 16px;font-size:.86rem;margin-top:18px;line-height:1.6}
 .gc-aviso{margin-top:10px;background:#f3ead8;color:#6b5328;border-radius:9px;padding:9px 12px;font-size:.8rem;line-height:1.45}
+.cuenta-datos{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:.86rem;line-height:1.55;color:var(--mid)}
+.cuenta-datos a,.cuenta-invita a{color:var(--gold-d);font-weight:600}
+.cuenta-invita{font-size:.84rem;color:var(--light);background:var(--gold-pale);border-radius:9px;padding:10px 13px}
 .err{background:#fdecea;color:#c0392b;border-radius:9px;padding:12px 14px;font-size:.84rem;margin-top:14px;display:none}
 .done{text-align:center;padding:44px 24px}
 .done .em{font-size:3.2rem;margin-bottom:14px}
@@ -96,6 +99,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 
 <script src="/supabase-client.js?v=19"></script>
 <script src="/data.js?v=7"></script>
+<script src="/cuenta.js?v=3"></script>
 <script>
 /* ═══════════════════════════════════════════
    RESERVA ONLINE — calcula las horas libres contra la agenda real
@@ -108,6 +112,9 @@ const svcId = params.get('svc')
    local se canjea al atender. */
 const gcCodigo = (params.get('gc') || '').trim().toUpperCase()
 let giftcard = null   // { codigo, para, vence, nombre }
+/* Con la sesión del cliente iniciada, los datos salen de su perfil y la
+   reserva queda en su cuenta; sin sesión todo funciona como siempre. */
+let cuentaCliente = null   // { nombre, fono, mail }
 
 const normNombre = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()
 /* consulta la gift card; devuelve { giftcard } o { error } sin tocar la pantalla */
@@ -351,10 +358,18 @@ function pintarFormulario(){
   if(!fechaSel || !horaSel) return ''
   const p = precioEn(fechaSel, horaSel)
   const d = new Date(fechaSel+'T00:00:00')
+  const datos = cuentaCliente
+    ? `<div class="cuenta-datos">
+        <div><strong>${esc(cuentaCliente.nombre)}</strong><br>${esc(cuentaCliente.mail)}${cuentaCliente.fono ? ' · ' + esc(cuentaCliente.fono) : ''}</div>
+        <a href="/mi-cuenta#datos">Editar</a>
+      </div>
+      ${cuentaCliente.fono ? '' : '<label>Teléfono *</label><input type="tel" id="fono" placeholder="+56 9 1234 5678" />'}`
+    : `<p class="cuenta-invita">¿Tienes cuenta? <a href="${esc('/ingresar?volver=' + encodeURIComponent(location.pathname + location.search))}">Ingresa</a> y usamos tus datos.</p>
+      <label>Nombre y apellido *</label><input type="text" id="nombre" placeholder="Cómo te llamas" />
+      <label>Teléfono *</label><input type="tel" id="fono" placeholder="+56 9 1234 5678" />
+      <label>Correo</label><input type="email" id="mail" placeholder="tu@email.com (opcional)" />`
   return `<h3>Tus datos</h3>
-    <label>Nombre y apellido *</label><input type="text" id="nombre" placeholder="Cómo te llamas" />
-    <label>Teléfono *</label><input type="tel" id="fono" placeholder="+56 9 1234 5678" />
-    <label>Correo</label><input type="email" id="mail" placeholder="tu@email.com (opcional)" />
+    ${datos}
     <label>¿Algo que debamos saber?</label><textarea id="nota" rows="2" placeholder="Opcional"></textarea>
     <div class="resumen">
       <strong>${esc(servicio.name)}</strong><br>
@@ -397,12 +412,17 @@ function elegirPrimerDiaConHoras(){
   }
 }
 function elegirDia(f){ fechaSel = f; horaSel = null; render() }
-function elegirHora(h){ horaSel = h; render(); document.getElementById('nombre').focus() }
+function elegirHora(h){
+  horaSel = h; render()
+  const primero = document.getElementById('nombre') || document.getElementById('fono') || document.getElementById('nota')
+  if(primero) primero.focus()
+}
 
 async function reservar(){
-  const nombre = document.getElementById('nombre').value.trim()
-  const fono = document.getElementById('fono').value.trim()
-  const mail = document.getElementById('mail').value.trim()
+  const valor = id => { const el = document.getElementById(id); return el ? el.value.trim() : '' }
+  const nombre = cuentaCliente ? cuentaCliente.nombre : valor('nombre')
+  const fono = cuentaCliente && cuentaCliente.fono ? cuentaCliente.fono : valor('fono')
+  const mail = cuentaCliente ? cuentaCliente.mail : valor('mail')
   const nota = document.getElementById('nota').value.trim()
   const err = document.getElementById('err'), btn = document.getElementById('btnReservar')
   err.style.display = 'none'
@@ -429,9 +449,11 @@ async function reservar(){
     /* La ficha del cliente y la reserva las crea la base, no el navegador:
        así el sitio nunca necesita leer ni escribir esas tablas, y la hora
        se comprueba de nuevo del lado del servidor justo antes de guardar. */
-    const clienteId = await supabase.rpc('reservar_cliente', {
-      p_nombre: nombre, p_fono: fono, p_email: mail || null
-    })
+    /* con cuenta, la base elige la ficha de la cuenta (o la crea con el perfil) */
+    const clienteId = cuentaCliente
+      ? await Cuenta.rpc('reservar_cliente_cuenta', { p_fono: fono || null })
+      : await supabase.rpc('reservar_cliente', { p_nombre: nombre, p_fono: fono, p_email: mail || null })
+    if(cuentaCliente && !cuentaCliente.fono && fono) cuentaCliente.fono = fono
 
     const p = precioEn(fechaSel, horaSel)
     if(giftcard){
@@ -473,7 +495,8 @@ async function reservar(){
         <p>Te esperamos en Santo Domingo 1083, oficina 502.<br>
         Si necesitas cambiarla, escríbenos por WhatsApp.</p>
         <div class="done-btns">
-          <a class="btn-ok" href="/">Volver al inicio</a>
+          ${cuentaCliente ? '<a class="btn-ok" href="/mi-cuenta">Ver mis horas</a>' : ''}
+          <a class="btn-ok${cuentaCliente ? ' sec' : ''}" href="/">Volver al inicio</a>
           <a class="btn-ok sec" href="/servicios.html">Ver otros servicios</a>
           <a class="btn-ok wa" href="https://wa.me/56986688771?text=${encodeURIComponent('Hola, acabo de reservar ' + servicio.name + ' para el ' + fechaSel + ' a las ' + horaSel + ' hrs.')}" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>
         </div>
@@ -488,7 +511,7 @@ async function reservar(){
     console.error(e)
     const motivo = (e && e.message) || 'No pudimos completar la reserva. Intenta de nuevo.'
     render()
-    const f = { nombre, fono, mail, nota }
+    const f = cuentaCliente ? { fono, nota } : { nombre, fono, mail, nota }
     Object.keys(f).forEach(id => { const el = document.getElementById(id); if(el) el.value = f[id] })
     let caja = document.getElementById('err')
     if(!caja){
@@ -520,6 +543,16 @@ async function init(){
       giftcard = r.giftcard
     }
 
+    if(Cuenta.haySesion()){
+      try{
+        const p = await Cuenta.perfil()
+        if(p) cuentaCliente = {
+          nombre: (p.nombre + ' ' + p.apellido).trim(),
+          fono: p.telefono ? p.telefono.replace(/^\+569(\d{4})(\d{4})$/, '+56 9 $1 $2') : '',
+          mail: Cuenta.correo()
+        }
+      }catch(e){ cuentaCliente = null }   // sesión vencida: se reserva como invitado
+    }
     const [cfg, pros] = await Promise.all([
       supabase.fetch('public_pricing').catch(()=>[]),
       supabase.fetch('public_professionals').catch(()=>[])

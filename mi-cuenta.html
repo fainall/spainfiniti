@@ -28,7 +28,7 @@
         <p class="cta-sub" id="correoCab"></p>
       </div>
       <div class="mc-acciones">
-        <a class="btn btn-gold" href="/reservar.html"><i class="fa-regular fa-calendar-plus"></i> Reservar</a>
+        <a class="btn btn-gold" href="/servicios.html"><i class="fa-regular fa-calendar-plus"></i> Reservar</a>
         <button type="button" class="btn btn-outline-gold" id="salir"><i class="fa-solid fa-arrow-right-from-bracket"></i> Salir</button>
       </div>
     </header>
@@ -111,7 +111,7 @@
 <script src="/supabase-client.js?v=19"></script>
 <script src="/data.js?v=7"></script>
 <script src="/common.js?v=19"></script>
-<script src="/cuenta.js?v=2"></script>
+<script src="/cuenta.js?v=3"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('')
 document.getElementById('footerContainer').innerHTML = renderFooter()
@@ -175,13 +175,13 @@ function pintarCitas() {
   if (!citas.length) {
     $('citas').innerHTML = `<div class="mc-vacio"><i class="fa-regular fa-calendar" aria-hidden="true"></i>
       <p><strong>Aún no tienes citas.</strong><br>Cuando reserves, aparecerán aquí.</p>
-      <a class="btn btn-gold" href="/reservar.html">Reservar mi primera hora</a></div>`
+      <a class="btn btn-gold" href="/servicios.html">Reservar mi primera hora</a></div>`
     return
   }
   if (!filas.length) {
     $('citas').innerHTML = lista === 'proximas'
       ? `<div class="mc-vacio"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i><p><strong>No tienes horas próximas.</strong></p>
-         <a class="btn btn-gold" href="/reservar.html">Reservar una hora</a></div>`
+         <a class="btn btn-gold" href="/servicios.html">Reservar una hora</a></div>`
       : `<div class="mc-vacio"><i class="fa-regular fa-clock" aria-hidden="true"></i><p><strong>Aún no tienes citas pasadas.</strong></p></div>`
     return
   }
