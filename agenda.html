@@ -1513,6 +1513,27 @@ body.sin-scroll{overflow:hidden}
 .doc-subir{display:inline-block;margin-top:14px;cursor:pointer}
 .ad-guardar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px}
 .ad-guardar[hidden]{display:none}
+.rvm-leyenda{display:flex;gap:14px;flex-wrap:wrap;font-size:.74rem;color:var(--mid);margin:4px 0 10px}
+.rvm-leyenda i,.rvm-punto{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.rvm-barras{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;height:200px;align-items:end}
+.rvm-mes{display:flex;flex-direction:column;align-items:center;height:100%;min-width:0}
+.rvm-par,.rvm-pila{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:3px}
+.rvm-pila{flex-direction:column-reverse;align-items:center;justify-content:flex-start;gap:0}
+.rvm-pila span{width:70%;max-width:34px;display:block}
+.rvm-pila span:last-child{border-radius:4px 4px 0 0}
+.rvm-b{position:relative;width:42%;max-width:22px;border-radius:4px 4px 0 0;min-height:0}
+.rvm-b.v{background:var(--gold)}
+.rvm-b.c{background:#2C3E50}
+.rvm-b em{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-style:normal;font-size:.6rem;color:var(--mid);white-space:nowrap;margin-bottom:2px}
+.rvm-lbl{font-size:.66rem;color:var(--mid);margin-top:4px;white-space:nowrap}
+.rvm-sub{font-size:.82rem;margin:22px 0 4px}
+.rvm-tabla-caja{overflow-x:auto;margin-top:18px}
+.rvm-tabla{width:100%;border-collapse:collapse;font-size:.8rem;min-width:520px}
+.rvm-tabla th{font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:var(--mid);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.rvm-tabla td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.rvm-tabla .r{text-align:right}
+.rvm-total td{font-weight:700;background:var(--cream-2,#f4efe6)}
+@media (max-width:700px){ .rvm-barras{gap:2px;height:160px} .rvm-b em{display:none} .rvm-lbl{font-size:.56rem} }
 .ad-auto{border-color:var(--gold);background:linear-gradient(180deg,var(--gold-pale,#faf5ec),#fff 70%)}
 .ad-auto-cab{display:flex;flex-direction:column;gap:2px;margin-right:auto}
 .ad-auto-cab strong{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--texto,#1a2436)}
@@ -3624,6 +3645,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <option value="month">Este mes</option>
           <option value="prevmonth">Mes pasado</option>
           <option value="90">Últimos 90 días</option>
+          <option value="12m">Últimos 12 meses</option>
         </select></div>
         <div><label>Comparar contra</label><select id="rvCompare" onchange="renderRepVentas()">
           <option value="prev">Período anterior</option>
@@ -3641,6 +3663,13 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <div class="rr-panel"><h5>Ventas por tipo de ítem</h5><div id="rvTypes"></div></div>
       </div>
       <div class="rr-panel" style="margin-bottom:18px"><h5>Ventas por período</h5><div id="rvChart"></div></div>
+      <div class="rr-panel" id="rvMensualBox" style="margin-bottom:18px" hidden>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+          <h5 style="margin:0">Resumen mes a mes</h5>
+          <button class="mini-btn" onclick="descargarMensual()">⬇ Descargar</button>
+        </div>
+        <div id="rvMensual"></div>
+      </div>
       <div class="acc open" id="rvIaAcc" style="margin:0 0 18px">
         <button class="acc-head" onclick="toggleAcc('rvIaAcc')"><span>✨ Análisis del asistente</span><span class="chev">▾</span></button>
         <div class="acc-body">
@@ -14073,6 +14102,7 @@ function rvRange(){
   }
   if(v==='month') return [new Date(t.getFullYear(),t.getMonth(),1), new Date(t.getFullYear(),t.getMonth()+1,0)]
   if(v==='prevmonth') return [new Date(t.getFullYear(),t.getMonth()-1,1), new Date(t.getFullYear(),t.getMonth(),0)]
+  if(v==='12m') return [new Date(t.getFullYear(),t.getMonth()-11,1), t]     // este mes y los 11 anteriores
   if(v==='hoy') return [t, t]
   if(v==='ayer'){ const a=addDays(t,-1); return [a, a] }
   return [addDays(t,-(parseInt(v)-1)), t]
@@ -14133,6 +14163,11 @@ function renderRepVentas(){
           <span style="font-size:1.3rem;font-weight:700">${fmtMoney(v)}</span>${rvDelta(v,prev.tipos[k]||0,compare)}</div></div>`).join('')
     : rrPh('🔍','Ventas por tipo de ítem','No se registran ventas en el período de tiempo seleccionado')
 
+  /* últimos 12 meses: gráfico por mes y resumen mes a mes (pedido de Luis) */
+  const porMes = document.getElementById('rvPeriod').value === '12m'
+  document.getElementById('rvMensualBox').hidden = !porMes
+  if(porMes){ pintarMensual(f, t); return pintarListasVentas(cur) }
+
   // gráfico por período (día o semana según largo)
   const days=[]; for(let d=new Date(f); d<=t; d=addDays(d,1)) days.push(isoDate(d))
   const weekly=days.length>35
@@ -14152,6 +14187,9 @@ function renderRepVentas(){
         ${weekly?'<p class="rem-note" style="margin-top:8px">Agrupado por semana.</p>':''}`
     : rrPh('🔍','Ventas por período','No se registran ventas en el período de tiempo seleccionado')
 
+  pintarListasVentas(cur)
+}
+function pintarListasVentas(cur){
   const listOf=obj=>{ const arr=Object.entries(obj).sort((a,b)=>b[1]-a[1])
     const tot=arr.reduce((a,[,v])=>a+v,0)
     return arr.map(([k,v])=>`<div class="rs-line"><span class="rl-n">${esc(k)}</span>
@@ -14160,6 +14198,74 @@ function renderRepVentas(){
     : rrPh('🔍','Ventas por categoría','No se registran ventas en el período de tiempo seleccionado')
   document.getElementById('rvSvcs').innerHTML = Object.keys(cur.svcs).length ? listOf(cur.svcs)
     : rrPh('🔍','Ventas por servicio','No se registran ventas en el período de tiempo seleccionado')
+}
+
+/* ── Últimos 12 meses: ventas, comisiones y ventas de cada profesional por mes ──
+   Las comisiones se calculan igual que en la pantalla Comisiones
+   (comisionDeVenta: porcentaje por servicio, abonos, descuentos). */
+function datosMensuales(f, t){
+  const meses = []
+  for(let d = new Date(f.getFullYear(), f.getMonth(), 1); d <= t; d = new Date(d.getFullYear(), d.getMonth() + 1, 1))
+    meses.push({ clave: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'),
+                 nombre: MONTHS_SHORT[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2),
+                 ventas: 0, n: 0, comisiones: 0, pros: {} })
+  const porClave = Object.fromEntries(meses.map(m => [m.clave, m]))
+  rvSales(f, t).filter(v => typeof ventaVigente !== 'function' || ventaVigente(v)).forEach(v => {
+    const m = porClave[String(v.sale_date || '').slice(0, 7)]; if(!m) return
+    const total = Number(v.total || 0)
+    m.ventas += total; m.n++
+    m.comisiones += comisionDeVenta(v).comm
+    const pid = v.professional_id || 'sin'
+    m.pros[pid] = (m.pros[pid] || 0) + total
+  })
+  /* profesionales que vendieron algo en el período, en el orden de la agenda */
+  const conVentas = new Set(meses.flatMap(m => Object.keys(m.pros)))
+  const pros = state.professionals.filter(p => conVentas.has(p.id)).map(p => ({ id: p.id, nombre: p.name, color: p.color || '#C5A467' }))
+  if(conVentas.has('sin')) pros.push({ id: 'sin', nombre: 'Sin profesional', color: '#B8B8B8' })
+  return { meses, pros }
+}
+function pintarMensual(f, t){
+  const { meses, pros } = datosMensuales(f, t)
+  const k = n => n >= 1000000 ? (n / 1000000).toFixed(1).replace('.0', '') + 'M' : Math.round(n / 1000) + 'k'
+  const maxV = Math.max(1, ...meses.map(m => m.ventas))
+
+  /* ventas y comisiones: dos barras por mes */
+  document.getElementById('rvChart').innerHTML = meses.some(m => m.ventas)
+    ? `<div class="rvm-leyenda"><span><i style="background:var(--gold)"></i>Ventas</span><span><i style="background:#2C3E50"></i>Comisiones</span></div>
+       <div class="rvm-barras">${meses.map(m => `<div class="rvm-mes" title="${esc(m.nombre)}: ventas ${fmtMoney(m.ventas)} · comisiones ${fmtMoney(m.comisiones)}">
+          <div class="rvm-par">
+            <span class="rvm-b v" style="height:${m.ventas / maxV * 100}%"><em>${m.ventas ? k(m.ventas) : ''}</em></span>
+            <span class="rvm-b c" style="height:${m.comisiones / maxV * 100}%"><em>${m.comisiones ? k(m.comisiones) : ''}</em></span>
+          </div><span class="rvm-lbl">${esc(m.nombre)}</span></div>`).join('')}</div>`
+    : rrPh('🔍','Ventas por período','No se registran ventas en los últimos 12 meses')
+
+  /* ventas por profesional: barras apiladas con el color de cada una */
+  const apiladas = pros.length ? `<h6 class="rvm-sub">Ventas por profesional</h6>
+    <div class="rvm-leyenda">${pros.map(p => `<span><i style="background:${esc(p.color)}"></i>${esc(p.nombre)}</span>`).join('')}</div>
+    <div class="rvm-barras">${meses.map(m => `<div class="rvm-mes" title="${esc(m.nombre + ': ' + pros.map(p => p.nombre + ' ' + fmtMoney(m.pros[p.id] || 0)).join(' · '))}">
+        <div class="rvm-pila">${pros.map(p => m.pros[p.id] ? `<span style="height:${m.pros[p.id] / maxV * 100}%;background:${esc(p.color)}"></span>` : '').join('')}</div>
+        <span class="rvm-lbl">${esc(m.nombre)}</span></div>`).join('')}</div>` : ''
+
+  /* la tabla mes a mes, con totales */
+  const tot = { ventas: 0, n: 0, comisiones: 0, pros: {} }
+  meses.forEach(m => { tot.ventas += m.ventas; tot.n += m.n; tot.comisiones += m.comisiones
+    pros.forEach(p => tot.pros[p.id] = (tot.pros[p.id] || 0) + (m.pros[p.id] || 0)) })
+  const fila = (m, esTotal) => `<tr${esTotal ? ' class="rvm-total"' : ''}><td>${esc(esTotal ? 'Total 12 meses' : m.nombre)}</td>
+      <td class="r">${fmtMoney(m.ventas)}</td><td class="r">${m.n}</td><td class="r">${fmtMoney(m.comisiones)}</td>
+      ${pros.map(p => `<td class="r">${fmtMoney(m.pros[p.id] || 0)}</td>`).join('')}</tr>`
+  document.getElementById('rvMensual').innerHTML = `${apiladas}
+    <div class="rvm-tabla-caja"><table class="rvm-tabla">
+      <thead><tr><th>Mes</th><th class="r">Ventas</th><th class="r">N.º ventas</th><th class="r">Comisiones</th>
+        ${pros.map(p => `<th class="r"><i class="rvm-punto" style="background:${esc(p.color)}"></i>${esc(p.nombre)}</th>`).join('')}</tr></thead>
+      <tbody>${meses.slice().reverse().map(m => fila(m)).join('')}${fila(tot, true)}</tbody>
+    </table></div>
+    <p class="rem-note" style="margin-top:8px">Incluye las ventas registradas en este panel. Los meses anteriores a su uso aparecen en cero.</p>`
+}
+function descargarMensual(){
+  const [f, t] = rvRange()
+  const { meses, pros } = datosMensuales(f, t)
+  downloadCSV('ventas-12-meses.csv', ['Mes', 'Ventas', 'N.º ventas', 'Comisiones', ...pros.map(p => 'Ventas ' + p.nombre)],
+    meses.map(m => [m.nombre, m.ventas, m.n, m.comisiones, ...pros.map(p => m.pros[p.id] || 0)]))
 }
 async function runSalesInsight(){
   const box=document.getElementById('rvIa')
