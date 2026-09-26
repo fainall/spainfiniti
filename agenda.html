@@ -14222,6 +14222,13 @@ function datosMensuales(f, t){
   const conVentas = new Set(meses.flatMap(m => Object.keys(m.pros)))
   const pros = state.professionals.filter(p => conVentas.has(p.id)).map(p => ({ id: p.id, nombre: p.name, color: p.color || '#C5A467' }))
   if(conVentas.has('sin')) pros.push({ id: 'sin', nombre: 'Sin profesional', color: '#B8B8B8' })
+  /* si dos tienen el mismo color (el dorado de fábrica), se les da otro para distinguirlas */
+  const PALETA = ['#C5A467','#2C3E50','#C27B8A','#7FA7C9','#8BB174','#E0A458','#9B7EBD','#5FB3A8']
+  const usados = new Set()
+  pros.forEach(p => {
+    if(usados.has(p.color.toLowerCase())) p.color = PALETA.find(c => !usados.has(c.toLowerCase())) || p.color
+    usados.add(p.color.toLowerCase())
+  })
   return { meses, pros }
 }
 function pintarMensual(f, t){
