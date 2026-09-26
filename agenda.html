@@ -5782,7 +5782,7 @@ async function refrescarAgenda(forzado){
     const antesIds = new Set(state.appointments.map(a=>a.id))
     await Promise.all([loadAppointments(), loadSales().catch(e=>console.warn('pagos:', e.message))])
     const nuevas = state.appointments.filter(a=>!antesIds.has(a.id))
-    ultimoRefresco = Date.now()
+    ultimoRefresco = Date.now(); ultimaRelectura = Date.now()
     render()
     /* las que acaban de entrar (web, Mariet, otra pantalla) brillan unos
        segundos, para que Luis vea cuál es nueva sin leer toda la agenda */
@@ -5823,30 +5823,38 @@ function pintarUltimoRefresco(){
                  : 'Actualizado hace ' + min + ' min'
 }
 
+/* ── Cuánto se relee y cuándo (para no gastar el tráfico de Supabase) ──
+   El plan gratuito de Supabase trae 5 GB de tráfico al mes y el panel se los
+   comía: releía TODAS las ventas y la semana de reservas cada 30 segundos, y
+   otra vez cada vez que la ventana recuperaba el foco. Con el tiempo real
+   conectado eso sobra: cada cambio llega al instante con sus datos y se
+   aplica sin volver a descargar nada (rtParchar). Los refrescos quedan solo
+   de respaldo: cada 30 s si el tiempo real está caído, y cada 10 minutos
+   (o al volver después de un rato) si está conectado. */
+const RESPALDO_CON_TIEMPO_REAL = 10 * 60000
+const MINIMO_AL_VOLVER = 2 * 60000
+let ultimaRelectura = Date.now()
+function tocaReleer(minimo){
+  if(!RT.conectado) return true                        // sin tiempo real: como antes
+  /* publicidad no recibe los avisos (la base no le entrega las reservas): cada minuto */
+  if(typeof soloMira === 'function' && soloMira()) return Date.now() - ultimaRelectura >= 60000
+  return Date.now() - ultimaRelectura >= minimo
+}
+function refrescoRespaldo(minimo){
+  if(document.visibilityState !== 'visible') return
+  if(!tocaReleer(minimo)) return
+  const v = pantallaAbierta()
+  if(!v || v === 'agenda') refrescarAgenda()
+  else refrescarPantalla(v, true)
+}
 function iniciarRefresco(){
   if(refrescoTimer) return
   iniciarTiempoReal()
-  refrescoTimer = setInterval(refrescarAgenda, 30000)
+  refrescoTimer = setInterval(() => refrescoRespaldo(RESPALDO_CON_TIEMPO_REAL), 30000)
   setInterval(pintarUltimoRefresco, 20000)
-  /* las demas pantallas (Ventas, Caja, Comisiones...) tambien se ponen al dia
-     solas mientras esten abiertas */
-  setInterval(()=>{
-    if(document.visibilityState !== 'visible') return
-    const v = pantallaAbierta()
-    if(v && v !== 'agenda') refrescarPantalla(v, true)
-  }, 30000)
-  /* al volver a la pestaña, refresca de inmediato: es cuando más falta hace */
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState !== 'visible') return
-    refrescarAgenda()
-    const v = pantallaAbierta()
-    if(v && v !== 'agenda') refrescarPantalla(v, true)
-  })
-  window.addEventListener('focus', ()=>{
-    refrescarAgenda()
-    const v = pantallaAbierta()
-    if(v && v !== 'agenda') refrescarPantalla(v, true)
-  })
+  /* al volver a la pestaña o a la ventana: solo si pasó un rato */
+  document.addEventListener('visibilitychange', () => refrescoRespaldo(MINIMO_AL_VOLVER))
+  window.addEventListener('focus', () => refrescoRespaldo(MINIMO_AL_VOLVER))
 }
 
 /* ── TIEMPO REAL ──
@@ -5856,7 +5864,7 @@ function iniciarRefresco(){
    cada 30 s queda solo de respaldo por si se corta la conexion.
    Se habla el protocolo de Realtime directo (sin la libreria supabase-js, que
    choca con nuestra variable global "supabase"). */
-const RT = { ws:null, ref:0, latido:null, reintento:1000, pendiente:false, timer:null, conectado:false, tablas:new Set() }
+const RT = { ws:null, ref:0, latido:null, reintento:1000, pendiente:false, timer:null, conectado:false, tablas:new Set(), cambios:[], huboCorte:false }
 const RT_TABLAS = ['appointments','sales','clients']
 function rtToken(){ return supaAuthHeader().replace(/^Bearer /,'') }
 function rtEnviar(topic, event, payload){
@@ -5887,17 +5895,21 @@ function iniciarTiempoReal(){
     let m; try{ m = JSON.parse(ev.data) }catch(e){ return }
     if(m.event === 'phx_reply' && m.topic === 'realtime:panel-spa'){
       const ok = m.payload && m.payload.status === 'ok'
-      if(!RT.conectado && ok){ RT.conectado = true; pintarUltimoRefresco() }
+      if(!RT.conectado && ok){
+        RT.conectado = true; pintarUltimoRefresco()
+        if(RT.huboCorte){ RT.huboCorte = false; ultimaRelectura = 0; refrescoRespaldo(0) }
+      }
       if(!ok) console.warn('tiempo real:', JSON.stringify(m.payload))
       return
     }
     if(m.event === 'system' && m.payload && m.payload.status === 'error') console.warn('tiempo real:', m.payload.message)
     if(m.event === 'postgres_changes' && m.payload && m.payload.data){
-      RT.tablas.add(m.payload.data.table)
+      RT.cambios.push(m.payload.data)
       rtAvisar()
     }
   }
   ws.onclose = () => {
+    if(RT.conectado) RT.huboCorte = true
     RT.conectado = false; clearInterval(RT.latido); RT.ws = null
     pintarUltimoRefresco()
     setTimeout(iniciarTiempoReal, RT.reintento)
@@ -5910,15 +5922,66 @@ function rtAvisar(){
   clearTimeout(RT.timer)
   RT.timer = setTimeout(rtAplicar, 250)
 }
+/* ¿esta reserva va en lo que la agenda tiene cargado (rango y filtro de estado)? */
+function citaEnVista(a){
+  const [desde, hasta] = visibleRange()
+  if(!a.appt_date || a.appt_date < isoDate(desde) || a.appt_date > isoDate(hasta)) return false
+  const sf = (document.getElementById('statusFilter') || {}).value || 'all'
+  if(sf !== 'all' && a.status !== sf && a.status !== 'block') return false
+  if(sf !== 'cancelled' && a.status === 'cancelled') return false
+  return true
+}
+/* Aplica un cambio que llegó por tiempo real sobre lo que ya está cargado.
+   Devuelve false si no se pudo (sin datos en el aviso, tabla desconocida):
+   en ese caso se relee esa tabla como antes. */
+const RT_CLAVE = { appointments:'appointments', sales:'sales', clients:'clients' }
+function rtParchar(d){
+  const clave = RT_CLAVE[d.table]; if(!clave || !Array.isArray(state[clave])) return false
+  if(d.errors && d.errors.length) return false
+  if(d.type === 'DELETE'){
+    const id = d.old_record && d.old_record.id; if(!id) return false
+    state[clave] = state[clave].filter(x => x.id !== id)
+    return true
+  }
+  const r = d.record; if(!r || !r.id) return false
+  let lista = state[clave].filter(x => x.id !== r.id)
+  if(clave === 'appointments' && !citaEnVista(r)){ state[clave] = lista; return true }
+  lista.push(r)
+  if(clave === 'appointments') lista.sort((a,b) => String(a.start_time).localeCompare(String(b.start_time)))
+  if(clave === 'sales') lista.sort((a,b) => String(b.sale_date||'').localeCompare(String(a.sale_date||'')))
+  if(clave === 'clients') lista.sort((a,b) => String(a.name||'').localeCompare(String(b.name||''), 'es'))
+  state[clave] = lista
+  return true
+}
 async function rtAplicar(){
   /* con una ventana abierta no se repinta debajo: se aplica apenas se cierre */
   if(hayAlgoAbierto() || refrescando){ RT.pendiente = true; return }
   RT.pendiente = false
-  const tablas = new Set(RT.tablas); RT.tablas.clear()
-  if(tablas.has('clients') && typeof loadClients === 'function') await loadClients().catch(()=>{})
+  const cambios = RT.cambios.splice(0)
+  const releer = new Set(), nuevas = []
+  cambios.forEach(d => {
+    const antes = d.table === 'appointments' && d.type === 'INSERT'
+    if(!rtParchar(d)) releer.add(d.table)
+    else if(antes && d.record && citaEnVista(d.record)) nuevas.push(d.record)
+  })
+  /* lo que no se pudo aplicar se relee (solo esa tabla) */
+  if(releer.has('clients') && typeof loadClients === 'function') await loadClients().catch(()=>{})
+  if(releer.has('sales')) await loadSales().catch(()=>{})
+  if(releer.has('appointments')) await loadAppointments().catch(()=>{})
   const v = pantallaAbierta()
-  if(v === 'agenda' || !v) await refrescarAgenda(true)
-  else refrescarPantalla(v, true)
+  if(v === 'agenda' || !v){
+    ultimoRefresco = Date.now()
+    render(); pintarUltimoRefresco()
+    /* las que acaban de entrar brillan, y se avisa de las que llegaron solas */
+    if(nuevas.length) resaltarNuevas(nuevas.map(a => a.id))
+    const solas = nuevas.filter(a => /sitio web|bot|whatsapp/i.test(a.notes||''))
+    if(solas.length) toast(solas.length === 1 ? 'Entró una reserva nueva: ' + (solas[0].client_name||'')
+                                              : 'Entraron ' + solas.length + ' reservas nuevas', 'success')
+  } else {
+    const d = DATOS_DE_PANTALLA[v]
+    const pintar = d && window[d.pinta]
+    if(typeof pintar === 'function') pintar()
+  }
 }
 setInterval(() => { if(RT.pendiente && !hayAlgoAbierto()) rtAplicar() }, 700)
 document.addEventListener('visibilitychange', () => {
@@ -8917,6 +8980,7 @@ async function refrescarPantalla(v, silencioso){
       const fn = window[nombre]
       if(typeof fn === 'function') await fn()
     }
+    ultimaRelectura = Date.now()
     if(firmaPantalla(v) === antes) return          // nada nuevo: no se toca la vista
     const pintar = window[d.pinta]
     if(typeof pintar === 'function') pintar()
