@@ -237,6 +237,25 @@ const Cuenta = (() => {
     } catch (e) { /* el correo es un extra */ }
   }
 
+  /* enlaces de una hora para ver fotos de la carpeta privada "fichas". La
+     carpeta solo los firma para las fotos que el equipo compartió con esta
+     cuenta; devuelve { ruta: url } con las que se pudieron firmar */
+  async function firmarFotos(rutas) {
+    const s = await sesion()
+    if (!s || !rutas.length) return {}
+    try {
+      const r = await fetch(SUPABASE_URL + '/storage/v1/object/sign/fichas', {
+        method: 'POST',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + s.access_token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn: 3600, paths: rutas })
+      })
+      if (!r.ok) return {}
+      const out = {}
+      ;(await r.json() || []).forEach(x => { if (x && x.signedURL && !x.error) out[x.path] = SUPABASE_URL + '/storage/v1' + x.signedURL })
+      return out
+    } catch (e) { return {} }
+  }
+
   /* funciones de la base (historial, vinculación) */
   function rpc(fn, args) { return rest('/rpc/' + fn, { metodo: 'POST', cuerpo: args || {} }) }
 
@@ -260,7 +279,7 @@ const Cuenta = (() => {
   }
 
   return { registrar, reenviarConfirmacion, ingresar, recuperar, cambiarContrasena, salir,
-           sesion, haySesion, leerEnlace, requerirSesion, destino, rest, rpc, avisarPorCorreo, perfil, guardarPerfil, cambiarConActual, correo, ErrorCuenta }
+           sesion, haySesion, leerEnlace, requerirSesion, destino, rest, rpc, avisarPorCorreo, firmarFotos, perfil, guardarPerfil, cambiarConActual, correo, ErrorCuenta }
 })()
 
 /* ── Validaciones del formulario (las mismas reglas que exige la base) ── */

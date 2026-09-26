@@ -117,3 +117,38 @@ const pendEq = (await rpc(tKeidy, 'vinculos_por_revisar')).b
 ok(pendEq.length === 1 && pendEq[0].ficha_nombre === 'Carlos Soto', 'y la ficha de Carlos por revisar')
 const ligarCli = await rpc(tMarta, 'resolver_vinculo', { p_user: sql(`select id from auth.users where email='familia.soto@ejemplo.cl'`), p_client: 'c0000000-0000-0000-0000-00000000000c', p_ligar: true })
 ok(ligarCli.s >= 400 && sql(`select user_id is null from clients where id='c0000000-0000-0000-0000-00000000000c'`) === 't', 'un cliente no puede ligarse fichas por su cuenta')
+
+console.log('9) Fase 5: mi tratamiento (fotos compartidas y bonos)')
+const SR = env.SERVICE_ROLE_KEY
+const { readFileSync } = await import('node:fs')
+const subirFoto = async (ruta, archivo) => fetch(`${A}/storage/v1/object/fichas/${ruta}`, { method: 'POST',
+  headers: { apikey: SR, Authorization: 'Bearer ' + SR, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' }, body: readFileSync(archivo) })
+const R = 'c0000000-0000-0000-0000-00000000000a/antes-despues/'
+await subirFoto(R + 'd1-antes.jpg', 'images/Exfoliación Manos o Pies.jpeg')
+await subirFoto(R + 'd1-despues.jpg', 'images/Hidratación con Parafina Wax.jpeg')
+await subirFoto(R + 'd2-antes.jpg', 'images/Limpieza de Espalda.jpeg')
+await subirFoto('c0000000-0000-0000-0000-00000000000c/antes-despues/d3-antes.jpg', 'images/Limpieza Facial Profunda.jpeg')
+const tAna2 = await entrar('ana.perez@ejemplo.cl', 'prueba-ana-1')
+const comps = (await rpc(tAna2, 'mis_comparaciones')).b
+ok(Array.isArray(comps) && comps.length === 1 && comps[0].titulo === 'Uña pie derecho', 'Ana ve solo la comparación compartida de su ficha (no la no compartida)')
+ok(!JSON.stringify(comps).includes('Nota interna') && comps[0].nota.startsWith('¡Muy buen avance'), 've el mensaje para ella y no las notas internas')
+const firmar = async (t, rutas) => (await j(`${A}/storage/v1/object/sign/fichas`, { method: 'POST', headers: H(t), body: JSON.stringify({ expiresIn: 60, paths: rutas }) })).b
+const f1 = await firmar(tAna2, [R + 'd1-antes.jpg', R + 'd1-despues.jpg'])
+ok(Array.isArray(f1) && f1.every(x => x.signedURL && !x.error), 'se le firman sus dos fotos compartidas')
+const f2 = await firmar(tAna2, [R + 'd2-antes.jpg', 'c0000000-0000-0000-0000-00000000000c/antes-despues/d3-antes.jpg'])
+ok(Array.isArray(f2) && f2.every(x => !x.signedURL), 'no se le firma la foto no compartida ni la de otro cliente')
+const img = await fetch(`${A}/storage/v1${f1[0].signedURL}`)
+ok(img.ok && (img.headers.get('content-type') || '').startsWith('image'), 'el enlace firmado entrega la imagen')
+const directo2 = await fetch(`${A}/storage/v1/object/authenticated/fichas/${R}d2-antes.jpg`, { headers: H(tAna2) })
+ok(!directo2.ok, 'tampoco puede descargar la foto no compartida directamente (' + directo2.status + ')')
+const tMarta2 = await entrar('familia.soto@ejemplo.cl', 'prueba-marta-1')
+ok((await rpc(tMarta2, 'mis_comparaciones')).b.length === 0, 'Marta no ve las fotos de Ana')
+const f3 = await firmar(tMarta2, [R + 'd1-antes.jpg'])
+ok(Array.isArray(f3) && !f3[0].signedURL, 'ni puede firmar sus enlaces')
+const fAnon = await j(`${A}/storage/v1/object/sign/fichas`, { method: 'POST', headers: H(), body: JSON.stringify({ expiresIn: 60, paths: [R + 'd1-antes.jpg'] }) })
+ok(!(Array.isArray(fAnon.b) && fAnon.b[0] && fAnon.b[0].signedURL), 'sin sesión no se firma nada')
+const planes = (await rpc(tAna2, 'mis_planes')).b
+ok(planes.length === 1 && planes[0].usadas === 2 && planes[0].total === 5, 'Ana ve su bono: 2 de 5 sesiones')
+ok((await rpc(tMarta2, 'mis_planes')).b.length === 0, 'Marta no ve el bono de Ana')
+const compPanel = (await j(`${A}/rest/v1/client_comparisons?select=id`, { headers: H(tKeidy) })).b
+ok(Array.isArray(compPanel) && compPanel.length === 3, 'el equipo sigue viendo todas las comparaciones')

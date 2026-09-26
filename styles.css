@@ -1906,3 +1906,30 @@ p  { line-height: 1.72; font-size: 0.9rem; color: var(--mid); }
 .mc-btn-rojo:hover { background: #912018; }
 .mc-btn-rojo:disabled { opacity: .6; cursor: wait; }
 @media (max-width: 560px) { .mc-dialogo-botones .btn { flex: 1; justify-content: center; } }
+
+/* mi cuenta: tratamiento (bonos y fotos de antes y después) */
+.mc-h3 { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--navy); margin: 6px 0 12px; }
+.mc-h3:not(:first-child) { margin-top: 26px; }
+.mc-bono, .mc-comp { background: var(--white); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--sh-sm); padding: 16px 18px; margin-bottom: 12px; }
+.mc-bono-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mc-bono h3, .mc-comp h3 { font-size: 0.98rem; font-weight: 600; color: var(--navy); }
+.mc-bono-svc { font-size: 0.82rem; color: var(--light); margin-top: 2px; }
+.mc-barra { height: 10px; background: var(--cream-2); border-radius: 999px; overflow: hidden; margin: 12px 0 8px; }
+.mc-barra span { display: block; height: 100%; background: linear-gradient(90deg, var(--gold-l), var(--gold)); border-radius: 999px; }
+.mc-bono-pie { font-size: 0.82rem; color: var(--light); }
+.mc-bono-pie strong { color: var(--mid); }
+.mc-comp h3 { margin-bottom: 12px; }
+.mc-par { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mc-lado { margin: 0; }
+.mc-lado figcaption { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-d); margin-top: 6px; }
+.mc-foto-btn { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: 12px; overflow: hidden; }
+.mc-foto-btn img, .mc-foto-vacia { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; border-radius: 12px; }
+.mc-foto-btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.mc-foto-vacia { display: flex; align-items: center; justify-content: center; background: var(--cream-2); color: var(--light); font-size: 0.82rem; border: 1px dashed #dcd6cc; }
+.mc-nota-equipo { margin-top: 12px; background: var(--gold-pale); border-radius: 10px; padding: 10px 12px; font-size: 0.86rem; color: var(--mid); line-height: 1.5; }
+.mc-nota-equipo i { color: var(--gold-d); margin-right: 4px; }
+.mc-esqueleto.alto { height: 220px; }
+.mc-foto { margin: auto; border: 0; border-radius: 16px; padding: 14px; max-width: min(720px, calc(100vw - 24px)); background: var(--white); text-align: center; }
+.mc-foto::backdrop { background: rgba(26,36,54,.75); }
+.mc-foto img { max-width: 100%; max-height: 72vh; border-radius: 10px; display: block; margin: 0 auto; }
+.mc-foto p { font-size: 0.86rem; color: var(--mid); margin: 10px 0; }

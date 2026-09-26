@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link rel="stylesheet" href="/styles.css?v=17">
+<link rel="stylesheet" href="/styles.css?v=18">
 <script src="/config-cliente.js?v=4"></script>
 </head>
 <body class="pt-nav">
@@ -37,6 +37,7 @@
 
     <nav class="mc-tabs" role="tablist" aria-label="Secciones de mi cuenta">
       <button role="tab" id="tabHoras" aria-controls="pHoras" aria-selected="true">Mis horas</button>
+      <button role="tab" id="tabTrat" aria-controls="pTrat" aria-selected="false" tabindex="-1">Tratamiento</button>
       <button role="tab" id="tabDatos" aria-controls="pDatos" aria-selected="false" tabindex="-1">Mis datos</button>
       <button role="tab" id="tabClave" aria-controls="pClave" aria-selected="false" tabindex="-1">Contraseña</button>
     </nav>
@@ -51,6 +52,11 @@
       <div id="citas" aria-live="polite"></div>
       <p class="mc-nota">¿Falta alguna hora? Si te atendiste con otro correo o teléfono, escríbenos por
         <a id="waFalta" href="#" target="_blank" rel="noopener">WhatsApp</a> y la sumamos a tu cuenta.</p>
+    </section>
+
+    <!-- ── Mi tratamiento ── -->
+    <section class="mc-panel" role="tabpanel" id="pTrat" aria-labelledby="tabTrat" hidden>
+      <div id="trat" aria-live="polite"></div>
     </section>
 
     <!-- ── Mis datos ── -->
@@ -106,6 +112,12 @@
   </div>
 </main>
 
+<dialog class="mc-foto" id="dlgFoto" aria-label="Foto en grande">
+  <img id="dlgFotoImg" alt="">
+  <p id="dlgFotoTxt"></p>
+  <button type="button" class="btn btn-outline-gold" onclick="document.getElementById('dlgFoto').close()">Cerrar</button>
+</dialog>
+
 <dialog class="mc-dialogo" id="dlgCancelar" aria-labelledby="dlgTitulo">
   <h2 id="dlgTitulo">¿Cancelar esta hora?</h2>
   <p id="dlgDetalle"></p>
@@ -122,7 +134,7 @@
 <script src="/supabase-client.js?v=19"></script>
 <script src="/data.js?v=7"></script>
 <script src="/common.js?v=20"></script>
-<script src="/cuenta.js?v=4"></script>
+<script src="/cuenta.js?v=5"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('')
 document.getElementById('footerContainer').innerHTML = renderFooter()
@@ -135,14 +147,15 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 let citas = [], lista = 'proximas', perfilActual = null
 
 /* ── Pestañas (con teclado: flechas izquierda y derecha) ── */
-const TABS = [['tabHoras', 'pHoras'], ['tabDatos', 'pDatos'], ['tabClave', 'pClave']]
+const TABS = [['tabHoras', 'pHoras'], ['tabTrat', 'pTrat'], ['tabDatos', 'pDatos'], ['tabClave', 'pClave']]
 function abrirTab(id, foco) {
   TABS.forEach(([t, p]) => {
     const on = t === id
     $(t).setAttribute('aria-selected', on); $(t).tabIndex = on ? 0 : -1; $(p).hidden = !on
   })
   if (foco) $(id).focus()
-  history.replaceState(null, '', location.pathname + (id === 'tabHoras' ? '' : '#' + { tabDatos: 'datos', tabClave: 'clave' }[id]))
+  history.replaceState(null, '', location.pathname + (id === 'tabHoras' ? '' : '#' + { tabTrat: 'tratamiento', tabDatos: 'datos', tabClave: 'clave' }[id]))
+  if (id === 'tabTrat' && !tratCargado) cargarTratamiento()
 }
 TABS.forEach(([t], i) => {
   $(t).addEventListener('click', () => abrirTab(t))
@@ -260,6 +273,69 @@ async function cargarCitas() {
   }
 }
 
+/* ── Mi tratamiento: fotos que el equipo compartió y avance de bonos ── */
+let tratCargado = false
+function fechaTxt(f) {
+  if (!f) return ''
+  const [y, m, d] = String(f).slice(0, 10).split('-').map(Number)
+  return d + ' de ' + MESES[m - 1] + ' ' + y
+}
+async function cargarTratamiento() {
+  tratCargado = true
+  $('trat').innerHTML = '<div class="mc-esqueleto"></div><div class="mc-esqueleto alto"></div>'
+  try {
+    const [comps, planes] = await Promise.all([Cuenta.rpc('mis_comparaciones'), Cuenta.rpc('mis_planes')])
+    const rutas = [...new Set((comps || []).flatMap(c => [c.antes, c.despues]).filter(Boolean))]
+    const urls = await Cuenta.firmarFotos(rutas)
+    pintarTratamiento(comps || [], planes || [], urls)
+  } catch (e) {
+    tratCargado = false
+    $('trat').innerHTML = `<div class="mc-vacio error"><p>${esc(e.message)}</p>
+      <button type="button" class="btn btn-outline-gold" onclick="cargarTratamiento()">Reintentar</button></div>`
+  }
+}
+function pintarTratamiento(comps, planes, urls) {
+  if (!comps.length && !planes.length) {
+    $('trat').innerHTML = `<div class="mc-vacio"><i class="fa-regular fa-images" aria-hidden="true"></i>
+      <p><strong>Aún no hay nada en tu tratamiento.</strong><br>Cuando tu especialista comparta tus fotos de antes y después, o tengas un bono de sesiones, lo verás aquí.</p></div>`
+    return
+  }
+  const bonos = planes.length ? `<h2 class="mc-h3">Mis bonos</h2>` + planes.map(p => {
+    const total = Math.max(p.total, 0), usadas = Math.min(p.usadas, total || p.usadas)
+    const pct = total ? Math.round(usadas / total * 100) : 0
+    const listo = total && usadas >= total
+    return `<article class="mc-bono">
+      <div class="mc-bono-cab"><h3>${esc(p.nombre)}</h3><span class="mc-estado ${listo ? 'neutro' : 'oro'}">${listo ? 'Completado' : 'En curso'}</span></div>
+      ${p.servicio && p.servicio !== p.nombre ? `<p class="mc-bono-svc">${esc(p.servicio)}</p>` : ''}
+      <div class="mc-barra" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${usadas}" aria-label="Sesiones usadas">
+        <span style="width:${pct}%"></span></div>
+      <p class="mc-bono-pie"><strong>${usadas} de ${total} sesiones</strong>${!listo && total ? ' · te quedan ' + (total - usadas) : ''}${p.vence ? ' · vence el ' + esc(fechaTxt(p.vence)) : ''}</p>
+    </article>`
+  }).join('') : ''
+  const lado = (ruta, fecha, rotulo, titulo) => {
+    const url = ruta && urls[ruta]
+    if (!ruta) return `<figure class="mc-lado vacio"><div class="mc-foto-vacia">Pronto</div><figcaption>${rotulo}</figcaption></figure>`
+    return `<figure class="mc-lado">
+      ${url ? `<button type="button" class="mc-foto-btn" data-foto="${esc(url)}" data-txt="${esc(rotulo + (titulo ? ' · ' + titulo : '') + (fecha ? ' · ' + fechaTxt(fecha) : ''))}">
+          <img src="${esc(url)}" alt="${esc(rotulo + (titulo ? ' — ' + titulo : ''))}" loading="lazy"></button>`
+        : '<div class="mc-foto-vacia">No se pudo cargar</div>'}
+      <figcaption>${rotulo}${fecha ? ' · ' + esc(fechaTxt(fecha)) : ''}</figcaption></figure>`
+  }
+  const fotos = comps.length ? `<h2 class="mc-h3">Mi avance</h2>` + comps.map(c => `<article class="mc-comp">
+      ${c.titulo ? `<h3>${esc(c.titulo)}</h3>` : ''}
+      <div class="mc-par">${lado(c.antes, c.antes_fecha, 'Antes', c.titulo)}${lado(c.despues, c.despues_fecha, 'Después', c.titulo)}</div>
+      ${c.nota ? `<p class="mc-nota-equipo"><i class="fa-regular fa-comment" aria-hidden="true"></i> ${esc(c.nota)}</p>` : ''}
+    </article>`).join('') : ''
+  $('trat').innerHTML = bonos + fotos
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-foto]'); if (!b) return
+  $('dlgFotoImg').src = b.dataset.foto
+  $('dlgFotoImg').alt = b.dataset.txt
+  $('dlgFotoTxt').textContent = b.dataset.txt
+  $('dlgFoto').showModal()
+})
+
 /* ── Mis datos ── */
 function llenarDatos(p) {
   $('dNombre').value = p ? p.nombre || '' : ''
@@ -331,7 +407,7 @@ $('fClave').addEventListener('submit', async e => {
   }
   $('cargando').hidden = true
   $('contenido').hidden = false
-  abrirTab({ '#datos': 'tabDatos', '#clave': 'tabClave' }[location.hash] || 'tabHoras')
+  abrirTab({ '#tratamiento': 'tabTrat', '#datos': 'tabDatos', '#clave': 'tabClave' }[location.hash] || 'tabHoras')
   cargarCitas()
 })()
 

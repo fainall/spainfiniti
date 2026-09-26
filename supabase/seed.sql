@@ -76,3 +76,21 @@ insert into public.appointments (professional_id, client_id, client_name, client
   -- un bloqueo del equipo (no es de ningún cliente)
   ('11111111-1111-1111-1111-111111111111', null, 'Bloqueado', null,
    null, current_date + 1, '13:00', '14:00', 'block', null, 'almuerzo', 'panel');
+
+-- ── Mi tratamiento: fotos de antes y después y un bono (Fase 5) ──
+-- Las fotos en sí se suben en la prueba (dev/prueba-cuentas.mjs), porque el
+-- seed no puede subir archivos a la carpeta.
+insert into public.client_comparisons (id, client_id, titulo, antes_url, antes_fecha, despues_url, despues_fecha, notas, compartir, nota_cliente) values
+  ('d0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-00000000000a', 'Uña pie derecho',
+   'http://127.0.0.1:54321/storage/v1/object/public/fichas/c0000000-0000-0000-0000-00000000000a/antes-despues/d1-antes.jpg', current_date - 40,
+   'http://127.0.0.1:54321/storage/v1/object/public/fichas/c0000000-0000-0000-0000-00000000000a/antes-despues/d1-despues.jpg', current_date - 5,
+   'Nota interna: hongo persistente, revisar en 30 días', true, '¡Muy buen avance! Sigue con la crema dos veces al día.'),
+  ('d0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-00000000000a', 'Talón (sin compartir)',
+   'http://127.0.0.1:54321/storage/v1/object/public/fichas/c0000000-0000-0000-0000-00000000000a/antes-despues/d2-antes.jpg', current_date - 20,
+   null, null, 'Nota interna', false, null),
+  ('d0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-00000000000c', 'Foto de Carlos',
+   'http://127.0.0.1:54321/storage/v1/object/public/fichas/c0000000-0000-0000-0000-00000000000c/antes-despues/d3-antes.jpg', current_date - 10,
+   null, null, null, true, null);
+
+insert into public.plans (client_id, client_name, name, service_id, service_name, total_sessions, used_sessions, price, purchase_date, expiry_date, status) values
+  ('c0000000-0000-0000-0000-00000000000a', 'Ana Pérez', 'Bono 5 sesiones láser', 'acido-nitrico-t1', 'Tratamiento con Ácido Nítrico+Alta Frecuencia-Tipo 1', 5, 2, 110000, current_date - 45, current_date + 120, 'active');

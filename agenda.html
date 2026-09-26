@@ -1512,6 +1512,10 @@ body.sin-scroll{overflow:hidden}
 .doc-datos span{font-size:.74rem;color:var(--mid)}
 .doc-subir{display:inline-block;margin-top:14px;cursor:pointer}
 .ad-guardar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px}
+.ad-guardar[hidden]{display:none}
+.ad-compartir{margin-top:8px;padding:10px 12px;border:1px dashed var(--border);border-radius:10px}
+.ad-compartir.on{border-style:solid;border-color:var(--gold);background:var(--gold-pale,#faf5ec)}
+.ad-compartir .chk{margin:0}
 .ad-notas{width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit;resize:vertical}
 .ad-visor{position:fixed;inset:0;background:rgba(15,20,30,.78);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
 .ad-visor-caja{background:#fff;border-radius:14px;max-width:1100px;width:100%;max-height:94vh;overflow:auto;padding:16px}
@@ -8380,8 +8384,9 @@ function cdAntesDespues(){
         ${isPro() ? '' : `<button class="qv-icon" title="Eliminar" style="color:var(--red)" onclick="borrarComparacion('${c.id}')">🗑</button>`}
       </div>
       <div class="ad-par">${lado(c,'antes')}${lado(c,'despues')}</div>
-      <textarea class="ad-notas" rows="2" placeholder="Notas (sesiones realizadas, producto usado, cómo evolucionó...)"
+      <textarea class="ad-notas" rows="2" placeholder="Notas internas (sesiones realizadas, producto usado, cómo evolucionó...). El cliente no las ve."
         oninput="adMarcar('${c.id}','notas',this.value)">${esc(adVal(c,'notas'))}</textarea>
+      ${adCompartir(c)}
       <div class="ad-guardar" id="adg-${c.id}" ${adPend[c.id] ? '' : 'hidden'}>
         <span class="re-aviso pend">● Cambios sin guardar</span>
         <button class="mini-btn" onclick="adDescartar('${c.id}')">Descartar</button>
@@ -8402,6 +8407,22 @@ async function nuevaComparacion(){
     comparaciones.unshift(nueva)
     renderClientDetail()
   }catch(e){ console.error(e); toast('No se pudo crear la comparación: ' + e.message, 'error') }
+}
+/* Compartir con el cliente: la comparación aparece en "Mi tratamiento" de su
+   cuenta del sitio, con el mensaje que se escriba aquí (las notas de arriba
+   son internas y nunca se muestran). Por omisión no se comparte nada. */
+function adCompartir(c){
+  const on = (adPend[c.id] && adPend[c.id].compartir !== undefined) ? adPend[c.id].compartir : !!c.compartir
+  const sinCuenta = cdCliente && !cdCliente.user_id
+  return `<div class="ad-compartir ${on ? 'on' : ''}">
+      <label class="chk"><input type="checkbox" ${on ? 'checked' : ''} onchange="adMarcar('${c.id}','compartir',this.checked);renderClientDetail()">
+        <span>Compartir con el cliente en su cuenta del sitio</span></label>
+      ${on ? `<textarea class="ad-notas" rows="2" maxlength="600" placeholder="Mensaje para el cliente (opcional): lo verá junto a las fotos"
+          oninput="adMarcar('${c.id}','nota_cliente',this.value)">${esc(adVal(c,'nota_cliente'))}</textarea>
+        <p class="rem-note" style="margin:4px 0 0">${sinCuenta
+          ? 'Este cliente todavía no tiene cuenta en el sitio: la verá cuando la cree con el mismo correo de su ficha.'
+          : 'Verá las dos fotos y este mensaje en "Mi tratamiento". Las notas internas no.'}</p>` : ''}
+    </div>`
 }
 /* el título y las notas se guardan con el botón, no solos (pedido de Luis) */
 let adPend = {}
