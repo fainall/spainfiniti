@@ -48,6 +48,9 @@ const Cuenta = (() => {
     if (/password should be at least|weak/i.test(t)) return ERRORES.weak_password
     if (/rate limit|too many/i.test(t) || status === 429) return ERRORES.over_request_rate_limit
     if (/expired|invalid.*(token|link)/i.test(t)) return ERRORES.otp_expired
+    /* el servidor de correo no pudo enviar (p. ej. el SMTP rechazó la contraseña) */
+    if (/sending .*(email|mail)|smtp|confirmation email|recovery email/i.test(t))
+      return 'No pudimos enviarte el correo en este momento. Inténtalo de nuevo más tarde o escríbenos por WhatsApp.'
     return 'No pudimos completar la operación. Inténtalo de nuevo en un momento.'
   }
   class ErrorCuenta extends Error {
