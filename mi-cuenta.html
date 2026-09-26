@@ -172,7 +172,19 @@ function estado(c) {
   if (c.estado === 'cancelled') return ['Cancelada', 'gris']
   if (c.pasada) return c.estado === 'no_show' ? ['No asististe', 'gris'] : ['Realizada', 'neutro']
   if (c.estado === 'confirmed') return ['Confirmada', 'verde']
+  if (c.estado === 'pago_pendiente') return ['Falta pagar el abono', 'oro']
   return ['Reservada', 'oro']
+}
+/* una hora del sitio que espera el abono: se retoma el pago en Flow */
+async function pagarAbono(id, boton) {
+  boton.disabled = true
+  try {
+    const r = await fetch('/api/abono-web.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok || j.error) throw new Error(j.error || 'No pudimos abrir el pago. Inténtalo de nuevo.')
+    if (j.paymentUrl) { location.href = j.paymentUrl; return }
+    location.reload()
+  } catch (e) { alert(e.message); location.reload() }
 }
 function tarjeta(c) {
   const [y, m, d] = c.fecha.split('-').map(Number)
@@ -193,6 +205,11 @@ function tarjeta(c) {
 /* cambiar o cancelar: solo las próximas, vigentes y antes del plazo */
 function acciones(c) {
   if (c.pasada || c.estado === 'cancelled') return ''
+  if (c.estado === 'pago_pendiente') {
+    return `<div class="mc-acciones-cita"><button type="button" class="mc-accion" onclick="pagarAbono('${esc(c.id)}', this)"><i class="fa-regular fa-credit-card" aria-hidden="true"></i> Pagar el abono</button>
+      <button type="button" class="mc-accion rojo" data-cancelar="${esc(c.id)}"><i class="fa-regular fa-circle-xmark" aria-hidden="true"></i> Cancelar</button></div>
+      <p class="mc-plazo">Si no se paga a tiempo, la hora se libera sola.</p>`
+  }
   if (c.cambiable) {
     const cambiar = c.servicio_id
       ? `<a class="mc-accion" href="/reservar.html?svc=${encodeURIComponent(c.servicio_id)}&cambiar=${encodeURIComponent(c.id)}"><i class="fa-regular fa-calendar" aria-hidden="true"></i> Cambiar</a>`

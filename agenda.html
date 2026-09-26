@@ -1534,6 +1534,8 @@ body.sin-scroll{overflow:hidden}
 .rvm-tabla .r{text-align:right}
 .rvm-total td{font-weight:700;background:var(--cream-2,#f4efe6)}
 @media (max-width:700px){ .rvm-barras{gap:2px;height:160px} .rvm-b em{display:none} .rvm-lbl{font-size:.56rem} }
+.lc-abono{margin-top:18px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--gold-pale,#faf5ec)}
+.lc-abono #lcAbonoDatos[hidden]{display:none}
 .ad-auto{border-color:var(--gold);background:linear-gradient(180deg,var(--gold-pale,#faf5ec),#fff 70%)}
 .ad-auto-cab{display:flex;flex-direction:column;gap:2px;margin-right:auto}
 .ad-auto-cab strong{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--texto,#1a2436)}
@@ -1932,6 +1934,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <option value="no_show">No asistió</option>
           <option value="pending">Pendiente</option>
           <option value="waiting">En espera</option>
+          <option value="pago_pendiente">Pago pendiente (web)</option>
           <option value="cancelled">Cancelado</option>
         </select>
       </div>
@@ -3612,6 +3615,22 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
             <span>horas antes</span>
           </div>
           <p class="rem-note" style="margin-top:4px">Pasado ese plazo, el sitio les pide escribir por WhatsApp. Con 0 pueden hacerlo hasta la hora de la cita.</p>
+          <div class="lc-abono">
+            <label class="chk"><input type="checkbox" id="lcAbono" onchange="lcAbonoVer()" /> <span><strong>Pago en línea:</strong> pedir un abono para confirmar las reservas del sitio web</span></label>
+            <div id="lcAbonoDatos">
+              <label style="margin-top:12px" for="lcAbonoMonto">Monto del abono</label>
+              <div class="lc-dias">
+                <span>$</span>
+                <input type="number" id="lcAbonoMonto" min="350" max="1000000" step="500" />
+              </div>
+              <label style="margin-top:12px" for="lcAbonoMin">Tiempo para pagarlo</label>
+              <div class="lc-dias">
+                <input type="number" id="lcAbonoMin" min="5" max="120" step="1" />
+                <span>minutos; si no paga, la hora se libera sola</span>
+              </div>
+            </div>
+            <p class="rem-note" style="margin-top:6px">Se paga con Flow, igual que las gift cards. La hora queda como <em>Pago pendiente</em> hasta que se paga; al pagarse queda Reservada y abonada, y el resto se cobra en el local como cualquier abono. Si el servicio cuesta menos que el abono, se cobra el total. No se cobra abono al reservar con gift card, ni en las reservas de Mariet o del panel.</p>
+          </div>
           <label style="margin-top:16px">Descripción del local</label>
           <textarea id="lcDesc" rows="3" placeholder="Centro Podológico & Spa en Santiago Centro…"></textarea>
         </div>
@@ -3888,6 +3907,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <option value="no_show">No asistió</option>
           <option value="pending">Pendiente</option>
           <option value="waiting">En espera</option>
+          <option value="pago_pendiente">Pago pendiente (web)</option>
           <option value="cancelled">Cancelado</option>
         </select>
       </div>
@@ -4887,6 +4907,8 @@ async function loadAppointments(){
     /* publicidad no puede leer la tabla de reservas: la base solo le deja ver
        una vista con la hora, el servicio y la profesional, sin el cliente */
     const tabla = soloMira() ? 'agenda_publicidad' : 'appointments'
+    if(!soloMira() && ((localInfo.abonoWeb || {}).activo || state.appointments.some(a => a.status === 'pago_pendiente')))
+      await supabase.rpc('liberar_abonos_vencidos', {}).catch(() => {})
     state.appointments = await supabase.fetch(tabla,{filters,order:'start_time.asc'}) || []
     if(sf !== 'cancelled') state.appointments = state.appointments.filter(a => a.status !== 'cancelled')
   }
@@ -6303,8 +6325,8 @@ async function createService(){
     selectApptService(slug)
   }catch(e){ console.error(e); toast('Error al crear el servicio','error') }
 }
-const STATUS_COLORS={reserved:'#3FC7EB',confirmed:'#F5A623',attending:'#EC6FBF',no_show:'#F4A29B',pending:'#E9573F',waiting:'#9CCC65',active:'#3FC7EB',cancelled:'#9AA0A6'}
-const STATUS_LABEL={reserved:'Reservado',confirmed:'Confirmado',attending:'Asiste',no_show:'No asistió',pending:'Pendiente',waiting:'En espera',active:'Reservado',cancelled:'Cancelado'}
+const STATUS_COLORS={pago_pendiente:'#C9A227',reserved:'#3FC7EB',confirmed:'#F5A623',attending:'#EC6FBF',no_show:'#F4A29B',pending:'#E9573F',waiting:'#9CCC65',active:'#3FC7EB',cancelled:'#9AA0A6'}
+const STATUS_LABEL={pago_pendiente:'Pago pendiente',reserved:'Reservado',confirmed:'Confirmado',attending:'Asiste',no_show:'No asistió',pending:'Pendiente',waiting:'En espera',active:'Reservado',cancelled:'Cancelado'}
 function updateStatusDot(){ const v=document.getElementById('apptStatus').value; document.getElementById('apptStatusDot').style.background=STATUS_COLORS[v]||'#3FC7EB' }
 function toggleCollapse(id){ document.getElementById(id).classList.toggle('open') }
 function findAppt(id){ return state.appointments.find(x=>x.id===id) }
@@ -14039,6 +14061,11 @@ function openLocalModal(){
   document.getElementById('lcOnline').checked=localInfo.online!==false
   document.getElementById('lcMaxDias').value = localInfo.maxDias || 14
   document.getElementById('lcCancelHoras').value = localInfo.cancelHoras != null && localInfo.cancelHoras !== '' ? localInfo.cancelHoras : 24
+  const _ab = localInfo.abonoWeb || {}
+  document.getElementById('lcAbono').checked = !!_ab.activo
+  document.getElementById('lcAbonoMonto').value = _ab.monto || 10000
+  document.getElementById('lcAbonoMin').value = _ab.minutos || 20
+  lcAbonoVer()
   document.getElementById('lcShowPrice').checked=localInfo.showPrice!==false
   document.getElementById('lcShowDur').checked=localInfo.showDur!==false
   document.getElementById('lcDesc').value=localInfo.desc||''
@@ -14053,6 +14080,9 @@ function openLocalModal(){
     </tr>`}).join('')
   localTab('basicos')
   openModal('localModal')
+}
+function lcAbonoVer(){
+  document.getElementById('lcAbonoDatos').hidden = !document.getElementById('lcAbono').checked
 }
 function copyHoursToAll(){
   const s=document.querySelector('[data-lcs="1"]').value, e=document.querySelector('[data-lce="1"]').value
@@ -14078,7 +14108,14 @@ async function saveLocal(){
       document.querySelector(`[data-lcd="${d}"]`).checked]
   })
   const _cancelH = Math.round(Number(document.getElementById('lcCancelHoras').value))
-  localInfo={ ...localInfo, cancelHoras: isFinite(_cancelH) && _cancelH >= 0 ? Math.min(_cancelH, 168) : 24,
+  /* el abono en línea: Flow no acepta menos de $350 */
+  const _abOn = document.getElementById('lcAbono').checked
+  const _abMonto = Math.round(Number(document.getElementById('lcAbonoMonto').value))
+  const _abMin = Math.round(Number(document.getElementById('lcAbonoMin').value))
+  if(_abOn && !(_abMonto >= 350)){ localTab('web'); toast('El abono debe ser de al menos $350 (lo mínimo que acepta Flow)','error'); return }
+  const abonoWeb = { activo: _abOn, monto: _abMonto >= 350 ? Math.min(_abMonto, 1000000) : 10000,
+    minutos: _abMin >= 5 ? Math.min(_abMin, 120) : 20 }
+  localInfo={ ...localInfo, abonoWeb, cancelHoras: isFinite(_cancelH) && _cancelH >= 0 ? Math.min(_cancelH, 168) : 24,
     name, address:document.getElementById('lcAddress').value.trim(), extra:document.getElementById('lcExtra').value.trim(),
     tz:document.getElementById('lcTz').value, phone:document.getElementById('lcPhone').value.trim(),
     wa:document.getElementById('lcWa').checked, email:document.getElementById('lcEmail').value.trim(), hours,

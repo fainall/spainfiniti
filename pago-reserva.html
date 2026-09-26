@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Pago de tu reserva — Spa Infinity</title>
+<link rel="icon" href="/images/logo.webp">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#C5A467;--gold-d:#A8883F;--gold-pale:#F5EFE3;--dark:#000000;--mid:#23272C;--light:#43484F;--border:#E5E7EB;--cream:#FCFBF9}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Montserrat',sans-serif;background:#F5F2EC;color:var(--dark);padding:20px;min-height:100vh}
+.wrap{max-width:620px;margin:0 auto}
+.card{background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.08);overflow:hidden}
+.head{background:linear-gradient(135deg,#C5A467,#8A7344);color:#fff;padding:26px 24px;text-align:center}
+.head h1{font-family:'Playfair Display',serif;font-size:1.45rem;margin-bottom:4px}
+.head p{font-size:.76rem;opacity:.92;letter-spacing:2px;text-transform:uppercase}
+.done{text-align:center;padding:40px 24px}
+.done .em{font-size:3.2rem;margin-bottom:14px}
+.done h2{font-family:'Playfair Display',serif;font-size:1.35rem;margin-bottom:12px}
+.done p{color:var(--mid);font-size:.9rem;line-height:1.7}
+.det{background:var(--cream);border-radius:10px;padding:16px;margin:18px 0;text-align:left;font-size:.88rem;line-height:1.8}
+.btns{display:flex;flex-direction:column;gap:10px;margin-top:26px}
+.btn-ok{display:block;width:100%;padding:14px;border-radius:30px;text-decoration:none;text-align:center;border:none;cursor:pointer;
+  font-family:inherit;font-size:.86rem;font-weight:700;letter-spacing:.04em;background:var(--gold);color:#fff}
+.btn-ok.sec{background:#fff;color:var(--gold);border:1px solid var(--gold)}
+.btn-ok.wa{background:#25d366;color:#fff}
+.btn-ok:disabled{opacity:.5;cursor:default}
+.err{background:#fdecea;color:#c0392b;border-radius:9px;padding:12px 14px;font-size:.84rem;margin-top:14px;display:none}
+.foot{text-align:center;font-size:.72rem;color:var(--light);margin-top:18px;line-height:1.6}
+.foot a{color:var(--gold-d)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="head">
+      <h1>Spa Infinity</h1>
+      <p>Pago de tu reserva</p>
+    </div>
+    <div id="body"><div class="done"><p>Revisando tu pago…</p></div></div>
+  </div>
+  <p class="foot">Centro Podológico &amp; Spa · Santo Domingo 1083, of. 502, Santiago Centro<br>
+    ¿Dudas? <a href="https://wa.me/56986688771" target="_blank" rel="noopener">WhatsApp +56 9 8668 8771</a></p>
+</div>
+<script>
+/* Aquí vuelve el cliente desde Flow después de pagar (o no) el abono de su
+   reserva. api/abono-retorno.php ya confirmó el pago con Flow y manda
+   ?estado=ok|tarde|rechazado|pendiente|error y el id de la reserva. */
+const params = new URLSearchParams(location.search)
+const estado = params.get('estado') || 'error'
+const id = params.get('id') || ''
+const CLAVE_PENDIENTE = 'spa_reserva_por_pagar'
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+const DIA = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
+const fechaLarga = f => { const d = new Date(f + 'T00:00:00'); return DIA[d.getDay()] + ' ' + d.getDate() + ' de ' + MES[d.getMonth()] }
+const WA = 'https://wa.me/56986688771?text='
+const porPagar = () => { try{ return JSON.parse(sessionStorage.getItem(CLAVE_PENDIENTE) || 'null') }catch(e){ return null } }
+const olvidar = () => { try{ sessionStorage.removeItem(CLAVE_PENDIENTE) }catch(e){} }
+
+async function abono(cuerpo){
+  const r = await fetch('/api/abono-web.php', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(cuerpo) })
+  const j = await r.json().catch(() => ({}))
+  if(!r.ok || j.error) throw new Error(j.error || 'No pudimos revisar tu reserva.')
+  return j
+}
+function pintar(em, titulo, texto, detalle, botones){
+  document.getElementById('body').innerHTML = `<div class="done"><div class="em">${em}</div><h2>${titulo}</h2>
+    ${detalle ? `<div class="det">${detalle}</div>` : ''}<p>${texto}</p>
+    <div class="err" id="err"></div><div class="btns">${botones}</div></div>`
+}
+const detalleDe = r => r && r.servicio ? `<strong>${esc(r.servicio)}</strong><br>📅 ${esc(fechaLarga(r.fecha))}<br>🕐 ${esc(r.hora)} hrs` : ''
+const volver = '<a class="btn-ok sec" href="/">Volver al inicio</a>'
+
+async function reintentar(){
+  const b = document.getElementById('btnReintentar'); b.disabled = true; b.textContent = 'Abriendo el pago…'
+  const p = porPagar()
+  try{
+    const j = await abono({ id, correo: p && p.correo || undefined })
+    if(j.paymentUrl){ location.href = j.paymentUrl; return }
+    location.replace('/pago-reserva.html?estado=ok&id=' + encodeURIComponent(id))
+  }catch(e){
+    const err = document.getElementById('err'); err.textContent = e.message; err.style.display = 'block'
+    b.remove()
+  }
+}
+
+async function mostrar(){
+  let r = null
+  if(id){ try{ r = await abono({ id, consultar: 1 }) }catch(e){} }
+  const det = detalleDe(r)
+
+  if(estado === 'ok' || (r && r.estado === 'confirmada' && estado !== 'tarde')){
+    olvidar()
+    return pintar('✨', '¡Tu hora quedó reservada!',
+      'Recibimos tu abono. Te enviamos la confirmación por correo, con un botón para agregarla a tu calendario. El resto lo pagas en el local.<br>Te esperamos en Santo Domingo 1083, oficina 502.',
+      det, '<a class="btn-ok" href="/">Volver al inicio</a><a class="btn-ok sec" href="/servicios.html">Ver otros servicios</a>')
+  }
+  if(estado === 'tarde'){
+    olvidar()
+    return pintar('⏰', 'Tu pago llegó cuando la hora ya se había liberado',
+      'Recibimos tu pago, pero el plazo había terminado y otra persona tomó esa hora. No te preocupes: escríbenos y te ayudamos a elegir otra o te devolvemos el abono.',
+      det, `<a class="btn-ok wa" href="${WA + encodeURIComponent('Hola, pagué el abono de una reserva pero la hora ya se había liberado.')}" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>` + volver)
+  }
+  if(estado === 'pendiente'){
+    return pintar('⏳', 'Tu pago se está procesando',
+      'Flow todavía no nos confirma el pago. Apenas llegue, tu hora queda confirmada y te avisamos por correo.',
+      det, '<button class="btn-ok" onclick="location.reload()">Revisar de nuevo</button>' + volver)
+  }
+  if(estado === 'rechazado' && r && r.estado === 'pendiente'){
+    return pintar('💳', 'El pago no se completó',
+      'No se hizo ningún cargo. Tu hora sigue apartada unos minutos más: puedes intentar el pago otra vez.',
+      det, '<button class="btn-ok" id="btnReintentar" onclick="reintentar()">Intentar el pago de nuevo</button><a class="btn-ok sec" href="/servicios.html">Elegir otra hora</a>')
+  }
+  olvidar()
+  pintar('😕', estado === 'rechazado' ? 'El pago no se completó' : 'No pudimos confirmar tu pago',
+    estado === 'rechazado'
+      ? 'No se hizo ningún cargo y el plazo para pagar esa hora ya terminó. Puedes reservar de nuevo.'
+      : 'Si pagaste, no te preocupes: el pago queda registrado y te confirmamos por correo. Si tienes dudas, escríbenos.',
+    det, '<a class="btn-ok" href="/servicios.html">Reservar una hora</a>'
+      + `<a class="btn-ok wa" href="${WA + encodeURIComponent('Hola, tuve un problema al pagar el abono de mi reserva.')}" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>`)
+}
+mostrar()
+</script>
+</body>
+</html>

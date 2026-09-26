@@ -110,6 +110,10 @@ class FlowClient
         if (!empty($order['paymentMethod'])) {
             $params['paymentMethod'] = (int)$order['paymentMethod'];
         }
+        /* segundos que Flow mantiene abierta la orden; sin esto no vence nunca */
+        if (!empty($order['timeout'])) {
+            $params['timeout'] = (int)$order['timeout'];
+        }
         if (!empty($order['optional'])) {
             $params['optional'] = json_encode($order['optional']);
         }

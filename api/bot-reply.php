@@ -52,6 +52,8 @@ function supa($method, $path, $body = null) {
 }
 
 /* ── Contexto ── */
+/* las horas web cuyo abono no se pagó a tiempo se liberan antes de mirar la agenda */
+supa('POST', 'rpc/liberar_abonos_vencidos', new stdClass);
 $botRows = supa('GET', 'bot_config?id=eq.1&select=*');
 $bot = (is_array($botRows) && count($botRows)) ? $botRows[0] : [];
 $services = supa('GET', 'services?select=id,name,price,duration,short_desc,long_desc,cat_id') ?: [];

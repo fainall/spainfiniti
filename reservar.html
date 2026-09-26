@@ -51,6 +51,11 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .cambio-aviso{background:var(--gold-pale);border-left:4px solid var(--gold);border-radius:10px;padding:12px 14px;font-size:.86rem;line-height:1.55;margin-bottom:18px;color:var(--mid)}
 .cambio-aviso a{color:var(--gold-d);font-weight:600;white-space:nowrap}
 .cuenta-invita{font-size:.84rem;color:var(--light);background:var(--gold-pale);border-radius:9px;padding:10px 13px}
+.abono{margin-top:10px;padding-top:10px;border-top:1px dashed rgba(138,115,68,.35);font-size:.84rem;line-height:1.55;color:var(--mid)}
+.abono strong{color:var(--gold-d)}
+.abono small{display:block;font-size:.74rem;color:var(--light);margin-top:2px}
+.pendiente-aviso{background:#fff7e6;border-left:4px solid #e0a526;border-radius:10px;padding:12px 14px;font-size:.86rem;line-height:1.55;margin-bottom:18px;color:var(--mid)}
+.pendiente-aviso button{margin-top:8px;padding:9px 16px;border:none;border-radius:20px;background:var(--gold);color:#fff;font-family:inherit;font-weight:700;font-size:.8rem;cursor:pointer}
 .err{background:#fdecea;color:#c0392b;border-radius:9px;padding:12px 14px;font-size:.84rem;margin-top:14px;display:none}
 .done{text-align:center;padding:44px 24px}
 .done .em{font-size:3.2rem;margin-bottom:14px}
@@ -148,6 +153,47 @@ const fechaLarga = f => { const d = new Date(f + 'T00:00:00'); return ['domingo'
 let servicio = null, config = {}, profesionales = [], citas = []
 let profSel = ''   // '' = cualquiera disponible
 let fechaSel = null, horaSel = null, precioSel = null
+
+/* ── Abono en línea (pedido de Luis) ──
+   Si el spa lo activa en el panel, la reserva del sitio queda esperando el
+   pago del abono en Flow y se confirma al pagarse. Sin pagar, la hora se
+   libera sola después del plazo. Con gift card o al cambiar una hora ya
+   reservada no se cobra abono. El monto real lo decide el servidor. */
+function abonoWeb(){
+  const a = ((config && config.local_info) || {}).abonoWeb
+  if(!a || !a.activo || giftcard || citaCambiar) return null
+  return { monto: Math.max(350, Math.round(Number(a.monto) || 10000)), minutos: Math.max(5, Math.round(Number(a.minutos) || 20)) }
+}
+const abonoPara = (ab, precio) => precio > 0 ? Math.min(ab.monto, precio) : ab.monto
+/* la reserva que quedó esperando el pago (si vuelve atrás desde Flow) */
+const CLAVE_PENDIENTE = 'spa_reserva_por_pagar'
+function reservaPorPagar(){
+  try{
+    const r = JSON.parse(sessionStorage.getItem(CLAVE_PENDIENTE) || 'null')
+    return r && r.hasta > Date.now() ? r : null
+  }catch(e){ return null }
+}
+async function pedirPagoAbono(id, correo){
+  const r = await fetch('/api/abono-web.php', { method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ id, correo: correo || undefined, gc: giftcard ? giftcard.codigo : undefined }) })
+  const j = await r.json().catch(() => ({}))
+  if(!r.ok || j.error) throw new Error(j.error || 'No pudimos iniciar el pago. Inténtalo de nuevo en un momento.')
+  return j
+}
+async function pagarPendiente(){
+  const p = reservaPorPagar(); if(!p){ render(); return }
+  const b = document.getElementById('btnPagarPend'); if(b){ b.disabled = true; b.textContent = 'Abriendo el pago…' }
+  try{
+    const j = await pedirPagoAbono(p.id, p.correo)
+    if(j.paymentUrl){ location.href = j.paymentUrl; return }
+    try{ sessionStorage.removeItem(CLAVE_PENDIENTE) }catch(e){}
+    location.href = '/pago-reserva.html?estado=ok&id=' + encodeURIComponent(p.id)
+  }catch(e){
+    try{ sessionStorage.removeItem(CLAVE_PENDIENTE) }catch(x){}
+    alert(e.message); render()
+  }
+}
+function guardarPorPagar(r){ try{ sessionStorage.setItem(CLAVE_PENDIENTE, JSON.stringify(r)) }catch(e){} }
 
 const pad = n => String(n).padStart(2,'0')
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
@@ -366,6 +412,7 @@ function pintarHoras(){
 function pintarFormulario(){
   if(!fechaSel || !horaSel) return ''
   const p = precioEn(fechaSel, horaSel)
+  const ab = abonoWeb()
   const d = new Date(fechaSel+'T00:00:00')
   const datos = cuentaCliente
     ? `<div class="cuenta-datos">
@@ -376,7 +423,7 @@ function pintarFormulario(){
     : `${(typeof CLIENTE === 'undefined' || CLIENTE.cuentasClientes !== false) ? `<p class="cuenta-invita">¿Tienes cuenta? <a href="${esc('/ingresar?volver=' + encodeURIComponent(location.pathname + location.search))}">Ingresa</a> y usamos tus datos.</p>` : ''}
       <label>Nombre y apellido *</label><input type="text" id="nombre" placeholder="Cómo te llamas" />
       <label>Teléfono *</label><input type="tel" id="fono" placeholder="+56 9 1234 5678" />
-      <label>Correo</label><input type="email" id="mail" placeholder="tu@email.com (opcional)" />`
+      <label>Correo</label><input type="email" id="mail" placeholder="${ab ? 'tu@email.com (para la confirmación y el comprobante)' : 'tu@email.com (opcional)'}" />`
   return `<h3>Tus datos</h3>
     ${datos}
     <label>¿Algo que debamos saber?</label><textarea id="nota" rows="2" placeholder="Opcional"></textarea>
@@ -386,9 +433,11 @@ function pintarFormulario(){
       ${giftcard
         ? `🎁 Se paga con tu gift card <strong>${esc(giftcard.codigo)}</strong>`
         : `Total: <strong>${money(p.precio)}</strong>${p.pct ? ` <span class="sp-tag">−${p.pct}% por horario</span>` : ''}`}
+      ${ab ? `<div class="abono">Para confirmar tu hora pagas ${p.precio > 0 && abonoPara(ab, p.precio) >= p.precio ? 'el total' : 'un abono'} de <strong>${money(abonoPara(ab, p.precio))}</strong> en línea${p.precio > abonoPara(ab, p.precio) ? `; el resto, ${money(p.precio - abonoPara(ab, p.precio))}, lo pagas en el local` : ''}.
+        <small>Pago seguro con Flow (tarjetas, transferencia y más). Tienes ${ab.minutos} minutos para pagarlo; si no, la hora se libera.</small></div>` : ''}
     </div>
     <div class="err" id="err"></div>
-    <button class="btn" id="btnReservar" onclick="reservar()">${citaCambiar ? 'Confirmar el cambio' : 'Confirmar mi reserva'}</button>`
+    <button class="btn" id="btnReservar" onclick="reservar()">${citaCambiar ? 'Confirmar el cambio' : ab ? 'Pagar ' + money(abonoPara(ab, p.precio)) + ' y reservar' : 'Confirmar mi reserva'}</button>`
 }
 function render(){
   const m = reglasServicio()
@@ -405,6 +454,7 @@ function render(){
       ${m.hourMode === 'range' ? `<span class="sp-tag">Se realiza entre ${m.from} y ${m.to}</span>` : ''}
       ${giftcard ? `<div class="gc-aviso">Gift card <strong>${esc(giftcard.codigo)}</strong>${giftcard.para ? ' de ' + esc(giftcard.para) : ''} · válida hasta el ${giftcard.vence.split('-').reverse().join('/')}. No pagas nada al reservar.</div>` : ''}
     </div>
+    ${(() => { const pp = reservaPorPagar(); return pp && !citaCambiar ? `<div class="pendiente-aviso"><strong>Tienes una hora esperando el pago del abono:</strong> ${esc(pp.servicio)}, ${esc(fechaLarga(pp.fecha))} a las ${esc(pp.hora)} hrs. Se libera sola si no lo pagas a tiempo.<br><button id="btnPagarPend" onclick="pagarPendiente()">Pagar el abono ahora</button></div>` : '' })()}
     ${citaCambiar ? `<div class="cambio-aviso"><strong>Estás cambiando tu hora</strong> del ${esc(fechaLarga(citaCambiar.fecha))} a las ${esc(String(citaCambiar.inicio).slice(0,5))} hrs. Elige el nuevo día y hora; la anterior se libera al confirmar. <a href="/mi-cuenta">No cambiar</a></div>` : ''}
     ${pintarDias()}
     ${pintarProfesionales()}
@@ -496,8 +546,36 @@ async function reservar(){
                        : 'Reservado desde el sitio web') + (nota ? ' — ' + nota : '')
     })
 
+    /* el abono: si la hora espera el pago, se va a Flow; con gift card (o si
+       el abono se apagó) el servidor la confirma y manda el correo */
+    let yaConfirmada = false
+    if(idReserva){
+      let pago = null
+      try{ pago = await pedirPagoAbono(idReserva, mail) }
+      catch(e){
+        const ab = abonoWeb()
+        /* con el abono apagado la hora ya quedó reservada: se sigue como siempre */
+        if(!(((config && config.local_info) || {}).abonoWeb || {}).activo) pago = { yaEstaba: true }
+        else if(!ab) throw e
+        else {
+          /* la hora quedó apartada: se puede reintentar el pago sin volver a reservar */
+          guardarPorPagar({ id: idReserva, servicio: servicio.name, fecha: fechaSel, hora: horaSel,
+            correo: mail, hasta: Date.now() + (ab.minutos - 1) * 60000 })
+          throw e
+        }
+      }
+      if(pago.paymentUrl){
+        guardarPorPagar({ id: idReserva, servicio: servicio.name, fecha: fechaSel, hora: horaSel,
+          correo: mail, hasta: Date.now() + Math.max(1, (pago.minutos || 20) - 1) * 60000 })
+        document.getElementById('body').innerHTML = `<div class="done"><div class="em">💳</div><h2>Te llevamos a pagar el abono…</h2>
+          <p>${money(pago.monto)} con Flow. Tu hora queda apartada mientras pagas.</p></div>`
+        location.href = pago.paymentUrl
+        return
+      }
+      yaConfirmada = !pago.yaEstaba
+    }
     /* confirmación por correo con la invitación de calendario (no se espera) */
-    if(idReserva) fetch('/api/correo-reserva.php', { method:'POST', headers:{ 'Content-Type':'application/json' },
+    if(idReserva && !yaConfirmada) fetch('/api/correo-reserva.php', { method:'POST', headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ id: idReserva }) }).catch(() => {})
     const d = new Date(fechaSel+'T00:00:00')
     document.getElementById('body').innerHTML = `

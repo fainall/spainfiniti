@@ -5,9 +5,10 @@ require_once __DIR__ . '/cliente.php';
  * Flow POSTea aquí con el token cuando el pago se completa (éxito o falla).
  * No retornamos contenido a Flow; solo HTTP 200.
  *
- * Atiende dos tipos de orden:
- *   - giftcard (SI-…): manda la tarjeta al destinatario y avisa al negocio
- *   - reserva  (RES-…): marca pagado el link de cobro en la base y avisa
+ * Atiende tres tipos de orden:
+ *   - giftcard  (SI-…): manda la tarjeta al destinatario y avisa al negocio
+ *   - reserva   (RES-…): marca pagado el link de cobro en la base y avisa
+ *   - abono_web (AB-…): abono de una reserva del sitio (lo resuelve abono-lib.php)
  * Antes las de reserva reventaban aquí (se intentaba armar un correo de gift
  * card con datos que no tenían) y el pago quedaba sin registrar.
  * Cada orden se atiende una sola vez, aunque Flow repita el aviso.
@@ -38,6 +39,13 @@ $orderFile = __DIR__ . '/orders/' . $commerceOrder . '.json';
 $order = ($commerceOrder !== '' && is_file($orderFile)) ? json_decode(file_get_contents($orderFile), true) : null;
 
 if (!$order) { http_response_code(200); exit('ok'); }
+
+/* abono de una reserva web: confirma la hora y registra el abono */
+if (($order['tipo'] ?? '') === 'abono_web') {
+    require_once __DIR__ . '/abono-lib.php';
+    abono_procesar($orderFile, $status, $token);
+    http_response_code(200); exit('ok');
+}
 
 /* ya atendida: no se vuelve a mandar nada */
 if (($order['status'] ?? '') === 'paid') { http_response_code(200); exit('ok'); }

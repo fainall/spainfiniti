@@ -117,6 +117,8 @@ function cr_html($a, $prof, $paraSpa, $opc = []) {
         . $fila('Hora', $e($hora))
         . ($prof ? $fila('Te atiende', $e($prof)) : '')
         . (!empty($a['price']) ? $fila('Valor', $e($a['price'])) : '')
+        . (!empty($opc['abono']) ? $fila($paraSpa ? 'Abono' : 'Pagaste', '<strong>$' . $e(number_format((int)$opc['abono'], 0, ',', '.')) . '</strong> en línea'
+            . (($r = (int)preg_replace('/[^0-9]/', '', (string)($a['price'] ?? '')) - (int)$opc['abono']) > 0 ? '<br><span style="color:#666;font-size:13px">' . ($paraSpa ? 'Saldo por cobrar en el local: $' : 'El resto, $') . $e(number_format($r, 0, ',', '.')) . ($paraSpa ? '' : ', lo pagas en el local') . '</span>' : '')) : '')
         . $fila('Dónde', $e(RESERVA_LUGAR) . '<br><span style="color:#666;font-size:13px">A una cuadra del Metro Plaza de Armas, salida Bandera</span>')
         . ($paraSpa && !empty($a['notes']) ? $fila('Notas', $e($a['notes'])) : '')
         . '</table>';
@@ -179,10 +181,12 @@ function cr_enviar($para, $asunto, $html, $ics, $extra = null) {
  * Manda la confirmación de una reserva. Devuelve lo que pasó con cada correo.
  * Solo una vez por reserva, salvo $forzar (reenviar desde el panel).
  */
-function enviar_correo_reserva($id, $forzar = false) {
+function enviar_correo_reserva($id, $forzar = false, $opc = []) {
     $a = cr_supa('GET', 'appointments?select=*&id=eq.' . rawurlencode($id))[0] ?? null;
     if (!$a) return ['ok' => false, 'motivo' => 'no existe la reserva'];
     if (in_array($a['status'] ?? '', ['cancelled', 'block'], true)) return ['ok' => false, 'motivo' => 'la reserva no está vigente'];
+    /* una reserva web que espera el abono se confirma cuando se paga (abono-lib.php) */
+    if (($a['status'] ?? '') === 'pago_pendiente') return ['ok' => false, 'motivo' => 'la reserva espera el pago del abono'];
     if (!$forzar && !empty($a['correo_confirmacion_at'])) return ['ok' => true, 'ya_enviado' => $a['correo_confirmacion_at']];
 
     $prof = '';
@@ -193,12 +197,12 @@ function enviar_correo_reserva($id, $forzar = false) {
     $asunto = 'Tu hora en Spa Infinity: ' . ($a['service_name'] ?? '') . ' · ' . cr_dia($a['appt_date']) . ' ' . substr($a['start_time'], 0, 5);
     if ($correoCliente !== '' && filter_var($correoCliente, FILTER_VALIDATE_EMAIL)) {
         $ics = cr_ics($a, $prof, ['nombre' => $a['client_name'] ?: 'Cliente', 'correo' => $correoCliente]);
-        $res['cliente'] = cr_enviar($correoCliente, $asunto, cr_html($a, $prof, false), $ics) ? $correoCliente : 'falló el envío';
+        $res['cliente'] = cr_enviar($correoCliente, $asunto, cr_html($a, $prof, false, $opc), $ics) ? $correoCliente : 'falló el envío';
     }
     $spa = cliente_correo();
     $icsSpa = cr_ics($a, $prof, ['nombre' => 'Spa Infinity', 'correo' => $spa]);
     $asuntoSpa = 'Nueva reserva: ' . ($a['client_name'] ?? '') . ' · ' . ($a['service_name'] ?? '') . ' · ' . cr_dia($a['appt_date']) . ' ' . substr($a['start_time'], 0, 5);
-    $res['spa'] = cr_enviar($spa, $asuntoSpa, cr_html($a, $prof, true), $icsSpa);
+    $res['spa'] = cr_enviar($spa, $asuntoSpa, cr_html($a, $prof, true, $opc), $icsSpa);
 
     cr_supa('PATCH', 'appointments?id=eq.' . rawurlencode($id), ['correo_confirmacion_at' => gmdate('c')]);
     return $res;
@@ -235,6 +239,8 @@ function enviar_correo_cancelacion($id) {
     [$a, $prof] = cr_reserva($id);
     if (!$a) return ['ok' => false, 'motivo' => 'no existe la reserva'];
     if (($a['status'] ?? '') !== 'cancelled') return ['ok' => false, 'motivo' => 'la reserva no está cancelada'];
+    /* una hora que nunca se confirmó (no se pagó el abono) no tiene nada que avisar */
+    if (strpos((string)($a['notes'] ?? ''), 'antes de pagar el abono') !== false) return ['ok' => true, 'sin_aviso' => 'nunca se confirmó'];
     $e = fn($t) => htmlspecialchars((string)$t, ENT_QUOTES, 'UTF-8');
     $nombre = explode(' ', trim($a['client_name'] ?? ''))[0] ?: '';
     $cuando = cr_dia($a['appt_date']) . ' ' . substr($a['start_time'], 0, 5);
