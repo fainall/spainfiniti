@@ -225,7 +225,10 @@ $('fRecuperar').addEventListener('submit', async e => {
 /* ── Al abrir la página ── */
 ;(async () => {
   /* mientras las cuentas de clientes estén apagadas (config-cliente.js) */
-  if (typeof CLIENTE !== 'undefined' && CLIENTE.cuentasClientes === false) {
+  /* con ?prueba=1 se puede probar con las cuentas aún apagadas (el enlace no aparece en el sitio) */
+  if (new URLSearchParams(location.search).get('prueba')) { try { sessionStorage.setItem('spa_cuentas_prueba', '1') } catch (e) {} }
+  let _prueba = false; try { _prueba = sessionStorage.getItem('spa_cuentas_prueba') === '1' } catch (e) {}
+  if (typeof CLIENTE !== 'undefined' && CLIENTE.cuentasClientes === false && !_prueba) {
     document.querySelector('.cta-tarjeta').innerHTML = '<div class="cta-vista"><h1 class="cta-titulo">Muy pronto</h1>'
       + '<p class="cta-sub">Estamos preparando las cuentas de clientes. Mientras tanto puedes reservar directo desde cada servicio o escribirnos por WhatsApp.</p>'
       + '<a class="btn btn-gold cta-boton" href="/servicios.html">Ver servicios</a></div>'
