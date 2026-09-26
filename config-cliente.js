@@ -38,10 +38,12 @@ const CLIENTE = {
   asistente: 'Julia',
 
   /* ── Cuentas de clientes en el sitio (Ingresar / Mi cuenta) ──
-     Apagado hasta que Supabase tenga el SMTP propio: sin él, los correos de
-     confirmación no les llegan a los clientes. Con true aparece "Ingresar" en el
-     menú y la invitación en la página de reserva. */
-  cuentasClientes: false
+     Encendidas desde el 26-sep-2026 (Supabase ya envía por el SMTP de Hostinger).
+     Con true aparece "Ingresar" en el menú y la invitación en la página de
+     reserva; con false se esconden (y /ingresar dice "Muy pronto"), sin tocar
+     las cuentas que ya existan. Necesita la confirmación de correo encendida en
+     Supabase: sin ella cualquiera podría registrarse con un correo ajeno. */
+  cuentasClientes: true
 }
 
 /* En el computador (localhost) el sitio usa la base LOCAL de Supabase
