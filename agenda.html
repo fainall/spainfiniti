@@ -1513,6 +1513,12 @@ body.sin-scroll{overflow:hidden}
 .doc-subir{display:inline-block;margin-top:14px;cursor:pointer}
 .ad-guardar{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px}
 .ad-guardar[hidden]{display:none}
+.ad-auto{border-color:var(--gold);background:linear-gradient(180deg,var(--gold-pale,#faf5ec),#fff 70%)}
+.ad-auto-cab{display:flex;flex-direction:column;gap:2px;margin-right:auto}
+.ad-auto-cab strong{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--texto,#1a2436)}
+.ad-auto-cab span{font-size:.74rem;color:var(--mid)}
+.ad-espera{font-size:.8rem;cursor:default;text-align:center;padding:10px}
+.ad-espera:hover{border-color:var(--border);color:var(--mid)}
 .ad-compartir{margin-top:8px;padding:10px 12px;border:1px dashed var(--border);border-radius:10px}
 .ad-compartir.on{border-style:solid;border-color:var(--gold);background:var(--gold-pale,#faf5ec)}
 .ad-compartir .chk{margin:0}
@@ -8456,11 +8462,15 @@ function cdAntesDespues(){
         <button class="btn-primary" onclick="adGuardar('${c.id}')">Guardar</button>
       </div>
     </div>`).join('')
-  return `<div class="ad-cab">
-      <p class="rem-note" style="margin:0">Toma una foto al empezar el tratamiento y otra al final, siempre con la misma luz y el mismo ángulo, para comparar el resultado.</p>
+  const evo = evolucionCliente()
+  return `${evo.fotos.length ? adEvolucion(evo) : ''}
+    <div class="ad-cab">
+      <p class="rem-note" style="margin:0">${evo.fotos.length
+        ? 'Además puedes armar comparaciones puntuales, por zona o por tratamiento. Toma las fotos siempre con la misma luz y el mismo ángulo.'
+        : 'Toma una foto al empezar el tratamiento y otra al final, siempre con la misma luz y el mismo ángulo, para comparar el resultado.'}</p>
       <button class="btn-primary" onclick="nuevaComparacion()">+ Nueva comparación</button>
     </div>
-    ${tarjetas || '<div class="empty-state">Todavía no hay fotos de antes y después para este cliente.</div>'}`
+    ${tarjetas || (evo.fotos.length ? '' : '<div class="empty-state">Todavía no hay fotos de este cliente. Las que se suban en sus fichas o aquí aparecen solas: la primera como Antes y la última como Después.</div>')}`
 }
 async function nuevaComparacion(){
   if(!cdCliente) return
@@ -8555,8 +8565,70 @@ async function borrarComparacion(id){
 }
 /* Vista grande para comparar: las dos fotos lado a lado, o una encima de la
    otra con una barra que se desliza para ir descubriendo el después. */
-function verComparacion(id){
-  const c = comparaciones.find(x => x.id === id); if(!c) return
+/* ── Evolución automática (pedido de Luis) ──
+   "Antes" es la primera foto que se le cargó al cliente y "Después" la última,
+   juntando las fotos de sus fichas clínicas y las de las comparaciones. Se
+   ordenan por el momento en que se subieron: el panel pone la hora exacta en
+   el nombre de cada archivo (…/1727380000000-0.jpg). Si un archivo no la
+   tiene, se usa la fecha de la ficha o de la comparación. */
+function momentoFoto(url){
+  const m = String(url).match(/(\d{13})(?:-\d+)?\.jpe?g(?:$|\?)/)
+  return m ? Number(m[1]) : null
+}
+function evolucionCliente(){
+  const vistas = new Set(), fotos = []
+  const sumar = (url, respaldo, origen) => {
+    if(typeof url !== 'string' || !url.includes('/object/public/fichas/') || vistas.has(url)) return
+    vistas.add(url)
+    const cuando = momentoFoto(url) || Date.parse(respaldo || '') || 0
+    fotos.push({ url, cuando, origen })
+  }
+  ;(fichasCliente || []).forEach(r => {
+    let d = r.data || {}
+    if(typeof d === 'string'){ try{ d = JSON.parse(d) }catch(e){ d = {} } }
+    Object.values(d).forEach(v => (Array.isArray(v) ? v : [v])
+      .forEach(u => sumar(u, r.record_date || r.created_at, 'Ficha' + (r.template_name ? ' · ' + r.template_name : ''))))
+  })
+  ;(comparaciones || []).forEach(c => {
+    sumar(c.antes_url, c.antes_fecha || c.created_at, c.titulo || 'Antes y después')
+    sumar(c.despues_url, c.despues_fecha || c.created_at, c.titulo || 'Antes y después')
+  })
+  fotos.sort((a, b) => a.cuando - b.cuando)
+  return { fotos, antes: fotos[0] || null, despues: fotos.length > 1 ? fotos[fotos.length - 1] : null }
+}
+const fechaDeMomento = ms => ms ? new Date(ms).toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' }) : ''
+function adEvolucion(evo){
+  /* si las dos son del mismo día, se agrega la hora para distinguirlas */
+  const mismoDia = evo.antes && evo.despues && fechaDeMomento(evo.antes.cuando) === fechaDeMomento(evo.despues.cuando)
+  const cuando = f => fechaDeMomento(f.cuando) + (mismoDia && f.cuando ? ', ' + new Date(f.cuando).toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' }) : '')
+  const lado = (f, rotulo) => f
+    ? `<div class="ad-lado">
+        <div class="ad-rot">${rotulo} · ${esc(cuando(f))}</div>
+        <img src="${esc(f.url)}" alt="${rotulo}" onclick="verEvolucion()">
+        <span class="ad-sub">${esc(f.origen)}</span>
+      </div>`
+    : `<div class="ad-lado">
+        <div class="ad-rot">${rotulo}</div>
+        <div class="ad-vacio ad-espera"><span>La próxima foto que se suba aparecerá aquí</span></div>
+      </div>`
+  return `<div class="ad-card ad-auto">
+      <div class="ad-top">
+        <div class="ad-auto-cab"><strong>Evolución</strong>
+          <span>Se arma sola: la primera foto que se le cargó y la última (${evo.fotos.length} foto${evo.fotos.length === 1 ? '' : 's'} en total, de sus fichas y comparaciones).</span></div>
+        ${evo.despues ? '<button class="mini-btn" onclick="verEvolucion()">Comparar</button>' : ''}
+      </div>
+      <div class="ad-par">${lado(evo.antes, 'Antes')}${lado(evo.despues, 'Después')}</div>
+    </div>`
+}
+/* abre el mismo visor de las comparaciones (lado a lado o deslizando) */
+function verEvolucion(){
+  const evo = evolucionCliente(); if(!evo.antes) return
+  const iso = ms => ms ? new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ''
+  verComparacion(null, { titulo:'Evolución', antes_url: evo.antes.url, antes_fecha: iso(evo.antes.cuando),
+    despues_url: evo.despues ? evo.despues.url : null, despues_fecha: evo.despues ? iso(evo.despues.cuando) : null, notas:'' })
+}
+function verComparacion(id, dada){
+  const c = dada || comparaciones.find(x => x.id === id); if(!c) return
   const cerrar = () => { const v = document.getElementById('adVisor'); if(v) v.remove() }
   cerrar()
   const v = document.createElement('div'); v.id = 'adVisor'; v.className = 'ad-visor'
@@ -8633,7 +8705,7 @@ function renderClientDetail(){
   const todas = [['actividad','Actividad'],['asistencia','Asistencia'],
                 ['pagos','Pagos y deudas'],['fichas','Fichas ('+fichasCliente.length+')'],
                 ['consent','Consentimientos ('+firmasCliente.length+')'],
-                ['antesdespues','Antes y después ('+comparaciones.length+')'],
+                ['antesdespues','Antes y después ('+(comparaciones.length + (evolucionCliente().fotos.length ? 1 : 0))+')'],
                 ['bonos','Bonos ('+bonos.length+')']]
   /* una profesional ve y crea fichas, consentimientos y fotos de antes y después */
   const PRO_TABS = ['fichas','consent','antesdespues']
