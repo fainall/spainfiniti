@@ -71,6 +71,22 @@ if (!empty($d['gc'])) {
 /* ── el abono se desactivó mientras reservaba ── */
 if (!$cfg['activo']) $confirmar();
 
+/* "Abono de tu hora: Tratamiento con Ácido Nítrico+Alta Frecuencia-Tipo 1 · mié 30 sep, 10:00 hrs"
+   Flow lo muestra como la descripción del pago, bajo "Estás realizando un pago a
+   SPA INFINITY" (por eso no repite el nombre del spa). Admite hasta 100 caracteres. */
+function abono_asunto($a, $monto) {
+    $completo = abono_a_numero($a['price'] ?? '') > 0 && $monto >= abono_a_numero($a['price']);
+    $inicio = $completo ? 'Pago de tu hora' : 'Abono de tu hora';
+    $t = strtotime((string)$a['appt_date']);
+    $cuando = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][(int)date('w', $t)] . ' ' . date('j', $t) . ' '
+        . ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][(int)date('n', $t) - 1]
+        . ', ' . substr((string)$a['start_time'], 0, 5) . ' hrs';
+    $servicio = trim(preg_replace('/\s+/', ' ', (string)$a['service_name']));
+    $cabe = 100 - mb_strlen("$inicio:  · $cuando");
+    if (mb_strlen($servicio) > $cabe) $servicio = rtrim(mb_substr($servicio, 0, $cabe - 1)) . '…';
+    return "$inicio: $servicio · $cuando";
+}
+
 /* ── el pago en Flow ── */
 $config = @include __DIR__ . '/flow-config.php';
 if (!is_array($config)) responder(500, ['error' => 'El pago en línea no está configurado. Escríbenos por WhatsApp para confirmar tu hora.']);
@@ -100,14 +116,14 @@ try {
     $flow = new FlowClient($config);
     $r = $flow->createPayment([
         'commerceOrder'   => $commerceOrder,
-        'subject'         => mb_substr('Abono reserva: ' . $a['service_name'] . ' ' . date('d/m', strtotime($a['appt_date'])) . ' ' . substr($a['start_time'], 0, 5), 0, 100),
+        /* lo que el cliente lee en la página de Flow: claro y sin códigos internos */
+        'subject'         => abono_asunto($a, $monto),
         'amount'          => $monto,
         'email'           => $correo,
         'urlConfirmation' => $siteUrl . '/api/flow-confirm.php',
         'urlReturn'       => $siteUrl . '/api/abono-retorno.php',
         /* la orden de Flow vence con la hora: después ya no se puede pagar */
         'timeout'         => max(120, $quedan),
-        'optional'        => ['reserva' => $a['id']],
     ]);
     responder(200, ['ok' => true, 'paymentUrl' => $flow->paymentRedirectUrl($r), 'monto' => $monto, 'minutos' => (int)ceil($quedan / 60)]);
 } catch (Exception $e) {

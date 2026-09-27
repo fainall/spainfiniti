@@ -56,6 +56,9 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .abono small{display:block;font-size:.74rem;color:var(--light);margin-top:2px}
 .pendiente-aviso{background:#fff7e6;border-left:4px solid #e0a526;border-radius:10px;padding:12px 14px;font-size:.86rem;line-height:1.55;margin-bottom:18px;color:var(--mid)}
 .pendiente-aviso button{margin-top:8px;padding:9px 16px;border:none;border-radius:20px;background:var(--gold);color:#fff;font-family:inherit;font-weight:700;font-size:.8rem;cursor:pointer}
+.ir-pago p{margin-top:10px}
+.ir-pago .ir-nota{font-size:.8rem;color:var(--light)}
+.ir-pago .btn-ok{margin-top:22px}
 .err{background:#fdecea;color:#c0392b;border-radius:9px;padding:12px 14px;font-size:.84rem;margin-top:14px;display:none}
 .done{text-align:center;padding:44px 24px}
 .done .em{font-size:3.2rem;margin-bottom:14px}
@@ -567,9 +570,21 @@ async function reservar(){
       if(pago.paymentUrl){
         guardarPorPagar({ id: idReserva, servicio: servicio.name, fecha: fechaSel, hora: horaSel,
           correo: mail, hasta: Date.now() + Math.max(1, (pago.minutos || 20) - 1) * 60000 })
-        document.getElementById('body').innerHTML = `<div class="done"><div class="em">💳</div><h2>Te llevamos a pagar el abono…</h2>
-          <p>${money(pago.monto)} con Flow. Tu hora queda apartada mientras pagas.</p></div>`
-        location.href = pago.paymentUrl
+        const dd = new Date(fechaSel+'T00:00:00')
+        document.getElementById('body').innerHTML = `<div class="done ir-pago">
+          <div class="em">🔒</div>
+          <h2>Te llevamos a pagar el abono</h2>
+          <div class="det">
+            <strong>${esc(servicio.name)}</strong><br>
+            📅 ${DOW_S[dd.getDay()]} ${dd.getDate()} de ${MES_S[dd.getMonth()]} · ${horaSel} hrs<br>
+            💳 Abono: <strong>${money(pago.monto)}</strong>${p.precio > pago.monto ? ` · el resto (${money(p.precio - pago.monto)}) en el local` : ''}
+          </div>
+          <p>El pago se hace en <strong>Flow</strong> (flow.cl), la plataforma de pagos con que trabaja Spa Infinity: aceptan tarjetas de débito y crédito y transferencia. Nosotros nunca vemos los datos de tu tarjeta.</p>
+          <p class="ir-nota">En la página de Flow verás el cobro a nombre de <strong>SPA INFINITY</strong>. Tu hora queda apartada mientras pagas.</p>
+          <a class="btn-ok" href="${esc(pago.paymentUrl)}">Ir a pagar ${money(pago.monto)}</a>
+        </div>`
+        /* se sigue solo en unos segundos, por si no toca el botón */
+        setTimeout(() => { location.href = pago.paymentUrl }, 6000)
         return
       }
       yaConfirmada = !pago.yaEstaba
