@@ -56,6 +56,9 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .abono small{display:block;font-size:.74rem;color:var(--light);margin-top:2px}
 .pendiente-aviso{background:#fff7e6;border-left:4px solid #e0a526;border-radius:10px;padding:12px 14px;font-size:.86rem;line-height:1.55;margin-bottom:18px;color:var(--mid)}
 .pendiente-aviso button{margin-top:8px;padding:9px 16px;border:none;border-radius:20px;background:var(--gold);color:#fff;font-family:inherit;font-weight:700;font-size:.8rem;cursor:pointer}
+.acepto{display:flex;gap:10px;align-items:flex-start;margin-top:16px;font-size:.82rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--mid);line-height:1.5;cursor:pointer}
+.acepto input{width:18px;height:18px;flex:0 0 18px;margin-top:1px;accent-color:var(--gold)}
+.acepto a{color:var(--gold-d);font-weight:600}
 .ir-pago p{margin-top:10px}
 .ir-pago .ir-nota{font-size:.8rem;color:var(--light)}
 .ir-pago .btn-ok{margin-top:22px}
@@ -491,8 +494,10 @@ function pintarFormulario(){
         ? `🎁 Se paga con tu gift card <strong>${esc(giftcard.codigo)}</strong>`
         : `Total: <strong>${money(p.precio)}</strong>${p.pct ? ` <span class="sp-tag">−${p.pct}% por horario</span>` : ''}`}
       ${ab ? `<div class="abono">Para confirmar tu hora pagas ${p.precio > 0 && abonoPara(ab, p.precio) >= p.precio ? 'el total' : 'un abono'} de <strong>${money(abonoPara(ab, p.precio))}</strong> en línea${p.precio > abonoPara(ab, p.precio) ? `; el resto, ${money(p.precio - abonoPara(ab, p.precio))}, lo pagas en el local` : ''}.
-        <small>Pago seguro con Flow (tarjetas, transferencia y más). Tienes ${ab.minutos} minutos para pagarlo; si no, la hora se libera.</small></div>` : ''}
+        <small>Pago seguro con Flow (tarjetas, transferencia y más). Tienes ${ab.minutos} minutos para pagarlo; si no, la hora se libera.</small>
+        <small><strong>El abono no es reembolsable</strong> si cancelas o no asistes. Si cambias tu hora con al menos 24 horas de anticipación, se aplica a la nueva fecha.</small></div>` : ''}
     </div>
+    ${ab ? `<label class="acepto"><input type="checkbox" id="aceptoTerminos" /> <span>Acepto los <a href="/terminos.html#abono" target="_blank" rel="noopener">términos y condiciones</a>, incluido que el abono no es reembolsable.</span></label>` : ''}
     <div class="err" id="err"></div>
     <button class="btn" id="btnReservar" onclick="reservar()">${citaCambiar ? 'Confirmar el cambio' : ab ? 'Pagar ' + money(abonoPara(ab, p.precio)) + ' y reservar' : 'Confirmar mi reserva'}</button>`
 }
@@ -545,6 +550,8 @@ async function reservar(){
   const err = document.getElementById('err'), btn = document.getElementById('btnReservar')
   err.style.display = 'none'
   if(!nombre || !fono){ err.textContent = 'Necesitamos tu nombre y tu teléfono para confirmar la hora.'; err.style.display='block'; return }
+  const acepto = document.getElementById('aceptoTerminos')
+  if(acepto && !acepto.checked){ err.textContent = 'Para pagar el abono tienes que aceptar los términos y condiciones.'; err.style.display='block'; return }
   btn.disabled = true; btn.textContent = 'Reservando…'
   try{
     // relee las citas por si alguien tomó la hora mientras completabas
@@ -636,7 +643,7 @@ async function reservar(){
             💳 Abono: <strong>${money(pago.monto)}</strong>${p.precio > pago.monto ? ` · el resto (${money(p.precio - pago.monto)}) en el local` : ''}
           </div>
           <p>El pago se hace en <strong>Flow</strong> (flow.cl), la plataforma de pagos con que trabaja Spa Infinity: aceptan tarjetas de débito y crédito y transferencia. Nosotros nunca vemos los datos de tu tarjeta.</p>
-          <p class="ir-nota">En la página de Flow verás el cobro a nombre de <strong>SPA INFINITY</strong>. Tu hora queda apartada mientras pagas.</p>
+          <p class="ir-nota">En la página de Flow verás el cobro a nombre de <strong>SPA INFINITY</strong>. Tu hora queda apartada mientras pagas. Recuerda que el abono no es reembolsable si cancelas o no asistes.</p>
           <a class="btn-ok" href="${esc(pago.paymentUrl)}">Ir a pagar ${money(pago.monto)}</a>
         </div>`
         /* se sigue solo en unos segundos, por si no toca el botón */

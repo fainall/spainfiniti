@@ -97,7 +97,8 @@ async function mostrar(){
     return pintar(r && r.vuelve ? '🤍' : '✨',
       r && r.vuelve ? '¡Qué bueno tenerte de vuelta' + (r.nombre ? ', ' + esc(r.nombre) : '') + '!'
         : '¡Tu hora quedó reservada!' + (r && r.nombre ? '<br><small style="font-size:.8em;font-weight:400">¡Gracias por elegirnos, ' + esc(r.nombre) + '!</small>' : ''),
-      (r && r.vuelve ? 'Tu hora quedó reservada. ' : '') + 'Recibimos tu abono. Te enviamos la confirmación por correo, con un botón para agregarla a tu calendario. El resto lo pagas en el local.<br>Te esperamos en Santo Domingo 1083, oficina 502.',
+      (r && r.vuelve ? 'Tu hora quedó reservada. ' : '') + 'Recibimos tu abono. Te enviamos la confirmación por correo, con un botón para agregarla a tu calendario. El resto lo pagas en el local.<br>Te esperamos en Santo Domingo 1083, oficina 502.'
+      + '<br><small style="display:block;margin-top:12px;color:#6b7078">El abono no es reembolsable si cancelas o no asistes; si necesitas cambiar tu hora, avísanos con al menos 24 horas de anticipación y lo aplicamos a la nueva fecha. <a href="/terminos.html#abono" style="color:#8a6d35">Términos y condiciones</a>.</small>',
       det, '<a class="btn-ok" href="/">Volver al inicio</a><a class="btn-ok sec" href="/servicios.html">Ver otros servicios</a>')
   }
   if(estado === 'tarde'){

@@ -10021,12 +10021,12 @@ function admAbono(){
       <div class="ab-campos">
         <div>
           <label for="abMonto">Monto del abono</label>
-          <div class="lc-dias"><span>$</span><input type="number" id="abMonto" min="350" max="1000000" step="500" value="${a.monto}" /></div>
+          <div class="lc-dias"><span>$</span><input type="text" inputmode="numeric" id="abMonto" value="${Number(a.monto).toLocaleString('es-CL')}" placeholder="10.000" /></div>
           <p class="rem-note">Mínimo $350 (lo que acepta Flow). Si un servicio cuesta menos, se cobra su precio completo.</p>
         </div>
         <div>
           <label for="abMin">Tiempo para pagarlo</label>
-          <div class="lc-dias"><input type="number" id="abMin" min="5" max="120" step="1" value="${a.minutos}" /><span>minutos</span></div>
+          <div class="lc-dias"><input type="text" inputmode="numeric" id="abMin" value="${a.minutos}" /><span>minutos</span></div>
           <p class="rem-note">Mientras tanto la hora queda apartada como <em>Pago pendiente</em>. Si no paga, se libera sola.</p>
         </div>
       </div>
@@ -10037,7 +10037,8 @@ function admAbono(){
       <ul class="ab-lista">
         <li>Al pagarse, la hora queda <strong>Reservada</strong> y el abono aparece como venta parcial. Al cobrar en el local se descuenta solo.</li>
         <li>No se cobra abono al reservar con gift card, ni en las reservas de Mariet (WhatsApp) o del panel.</li>
-        <li>Si alguien cancela, la devolución del abono se hace a mano.</li>
+        <li><strong>El abono no es reembolsable</strong> si el cliente cancela o no asiste; si cambia su hora con al menos 24 horas de anticipación, se aplica a la nueva fecha. Así lo dicen los <a href="/terminos.html#abono" target="_blank">términos y condiciones</a> del sitio.</li>
+        <li>Si es el spa quien no puede atender, se ofrece otra hora o se devuelve el abono (a mano, desde Flow).</li>
       </ul>
     </div>
     <div class="rr-panel" style="margin-top:14px">
@@ -10061,8 +10062,11 @@ async function cargarAbonosRecibidos(){
 }
 async function guardarAbono(){
   const activo = document.getElementById('abOn').checked
-  const monto = Math.round(Number(document.getElementById('abMonto').value))
-  const minutos = Math.round(Number(document.getElementById('abMin').value))
+  /* se escribe como se escribe en Chile ("10.000", "$10.000"): solo cuentan los dígitos.
+     Antes el campo era numérico y "10.000" se leía como 10 o vacío, y no se podía guardar */
+  const digitos = id => Number(String(document.getElementById(id).value).replace(/[^0-9]/g, '')) || 0
+  const monto = digitos('abMonto')
+  const minutos = digitos('abMin')
   if(!(monto >= 350)){ toast('El abono debe ser de al menos $350 (lo mínimo que acepta Flow)','error'); return }
   if(monto > 1000000){ toast('Ese monto es demasiado alto','error'); return }
   if(!(minutos >= 5 && minutos <= 120)){ toast('El tiempo para pagar debe estar entre 5 y 120 minutos','error'); return }
@@ -10073,7 +10077,11 @@ async function guardarAbono(){
     const fila = await supabase.fetch('bot_config', { select:'local_info', filters:'id=eq.1' })
     const actual = (fila && fila[0] && fila[0].local_info) || localInfo
     const nuevo = { ...actual, abonoWeb: { activo, monto, minutos } }
-    await supabase.update('bot_config', '1', { local_info: nuevo })
+    const filas = await supabase.update('bot_config', '1', { local_info: nuevo })
+    /* si la base no dejó escribir, responde sin filas: no se dice "guardado" */
+    if(!Array.isArray(filas) || !filas.length) throw new Error('tu usuario no tiene permiso para cambiar esta configuración')
+    const quedo = (filas[0].local_info || {}).abonoWeb || {}
+    if(quedo.monto !== monto || !!quedo.activo !== activo) throw new Error('la base no guardó el cambio')
     localInfo = { ...localInfo, abonoWeb: nuevo.abonoWeb }
     if(botCfg) botCfg.local_info = { ...(botCfg.local_info || {}), abonoWeb: nuevo.abonoWeb }
     try{ localStorage.setItem('spa_local_info', JSON.stringify(localInfo)) }catch(e){}

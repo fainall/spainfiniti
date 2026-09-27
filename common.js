@@ -193,10 +193,14 @@ function renderFooter() {
       <span class="copyright">© 2026 Spa Infinity. Todos los derechos reservados.</span>
       <a href="https://opusdigital.cl" class="designed-by" target="_blank">Diseñado por <strong>OpusDigital</strong></a>
     </div>
-    <div class="policy-links">
+    <div class="policy-links" style="flex-wrap:wrap;justify-content:center;row-gap:6px">
       <button class="policy-btn" onclick="openPolicyModal('reservasModal')">Políticas de Reservación</button>
       <span class="policy-separator">|</span>
       <button class="policy-btn" onclick="openPolicyModal('giftModal')">Uso de Gift Cards</button>
+      <span class="policy-separator">|</span>
+      <a class="policy-btn" href="/terminos.html">Términos y condiciones</a>
+      <span class="policy-separator">|</span>
+      <a class="policy-btn" href="/privacidad.html">Privacidad</a>
     </div>
     <div class="payments-wrapper">
       <img src="https://tiendanube.s3.amazonaws.com/apps/10425-45-es_CL-flow-logo-square.jpg" alt="Flow" />
@@ -218,7 +222,9 @@ function renderFooter() {
       <h4>2. Puntualidad</h4>
       <p>Le solicitamos llegar con 10 minutos de anticipación a su cita. Si se presenta con un retraso superior a 15 minutos, nos reservamos el derecho de acortar el tiempo del servicio o reprogramar la cita para no afectar a los siguientes clientes.</p>
       <h4>3. Cancelaciones y Reprogramaciones</h4>
-      <p>Si necesita cancelar o cambiar la fecha de su cita, le pedimos hacerlo con al menos 24 horas de anticipación. Las cancelaciones de última hora afectan directamente la agenda de nuestros especialistas. <strong>Tenga en cuenta que el abono realizado no es reembolsable en caso de no asistir a la cita.</strong></p>
+      <p>Si necesita cancelar o cambiar la fecha de su cita, le pedimos hacerlo con al menos 24 horas de anticipación. Las cancelaciones de última hora afectan directamente la agenda de nuestros especialistas.</p>
+      <h4>4. Abono en línea</h4>
+      <p>Las reservas hechas en el sitio web pueden requerir el pago de un abono con Flow para quedar confirmadas; el resto se paga en el local. <strong>El abono no es reembolsable si cancela o no asiste a su cita.</strong> Si cambia su hora con al menos 24 horas de anticipación, el abono se aplica a la nueva fecha. <a href="/terminos.html#abono">Ver términos y condiciones</a>.</p>
     </div>
   </div>
 </div>

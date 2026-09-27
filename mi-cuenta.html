@@ -121,6 +121,7 @@
 <dialog class="mc-dialogo" id="dlgCancelar" aria-labelledby="dlgTitulo">
   <h2 id="dlgTitulo">¿Cancelar esta hora?</h2>
   <p id="dlgDetalle"></p>
+  <p class="mc-dlg-nota" style="font-size:.8rem;background:#f7f2ea;border-radius:8px;padding:10px 12px">Si pagaste un abono en línea por esta hora, no es reembolsable al cancelar. Si prefieres cambiarla, usa <strong>Cambiar</strong> (con al menos 24 horas de anticipación) y el abono pasa a la nueva fecha. <a href="/terminos.html#abono" target="_blank" rel="noopener">Términos y condiciones</a>.</p>
   <div class="cta-error" id="dlgError" role="alert" hidden></div>
   <div class="mc-dialogo-botones">
     <button type="button" class="btn btn-outline-gold" id="dlgNo">No, mantenerla</button>
@@ -133,7 +134,7 @@
 
 <script src="/supabase-client.js?v=19"></script>
 <script src="/data.js?v=7"></script>
-<script src="/common.js?v=20"></script>
+<script src="/common.js?v=21"></script>
 <script src="/cuenta.js?v=6"></script>
 <script>
 document.getElementById('navContainer').innerHTML = renderNavbar('')
