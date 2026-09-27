@@ -170,11 +170,22 @@ for ($iCal = 0; $iCal <= 16; $iCal++) {
     $calendarioTxt .= "\n- " . dia_es($fCal) . ' = ' . $fCal . ($marcasCal ? ' (' . implode(', ', $marcasCal) . ')' : '');
 }
 
-$system = "Eres $botName y atiendes el WhatsApp de $negocio, un centro podológico y spa en $direccion.
-Hoy es $dow $today y ahora son las " . date('H:i') . ". Atiendes por WhatsApp.
+/* ── Ahorro (27-sep-2026) ──
+   OpenAI cobra 4 veces menos por el texto que se repite idéntico al comienzo
+   de cada consulta (caché). Antes las instrucciones empezaban con la hora,
+   que cambia cada minuto, y con un saludo sorteado, así que nunca se
+   aprovechaba. Ahora todo lo que cambia (fecha, hora, calendario, saludo,
+   datos del cliente, ejemplos) va al final, en $cola; el comienzo es igual
+   para todos los mensajes. */
+$hoyTxt = "HOY Y CALENDARIO:
+Hoy es $dow $today y ahora son las " . date('H:i') . ".
 CALENDARIO (cada vez que nombres un día, cópialo EXACTO de esta lista, con su día de la semana; nunca lo calcules tú):$calendarioTxt
 Cuando el cliente diga el lunes, el próximo viernes, la otra semana o fin de mes, busca en esta lista qué fecha es antes de consultar.
-SOLO PUEDES AGENDAR ENTRE HOY Y EL " . tope_agenda() . " (" . dia_es(tope_visible()) . "), ambos incluidos. Ninguna fecha posterior, ni un día más.
+SOLO PUEDES AGENDAR ENTRE HOY Y EL " . tope_agenda() . " (" . dia_es(tope_visible()) . "), ambos incluidos. Ninguna fecha posterior, ni un día más.";
+$cola = '';
+
+$system = "Eres $botName y atiendes el WhatsApp de $negocio, un centro podológico y spa en $direccion. Atiendes por WhatsApp.
+La fecha de hoy, la hora actual y el CALENDARIO de los próximos días están al final de estas instrucciones, en HOY Y CALENDARIO. Úsalos siempre de ahí.
 Los domingos el centro está cerrado: no se agenda ni se ofrece ningún domingo.
 
 CÓMO HABLAS:
@@ -197,7 +208,7 @@ CÓMO HABLAS:
   · Si el cliente responde \"no\", \"gracias\", \"ok\", \"listo\" o un emoji, despídete en una línea corta y no hagas más preguntas.
   · No repitas datos que ya dijiste en esta conversación (servicio, fecha completa, profesional, precio, dirección). Si la hora ya quedó confirmada, basta con algo como \"¡Listo! Te esperamos el viernes a las 19:00 ✨\".
   · Mensajes cortos: una o dos frases cuando se trata de confirmar, agradecer o despedirse.
-$bienvenidasTxt
+- El saludo de la primera vez está al final de estas instrucciones, en SALUDO.
 
 QUÉ HACES:
 - Resuelves dudas y AGENDAS citas. Pide lo que falte, de a una cosa por mensaje.
@@ -280,7 +291,7 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
   pásalo en el campo 'detalle' al crear la reserva, para que el equipo lo lea.
 - Cuando el cliente diga un día pero no una hora exacta (para hoy, el jueves en la tarde), usa free_slots y ofrécele 3 o 4 horas de esa lista, repartidas si pidió mañana o tarde. Nunca digas que no hay disponibilidad sin haber usado free_slots para ese día.
 - Si free_slots devuelve total 0 para ese día, NO preguntes si quiere que busques otro día: llama enseguida a next_available desde esa misma fecha y, en el mismo mensaje, dile que ese día no hay y ofrécele las primeras horas reales que existan (por ejemplo: el viernes no tengo horas; la más próxima es el lunes 21 a las 10:00, 11:30 o 16:00).
-- Nunca ofrezcas una hora que ya pasó: ahora son las " . date('H:i') . ".
+- Nunca ofrezcas una hora que ya pasó: la hora actual está al final, en HOY Y CALENDARIO.
 - Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
 - En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
 - No preguntes con qué profesional quiere: si hay varias libres, agenda con la primera y dile con quién quedó. Solo si el cliente pide a alguien en particular, o si tú ya le nombraste a una, pásala en professional_name: no se agenda con otra sin avisarle.
@@ -288,7 +299,7 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - Si una hora que ofreciste ya no se puede, dilo una sola vez y claro (\"esa hora se acaba de ocupar\"); no te contradigas diciendo que hay y que no hay.
 - El correo es OPCIONAL: si el cliente no tiene o no sabe, agenda igual sin correo. NUNCA inventes ni sugieras un correo.
 - Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si tenía VARIOS servicios ese día y cambia de día, crea cada uno en el día nuevo y luego cancela CADA UNO de los anteriores con cancel_booking (una llamada por reserva; create_booking te devuelve la lista en otras_reservas_vigentes). Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok. Y al revés: si create_booking devolvió previous_cancelled true, o cancel_booking respondió ok, la anterior YA está cancelada: dilo como hecho, no preguntes si quiere cancelarla.
-- REGLA DE ORO: por WhatsApp solo se agenda dentro de los próximos 8 días: hasta el " . dia_es(tope_visible()) . ".
+- REGLA DE ORO: por WhatsApp solo se agenda dentro de los próximos 8 días: la fecha límite está al final, en HOY Y CALENDARIO.
 - LOS DOMINGOS NO SE ATIENDE: no ofrezcas domingos ni los nombres como fecha posible, ni siquiera como tope.
   Si el cliente pide una fecha más lejana, dile con naturalidad que esas fechas las coordina el equipo y ofrécele horas dentro de esta semana.
   Si insiste en esa fecha, usa ask_team para preguntarle al equipo si se puede hacer una excepción, y dile que se lo estás consultando.
@@ -1042,7 +1053,7 @@ if ($ejemplos) {
     if ($elegidos) {
         $txt = '';
         foreach ($elegidos as $e) $txt .= "\n— Cliente: " . str_replace("\n", ' / ', $e['cliente']) . "\n  Respuesta del equipo: " . str_replace("\n", ' / ', $e['respuesta']) . "\n";
-        $system .= "\n\nASÍ RESPONDE EL EQUIPO DEL SPA (respuestas reales de Luis y su equipo; aprende de ellas):" . $txt .
+        $cola .= "\n\nASÍ RESPONDE EL EQUIPO DEL SPA (respuestas reales de Luis y su equipo; aprende de ellas):" . $txt .
             "\nCÓMO USAR ESTOS EJEMPLOS:\n- Imita su tono, su forma de explicar y la información útil que entregan (qué recomiendan, cómo lo explican, qué preguntan).\n" .
             "- Si un ejemplo contradice el catálogo, la disponibilidad o los precios de estas instrucciones, manda el catálogo: los ejemplos pueden ser de antes de un cambio.\n" .
             "- No copies nombres, fechas ni datos de otros clientes. No digas que estás usando ejemplos.";
@@ -1064,7 +1075,7 @@ $clienteConocido = $phone ? cliente_por_telefono($phone) : null;
 $yaPreguntoNombre = (bool)array_filter($convo, fn($m) => $m['role'] === 'assistant' && preg_match('/a nombre de/iu', $m['content']));
 if ($clienteConocido) {
     $k = $clienteConocido;
-    $system = "CLIENTE QUE YA CONOCEMOS (encontrado por su número de WhatsApp):
+    $cola .= "\n\nCLIENTE QUE YA CONOCEMOS (encontrado por su número de WhatsApp):
 - Nombre en la ficha: {$k['nombre']}
 - Correo en la ficha: " . ($k['correo'] ? $k['correo_oculto'] : '(no tiene)') . "
 - Veces atendido: {$k['atendidas']}" . ($k['ultima'] ? " · última atención: {$k['ultima']}" : '') . "
@@ -1083,9 +1094,11 @@ CÓMO USARLO:
 " . ($k['correo'] ? '' : "- La ficha no tiene correo: puedes pedírselo una sola vez, al final, como opcional (\"si quieres, déjame tu correo para tu ficha\"). Si no lo da, agenda igual.\n") . "- Si pregunta por sus horas, usa las próximas reservas de arriba. Si quiere cambiar una, usa replace_date y replace_time.
 - Si le enviamos un recordatorio y responde que sí asistirá (\"sí\", \"confirmo\", \"ahí estaré\"), llama a confirm_booking con esa fecha y hora. Solo di que quedó confirmada si la función respondió ok.
 - Nunca escribas el correo del cliente, ni completo ni enmascarado, salvo que él pregunte qué correo tenemos (ahí usa el enmascarado).
-
-" . $system;
+";
 }
+
+/* lo que cambia en cada mensaje, al final (ver "Ahorro" más arriba) */
+$system .= $cola . "\n\n" . $hoyTxt . "\n\nSALUDO:" . $bienvenidasTxt;
 
 /* lo que se va a escuchar se escribe distinto: corrido, sin listas ni emojis */
 if (!empty($input['voz'])) {
@@ -1117,7 +1130,19 @@ function openai($KEY, $MODEL, $tools, $messages) {
         CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$KEY, 'Content-Type: application/json'],
         CURLOPT_POSTFIELDS=>json_encode(cuerpoOpenAI($MODEL, $tools, $messages))]);
     $r=curl_exec($ch); $code=curl_getinfo($ch,CURLINFO_HTTP_CODE); curl_close($ch);
-    return [$code, json_decode($r,true)];
+    $j = json_decode($r,true);
+    uso_openai($MODEL, $j['usage'] ?? null);
+    return [$code, $j];
+}
+/* registro del consumo de cada llamada (para ver el gasto y si se aprovecha la
+   caché de OpenAI): fecha, modelo, tokens enviados, de ellos en caché, y de respuesta */
+function uso_openai($modelo, $u) {
+    if (!is_array($u)) return;
+    $f = __DIR__ . '/bot-sessions/_uso.log';
+    if (@filesize($f) > 3000000) @rename($f, $f . '.1');
+    $linea = [date('Y-m-d H:i:s'), $modelo, (int)($u['prompt_tokens'] ?? 0),
+              (int)($u['prompt_tokens_details']['cached_tokens'] ?? 0), (int)($u['completion_tokens'] ?? 0)];
+    @file_put_contents($f, implode("\t", $linea) . "\n", FILE_APPEND | LOCK_EX);
 }
 
 $booked=null;
