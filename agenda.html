@@ -1534,6 +1534,16 @@ body.sin-scroll{overflow:hidden}
 .rvm-tabla .r{text-align:right}
 .rvm-total td{font-weight:700;background:var(--cream-2,#f4efe6)}
 @media (max-width:700px){ .rvm-barras{gap:2px;height:160px} .rvm-b em{display:none} .rvm-lbl{font-size:.56rem} }
+.ab-panel{display:flex;flex-direction:column;gap:18px}
+.ab-estado{display:flex;gap:14px;align-items:center}
+.ab-estado .ab-sw{flex:0 0 42px;margin:0}
+.ab-estado strong{display:block;font-size:1rem}
+.ab-estado span{font-size:.8rem;color:var(--mid)}
+.ab-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.ab-campos label{display:block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mid);margin-bottom:6px}
+.ab-campos .rem-note{margin-top:6px}
+.ab-acciones{display:flex;justify-content:flex-end}
+.ab-lista{margin:6px 0 0 18px;font-size:.84rem;line-height:1.6;color:var(--mid)}
 .lc-abono{margin-top:18px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--gold-pale,#faf5ec)}
 .lc-abono #lcAbonoDatos[hidden]{display:none}
 .ad-auto{border-color:var(--gold);background:linear-gradient(180deg,var(--gold-pale,#faf5ec),#fff 70%)}
@@ -2690,6 +2700,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <button class="adm-nav" data-sec="profesionales" onclick="admSec('profesionales')">👤 Profesionales</button>
           <button class="adm-nav" data-sec="servicios" onclick="admSec('servicios')">🧾 Servicios</button>
           <button class="adm-nav" data-sec="usuarios" onclick="admSec('usuarios')">🔐 Usuarios y accesos</button>
+          <button class="adm-nav" data-sec="abono" onclick="admSec('abono')">💳 Pago en línea (abono)</button>
         </div>
         <div class="adm-box">
           <button class="adm-box-head" onclick="document.getElementById('admAdvanced').classList.toggle('hide')">Opciones avanzadas <span>▾</span></button>
@@ -3616,20 +3627,8 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           </div>
           <p class="rem-note" style="margin-top:4px">Pasado ese plazo, el sitio les pide escribir por WhatsApp. Con 0 pueden hacerlo hasta la hora de la cita.</p>
           <div class="lc-abono">
-            <label class="chk"><input type="checkbox" id="lcAbono" onchange="lcAbonoVer()" /> <span><strong>Pago en línea:</strong> pedir un abono para confirmar las reservas del sitio web</span></label>
-            <div id="lcAbonoDatos">
-              <label style="margin-top:12px" for="lcAbonoMonto">Monto del abono</label>
-              <div class="lc-dias">
-                <span>$</span>
-                <input type="number" id="lcAbonoMonto" min="350" max="1000000" step="500" />
-              </div>
-              <label style="margin-top:12px" for="lcAbonoMin">Tiempo para pagarlo</label>
-              <div class="lc-dias">
-                <input type="number" id="lcAbonoMin" min="5" max="120" step="1" />
-                <span>minutos; si no paga, la hora se libera sola</span>
-              </div>
-            </div>
-            <p class="rem-note" style="margin-top:6px">Se paga con Flow, igual que las gift cards. La hora queda como <em>Pago pendiente</em> hasta que se paga; al pagarse queda Reservada y abonada, y el resto se cobra en el local como cualquier abono. Si el servicio cuesta menos que el abono, se cobra el total. No se cobra abono al reservar con gift card, ni en las reservas de Mariet o del panel.</p>
+            <strong>💳 Pago en línea (abono):</strong> <span id="lcAbonoEstado"></span><br>
+            <a href="#" onclick="closeModal('localModal'); admSec('abono'); return false" style="color:var(--gold-d);font-weight:700">Activarlo, desactivarlo o cambiar el monto →</a>
           </div>
           <label style="margin-top:16px">Descripción del local</label>
           <textarea id="lcDesc" rows="3" placeholder="Centro Podológico & Spa en Santiago Centro…"></textarea>
@@ -9976,6 +9975,7 @@ function renderAdmin(){
   else if(admCurrent==='usuarios'){ el.innerHTML=admUsuarios(); loadPanelUsers().then(()=>{ if(admCurrent==='usuarios') el.innerHTML=admUsuarios() }) }
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else if(admCurrent==='precios') el.innerHTML=admPrecios()
+  else if(admCurrent==='abono'){ el.innerHTML=admAbono(); cargarAbonosRecibidos() }
   else if(admCurrent==='recursos') el.innerHTML=admRecursos()
   else if(admCurrent==='config'){ el.innerHTML=admConfig(); if(isAdmin()) pintarRespaldos() }
   else if(admCurrent==='mensajes') el.innerHTML=admMensajes()
@@ -9996,6 +9996,94 @@ function admLocales(){
       <button class="mini-btn" onclick="openLocalModal()">✎ Editar</button>
     </div>`
 }
+/* ── ADMINISTRACIÓN · PAGO EN LÍNEA (ABONO) ──
+   Luis activa, desactiva y cambia el abono que se cobra al reservar por el
+   sitio web. Se guarda en bot_config.local_info.abonoWeb; la base, el sitio y
+   api/abono-web.php leen de ahí. */
+let abonosRecibidos = null
+function abonoActual(){ const a = localInfo.abonoWeb || {}; return { activo: !!a.activo, monto: a.monto || 10000, minutos: a.minutos || 20 } }
+function admAbono(){
+  const a = abonoActual()
+  const lista = abonosRecibidos === null
+    ? '<p class="rem-note" style="margin:0">Cargando…</p>'
+    : abonosRecibidos.length
+      ? abonosRecibidos.map(v => `<div class="rs-line"><span class="rl-n">${esc(String(v.sale_date || '').split('-').reverse().join('/'))} · ${esc(v.client_name || 'Cliente')}${Array.isArray(v.items) && v.items[0] && v.items[0].name ? ' · ' + esc(v.items[0].name) : ''}</span><span class="rl-v">${fmtMoney(v.total)}</span></div>`).join('')
+      : '<p class="rem-note" style="margin:0">Todavía no se ha recibido ningún abono en línea.</p>'
+  return `<div class="inv-notice">💳 <strong>Pago en línea al reservar por el sitio web.</strong> Si está activado, quien reserva en spainfinity.cl paga un abono con Flow (la misma pasarela de las gift cards) para confirmar su hora. El resto lo paga en el local.</div>
+    <div class="rr-panel ab-panel">
+      <div class="ab-estado">
+        <label class="sw ab-sw"><input type="checkbox" id="abOn" ${a.activo ? 'checked' : ''} onchange="abonoVerEstado()" /><i></i></label>
+        <div>
+          <strong id="abEstadoTxt">${a.activo ? 'Activado' : 'Desactivado'}</strong>
+          <span id="abEstadoSub">${a.activo ? 'Las reservas del sitio piden el abono para confirmarse.' : 'Las reservas del sitio se confirman sin pagar nada.'}</span>
+        </div>
+      </div>
+      <div class="ab-campos">
+        <div>
+          <label for="abMonto">Monto del abono</label>
+          <div class="lc-dias"><span>$</span><input type="number" id="abMonto" min="350" max="1000000" step="500" value="${a.monto}" /></div>
+          <p class="rem-note">Mínimo $350 (lo que acepta Flow). Si un servicio cuesta menos, se cobra su precio completo.</p>
+        </div>
+        <div>
+          <label for="abMin">Tiempo para pagarlo</label>
+          <div class="lc-dias"><input type="number" id="abMin" min="5" max="120" step="1" value="${a.minutos}" /><span>minutos</span></div>
+          <p class="rem-note">Mientras tanto la hora queda apartada como <em>Pago pendiente</em>. Si no paga, se libera sola.</p>
+        </div>
+      </div>
+      <div class="ab-acciones"><button class="btn-primary" id="abGuardar" onclick="guardarAbono()">Guardar</button></div>
+    </div>
+    <div class="rr-panel" style="margin-top:14px">
+      <h5>Cómo funciona</h5>
+      <ul class="ab-lista">
+        <li>Al pagarse, la hora queda <strong>Reservada</strong> y el abono aparece como venta parcial. Al cobrar en el local se descuenta solo.</li>
+        <li>No se cobra abono al reservar con gift card, ni en las reservas de Mariet (WhatsApp) o del panel.</li>
+        <li>Si alguien cancela, la devolución del abono se hace a mano.</li>
+      </ul>
+    </div>
+    <div class="rr-panel" style="margin-top:14px">
+      <h5>Últimos abonos recibidos</h5>
+      ${lista}
+    </div>`
+}
+function abonoVerEstado(){
+  const on = document.getElementById('abOn').checked
+  document.getElementById('abEstadoTxt').textContent = on ? 'Activado' : 'Desactivado'
+  document.getElementById('abEstadoSub').textContent = on
+    ? 'Guarda para que las reservas del sitio pidan el abono.'
+    : 'Guarda para que las reservas del sitio se confirmen sin pagar.'
+}
+async function cargarAbonosRecibidos(){
+  try{
+    abonosRecibidos = await supabase.fetch('sales', { select:'sale_date,client_name,total,items',
+      filters:'payment_method=eq.' + encodeURIComponent('Pago en línea (Flow)') + '&status=neq.deleted', order:'created_at.desc&limit=10' }) || []
+  }catch(e){ abonosRecibidos = [] }
+  if(admCurrent === 'abono') renderAdmin()
+}
+async function guardarAbono(){
+  const activo = document.getElementById('abOn').checked
+  const monto = Math.round(Number(document.getElementById('abMonto').value))
+  const minutos = Math.round(Number(document.getElementById('abMin').value))
+  if(!(monto >= 350)){ toast('El abono debe ser de al menos $350 (lo mínimo que acepta Flow)','error'); return }
+  if(monto > 1000000){ toast('Ese monto es demasiado alto','error'); return }
+  if(!(minutos >= 5 && minutos <= 120)){ toast('El tiempo para pagar debe estar entre 5 y 120 minutos','error'); return }
+  const b = document.getElementById('abGuardar'); b.disabled = true; b.textContent = 'Guardando…'
+  try{
+    /* se parte de lo que hay en la base, no de lo que cargó esta pantalla:
+       así no se pisa un cambio hecho desde otro computador */
+    const fila = await supabase.fetch('bot_config', { select:'local_info', filters:'id=eq.1' })
+    const actual = (fila && fila[0] && fila[0].local_info) || localInfo
+    const nuevo = { ...actual, abonoWeb: { activo, monto, minutos } }
+    await supabase.update('bot_config', '1', { local_info: nuevo })
+    localInfo = { ...localInfo, abonoWeb: nuevo.abonoWeb }
+    if(botCfg) botCfg.local_info = { ...(botCfg.local_info || {}), abonoWeb: nuevo.abonoWeb }
+    try{ localStorage.setItem('spa_local_info', JSON.stringify(localInfo)) }catch(e){}
+    toast(activo ? 'Abono activado: ' + fmtMoney(monto) + ' al reservar por el sitio' : 'Abono desactivado', 'success')
+  }catch(e){
+    toast('No se pudo guardar: ' + (e.message || e), 'error')
+  }
+  renderAdmin()
+}
+
 /* ── ADMINISTRACIÓN · PRECIOS INTELIGENTES ──
    Descuentos automáticos en las franjas de baja demanda. Se guardan en
    bot_config.smart_pricing y el asistente los usa al ofrecer horas. */
@@ -14061,11 +14149,8 @@ function openLocalModal(){
   document.getElementById('lcOnline').checked=localInfo.online!==false
   document.getElementById('lcMaxDias').value = localInfo.maxDias || 14
   document.getElementById('lcCancelHoras').value = localInfo.cancelHoras != null && localInfo.cancelHoras !== '' ? localInfo.cancelHoras : 24
-  const _ab = localInfo.abonoWeb || {}
-  document.getElementById('lcAbono').checked = !!_ab.activo
-  document.getElementById('lcAbonoMonto').value = _ab.monto || 10000
-  document.getElementById('lcAbonoMin').value = _ab.minutos || 20
-  lcAbonoVer()
+  const _ab = abonoActual()
+  document.getElementById('lcAbonoEstado').textContent = _ab.activo ? 'activado, ' + fmtMoney(_ab.monto) + ' al reservar por el sitio' : 'desactivado'
   document.getElementById('lcShowPrice').checked=localInfo.showPrice!==false
   document.getElementById('lcShowDur').checked=localInfo.showDur!==false
   document.getElementById('lcDesc').value=localInfo.desc||''
@@ -14080,9 +14165,6 @@ function openLocalModal(){
     </tr>`}).join('')
   localTab('basicos')
   openModal('localModal')
-}
-function lcAbonoVer(){
-  document.getElementById('lcAbonoDatos').hidden = !document.getElementById('lcAbono').checked
 }
 function copyHoursToAll(){
   const s=document.querySelector('[data-lcs="1"]').value, e=document.querySelector('[data-lce="1"]').value
@@ -14108,13 +14190,13 @@ async function saveLocal(){
       document.querySelector(`[data-lcd="${d}"]`).checked]
   })
   const _cancelH = Math.round(Number(document.getElementById('lcCancelHoras').value))
-  /* el abono en línea: Flow no acepta menos de $350 */
-  const _abOn = document.getElementById('lcAbono').checked
-  const _abMonto = Math.round(Number(document.getElementById('lcAbonoMonto').value))
-  const _abMin = Math.round(Number(document.getElementById('lcAbonoMin').value))
-  if(_abOn && !(_abMonto >= 350)){ localTab('web'); toast('El abono debe ser de al menos $350 (lo mínimo que acepta Flow)','error'); return }
-  const abonoWeb = { activo: _abOn, monto: _abMonto >= 350 ? Math.min(_abMonto, 1000000) : 10000,
-    minutos: _abMin >= 5 ? Math.min(_abMin, 120) : 20 }
+  /* el abono se edita en su propia sección: aquí se conserva el que está en la
+     base, por si se cambió desde otro computador después de abrir el panel */
+  let abonoWeb = localInfo.abonoWeb
+  try{
+    const fila = await supabase.fetch('bot_config', { select:'local_info', filters:'id=eq.1' })
+    if(fila && fila[0] && fila[0].local_info) abonoWeb = fila[0].local_info.abonoWeb
+  }catch(e){}
   localInfo={ ...localInfo, abonoWeb, cancelHoras: isFinite(_cancelH) && _cancelH >= 0 ? Math.min(_cancelH, 168) : 24,
     name, address:document.getElementById('lcAddress').value.trim(), extra:document.getElementById('lcExtra').value.trim(),
     tz:document.getElementById('lcTz').value, phone:document.getElementById('lcPhone').value.trim(),
