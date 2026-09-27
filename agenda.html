@@ -8131,9 +8131,15 @@ async function saveAppt(){
    cobró el abono y la pasó a Tipo 2), el abono seguía diciendo "Tipo 1 sobre
    $27.000": la ficha lo mostraba como un servicio extra y el saldo salía mal.
    Aquí el abono pasa al servicio nuevo y su base se corre en la diferencia de
-   precio (así se respeta un descuento que se haya hecho al abonar). */
+   precio (así se respeta un descuento que se haya hecho al abonar).
+   Lo mismo cuando Luis ajusta a mano solo el PRECIO de la reserva (Mauricio
+   Fierro: abonó $10.000 sobre $45.000 y la sesión quedó en $29.900): el saldo
+   tiene que salir del precio ajustado, $19.900, no de los $45.000. */
 async function abonosAlNuevoServicio(antes, row){
-  if(!antes || !antes.id || !antes.service_name || antes.service_name === row.service_name) return
+  if(!antes || !antes.id || !antes.service_name) return
+  const cambiaServicio = antes.service_name !== row.service_name
+  const cambiaPrecio = money2num(antes.price) !== money2num(row.price) && money2num(row.price) > 0
+  if(!cambiaServicio && !cambiaPrecio) return
   const norm = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()
   const precioViejo = money2num(antes.price), precioNuevo = money2num(row.price)
   for(const v of ventasDe(antes).filter(esAbono)){
@@ -12356,14 +12362,20 @@ function montoAcordado(a){
   if(!a) return 0
   const abonos = ventasDe(a).filter(esAbono)
     .sort((x,y)=>String(x.created_at||'').localeCompare(String(y.created_at||'')))
+  /* Si el precio de la reserva quedó por debajo de la base del abono, es que
+     se ajustó después de abonar: manda el precio de la reserva. (Cuando se
+     abona con descuento pasa lo contrario: la base queda por debajo del
+     precio, y ahí manda la base.) */
+  const actual = money2num(a.price)
+  const tope = n => (actual > 0 && actual < n) ? actual : n
   for(const v of abonos){
     const m = String(v.notes||'').match(/sobre \$?\s*([\d.]+)/)
-    if(m){ const n = money2num(m[1]); if(n > 0) return n }
+    if(m){ const n = money2num(m[1]); if(n > 0) return tope(n) }
     const items = Array.isArray(v.items) ? v.items : JSON.parse(v.items||'[]')
     const lista = items.reduce((t,it)=> t + Number(it.qty||1)*Number(it.price||0), 0)
-    if(lista > 0) return lista
+    if(lista > 0) return tope(lista)
   }
-  return money2num(a.price)
+  return actual
 }
 function saldoPendiente(a){ return Math.max(0, montoAcordado(a) - totalCobrado(a)) }
 /* reservas cobrables: ya ocurrieron, tienen precio y nadie las pagó */
