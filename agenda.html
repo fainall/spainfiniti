@@ -9963,6 +9963,7 @@ function loadLocalInfo(){
   if(botCfg && botCfg.local_info) localInfo=Object.assign(localInfo, botCfg.local_info)
 }
 function admSec(sec){
+  if(sec === 'abono') abonosRecibidos = null     // al entrar se vuelve a pedir la lista
   admCurrent=sec
   document.querySelectorAll('.adm-nav[data-sec]').forEach(b=>b.classList.toggle('on', b.dataset.sec===sec))
   renderAdmin()
@@ -9975,7 +9976,7 @@ function renderAdmin(){
   else if(admCurrent==='usuarios'){ el.innerHTML=admUsuarios(); loadPanelUsers().then(()=>{ if(admCurrent==='usuarios') el.innerHTML=admUsuarios() }) }
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else if(admCurrent==='precios') el.innerHTML=admPrecios()
-  else if(admCurrent==='abono'){ el.innerHTML=admAbono(); cargarAbonosRecibidos() }
+  else if(admCurrent==='abono'){ el.innerHTML=admAbono(); if(abonosRecibidos === null) cargarAbonosRecibidos() }
   else if(admCurrent==='recursos') el.innerHTML=admRecursos()
   else if(admCurrent==='config'){ el.innerHTML=admConfig(); if(isAdmin()) pintarRespaldos() }
   else if(admCurrent==='mensajes') el.innerHTML=admMensajes()
@@ -10002,13 +10003,15 @@ function admLocales(){
    api/abono-web.php leen de ahí. */
 let abonosRecibidos = null
 function abonoActual(){ const a = localInfo.abonoWeb || {}; return { activo: !!a.activo, monto: a.monto || 10000, minutos: a.minutos || 20 } }
-function admAbono(){
-  const a = abonoActual()
-  const lista = abonosRecibidos === null
+function listaAbonosRecibidos(){
+  return abonosRecibidos === null
     ? '<p class="rem-note" style="margin:0">Cargando…</p>'
     : abonosRecibidos.length
       ? abonosRecibidos.map(v => `<div class="rs-line"><span class="rl-n">${esc(String(v.sale_date || '').split('-').reverse().join('/'))} · ${esc(v.client_name || 'Cliente')}${Array.isArray(v.items) && v.items[0] && v.items[0].name ? ' · ' + esc(v.items[0].name) : ''}</span><span class="rl-v">${fmtMoney(v.total)}</span></div>`).join('')
       : '<p class="rem-note" style="margin:0">Todavía no se ha recibido ningún abono en línea.</p>'
+}
+function admAbono(){
+  const a = abonoActual()
   return `<div class="inv-notice">💳 <strong>Pago en línea al reservar por el sitio web.</strong> Si está activado, quien reserva en spainfinity.cl paga un abono con Flow (la misma pasarela de las gift cards) para confirmar su hora. El resto lo paga en el local.</div>
     <div class="rr-panel ab-panel">
       <div class="ab-estado">
@@ -10043,7 +10046,7 @@ function admAbono(){
     </div>
     <div class="rr-panel" style="margin-top:14px">
       <h5>Últimos abonos recibidos</h5>
-      ${lista}
+      <div id="abRecibidos">${listaAbonosRecibidos()}</div>
     </div>`
 }
 function abonoVerEstado(){
@@ -10058,7 +10061,8 @@ async function cargarAbonosRecibidos(){
     abonosRecibidos = await supabase.fetch('sales', { select:'sale_date,client_name,total,items',
       filters:'payment_method=eq.' + encodeURIComponent('Pago en línea (Flow)') + '&status=neq.deleted', order:'created_at.desc&limit=10' }) || []
   }catch(e){ abonosRecibidos = [] }
-  if(admCurrent === 'abono') renderAdmin()
+  const caja = document.getElementById('abRecibidos')
+  if(caja) caja.innerHTML = listaAbonosRecibidos()
 }
 async function guardarAbono(){
   const activo = document.getElementById('abOn').checked
