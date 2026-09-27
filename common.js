@@ -224,7 +224,7 @@ function renderFooter() {
       <h4>3. Cancelaciones y Reprogramaciones</h4>
       <p>Si necesita cancelar o cambiar la fecha de su cita, le pedimos hacerlo con al menos 24 horas de anticipación. Las cancelaciones de última hora afectan directamente la agenda de nuestros especialistas.</p>
       <h4>4. Abono en línea</h4>
-      <p>Las reservas hechas en el sitio web pueden requerir el pago de un abono con Flow para quedar confirmadas; el resto se paga en el local. <strong>El abono no es reembolsable si cancela o no asiste a su cita.</strong> Si cambia su hora con al menos 24 horas de anticipación, el abono se aplica a la nueva fecha. <a href="/terminos.html#abono">Ver términos y condiciones</a>.</p>
+      <p>Las reservas hechas en el sitio web pueden requerir el pago de un abono con Flow para quedar confirmadas; el resto se paga en el local. <strong>El abono no es reembolsable si cancela o no asiste a su cita.</strong> <a href="/terminos.html#abono">Ver términos y condiciones</a>.</p>
     </div>
   </div>
 </div>

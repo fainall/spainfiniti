@@ -495,7 +495,7 @@ function pintarFormulario(){
         : `Total: <strong>${money(p.precio)}</strong>${p.pct ? ` <span class="sp-tag">−${p.pct}% por horario</span>` : ''}`}
       ${ab ? `<div class="abono">Para confirmar tu hora pagas ${p.precio > 0 && abonoPara(ab, p.precio) >= p.precio ? 'el total' : 'un abono'} de <strong>${money(abonoPara(ab, p.precio))}</strong> en línea${p.precio > abonoPara(ab, p.precio) ? `; el resto, ${money(p.precio - abonoPara(ab, p.precio))}, lo pagas en el local` : ''}.
         <small>Pago seguro con Flow (tarjetas, transferencia y más). Tienes ${ab.minutos} minutos para pagarlo; si no, la hora se libera.</small>
-        <small><strong>El abono no es reembolsable</strong> si cancelas o no asistes. Si cambias tu hora con al menos 24 horas de anticipación, se aplica a la nueva fecha.</small></div>` : ''}
+        <small><strong>El abono no es reembolsable</strong> si cancelas o no asistes.</small></div>` : ''}
     </div>
     ${ab ? `<label class="acepto"><input type="checkbox" id="aceptoTerminos" /> <span>Acepto los <a href="/terminos.html#abono" target="_blank" rel="noopener">términos y condiciones</a>, incluido que el abono no es reembolsable.</span></label>` : ''}
     <div class="err" id="err"></div>

@@ -156,7 +156,7 @@ function cr_html($a, $prof, $paraSpa, $opc = []) {
         . '<a href="https://wa.me/' . $e(cliente_whatsapp()) . '" style="color:#8a7344">+' . $e(cliente_whatsapp()) . '</a></p>';
     if (!$paraSpa && !empty($opc['abono'])) {
         $pie = '<p style="margin:18px 0 0;font-size:13px;color:#666666;background-color:#f7f2ea;padding:10px 12px;border-radius:8px">'
-            . '<strong>Sobre tu abono:</strong> no es reembolsable si cancelas o no asistes. Si necesitas cambiar tu hora, avísanos con al menos 24 horas de anticipación y lo aplicamos a la nueva fecha. '
+            . '<strong>Sobre tu abono:</strong> no es reembolsable si cancelas o no asistes. '
             . '<a href="' . cliente_dominio() . '/terminos.html#abono" style="color:#8a7344">Términos y condiciones</a>.</p>' . $pie;
     }
     if (!empty($opc['sinPie'])) $pie = '';
