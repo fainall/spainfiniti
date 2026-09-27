@@ -59,6 +59,13 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .ir-pago p{margin-top:10px}
 .ir-pago .ir-nota{font-size:.8rem;color:var(--light)}
 .ir-pago .btn-ok{margin-top:22px}
+.bienvenida{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(135deg,#fbf6ec,#f3e8d3);border:1px solid #e8d9bb;border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:.86rem;line-height:1.55;color:var(--mid)}
+.bienvenida .bv-em{font-size:1.6rem;line-height:1}
+.bienvenida strong.bv-hola{display:block;font-family:'Playfair Display',serif;font-size:1.08rem;color:var(--dark);margin-bottom:2px}
+.bienvenida small{display:block;font-size:.78rem;color:var(--light);margin-top:4px}
+.bienvenida a{color:var(--gold-d);font-weight:600;cursor:pointer}
+.done .cuenta-cta{background:var(--gold-pale);border-radius:10px;padding:12px 14px;margin-top:18px;font-size:.84rem;color:var(--mid);line-height:1.55}
+.done .cuenta-cta a{color:var(--gold-d);font-weight:700}
 .err{background:#fdecea;color:#c0392b;border-radius:9px;padding:12px 14px;font-size:.84rem;margin-top:14px;display:none}
 .done{text-align:center;padding:44px 24px}
 .done .em{font-size:3.2rem;margin-bottom:14px}
@@ -156,6 +163,52 @@ const fechaLarga = f => { const d = new Date(f + 'T00:00:00'); return ['domingo'
 let servicio = null, config = {}, profesionales = [], citas = []
 let profSel = ''   // '' = cualquiera disponible
 let fechaSel = null, horaSel = null, precioSel = null
+
+/* ── Bienvenida a quien vuelve (pedido de Luis) ──
+   · Con cuenta: su historial dice si ya vino y cuándo fue la última vez.
+   · Sin cuenta: este aparato recuerda los datos de su última reserva (solo en
+     el navegador, nunca se piden al servidor), para no escribirlos de nuevo.
+   No se cargan datos a partir del teléfono que alguien escriba: cualquiera
+   podría escribir el número de otra persona y ver su nombre y su correo. */
+let bienvenida = null      // { nombre, ultima: { servicio, fecha } | null, recordado }
+const CLAVE_DATOS = 'spa_mis_datos'
+const primerNombre = n => String(n || '').trim().split(/\s+/)[0] || ''
+function datosRecordados(){
+  try{
+    const d = JSON.parse(localStorage.getItem(CLAVE_DATOS) || 'null')
+    return d && d.nombre && d.fono ? d : null
+  }catch(e){ return null }
+}
+function recordarDatos(nombre, fono, mail){
+  try{ localStorage.setItem(CLAVE_DATOS, JSON.stringify({ nombre, fono, mail: mail || '', cuando: Date.now() })) }catch(e){}
+}
+function olvidarDatos(){
+  try{ localStorage.removeItem(CLAVE_DATOS) }catch(e){}
+  bienvenida = null
+  render()
+  const n = document.getElementById('nombre'); if(n) n.focus()
+}
+/* la última vez que vino, según el historial de su cuenta */
+function ultimaVisita(citas){
+  const idas = (citas || []).filter(c => c.pasada && !['cancelled','no_show','block','pago_pendiente'].includes(c.estado))
+    .sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))
+  return idas[0] ? { servicio: idas[0].servicio, fecha: idas[0].fecha } : null
+}
+function pintarBienvenida(){
+  if(!bienvenida || citaCambiar) return ''
+  const b = bienvenida
+  if(b.recordado) return `<div class="bienvenida"><span class="bv-em">👋</span><div>
+      <strong class="bv-hola">¡Hola de nuevo, ${esc(b.nombre)}!</strong>
+      Qué gusto tenerte de vuelta. Ya dejamos puestos tus datos de la última vez: solo elige el día y la hora.
+      <small>¿No eres ${esc(b.nombre)}? <a onclick="olvidarDatos()">Usar otros datos</a></small></div></div>`
+  if(b.ultima) return `<div class="bienvenida"><span class="bv-em">👋</span><div>
+      <strong class="bv-hola">¡Hola de nuevo, ${esc(b.nombre)}!</strong>
+      Qué gusto tenerte de vuelta.
+      <small>Tu última visita fue el ${esc(fechaLarga(b.ultima.fecha))}${b.ultima.servicio ? ' (' + esc(b.ultima.servicio) + ')' : ''}.</small></div></div>`
+  return `<div class="bienvenida"><span class="bv-em">✨</span><div>
+      <strong class="bv-hola">¡Te damos la bienvenida, ${esc(b.nombre)}!</strong>
+      Ya tenemos tus datos: solo elige el día y la hora.</div></div>`
+}
 
 /* ── Abono en línea (pedido de Luis) ──
    Si el spa lo activa en el panel, la reserva del sitio queda esperando el
@@ -416,6 +469,7 @@ function pintarFormulario(){
   if(!fechaSel || !horaSel) return ''
   const p = precioEn(fechaSel, horaSel)
   const ab = abonoWeb()
+  const rec = !cuentaCliente && bienvenida && bienvenida.recordado ? datosRecordados() : null
   const d = new Date(fechaSel+'T00:00:00')
   const datos = cuentaCliente
     ? `<div class="cuenta-datos">
@@ -423,10 +477,10 @@ function pintarFormulario(){
         <a href="/mi-cuenta#datos">Editar</a>
       </div>
       ${cuentaCliente.fono ? '' : '<label>Teléfono *</label><input type="tel" id="fono" placeholder="+56 9 1234 5678" />'}`
-    : `${(typeof CLIENTE === 'undefined' || CLIENTE.cuentasClientes !== false) ? `<p class="cuenta-invita">¿Tienes cuenta? <a href="${esc('/ingresar?volver=' + encodeURIComponent(location.pathname + location.search))}">Ingresa</a> y usamos tus datos.</p>` : ''}
-      <label>Nombre y apellido *</label><input type="text" id="nombre" placeholder="Cómo te llamas" />
-      <label>Teléfono *</label><input type="tel" id="fono" placeholder="+56 9 1234 5678" />
-      <label>Correo</label><input type="email" id="mail" placeholder="${ab ? 'tu@email.com (para la confirmación y el comprobante)' : 'tu@email.com (opcional)'}" />`
+    : `${(typeof CLIENTE === 'undefined' || CLIENTE.cuentasClientes !== false) ? `<p class="cuenta-invita">¿Tienes cuenta? <a href="${esc('/ingresar?volver=' + encodeURIComponent(location.pathname + location.search))}">Ingresa</a> y usamos tus datos. ¿No tienes? <a href="${esc('/ingresar?modo=registro&volver=' + encodeURIComponent(location.pathname + location.search))}">Créala</a> y la próxima vez se cargan solos.</p>` : ''}
+      <label>Nombre y apellido *</label><input type="text" id="nombre" placeholder="Cómo te llamas" value="${esc(rec ? rec.nombre : '')}" />
+      <label>Teléfono *</label><input type="tel" id="fono" placeholder="+56 9 1234 5678" value="${esc(rec ? rec.fono : '')}" />
+      <label>Correo</label><input type="email" id="mail" placeholder="${ab ? 'tu@email.com (para la confirmación y el comprobante)' : 'tu@email.com (opcional)'}" value="${esc(rec ? rec.mail : '')}" />`
   return `<h3>Tus datos</h3>
     ${datos}
     <label>¿Algo que debamos saber?</label><textarea id="nota" rows="2" placeholder="Opcional"></textarea>
@@ -457,6 +511,7 @@ function render(){
       ${m.hourMode === 'range' ? `<span class="sp-tag">Se realiza entre ${m.from} y ${m.to}</span>` : ''}
       ${giftcard ? `<div class="gc-aviso">Gift card <strong>${esc(giftcard.codigo)}</strong>${giftcard.para ? ' de ' + esc(giftcard.para) : ''} · válida hasta el ${giftcard.vence.split('-').reverse().join('/')}. No pagas nada al reservar.</div>` : ''}
     </div>
+    ${pintarBienvenida()}
     ${(() => { const pp = reservaPorPagar(); return pp && !citaCambiar ? `<div class="pendiente-aviso"><strong>Tienes una hora esperando el pago del abono:</strong> ${esc(pp.servicio)}, ${esc(fechaLarga(pp.fecha))} a las ${esc(pp.hora)} hrs. Se libera sola si no lo pagas a tiempo.<br><button id="btnPagarPend" onclick="pagarPendiente()">Pagar el abono ahora</button></div>` : '' })()}
     ${citaCambiar ? `<div class="cambio-aviso"><strong>Estás cambiando tu hora</strong> del ${esc(fechaLarga(citaCambiar.fecha))} a las ${esc(String(citaCambiar.inicio).slice(0,5))} hrs. Elige el nuevo día y hora; la anterior se libera al confirmar. <a href="/mi-cuenta">No cambiar</a></div>` : ''}
     ${pintarDias()}
@@ -551,7 +606,8 @@ async function reservar(){
 
     /* el abono: si la hora espera el pago, se va a Flow; con gift card (o si
        el abono se apagó) el servidor la confirma y manda el correo */
-    let yaConfirmada = false
+    let yaConfirmada = false, vuelve = !!(bienvenida && bienvenida.ultima)
+    if(idReserva && !cuentaCliente) recordarDatos(nombre, fono, mail)
     if(idReserva){
       let pago = null
       try{ pago = await pedirPagoAbono(idReserva, mail) }
@@ -588,6 +644,7 @@ async function reservar(){
         return
       }
       yaConfirmada = !pago.yaEstaba
+      vuelve = !!pago.vuelve
     }
     /* confirmación por correo con la invitación de calendario (no se espera) */
     if(idReserva && !yaConfirmada) fetch('/api/correo-reserva.php', { method:'POST', headers:{ 'Content-Type':'application/json' },
@@ -595,8 +652,9 @@ async function reservar(){
     const d = new Date(fechaSel+'T00:00:00')
     document.getElementById('body').innerHTML = `
       <div class="done">
-        <div class="em">✨</div>
-        <h2>¡Tu hora quedó reservada!</h2>
+        <div class="em">${vuelve ? '🤍' : '✨'}</div>
+        <h2>${vuelve ? '¡Qué bueno tenerte de vuelta, ' + esc(primerNombre(nombre)) + '!' : '¡Tu hora quedó reservada!'}</h2>
+        ${vuelve ? '<p>Tu hora quedó reservada.</p>' : '<p>Te damos la bienvenida a Spa Infinity, ' + esc(primerNombre(nombre)) + '.</p>'}
         <div class="det">
           <strong>${esc(servicio.name)}</strong><br>
           📅 ${DOW_S[d.getDay()]} ${d.getDate()} de ${MES_S[d.getMonth()]}<br>
@@ -607,6 +665,8 @@ async function reservar(){
         ${mail ? `<p style="font-size:.9rem">Te enviamos la confirmación a <strong>${esc(mail)}</strong>, con un botón para agregarla a tu calendario.</p>` : ''}
         <p>Te esperamos en Santo Domingo 1083, oficina 502.<br>
         Si necesitas cambiarla, escríbenos por WhatsApp.</p>
+        ${!cuentaCliente && (typeof CLIENTE === 'undefined' || CLIENTE.cuentasClientes !== false)
+          ? `<div class="cuenta-cta">💡 <a href="/ingresar?modo=registro&volver=/mi-cuenta">Crea tu cuenta</a> y la próxima vez tus datos se cargan solos. Además puedes ver, cambiar o cancelar tus horas.</div>` : ''}
         <div class="done-btns">
           ${cuentaCliente ? '<a class="btn-ok" href="/mi-cuenta">Ver mis horas</a>' : ''}
           <a class="btn-ok${cuentaCliente ? ' sec' : ''}" href="/">Volver al inicio</a>
@@ -666,10 +726,18 @@ async function init(){
         }
       }catch(e){ cuentaCliente = null }   // sesión vencida: se reserva como invitado
     }
+    let mias = null
+    if(cuentaCliente){
+      mias = await Cuenta.rpc('mis_citas').catch(() => null)
+      bienvenida = { nombre: primerNombre(cuentaCliente.nombre), ultima: ultimaVisita(mias), recordado: false }
+    }else{
+      const r = datosRecordados()
+      if(r) bienvenida = { nombre: primerNombre(r.nombre), ultima: null, recordado: true }
+    }
     if(idCambiar){
       if(!cuentaCliente){ await Cuenta.requerirSesion(); return }
       if(giftcard) giftcard = null
-      const mias = await Cuenta.rpc('mis_citas').catch(() => [])
+      if(!mias) mias = await Cuenta.rpc('mis_citas').catch(() => [])
       citaCambiar = (mias || []).find(c => c.id === idCambiar) || null
       if(!citaCambiar || !citaCambiar.cambiable){
         body.innerHTML = '<p class="empty">' + (citaCambiar

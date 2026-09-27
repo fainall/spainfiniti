@@ -26,6 +26,18 @@ function cr_supa($metodo, $ruta, $cuerpo = null) {
     return json_decode((string)$r, true);
 }
 
+/* cuántas veces vino antes: horas suyas de días anteriores que no se
+   cancelaron ni quedaron como inasistencia (sin contar la de ahora) */
+function cr_visitas($a) {
+    if (empty($a['client_id'])) return 0;
+    $tz = new DateTimeZone('America/Santiago');
+    $hoy = (new DateTime('now', $tz))->format('Y-m-d');
+    $r = cr_supa('GET', 'appointments?select=id&client_id=eq.' . rawurlencode($a['client_id'])
+        . '&appt_date=lt.' . $hoy . '&id=neq.' . rawurlencode($a['id'] ?? '')
+        . '&or=(status.is.null,status.not.in.(cancelled,no_show,block,pago_pendiente))&limit=200');
+    return is_array($r) && !isset($r['code']) ? count($r) : 0;
+}
+
 /* "martes 29 de septiembre" */
 function cr_dia($fecha) {
     $ts = strtotime($fecha . ' 12:00:00');
@@ -126,6 +138,17 @@ function cr_html($a, $prof, $paraSpa, $opc = []) {
     $botones = '<p style="margin:0 0 6px;font-size:13px;color:#666">Agrégala a tu calendario:</p>'
         . $boton($g, '📅 Google Calendar', '#1a73e8') . $boton($o, '📅 Outlook', '#0f6cbd')
         . '<p style="margin:10px 0 0;font-size:12px;color:#777777">En iPhone o Mac abre el archivo adjunto <em>reserva.ics</em>.</p>';
+    if (isset($opc['visitas']) && !isset($opc['saludo'])) {
+        $pila = $e(explode(' ', trim($a['client_name'] ?? ''))[0] ?: '');
+        $n = (int)$opc['visitas'];
+        $saludo = $paraSpa
+            ? '<p style="margin:0 0 16px">Entró una reserva nueva' . ($origen ? ' por <strong>' . $e($origen) . '</strong>' : '') . '. '
+              . ($n > 0 ? '<strong>Ya vino antes</strong> (' . $n . ($n === 1 ? ' visita anterior' : ' visitas anteriores') . ').'
+                        : 'Es su <strong>primera vez</strong> en Spa Infinity.') . '</p>'
+            : ($n > 0
+                ? '<p style="margin:0 0 16px">Hola ' . $pila . ', ¡qué gusto verte de nuevo! Tu hora quedó reservada. Te esperamos ✨</p>'
+                : '<p style="margin:0 0 16px">Hola ' . $pila . ', ¡te damos la bienvenida a Spa Infinity! Tu hora quedó reservada y ya te estamos esperando ✨</p>');
+    }
     if (isset($opc['saludo'])) $saludo = $opc['saludo'];
     if (!empty($opc['aviso'])) $saludo .= $opc['aviso'];
     if (!empty($opc['sinCalendario'])) $botones = '';
@@ -192,6 +215,8 @@ function enviar_correo_reserva($id, $forzar = false, $opc = []) {
     $prof = '';
     if (!empty($a['professional_id'])) $prof = cr_supa('GET', 'professionals?select=name&id=eq.' . rawurlencode($a['professional_id']))[0]['name'] ?? '';
     $correoCliente = cr_correo_cliente($a);
+    /* a quien vuelve se le saluda como a quien vuelve (y el spa sabe si es nuevo) */
+    if (!isset($opc['visitas'])) $opc['visitas'] = cr_visitas($a);
 
     $res = ['ok' => true, 'cliente' => 'sin correo', 'spa' => false];
     $asunto = 'Tu hora en Spa Infinity: ' . ($a['service_name'] ?? '') . ' · ' . cr_dia($a['appt_date']) . ' ' . substr($a['start_time'], 0, 5);

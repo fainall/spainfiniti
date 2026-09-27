@@ -29,13 +29,17 @@ if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 
 $a = abono_reserva($id);
 if (!$a) responder(404, ['error' => 'No encontramos esa reserva']);
+/* ¿ya vino antes? (para darle la bienvenida de quien vuelve; el id de la reserva
+   solo lo conoce quien la acaba de hacer) */
+$vuelve = cr_visitas($a) > 0;
+$pila = explode(' ', trim((string)$a['client_name']))[0] ?? '';
 if (!empty($d['consultar'])) {
     $estado = ['reserved' => 'confirmada', 'confirmed' => 'confirmada', 'pago_pendiente' => 'pendiente', 'cancelled' => 'liberada'][$a['status'] ?? ''] ?? 'confirmada';
     responder(200, ['ok' => true, 'estado' => $estado, 'servicio' => $a['service_name'], 'fecha' => $a['appt_date'],
-                    'hora' => substr((string)$a['start_time'], 0, 5)]);
+                    'hora' => substr((string)$a['start_time'], 0, 5), 'nombre' => $pila, 'vuelve' => $vuelve]);
 }
 /* ya confirmada (el abono estaba apagado): el sitio manda el correo como siempre */
-if (($a['status'] ?? '') === 'reserved') responder(200, ['ok' => true, 'confirmada' => true, 'yaEstaba' => true]);
+if (($a['status'] ?? '') === 'reserved') responder(200, ['ok' => true, 'confirmada' => true, 'yaEstaba' => true, 'vuelve' => $vuelve]);
 if (($a['status'] ?? '') !== 'pago_pendiente') {
     responder(410, ['error' => 'El plazo para pagar el abono de esa hora terminó y la hora se liberó. Vuelve a reservar, por favor.']);
 }
@@ -46,10 +50,10 @@ if ($quedan <= 0) {
     responder(410, ['error' => 'El plazo para pagar el abono de esa hora terminó y la hora se liberó. Vuelve a reservar, por favor.']);
 }
 
-$confirmar = function () use ($a) {
+$confirmar = function () use ($a, $vuelve) {
     cr_supa('PATCH', 'appointments?id=eq.' . rawurlencode($a['id']) . '&status=eq.pago_pendiente', ['status' => 'reserved']);
     enviar_correo_reserva($a['id']);
-    responder(200, ['ok' => true, 'confirmada' => true]);
+    responder(200, ['ok' => true, 'confirmada' => true, 'vuelve' => $vuelve]);
 };
 
 /* ── con gift card: ya está pagada, no hay abono ── */
@@ -125,7 +129,7 @@ try {
         /* la orden de Flow vence con la hora: después ya no se puede pagar */
         'timeout'         => max(120, $quedan),
     ]);
-    responder(200, ['ok' => true, 'paymentUrl' => $flow->paymentRedirectUrl($r), 'monto' => $monto, 'minutos' => (int)ceil($quedan / 60)]);
+    responder(200, ['ok' => true, 'paymentUrl' => $flow->paymentRedirectUrl($r), 'monto' => $monto, 'minutos' => (int)ceil($quedan / 60), 'vuelve' => $vuelve]);
 } catch (Exception $e) {
     error_log('abono-web: Flow create failed: ' . $e->getMessage());
     responder(502, ['error' => 'No pudimos iniciar el pago. Inténtalo de nuevo en un momento.']);

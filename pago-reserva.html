@@ -94,8 +94,10 @@ async function mostrar(){
 
   if(estado === 'ok' || (r && r.estado === 'confirmada' && estado !== 'tarde')){
     olvidar()
-    return pintar('✨', '¡Tu hora quedó reservada!',
-      'Recibimos tu abono. Te enviamos la confirmación por correo, con un botón para agregarla a tu calendario. El resto lo pagas en el local.<br>Te esperamos en Santo Domingo 1083, oficina 502.',
+    return pintar(r && r.vuelve ? '🤍' : '✨',
+      r && r.vuelve ? '¡Qué bueno tenerte de vuelta' + (r.nombre ? ', ' + esc(r.nombre) : '') + '!'
+        : '¡Tu hora quedó reservada!' + (r && r.nombre ? '<br><small style="font-size:.8em;font-weight:400">Te damos la bienvenida a Spa Infinity, ' + esc(r.nombre) + '</small>' : ''),
+      (r && r.vuelve ? 'Tu hora quedó reservada. ' : '') + 'Recibimos tu abono. Te enviamos la confirmación por correo, con un botón para agregarla a tu calendario. El resto lo pagas en el local.<br>Te esperamos en Santo Domingo 1083, oficina 502.',
       det, '<a class="btn-ok" href="/">Volver al inicio</a><a class="btn-ok sec" href="/servicios.html">Ver otros servicios</a>')
   }
   if(estado === 'tarde'){
