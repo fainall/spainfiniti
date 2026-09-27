@@ -144,10 +144,10 @@ function cr_html($a, $prof, $paraSpa, $opc = []) {
         $saludo = $paraSpa
             ? '<p style="margin:0 0 16px">Entró una reserva nueva' . ($origen ? ' por <strong>' . $e($origen) . '</strong>' : '') . '. '
               . ($n > 0 ? '<strong>Ya vino antes</strong> (' . $n . ($n === 1 ? ' visita anterior' : ' visitas anteriores') . ').'
-                        : 'Es su <strong>primera vez</strong> en Spa Infinity.') . '</p>'
+                        : 'No tiene visitas anteriores en la agenda (puede ser <strong>cliente nuevo</strong>, o de antes de la agenda propia).') . '</p>'
             : ($n > 0
                 ? '<p style="margin:0 0 16px">Hola ' . $pila . ', ¡qué gusto verte de nuevo! Tu hora quedó reservada. Te esperamos ✨</p>'
-                : '<p style="margin:0 0 16px">Hola ' . $pila . ', ¡te damos la bienvenida a Spa Infinity! Tu hora quedó reservada y ya te estamos esperando ✨</p>');
+                : '<p style="margin:0 0 16px">Hola ' . $pila . ', ¡gracias por elegirnos! Tu hora quedó reservada y ya te estamos esperando ✨</p>');
     }
     if (isset($opc['saludo'])) $saludo = $opc['saludo'];
     if (!empty($opc['aviso'])) $saludo .= $opc['aviso'];

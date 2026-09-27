@@ -654,7 +654,7 @@ async function reservar(){
       <div class="done">
         <div class="em">${vuelve ? '🤍' : '✨'}</div>
         <h2>${vuelve ? '¡Qué bueno tenerte de vuelta, ' + esc(primerNombre(nombre)) + '!' : '¡Tu hora quedó reservada!'}</h2>
-        ${vuelve ? '<p>Tu hora quedó reservada.</p>' : '<p>Te damos la bienvenida a Spa Infinity, ' + esc(primerNombre(nombre)) + '.</p>'}
+        ${vuelve ? '<p>Tu hora quedó reservada.</p>' : '<p>¡Gracias por elegirnos, ' + esc(primerNombre(nombre)) + '!</p>'}
         <div class="det">
           <strong>${esc(servicio.name)}</strong><br>
           📅 ${DOW_S[d.getDay()]} ${d.getDate()} de ${MES_S[d.getMonth()]}<br>
