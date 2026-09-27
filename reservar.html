@@ -236,7 +236,11 @@ async function pedirPagoAbono(id, correo){
   const r = await fetch('/api/abono-web.php', { method:'POST', headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify({ id, correo: correo || undefined, gc: giftcard ? giftcard.codigo : undefined }) })
   const j = await r.json().catch(() => ({}))
-  if(!r.ok || j.error) throw new Error(j.error || 'No pudimos iniciar el pago. Inténtalo de nuevo en un momento.')
+  if(!r.ok || j.error){
+    const e = new Error(j.error || 'No pudimos iniciar el pago. Inténtalo de nuevo en un momento.')
+    e.liberada = !!j.liberada      // el servidor ya soltó la hora
+    throw e
+  }
   return j
 }
 async function pagarPendiente(){
@@ -622,7 +626,7 @@ async function reservar(){
         const ab = abonoWeb()
         /* con el abono apagado la hora ya quedó reservada: se sigue como siempre */
         if(!(((config && config.local_info) || {}).abonoWeb || {}).activo) pago = { yaEstaba: true }
-        else if(!ab) throw e
+        else if(!ab || e.liberada) throw e
         else {
           /* la hora quedó apartada: se puede reintentar el pago sin volver a reservar */
           guardarPorPagar({ id: idReserva, servicio: servicio.name, fecha: fechaSel, hora: horaSel,

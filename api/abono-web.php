@@ -100,37 +100,72 @@ $correo = cr_correo_cliente($a);
 if ($correo === '' && filter_var((string)($d['correo'] ?? ''), FILTER_VALIDATE_EMAIL)) $correo = (string)$d['correo'];
 if ($correo === '') $correo = cliente_correo();   // Flow exige un correo; el comprobante llega al spa
 
-$commerceOrder = 'AB-' . date('YmdHis') . '-' . substr(uniqid(), -5);
 $siteUrl = rtrim($config['siteUrl'], '/');
 if (!is_dir(__DIR__ . '/orders')) mkdir(__DIR__ . '/orders', 0755, true);
-file_put_contents(__DIR__ . '/orders/' . $commerceOrder . '.json', json_encode([
-    'commerceOrder'  => $commerceOrder,
-    'tipo'           => 'abono_web',
-    'amount'         => $monto,
-    'appointment_id' => $a['id'],
-    'client_name'    => $a['client_name'],
-    'service_name'   => $a['service_name'],
-    'price'          => $a['price'],
-    'email'          => $correo,
-    'createdAt'      => date('c'),
-    'status'         => 'pending',
-], JSON_UNESCAPED_UNICODE));
+
+/* crea la orden (archivo + pago en Flow) con un correo; devuelve la respuesta de Flow o lanza el error */
+$crearPago = function ($correo) use ($a, $monto, $quedan, $siteUrl, $config) {
+    $commerceOrder = 'AB-' . date('YmdHis') . '-' . substr(uniqid(), -5);
+    $archivo = __DIR__ . '/orders/' . $commerceOrder . '.json';
+    $orden = [
+        'commerceOrder'  => $commerceOrder,
+        'tipo'           => 'abono_web',
+        'amount'         => $monto,
+        'appointment_id' => $a['id'],
+        'client_name'    => $a['client_name'],
+        'service_name'   => $a['service_name'],
+        'price'          => $a['price'],
+        'email'          => $correo,
+        'createdAt'      => date('c'),
+        'status'         => 'pending',
+    ];
+    file_put_contents($archivo, json_encode($orden, JSON_UNESCAPED_UNICODE));
+    try {
+        $flow = new FlowClient($config);
+        $r = $flow->createPayment([
+            'commerceOrder'   => $commerceOrder,
+            /* lo que el cliente lee en la página de Flow: claro y sin códigos internos */
+            'subject'         => abono_asunto($a, $monto),
+            'amount'          => $monto,
+            'email'           => $correo,
+            'urlConfirmation' => $siteUrl . '/api/flow-confirm.php',
+            'urlReturn'       => $siteUrl . '/api/abono-retorno.php',
+            /* la orden de Flow vence con la hora: después ya no se puede pagar */
+            'timeout'         => max(120, $quedan),
+        ]);
+        return $flow->paymentRedirectUrl($r);
+    } catch (Exception $e) {
+        /* la orden no existe en Flow: se deja anotado y no cuenta como pendiente */
+        $orden['status'] = 'no_creada';
+        $orden['error'] = mb_substr($e->getMessage(), 0, 300);
+        file_put_contents($archivo, json_encode($orden, JSON_UNESCAPED_UNICODE));
+        throw $e;
+    }
+};
 
 try {
-    $flow = new FlowClient($config);
-    $r = $flow->createPayment([
-        'commerceOrder'   => $commerceOrder,
-        /* lo que el cliente lee en la página de Flow: claro y sin códigos internos */
-        'subject'         => abono_asunto($a, $monto),
-        'amount'          => $monto,
-        'email'           => $correo,
-        'urlConfirmation' => $siteUrl . '/api/flow-confirm.php',
-        'urlReturn'       => $siteUrl . '/api/abono-retorno.php',
-        /* la orden de Flow vence con la hora: después ya no se puede pagar */
-        'timeout'         => max(120, $quedan),
-    ]);
-    responder(200, ['ok' => true, 'paymentUrl' => $flow->paymentRedirectUrl($r), 'monto' => $monto, 'minutos' => (int)ceil($quedan / 60), 'vuelve' => $vuelve]);
+    try {
+        $url = $crearPago($correo);
+    } catch (Exception $e) {
+        /* Flow rechaza algunos correos ("The userEmail: … is not valid"), aunque
+           estén bien escritos. Entonces se paga con el correo del spa (el
+           comprobante de Flow llega al spa; la confirmación de la hora igual le
+           llega al cliente a su correo). */
+        if ($correo !== cliente_correo() && preg_match('/email/i', $e->getMessage())) {
+            error_log('abono-web: Flow rechazó el correo del cliente, se usa el del spa: ' . $e->getMessage());
+            $url = $crearPago(cliente_correo());
+        } else {
+            throw $e;
+        }
+    }
+    responder(200, ['ok' => true, 'paymentUrl' => $url, 'monto' => $monto, 'minutos' => (int)ceil($quedan / 60), 'vuelve' => $vuelve]);
 } catch (Exception $e) {
     error_log('abono-web: Flow create failed: ' . $e->getMessage());
-    responder(502, ['error' => 'No pudimos iniciar el pago. Inténtalo de nuevo en un momento.']);
+    /* sin pago no queda una hora a medias: se libera en el acto, y el cliente
+       puede volver a intentarlo desde cero */
+    cr_supa('PATCH', 'appointments?id=eq.' . rawurlencode($a['id']) . '&status=eq.pago_pendiente', [
+        'status' => 'cancelled',
+        'notes'  => trim((string)$a['notes']) . ' · No se pudo iniciar el pago en Flow: la hora se liberó',
+    ]);
+    responder(502, ['error' => 'No pudimos iniciar el pago y la hora no quedó reservada. Inténtalo de nuevo en un momento o escríbenos por WhatsApp.', 'liberada' => true]);
 }
