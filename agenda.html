@@ -1544,6 +1544,22 @@ body.sin-scroll{overflow:hidden}
 .ab-campos .rem-note{margin-top:6px}
 .ab-acciones{display:flex;justify-content:flex-end}
 .ab-lista{margin:6px 0 0 18px;font-size:.84rem;line-height:1.6;color:var(--mid)}
+.rvm-tipos{display:inline-flex;border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.rvm-tipos button{border:0;background:#fff;padding:6px 11px;font-family:inherit;font-size:.76rem;color:var(--mid);cursor:pointer}
+.rvm-tipos button+button{border-left:1px solid var(--border)}
+.rvm-tipos button.on{background:var(--gold);color:#fff;font-weight:600}
+.rvm-svg{width:100%;height:auto;display:block;margin-top:6px}
+.rvm-svg .rvm-guia{stroke:var(--border);stroke-width:1}
+.rvm-svg .rvm-eje{font-size:11px;fill:var(--mid);font-family:inherit}
+.rvm-torta{display:flex;gap:26px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.rvm-torta svg{width:220px;height:220px;flex:0 0 220px}
+.rvm-centro-t{font-size:12px;fill:var(--mid);font-family:inherit}
+.rvm-centro-v{font-size:17px;font-weight:700;fill:#1a2436;font-family:inherit}
+.rvm-ley{flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px}
+.rvm-ley-fila{display:grid;grid-template-columns:12px 1fr auto 44px;gap:8px;align-items:center;font-size:.82rem}
+.rvm-ley-fila i{width:12px;height:12px;border-radius:3px}
+.rvm-ley-fila strong{font-weight:600}
+.rvm-ley-fila em{font-style:normal;color:var(--light);text-align:right}
 .lc-abono{margin-top:18px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--gold-pale,#faf5ec)}
 .lc-abono #lcAbonoDatos[hidden]{display:none}
 .ad-auto{border-color:var(--gold);background:linear-gradient(180deg,var(--gold-pale,#faf5ec),#fff 70%)}
@@ -3684,7 +3700,14 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       <div class="rr-panel" id="rvMensualBox" style="margin-bottom:18px" hidden>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
           <h5 style="margin:0">Resumen mes a mes</h5>
-          <button class="mini-btn" onclick="descargarMensual()">⬇ Descargar</button>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <div class="rvm-tipos" id="rvmTipos" role="group" aria-label="Tipo de gráfico">
+              <button data-tipo="barras" onclick="rvmTipo('barras')">▮ Barras</button>
+              <button data-tipo="lineas" onclick="rvmTipo('lineas')">📈 Líneas</button>
+              <button data-tipo="circular" onclick="rvmTipo('circular')">◔ Circular</button>
+            </div>
+            <button class="mini-btn" onclick="descargarMensual()">⬇ Descargar</button>
+          </div>
         </div>
         <div id="rvMensual"></div>
       </div>
@@ -14374,27 +14397,90 @@ function datosMensuales(f, t){
   })
   return { meses, pros }
 }
+/* Tipo de gráfico del resumen mes a mes (pedido de Luis): barras, líneas o
+   circular. Se recuerda en este computador. */
+function rvmTipoActual(){ try{ const t = localStorage.getItem('spa_rvm_tipo'); return ['barras','lineas','circular'].includes(t) ? t : 'barras' }catch(e){ return 'barras' } }
+function rvmTipo(t){
+  try{ localStorage.setItem('spa_rvm_tipo', t) }catch(e){}
+  const [f, tt] = rvRange(); pintarMensual(f, tt)
+}
+const rvmK = n => n >= 1000000 ? (n / 1000000).toFixed(1).replace('.0', '') + 'M' : Math.round(n / 1000) + 'k'
+/* líneas: una por serie, con un punto por mes (al pasar el mouse muestra el monto) */
+function svgLineas(meses, series){
+  const W = 820, H = 250, izq = 54, der = 16, arr = 16, abj = 30
+  const maxV = Math.max(1, ...series.flatMap(s => s.valores))
+  const n = meses.length
+  const x = i => izq + (n > 1 ? i * (W - izq - der) / (n - 1) : (W - izq - der) / 2)
+  const y = v => arr + (H - arr - abj) * (1 - v / maxV)
+  const guias = [0, .25, .5, .75, 1].map(p => `<line x1="${izq}" x2="${W - der}" y1="${y(maxV * p)}" y2="${y(maxV * p)}" class="rvm-guia"/>
+    <text x="${izq - 8}" y="${y(maxV * p) + 4}" text-anchor="end" class="rvm-eje">${p ? rvmK(maxV * p) : '0'}</text>`).join('')
+  const etiquetas = meses.map((m, i) => `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" class="rvm-eje">${esc(m.nombre)}</text>`).join('')
+  const lineas = series.map(s => `<polyline fill="none" stroke="${esc(s.color)}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"
+      points="${s.valores.map((v, i) => x(i) + ',' + y(v)).join(' ')}"/>
+    ${s.valores.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="${v ? 4 : 2.5}" fill="${v ? esc(s.color) : '#fff'}" stroke="${esc(s.color)}" stroke-width="1.5"><title>${esc(meses[i].nombre + ' · ' + s.nombre + ': ' + fmtMoney(v))}</title></circle>`).join('')}`).join('')
+  return `<svg class="rvm-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de líneas">${guias}${etiquetas}${lineas}</svg>`
+}
+/* circular (dona): la parte de cada uno en el total, con su leyenda */
+function svgTorta(partes, centro){
+  const total = partes.reduce((t, p) => t + p.valor, 0)
+  if(!total) return ''
+  const r = 90, g = 34, c = 110
+  let ang = -Math.PI / 2
+  const punto = (a, rad) => (c + rad * Math.cos(a)).toFixed(2) + ' ' + (c + rad * Math.sin(a)).toFixed(2)
+  const visibles = partes.filter(p => p.valor > 0)
+  const trozos = visibles.map(p => {
+    const frac = p.valor / total, a0 = ang, a1 = ang + frac * 2 * Math.PI; ang = a1
+    const tit = `<title>${esc(p.nombre + ': ' + fmtMoney(p.valor) + ' (' + Math.round(frac * 100) + '%)')}</title>`
+    if(frac >= 0.9999) return `<circle cx="${c}" cy="${c}" r="${r - g / 2}" fill="none" stroke="${esc(p.color)}" stroke-width="${g}">${tit}</circle>`
+    const largo = a1 - a0 > Math.PI ? 1 : 0
+    return `<path d="M ${punto(a0, r)} A ${r} ${r} 0 ${largo} 1 ${punto(a1, r)} L ${punto(a1, r - g)} A ${r - g} ${r - g} 0 ${largo} 0 ${punto(a0, r - g)} Z" fill="${esc(p.color)}">${tit}</path>`
+  }).join('')
+  const leyenda = visibles.slice().sort((a, b) => b.valor - a.valor).map(p =>
+    `<div class="rvm-ley-fila"><i style="background:${esc(p.color)}"></i><span>${esc(p.nombre)}</span><strong>${fmtMoney(p.valor)}</strong><em>${Math.round(p.valor / total * 100)}%</em></div>`).join('')
+  return `<div class="rvm-torta"><svg viewBox="0 0 220 220" role="img" aria-label="Gráfico circular">${trozos}
+      <text x="110" y="104" text-anchor="middle" class="rvm-centro-t">${esc(centro)}</text>
+      <text x="110" y="128" text-anchor="middle" class="rvm-centro-v">${esc(fmtMoney(total))}</text></svg>
+    <div class="rvm-ley">${leyenda}</div></div>`
+}
 function pintarMensual(f, t){
   const { meses, pros } = datosMensuales(f, t)
-  const k = n => n >= 1000000 ? (n / 1000000).toFixed(1).replace('.0', '') + 'M' : Math.round(n / 1000) + 'k'
+  const tipo = rvmTipoActual()
+  document.querySelectorAll('#rvmTipos button').forEach(b => b.classList.toggle('on', b.dataset.tipo === tipo))
+  const k = rvmK
   const maxV = Math.max(1, ...meses.map(m => m.ventas))
+  /* un color por mes para el gráfico circular */
+  const COLORES_MES = ['#C5A467','#2C3E50','#C27B8A','#7FA7C9','#8BB174','#E0A458','#9B7EBD','#5FB3A8','#D98E73','#6C8EAD','#B5A36A','#4F6D7A']
 
-  /* ventas y comisiones: dos barras por mes */
-  document.getElementById('rvChart').innerHTML = meses.some(m => m.ventas)
+  /* ventas y comisiones: barras, líneas o circular */
+  document.getElementById('rvChart').innerHTML = !meses.some(m => m.ventas)
+    ? rrPh('🔍','Ventas por período','No se registran ventas en los últimos 12 meses')
+    : tipo === 'lineas'
     ? `<div class="rvm-leyenda"><span><i style="background:var(--gold)"></i>Ventas</span><span><i style="background:#2C3E50"></i>Comisiones</span></div>
+       ${svgLineas(meses, [{ nombre:'Ventas', color:'#C5A467', valores: meses.map(m => m.ventas) },
+                            { nombre:'Comisiones', color:'#2C3E50', valores: meses.map(m => m.comisiones) }])}`
+    : tipo === 'circular'
+    ? `<p class="rem-note" style="margin:0 0 10px">Cuánto aportó cada mes a las ventas de los últimos 12 meses.</p>
+       ${svgTorta(meses.map((m, i) => ({ nombre: m.nombre, color: COLORES_MES[i % COLORES_MES.length], valor: m.ventas })), 'Ventas')}`
+    : `<div class="rvm-leyenda"><span><i style="background:var(--gold)"></i>Ventas</span><span><i style="background:#2C3E50"></i>Comisiones</span></div>
        <div class="rvm-barras">${meses.map(m => `<div class="rvm-mes" title="${esc(m.nombre)}: ventas ${fmtMoney(m.ventas)} · comisiones ${fmtMoney(m.comisiones)}">
           <div class="rvm-par">
             <span class="rvm-b v" style="height:${m.ventas / maxV * 100}%"><em>${m.ventas ? k(m.ventas) : ''}</em></span>
             <span class="rvm-b c" style="height:${m.comisiones / maxV * 100}%"><em>${m.comisiones ? k(m.comisiones) : ''}</em></span>
           </div><span class="rvm-lbl">${esc(m.nombre)}</span></div>`).join('')}</div>`
-    : rrPh('🔍','Ventas por período','No se registran ventas en los últimos 12 meses')
 
-  /* ventas por profesional: barras apiladas con el color de cada una */
-  const apiladas = pros.length ? `<h6 class="rvm-sub">Ventas por profesional</h6>
+  /* ventas por profesional: barras apiladas, una línea por profesional o su parte del total */
+  const totalPro = p => meses.reduce((t, m) => t + (m.pros[p.id] || 0), 0)
+  const apiladas = !pros.length ? ''
+    : tipo === 'lineas' ? `<h6 class="rvm-sub">Ventas por profesional</h6>
+      <div class="rvm-leyenda">${pros.map(p => `<span><i style="background:${esc(p.color)}"></i>${esc(p.nombre)}</span>`).join('')}</div>
+      ${svgLineas(meses, pros.map(p => ({ nombre: p.nombre, color: p.color, valores: meses.map(m => m.pros[p.id] || 0) })))}`
+    : tipo === 'circular' ? `<h6 class="rvm-sub">Ventas por profesional</h6>
+      ${svgTorta(pros.map(p => ({ nombre: p.nombre, color: p.color, valor: totalPro(p) })), '12 meses')}`
+    : `<h6 class="rvm-sub">Ventas por profesional</h6>
     <div class="rvm-leyenda">${pros.map(p => `<span><i style="background:${esc(p.color)}"></i>${esc(p.nombre)}</span>`).join('')}</div>
     <div class="rvm-barras">${meses.map(m => `<div class="rvm-mes" title="${esc(m.nombre + ': ' + pros.map(p => p.nombre + ' ' + fmtMoney(m.pros[p.id] || 0)).join(' · '))}">
         <div class="rvm-pila">${pros.map(p => m.pros[p.id] ? `<span style="height:${m.pros[p.id] / maxV * 100}%;background:${esc(p.color)}"></span>` : '').join('')}</div>
-        <span class="rvm-lbl">${esc(m.nombre)}</span></div>`).join('')}</div>` : ''
+        <span class="rvm-lbl">${esc(m.nombre)}</span></div>`).join('')}</div>`
 
   /* la tabla mes a mes, con totales */
   const tot = { ventas: 0, n: 0, comisiones: 0, pros: {} }
