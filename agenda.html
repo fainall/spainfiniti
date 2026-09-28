@@ -4513,10 +4513,10 @@ const ROLES = {
                   vistas:['agenda','misingresos'], edita:true, soloSuyo:true },
   pro_ro:       { nombre:'Profesional (sin edición)', desc:'Solo mira su agenda. No puede crear ni cambiar reservas.',
                   vistas:['agenda','misingresos'], edita:false, soloSuyo:true },
-  publicidad:   { nombre:'Publicidad (solo mirar)', desc:'Ve la agenda de las profesionales para planificar campañas: qué horas están ocupadas y con qué servicio. No ve datos de clientes ni puede crear, editar, copiar ni descargar nada.',
-                  vistas:['agenda'], edita:false, soloMirar:true }
+  publicidad:   { nombre:'Publicidad (solo mirar)', desc:'Ve la agenda de las profesionales para planificar campañas (qué horas están ocupadas y con qué servicio) y el reporte de ventas. No ve datos de clientes ni comisiones, ni puede crear, editar, copiar ni descargar nada.',
+                  vistas:['agenda','repventas'], edita:false, soloMirar:true }
 }
-/* perfil de publicidad: mira la agenda y nada más */
+/* perfil de publicidad: mira la agenda y el reporte de ventas, y nada más */
 function soloMira(){ return !!(me && rolDe().soloMirar) }
 /* sin perfil, el rol mas restringido: nunca administrador por omision */
 function rolDe(){ return ROLES[(me && me.role) || 'pro_ro'] || ROLES.pro_ro }
@@ -5859,7 +5859,8 @@ async function refrescarAgenda(forzado){
   try{
     const antes = state.appointments.length
     const antesIds = new Set(state.appointments.map(a=>a.id))
-    await Promise.all([loadAppointments(), loadSales().catch(e=>console.warn('pagos:', e.message))])
+    /* publicidad no usa los pagos en la agenda: las ventas las carga solo al abrir el reporte */
+    await Promise.all([loadAppointments(), soloMira() ? null : loadSales().catch(e=>console.warn('pagos:', e.message))])
     const nuevas = state.appointments.filter(a=>!antesIds.has(a.id))
     ultimoRefresco = Date.now(); ultimaRelectura = Date.now()
     render()
@@ -14310,6 +14311,8 @@ function rvDelta(cur,prev,compare){
 }
 function renderRepVentas(){
   const box=document.getElementById('rvSummary'); if(!box) return
+  /* el análisis con IA es solo para administradores (api/sales-insight.php) */
+  { const ia = document.getElementById('rvIaAcc'); if(ia) ia.style.display = isAdmin() ? '' : 'none' }
   const [f,t]=rvRange(), [pf,pt]=prevRange([f,t])
   const compare=document.getElementById('rvCompare').value==='prev'
   const cur=rvAgg(rvSales(f,t)), prev=rvAgg(rvSales(pf,pt))
@@ -14448,6 +14451,9 @@ function pintarMensual(f, t){
   document.querySelectorAll('#rvmTipos button').forEach(b => b.classList.toggle('on', b.dataset.tipo === tipo))
   const k = rvmK
   const maxV = Math.max(1, ...meses.map(m => m.ventas))
+  /* la cuenta de publicidad ve las ventas, no las comisiones (no tiene los porcentajes) */
+  const conCom = !soloMira()
+  const leyendaVC = `<div class="rvm-leyenda"><span><i style="background:var(--gold)"></i>Ventas</span>${conCom ? '<span><i style="background:#2C3E50"></i>Comisiones</span>' : ''}</div>`
   /* un color por mes para el gráfico circular */
   const COLORES_MES = ['#C5A467','#2C3E50','#C27B8A','#7FA7C9','#8BB174','#E0A458','#9B7EBD','#5FB3A8','#D98E73','#6C8EAD','#B5A36A','#4F6D7A']
 
@@ -14455,17 +14461,17 @@ function pintarMensual(f, t){
   document.getElementById('rvChart').innerHTML = !meses.some(m => m.ventas)
     ? rrPh('🔍','Ventas por período','No se registran ventas en los últimos 12 meses')
     : tipo === 'lineas'
-    ? `<div class="rvm-leyenda"><span><i style="background:var(--gold)"></i>Ventas</span><span><i style="background:#2C3E50"></i>Comisiones</span></div>
-       ${svgLineas(meses, [{ nombre:'Ventas', color:'#C5A467', valores: meses.map(m => m.ventas) },
-                            { nombre:'Comisiones', color:'#2C3E50', valores: meses.map(m => m.comisiones) }])}`
+    ? `${leyendaVC}
+       ${svgLineas(meses, [{ nombre:'Ventas', color:'#C5A467', valores: meses.map(m => m.ventas) }]
+          .concat(conCom ? [{ nombre:'Comisiones', color:'#2C3E50', valores: meses.map(m => m.comisiones) }] : []))}`
     : tipo === 'circular'
     ? `<p class="rem-note" style="margin:0 0 10px">Cuánto aportó cada mes a las ventas de los últimos 12 meses.</p>
        ${svgTorta(meses.map((m, i) => ({ nombre: m.nombre, color: COLORES_MES[i % COLORES_MES.length], valor: m.ventas })), 'Ventas')}`
-    : `<div class="rvm-leyenda"><span><i style="background:var(--gold)"></i>Ventas</span><span><i style="background:#2C3E50"></i>Comisiones</span></div>
-       <div class="rvm-barras">${meses.map(m => `<div class="rvm-mes" title="${esc(m.nombre)}: ventas ${fmtMoney(m.ventas)} · comisiones ${fmtMoney(m.comisiones)}">
+    : `${leyendaVC}
+       <div class="rvm-barras">${meses.map(m => `<div class="rvm-mes" title="${esc(m.nombre)}: ventas ${fmtMoney(m.ventas)}${conCom ? ' · comisiones ' + fmtMoney(m.comisiones) : ''}">
           <div class="rvm-par">
             <span class="rvm-b v" style="height:${m.ventas / maxV * 100}%"><em>${m.ventas ? k(m.ventas) : ''}</em></span>
-            <span class="rvm-b c" style="height:${m.comisiones / maxV * 100}%"><em>${m.comisiones ? k(m.comisiones) : ''}</em></span>
+            ${conCom ? `<span class="rvm-b c" style="height:${m.comisiones / maxV * 100}%"><em>${m.comisiones ? k(m.comisiones) : ''}</em></span>` : ''}
           </div><span class="rvm-lbl">${esc(m.nombre)}</span></div>`).join('')}</div>`
 
   /* ventas por profesional: barras apiladas, una línea por profesional o su parte del total */
@@ -14487,11 +14493,11 @@ function pintarMensual(f, t){
   meses.forEach(m => { tot.ventas += m.ventas; tot.n += m.n; tot.comisiones += m.comisiones
     pros.forEach(p => tot.pros[p.id] = (tot.pros[p.id] || 0) + (m.pros[p.id] || 0)) })
   const fila = (m, esTotal) => `<tr${esTotal ? ' class="rvm-total"' : ''}><td>${esc(esTotal ? 'Total 12 meses' : m.nombre)}</td>
-      <td class="r">${fmtMoney(m.ventas)}</td><td class="r">${m.n}</td><td class="r">${fmtMoney(m.comisiones)}</td>
+      <td class="r">${fmtMoney(m.ventas)}</td><td class="r">${m.n}</td>${conCom ? `<td class="r">${fmtMoney(m.comisiones)}</td>` : ''}
       ${pros.map(p => `<td class="r">${fmtMoney(m.pros[p.id] || 0)}</td>`).join('')}</tr>`
   document.getElementById('rvMensual').innerHTML = `${apiladas}
     <div class="rvm-tabla-caja"><table class="rvm-tabla">
-      <thead><tr><th>Mes</th><th class="r">Ventas</th><th class="r">N.º ventas</th><th class="r">Comisiones</th>
+      <thead><tr><th>Mes</th><th class="r">Ventas</th><th class="r">N.º ventas</th>${conCom ? '<th class="r">Comisiones</th>' : ''}
         ${pros.map(p => `<th class="r"><i class="rvm-punto" style="background:${esc(p.color)}"></i>${esc(p.nombre)}</th>`).join('')}</tr></thead>
       <tbody>${meses.slice().reverse().map(m => fila(m)).join('')}${fila(tot, true)}</tbody>
     </table></div>
@@ -14733,7 +14739,10 @@ const PAY_LABEL={Efectivo:'Efectivo',Débito:'Débito',Crédito:'Crédito',Trans
 let saleItemsArr=[]
 
 async function loadSales(){
-  try{ state.sales = await supabase.fetch('sales',{order:'sale_date.desc'}) || [] }
+  /* publicidad no lee la tabla de ventas (trae el cliente y sus notas): la base
+     le entrega una vista con lo que necesita el reporte de ventas */
+  const tabla = (typeof soloMira === 'function' && soloMira()) ? 'ventas_publicidad' : 'sales'
+  try{ state.sales = await supabase.fetch(tabla,{order:'sale_date.desc'}) || [] }
   catch(e){ state.sales=[]; console.warn(e) }
 }
 /* ── DETALLE DE VENTAS ── */
@@ -17204,7 +17213,7 @@ async function boot(){
   await loadProfessionals()
   await loadClients()
   await loadAppointments()
-  await loadSales()
+  if(!soloMira()) await loadSales()
   await loadPlans()
   await loadProducts()
   await loadStockMoves()
