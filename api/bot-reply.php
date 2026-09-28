@@ -299,9 +299,10 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - Si una hora que ofreciste ya no se puede, dilo una sola vez y claro (\"esa hora se acaba de ocupar\"); no te contradigas diciendo que hay y que no hay.
 - El correo es OPCIONAL: si el cliente no tiene o no sabe, agenda igual sin correo. NUNCA inventes ni sugieras un correo.
 - Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si tenía VARIOS servicios ese día y cambia de día, crea cada uno en el día nuevo y luego cancela CADA UNO de los anteriores con cancel_booking (una llamada por reserva; create_booking te devuelve la lista en otras_reservas_vigentes). Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok. Y al revés: si create_booking devolvió previous_cancelled true, o cancel_booking respondió ok, la anterior YA está cancelada: dilo como hecho, no preguntes si quiere cancelarla.
-- REGLA DE ORO: por WhatsApp solo se agenda dentro de los próximos 8 días: la fecha límite está al final, en HOY Y CALENDARIO.
+- REGLA DE ORO: por WhatsApp se agenda desde hoy hasta el " . dia_es(tope_visible()) . " inclusive (8 días).
+  TODAS las fechas hasta ese día están DENTRO del plazo, sábados incluidos: agéndalas normalmente, sin decir que están fuera del plazo ni consultar al equipo por eso. Solo las fechas POSTERIORES al " . dia_es(tope_visible()) . " quedan fuera.
 - LOS DOMINGOS NO SE ATIENDE: no ofrezcas domingos ni los nombres como fecha posible, ni siquiera como tope.
-  Si el cliente pide una fecha más lejana, dile con naturalidad que esas fechas las coordina el equipo y ofrécele horas dentro de esta semana.
+  Si el cliente pide una fecha posterior al " . dia_es(tope_visible()) . ", dile con naturalidad que esas fechas las coordina el equipo y ofrécele horas hasta el " . dia_es(tope_visible()) . ".
   Si insiste en esa fecha, usa ask_team para preguntarle al equipo si se puede hacer una excepción, y dile que se lo estás consultando.
 - Si no hay disponibilidad, usa next_available y ofrece la PRIMERA hora real que exista, aunque sea mañana o pasado. Nunca saltes a la semana siguiente ni a la subsiguiente por tu cuenta: los feriados y los días llenos los descarta la función, tú ofreces el primer día con horas.
 - Si el cliente dice lo antes posible, cuanto antes o urgente, usa next_available desde hoy.
@@ -824,9 +825,46 @@ function do_confirm($args) {
 
 /* Mariet le pregunta al equipo lo que no sabe, en vez de inventarlo o de
    prometer que alguien escribirá y que ahí muera la cosa (pedido de Luis). */
+/* ── Plazo mal dicho ──
+   Mariet decía "el lunes 5 está fuera del plazo, que es hasta el martes 6" o
+   que el sábado 3 estaba "fuera del plazo habitual", y hasta consultaba al
+   equipo por una excepción, con fechas que sí se podían agendar (27 y 28/09,
+   Luis). Devuelve la primera fecha (Y-m-d) que el texto declara fuera del
+   plazo estando dentro, o null. Se mira la fecha nombrada justo antes de
+   "fuera del plazo" / "plazo habitual" en la misma frase. */
+function plazo_mal($texto, $fraseEntera = false) {
+    $MES = ['enero'=>1,'febrero'=>2,'marzo'=>3,'abril'=>4,'mayo'=>5,'junio'=>6,'julio'=>7,'agosto'=>8,'septiembre'=>9,'octubre'=>10,'noviembre'=>11,'diciembre'=>12];
+    $hoy = date('Y-m-d');
+    foreach (preg_split('/(?<=[.!?\n])/u', (string)$texto) as $frase) {
+        if (!preg_match('/fuera del? (plazo|rango|per[ií]odo)|plazo (usual|habitual|permitido)|excepci[oó]n/iu', $frase, $pm, PREG_OFFSET_CAPTURE)) continue;
+        /* en una consulta al equipo ("¿se puede una excepción para el sábado 3?") la fecha viene después */
+        $antes = $fraseEntera ? $frase : substr($frase, 0, $pm[0][1]);
+        $fechas = [];
+        if (preg_match_all('/(\d{1,2}) de (' . implode('|', array_keys($MES)) . ')/iu', $antes, $mm, PREG_SET_ORDER | PREG_OFFSET_CAPTURE))
+            foreach ($mm as $x) {
+                $f = sprintf('%d-%02d-%02d', (int)date('Y'), $MES[mb_strtolower($x[2][0])], (int)$x[1][0]);
+                if ($f < date('Y-m-d', strtotime('-60 day'))) $f = sprintf('%d-%s', (int)date('Y') + 1, substr($f, 5));
+                $fechas[$x[0][1]] = $f;
+            }
+        if (preg_match_all('/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado)\s+(\d{1,2})\b(?! de)/iu', $antes, $mm, PREG_SET_ORDER | PREG_OFFSET_CAPTURE))
+            foreach ($mm as $x) for ($i = 0; $i <= 45; $i++) {
+                $ts = strtotime('+' . $i . ' day');
+                if ((int)date('j', $ts) === (int)$x[2][0]) { $fechas[$x[0][1]] = date('Y-m-d', $ts); break; }
+            }
+        if (!$fechas) continue;
+        ksort($fechas);
+        $f = end($fechas);                       // la nombrada justo antes
+        if ($f >= $hoy && $f <= tope_agenda() && date('w', strtotime($f)) !== '0') return $f;
+    }
+    return null;
+}
+
 function do_ask_team($args) {
     global $cfg, $phone, $clienteConocido, $esWebhook;
     if (!$esWebhook || $phone === '') return ['ok'=>false, 'reason'=>'esto solo funciona en una conversación real de WhatsApp'];
+    /* no se consulta una "excepción" para una fecha que ya está dentro del plazo */
+    if ($f = plazo_mal($args['pregunta'] ?? '', true))
+        return ['ok'=>false, 'reason'=>'NO consultado: el ' . dia_es($f) . ' está DENTRO del plazo (se agenda hasta el ' . dia_es(tope_visible()) . ' inclusive). No hace falta excepción: consulta la disponibilidad con check_availability o free_slots y agéndalo tú.'];
     require_once __DIR__ . '/wa-consultas.php';
     /* precios y duraciones están en el catálogo: se consultaban igual (el 18/09
        salieron cuatro consultas por el valor del ácido nítrico) */
@@ -895,7 +933,7 @@ function do_book($args) {
        7 días. Más allá lo coordina el equipo. */
     if (($args['date'] ?? '') > tope_agenda())
         return ['ok'=>false, 'reason'=>'NO AGENDADO: por aquí solo se agenda hasta el ' . dia_es(tope_visible())
-            . ' (8 días). Dile que para una fecha más lejana lo coordina el equipo, y ofrécele horas dentro de esa semana.'
+            . ' (8 días). Dile que para una fecha más lejana lo coordina el equipo, y ofrécele horas hasta el ' . dia_es(tope_visible()) . '.'
             . ' Si el cliente insiste en la fecha lejana, usa ask_team para preguntarle a Luis si se puede hacer una excepción.'];
     $args['service_name'] = $svc['name'];
     if (empty($args['duration'])) $args['duration'] = svc_minutos($svc);
@@ -1219,11 +1257,16 @@ for ($i=0; $i<5; $i++) {
             }
         }
     }
-    if ($inventadas || $fechasMal) {
+    /* una fecha dentro del plazo no se puede declarar "fuera del plazo" */
+    $plazoMal = plazo_mal($texto);
+    if ($inventadas || $fechasMal || $plazoMal) {
         if ($yaCorregido < 2) {
             $yaCorregido++;
-            if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>'guardia', 'args'=>[], 'out'=>['horas_sin_consultar'=>$inventadas, 'fechas_mal'=>$fechasMal]];
+            if ($esWebhook && !empty($input['debug'])) $traza[] = ['tool'=>'guardia', 'args'=>[], 'out'=>['horas_sin_consultar'=>$inventadas, 'fechas_mal'=>$fechasMal, 'plazo_mal'=>$plazoMal]];
             $aviso = '[Aviso interno del sistema, no lo menciones al cliente] ';
+            if ($plazoMal) $aviso .= 'Te equivocaste con el plazo: el ' . dia_es($plazoMal) . ' está DENTRO del plazo para agendar (se agenda hasta el '
+                . dia_es(tope_visible()) . ' inclusive). No digas que está fuera del plazo ni consultes al equipo por una excepción: '
+                . 'consulta la disponibilidad de ese día con check_availability o free_slots y ofrécela. ';
             if ($fechasMal) $aviso .= 'Te equivocaste con el día de la semana: ' . implode('; ', $fechasMal)
                 . '. Corrige usando el CALENDARIO de tus instrucciones y, si las horas eran de otro día, vuelve a consultarlas. ';
             if ($inventadas) $aviso .= 'Ibas a ofrecer horas que no consultaste en la agenda (' . implode(', ', array_unique($inventadas))
