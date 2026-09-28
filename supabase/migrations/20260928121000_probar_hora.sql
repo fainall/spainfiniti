@@ -29,3 +29,6 @@ end $$;
 
 revoke all on function public.probar_hora(uuid, text, date, time, time, text, text) from public, anon, authenticated;
 grant execute on function public.probar_hora(uuid, text, date, time, time, text, text) to service_role;
+
+-- que la API vea la función nueva de inmediato
+notify pgrst, 'reload schema';
