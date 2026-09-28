@@ -1,31 +1,123 @@
 <?php
 /**
- * POST /api/abono-web.php — el sitio lo llama justo después de reservar.
+ * POST /api/abono-web.php — el pago del abono al reservar por el sitio.
  *
- *   {id}              reserva recién creada que espera el abono: crea el pago en
- *                     Flow y devuelve { paymentUrl } para llevar al cliente a pagar
- *   {id, gc}          reserva pagada con gift card: no paga abono, se confirma
- *   {id, correo?}     el correo del cliente para el comprobante de Flow, si su
- *                     ficha no tiene (solo se usa para el pago)
- *   {id, consultar:1} solo dice en qué está la reserva (la página de vuelta del pago)
+ * Desde el 28-sep (Luis) la hora NO se toma antes de pagar:
+ *   {accion:'iniciar', cliente, profesional, servicio, fecha, inicio, fin,
+ *    precio, nota, nombre, fono, correo?}
+ *        revisa que la hora se pueda reservar (sin tomarla), crea el pago en
+ *        Flow con los datos de la reserva y devuelve { paymentUrl, orden }.
+ *        La reserva se crea cuando llega el pago (abono-lib.php).
+ *        Si el abono está apagado responde { sinAbono } y el sitio reserva
+ *        como siempre.
+ *   {orden, consultar:1}   en qué está ese pago (la página de vuelta)
+ *   {orden, accion:'reintentar'}  otro intento de pago para la misma hora
+ *        (se vuelve a revisar que siga libre)
+ *
+ * Camino anterior, que queda para reservas ya creadas:
+ *   {id, gc}          reserva pagada con gift card: se confirma sin abono
+ *   {id}              reserva en 'pago_pendiente' (de antes del cambio): pago en Flow
+ *   {id, consultar:1} en qué está la reserva
  *
  * No recibe montos: el abono sale de la configuración del panel y del precio
- * guardado en la reserva. Solo atiende reservas en 'pago_pendiente' dentro de
- * su plazo, así que no sirve para confirmar horas ajenas ni viejas.
- * Si el abono se desactivó mientras el cliente reservaba, la hora se confirma.
+ * del servicio.
  */
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 require_once __DIR__ . '/abono-lib.php';
-require_once __DIR__ . '/flow-lib.php';
 
 function responder($code, $j) { http_response_code($code); echo json_encode($j, JSON_UNESCAPED_UNICODE); exit; }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') responder(405, ['error' => 'solo POST']);
 $d = json_decode((string)file_get_contents('php://input'), true);
 if (!is_array($d)) responder(400, ['error' => 'Los datos llegaron ilegibles; vuelve a intentarlo']);
+$UUID = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
+
+/* el correo para Flow: el de la ficha, o el que escribió, o el del spa (Flow exige uno) */
+function correo_para_flow($clienteId, $escrito) {
+    $c = $clienteId ? trim((string)(cr_supa('GET', 'clients?select=email&id=eq.' . rawurlencode($clienteId))[0]['email'] ?? '')) : '';
+    if (!filter_var($c, FILTER_VALIDATE_EMAIL)) $c = filter_var((string)$escrito, FILTER_VALIDATE_EMAIL) ? (string)$escrito : '';
+    return $c !== '' ? $c : cliente_correo();
+}
+function vuelve_cliente($clienteId, $citaId = '') {
+    return $clienteId ? cr_visitas(['client_id' => $clienteId, 'id' => $citaId ?: '00000000-0000-0000-0000-000000000000']) > 0 : false;
+}
+$errorPago = 'No pudimos iniciar el pago. Tu hora no quedó reservada: inténtalo de nuevo en un momento o escríbenos por WhatsApp.';
+
+/* ════════ iniciar: revisar la hora y pagar, sin tomarla ════════ */
+if (($d['accion'] ?? '') === 'iniciar') {
+    $r = [
+        'cliente'     => (string)($d['cliente'] ?? ''),
+        'profesional' => (string)($d['profesional'] ?? ''),
+        'servicio'    => mb_substr(trim((string)($d['servicio'] ?? '')), 0, 120),
+        'fecha'       => (string)($d['fecha'] ?? ''),
+        'inicio'      => substr((string)($d['inicio'] ?? ''), 0, 8),
+        'fin'         => substr((string)($d['fin'] ?? ''), 0, 8),
+        'precio'      => mb_substr(trim((string)($d['precio'] ?? '')), 0, 20),
+        'nota'        => mb_substr(trim((string)($d['nota'] ?? '')), 0, 500),
+        'nombre'      => mb_substr(trim((string)($d['nombre'] ?? '')), 0, 80),
+        'fono'        => mb_substr(trim((string)($d['fono'] ?? '')), 0, 30),
+    ];
+    if (!preg_match($UUID, $r['profesional']) || ($r['cliente'] !== '' && !preg_match($UUID, $r['cliente']))
+        || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $r['fecha']) || !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $r['inicio'])
+        || !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $r['fin']) || $r['servicio'] === '' || mb_strlen($r['nombre']) < 2)
+        responder(400, ['error' => 'Faltan datos de la reserva; vuelve a intentarlo']);
+    if ($r['cliente'] !== '' && !cr_supa('GET', 'clients?select=id&id=eq.' . rawurlencode($r['cliente'])))
+        responder(400, ['error' => 'No encontramos tu ficha; vuelve a intentarlo']);
+
+    $cfg = abono_config();
+    if (!$cfg['activo']) responder(200, ['ok' => true, 'sinAbono' => true]);
+
+    if ($motivo = abono_probar_hora($r)) responder(409, ['error' => $motivo . '. Elige otra hora, por favor.']);
+
+    $monto = abono_monto(abono_como_cita($r), $cfg);
+    try {
+        $p = abono_crear_pago($r, null, $monto, correo_para_flow($r['cliente'], $d['correo'] ?? ''), $cfg['minutos'] * 60);
+    } catch (Exception $e) {
+        error_log('abono-web iniciar: ' . $e->getMessage());
+        responder(502, ['error' => $errorPago]);
+    }
+    responder(200, ['ok' => true, 'paymentUrl' => $p['url'], 'orden' => $p['orden'], 'monto' => $monto,
+                    'minutos' => $cfg['minutos'], 'vuelve' => vuelve_cliente($r['cliente'])]);
+}
+
+/* ════════ por número de orden: consultar o reintentar ════════ */
+if (!empty($d['orden'])) {
+    $co = preg_replace('/[^A-Za-z0-9\-]/', '', (string)$d['orden']);
+    $f = __DIR__ . '/orders/' . $co . '.json';
+    $o = (strpos($co, 'AB-') === 0 && is_file($f)) ? json_decode((string)file_get_contents($f), true) : null;
+    if (!is_array($o) || ($o['tipo'] ?? '') !== 'abono_web') responder(404, ['error' => 'No encontramos ese pago']);
+    $r = $o['reserva'] ?? null;
+    $cita = !empty($o['appointment_id']) ? abono_reserva($o['appointment_id']) : null;
+    $base = $cita ?: ($r ? abono_como_cita($r) : []);
+    $clienteId = $cita['client_id'] ?? ($r['cliente'] ?? '');
+    $estado = ($o['status'] ?? '') === 'paid'
+        ? ((($o['resultado'] ?? '') === 'perdida') ? 'perdida' : 'confirmada')
+        : (in_array($o['status'] ?? '', ['rejected', 'cancelled', 'no_creada', 'amount_mismatch'], true) ? 'rechazado' : 'pendiente');
+    $info = ['estado' => $estado, 'servicio' => $base['service_name'] ?? '', 'fecha' => $base['appt_date'] ?? '',
+             'hora' => substr((string)($base['start_time'] ?? ''), 0, 5), 'nombre' => explode(' ', trim((string)($base['client_name'] ?? '')))[0] ?? '',
+             'vuelve' => vuelve_cliente($clienteId, $o['appointment_id'] ?? ''), 'id' => $o['appointment_id'] ?? null];
+    if (!empty($d['consultar'])) responder(200, ['ok' => true] + $info);
+
+    if (($d['accion'] ?? '') === 'reintentar') {
+        if ($estado === 'confirmada' || $estado === 'perdida') responder(200, ['ok' => true] + $info);
+        if (!$r) responder(410, ['error' => 'Ese pago ya no se puede reintentar. Vuelve a reservar, por favor.']);
+        $cfg = abono_config();
+        if ($motivo = abono_probar_hora($r)) responder(409, ['error' => $motivo . '. Vuelve a elegir una hora, por favor.']);
+        try {
+            $p = abono_crear_pago($r, null, (int)$o['amount'], correo_para_flow($r['cliente'] ?? '', $o['email'] ?? ''), $cfg['minutos'] * 60);
+        } catch (Exception $e) {
+            error_log('abono-web reintentar: ' . $e->getMessage());
+            responder(502, ['error' => $errorPago]);
+        }
+        responder(200, ['ok' => true, 'paymentUrl' => $p['url'], 'orden' => $p['orden'], 'monto' => (int)$o['amount'], 'minutos' => $cfg['minutos']]);
+    }
+    responder(400, ['error' => 'acción no válida']);
+}
+
+/* ════════ camino anterior: por reserva ya creada ════════ */
 $id = (string)($d['id'] ?? '');
-if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) responder(400, ['error' => 'Reserva no válida']);
+if (!preg_match($UUID, $id)) responder(400, ['error' => 'Reserva no válida']);
 
 $a = abono_reserva($id);
 if (!$a) responder(404, ['error' => 'No encontramos esa reserva']);
@@ -75,97 +167,17 @@ if (!empty($d['gc'])) {
 /* ── el abono se desactivó mientras reservaba ── */
 if (!$cfg['activo']) $confirmar();
 
-/* "Abono de tu hora: Tratamiento con Ácido Nítrico+Alta Frecuencia-Tipo 1 · mié 30 sep, 10:00 hrs"
-   Flow lo muestra como la descripción del pago, bajo "Estás realizando un pago a
-   SPA INFINITY" (por eso no repite el nombre del spa). Admite hasta 100 caracteres. */
-function abono_asunto($a, $monto) {
-    $completo = abono_a_numero($a['price'] ?? '') > 0 && $monto >= abono_a_numero($a['price']);
-    $inicio = $completo ? 'Pago de tu hora' : 'Abono de tu hora';
-    $t = strtotime((string)$a['appt_date']);
-    $cuando = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][(int)date('w', $t)] . ' ' . date('j', $t) . ' '
-        . ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'][(int)date('n', $t) - 1]
-        . ', ' . substr((string)$a['start_time'], 0, 5) . ' hrs';
-    $servicio = trim(preg_replace('/\s+/', ' ', (string)$a['service_name']));
-    $cabe = 100 - mb_strlen("$inicio:  · $cuando");
-    if (mb_strlen($servicio) > $cabe) $servicio = rtrim(mb_substr($servicio, 0, $cabe - 1)) . '…';
-    return "$inicio: $servicio · $cuando";
-}
-
-/* ── el pago en Flow ── */
-$config = @include __DIR__ . '/flow-config.php';
-if (!is_array($config)) responder(500, ['error' => 'El pago en línea no está configurado. Escríbenos por WhatsApp para confirmar tu hora.']);
-
-$monto = abono_monto($a, $cfg);
-$correo = cr_correo_cliente($a);
-if ($correo === '' && filter_var((string)($d['correo'] ?? ''), FILTER_VALIDATE_EMAIL)) $correo = (string)$d['correo'];
-if ($correo === '') $correo = cliente_correo();   // Flow exige un correo; el comprobante llega al spa
-
-$siteUrl = rtrim($config['siteUrl'], '/');
-if (!is_dir(__DIR__ . '/orders')) mkdir(__DIR__ . '/orders', 0755, true);
-
-/* crea la orden (archivo + pago en Flow) con un correo; devuelve la respuesta de Flow o lanza el error */
-$crearPago = function ($correo) use ($a, $monto, $quedan, $siteUrl, $config) {
-    $commerceOrder = 'AB-' . date('YmdHis') . '-' . substr(uniqid(), -5);
-    $archivo = __DIR__ . '/orders/' . $commerceOrder . '.json';
-    $orden = [
-        'commerceOrder'  => $commerceOrder,
-        'tipo'           => 'abono_web',
-        'amount'         => $monto,
-        'appointment_id' => $a['id'],
-        'client_name'    => $a['client_name'],
-        'service_name'   => $a['service_name'],
-        'price'          => $a['price'],
-        'email'          => $correo,
-        'createdAt'      => date('c'),
-        'status'         => 'pending',
-    ];
-    file_put_contents($archivo, json_encode($orden, JSON_UNESCAPED_UNICODE));
-    try {
-        $flow = new FlowClient($config);
-        $r = $flow->createPayment([
-            'commerceOrder'   => $commerceOrder,
-            /* lo que el cliente lee en la página de Flow: claro y sin códigos internos */
-            'subject'         => abono_asunto($a, $monto),
-            'amount'          => $monto,
-            'email'           => $correo,
-            'urlConfirmation' => $siteUrl . '/api/flow-confirm.php',
-            'urlReturn'       => $siteUrl . '/api/abono-retorno.php',
-            /* la orden de Flow vence con la hora: después ya no se puede pagar */
-            'timeout'         => max(120, $quedan),
-        ]);
-        return $flow->paymentRedirectUrl($r);
-    } catch (Exception $e) {
-        /* la orden no existe en Flow: se deja anotado y no cuenta como pendiente */
-        $orden['status'] = 'no_creada';
-        $orden['error'] = mb_substr($e->getMessage(), 0, 300);
-        file_put_contents($archivo, json_encode($orden, JSON_UNESCAPED_UNICODE));
-        throw $e;
-    }
-};
-
+/* ── el pago en Flow de una reserva en 'pago_pendiente' ── */
 try {
-    try {
-        $url = $crearPago($correo);
-    } catch (Exception $e) {
-        /* Flow rechaza algunos correos ("The userEmail: … is not valid"), aunque
-           estén bien escritos. Entonces se paga con el correo del spa (el
-           comprobante de Flow llega al spa; la confirmación de la hora igual le
-           llega al cliente a su correo). */
-        if ($correo !== cliente_correo() && preg_match('/email/i', $e->getMessage())) {
-            error_log('abono-web: Flow rechazó el correo del cliente, se usa el del spa: ' . $e->getMessage());
-            $url = $crearPago(cliente_correo());
-        } else {
-            throw $e;
-        }
-    }
-    responder(200, ['ok' => true, 'paymentUrl' => $url, 'monto' => $monto, 'minutos' => (int)ceil($quedan / 60), 'vuelve' => $vuelve]);
+    $p = abono_crear_pago(null, $a['id'], abono_monto($a, $cfg), correo_para_flow($a['client_id'] ?? '', $d['correo'] ?? ''), $quedan);
+    responder(200, ['ok' => true, 'paymentUrl' => $p['url'], 'orden' => $p['orden'], 'monto' => abono_monto($a, $cfg),
+                    'minutos' => (int)ceil($quedan / 60), 'vuelve' => $vuelve]);
 } catch (Exception $e) {
     error_log('abono-web: Flow create failed: ' . $e->getMessage());
-    /* sin pago no queda una hora a medias: se libera en el acto, y el cliente
-       puede volver a intentarlo desde cero */
+    /* sin pago no queda una hora a medias: se libera en el acto */
     cr_supa('PATCH', 'appointments?id=eq.' . rawurlencode($a['id']) . '&status=eq.pago_pendiente', [
         'status' => 'cancelled',
         'notes'  => trim((string)$a['notes']) . ' · No se pudo iniciar el pago en Flow: la hora se liberó',
     ]);
-    responder(502, ['error' => 'No pudimos iniciar el pago y la hora no quedó reservada. Inténtalo de nuevo en un momento o escríbenos por WhatsApp.', 'liberada' => true]);
+    responder(502, ['error' => $errorPago, 'liberada' => true]);
 }

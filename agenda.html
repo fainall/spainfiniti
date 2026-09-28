@@ -10060,7 +10060,7 @@ function admAbono(){
         <div>
           <label for="abMin">Tiempo para pagarlo</label>
           <div class="lc-dias"><input type="text" inputmode="numeric" id="abMin" value="${a.minutos}" /><span>minutos</span></div>
-          <p class="rem-note">Mientras tanto la hora queda apartada como <em>Pago pendiente</em>. Si no paga, se libera sola.</p>
+          <p class="rem-note">El tiempo que tiene el cliente para completar el pago en Flow. La hora no se aparta mientras paga.</p>
         </div>
       </div>
       <div class="ab-acciones"><button class="btn-primary" id="abGuardar" onclick="guardarAbono()">Guardar</button></div>
@@ -10068,7 +10068,8 @@ function admAbono(){
     <div class="rr-panel" style="margin-top:14px">
       <h5>Cómo funciona</h5>
       <ul class="ab-lista">
-        <li>Al pagarse, la hora queda <strong>Reservada</strong> y el abono aparece como venta parcial. Al cobrar en el local se descuenta solo.</li>
+        <li>La hora <strong>se reserva recién cuando llega el pago</strong>: mientras el cliente paga sigue libre en la agenda. Al pagarse aparece como Reservada y el abono como venta parcial; al cobrar en el local se descuenta solo.</li>
+        <li>Si mientras pagaba otra persona tomó esa hora, el pago queda registrado y llega un correo al spa para agendarle otra hora o devolverle el abono.</li>
         <li>No se cobra abono al reservar con gift card, ni en las reservas de Mariet (WhatsApp) o del panel.</li>
         <li><strong>El abono no es reembolsable</strong> si el cliente cancela o no asiste. Así lo dicen los <a href="/terminos.html#abono" target="_blank">términos y condiciones</a> del sitio.</li>
         <li>Si es el spa quien no puede atender, se ofrece otra hora o se devuelve el abono (a mano, desde Flow).</li>

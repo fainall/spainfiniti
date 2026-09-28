@@ -51,6 +51,8 @@ body{font-family:'Montserrat',sans-serif;background:#F5F2EC;color:var(--dark);pa
 const params = new URLSearchParams(location.search)
 const estado = params.get('estado') || 'error'
 const id = params.get('id') || ''
+/* desde el 28-sep la reserva se crea recién al pagar: se sigue por el número de orden */
+const orden = params.get('orden') || ''
 const CLAVE_PENDIENTE = 'spa_reserva_por_pagar'
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
 const MES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
@@ -78,9 +80,9 @@ async function reintentar(){
   const b = document.getElementById('btnReintentar'); b.disabled = true; b.textContent = 'Abriendo el pago…'
   const p = porPagar()
   try{
-    const j = await abono({ id, correo: p && p.correo || undefined })
+    const j = orden ? await abono({ orden, accion: 'reintentar' }) : await abono({ id, correo: p && p.correo || undefined })
     if(j.paymentUrl){ location.href = j.paymentUrl; return }
-    location.replace('/pago-reserva.html?estado=ok&id=' + encodeURIComponent(id))
+    location.replace('/pago-reserva.html?estado=ok' + (orden ? '&orden=' + encodeURIComponent(orden) : '&id=' + encodeURIComponent(id)))
   }catch(e){
     const err = document.getElementById('err'); err.textContent = e.message; err.style.display = 'block'
     b.remove()
@@ -89,7 +91,8 @@ async function reintentar(){
 
 async function mostrar(){
   let r = null
-  if(id){ try{ r = await abono({ id, consultar: 1 }) }catch(e){} }
+  if(orden){ try{ r = await abono({ orden, consultar: 1 }) }catch(e){} }
+  else if(id){ try{ r = await abono({ id, consultar: 1 }) }catch(e){} }
   const det = detalleDe(r)
 
   if(estado === 'ok' || (r && r.estado === 'confirmada' && estado !== 'tarde')){
@@ -101,16 +104,21 @@ async function mostrar(){
       + '<br><small style="display:block;margin-top:12px;color:#6b7078">El abono no es reembolsable si cancelas o no asistes. <a href="/terminos.html#abono" style="color:#8a6d35">Términos y condiciones</a>.</small>',
       det, '<a class="btn-ok" href="/">Volver al inicio</a><a class="btn-ok sec" href="/servicios.html">Ver otros servicios</a>')
   }
-  if(estado === 'tarde'){
+  if(estado === 'tarde' || (r && r.estado === 'perdida')){
     olvidar()
-    return pintar('⏰', 'Tu pago llegó cuando la hora ya se había liberado',
-      'Recibimos tu pago, pero el plazo había terminado y otra persona tomó esa hora. No te preocupes: escríbenos y te ayudamos a elegir otra o te devolvemos el abono.',
-      det, `<a class="btn-ok wa" href="${WA + encodeURIComponent('Hola, pagué el abono de una reserva pero la hora ya se había liberado.')}" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>` + volver)
+    return pintar('⏰', 'Recibimos tu pago, pero esa hora se ocupó',
+      'Mientras pagabas, otra persona reservó esa misma hora, así que no pudimos agendarla. No te preocupes: tu pago quedó registrado y te contactaremos para elegir otra hora o devolverte el abono. Si prefieres, escríbenos ahora.',
+      det, `<a class="btn-ok wa" href="${WA + encodeURIComponent('Hola, pagué el abono de una reserva pero la hora se ocupó mientras pagaba.')}" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>` + volver)
   }
-  if(estado === 'pendiente'){
+  if(estado === 'pendiente' || (r && r.estado === 'pendiente' && estado !== 'rechazado')){
     return pintar('⏳', 'Tu pago se está procesando',
-      'Flow todavía no nos confirma el pago. Apenas llegue, tu hora queda confirmada y te avisamos por correo.',
+      'Flow todavía no nos confirma el pago. Apenas llegue, tu hora queda reservada y te avisamos por correo.',
       det, '<button class="btn-ok" onclick="location.reload()">Revisar de nuevo</button>' + volver)
+  }
+  if(estado === 'rechazado' && orden){
+    return pintar('💳', 'El pago no se completó',
+      'No se hizo ningún cargo y la hora no quedó reservada. Puedes intentar el pago otra vez: revisamos que la hora siga libre.',
+      det, '<button class="btn-ok" id="btnReintentar" onclick="reintentar()">Intentar el pago de nuevo</button><a class="btn-ok sec" href="/servicios.html">Elegir otra hora</a>')
   }
   if(estado === 'rechazado' && r && r.estado === 'pendiente'){
     return pintar('💳', 'El pago no se completó',

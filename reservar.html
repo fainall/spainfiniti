@@ -246,6 +246,8 @@ async function pedirPagoAbono(id, correo){
 async function pagarPendiente(){
   const p = reservaPorPagar(); if(!p){ render(); return }
   const b = document.getElementById('btnPagarPend'); if(b){ b.disabled = true; b.textContent = 'Abriendo el pago…' }
+  /* pago sin terminar (camino nuevo): se retoma el mismo pago en Flow */
+  if(p.url){ location.href = p.url; return }
   try{
     const j = await pedirPagoAbono(p.id, p.correo)
     if(j.paymentUrl){ location.href = j.paymentUrl; return }
@@ -257,6 +259,34 @@ async function pagarPendiente(){
   }
 }
 function guardarPorPagar(r){ try{ sessionStorage.setItem(CLAVE_PENDIENTE, JSON.stringify(r)) }catch(e){} }
+/* La hora NO se toma antes de pagar (Luis, 28-sep): el servidor revisa que se
+   pueda reservar, crea el pago en Flow con los datos de la reserva, y la
+   reserva se crea recién cuando llega el pago. */
+async function iniciarPagoAbono(datos){
+  const r = await fetch('/api/abono-web.php', { method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ accion: 'iniciar', ...datos }) })
+  const j = await r.json().catch(() => ({}))
+  if(!r.ok || j.error) throw new Error(j.error || 'No pudimos iniciar el pago. Inténtalo de nuevo en un momento.')
+  return j
+}
+/* la pantalla que explica que se paga en Flow, y luego a Flow */
+function irAPagar(pago, precio){
+  const dd = new Date(fechaSel+'T00:00:00')
+  document.getElementById('body').innerHTML = `<div class="done ir-pago">
+    <div class="em">🔒</div>
+    <h2>Te llevamos a pagar el abono</h2>
+    <div class="det">
+      <strong>${esc(servicio.name)}</strong><br>
+      📅 ${DOW_S[dd.getDay()]} ${dd.getDate()} de ${MES_S[dd.getMonth()]} · ${horaSel} hrs<br>
+      💳 Abono: <strong>${money(pago.monto)}</strong>${precio > pago.monto ? ` · el resto (${money(precio - pago.monto)}) en el local` : ''}
+    </div>
+    <p>El pago se hace en <strong>Flow</strong> (flow.cl), la plataforma de pagos con que trabaja Spa Infinity: aceptan tarjetas de débito y crédito y transferencia. Nosotros nunca vemos los datos de tu tarjeta.</p>
+    <p class="ir-nota">En la página de Flow verás el cobro a nombre de <strong>SPA INFINITY</strong>. Tu hora queda reservada apenas se confirme el pago. Recuerda que el abono no es reembolsable si cancelas o no asistes.</p>
+    <a class="btn-ok" href="${esc(pago.paymentUrl)}">Ir a pagar ${money(pago.monto)}</a>
+  </div>`
+  /* se sigue solo en unos segundos, por si no toca el botón */
+  setTimeout(() => { location.href = pago.paymentUrl }, 6000)
+}
 
 const pad = n => String(n).padStart(2,'0')
 const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
@@ -498,7 +528,7 @@ function pintarFormulario(){
         ? `🎁 Se paga con tu gift card <strong>${esc(giftcard.codigo)}</strong>`
         : `Total: <strong>${money(p.precio)}</strong>${p.pct ? ` <span class="sp-tag">−${p.pct}% por horario</span>` : ''}`}
       ${ab ? `<div class="abono">Para confirmar tu hora pagas ${p.precio > 0 && abonoPara(ab, p.precio) >= p.precio ? 'el total' : 'un abono'} de <strong>${money(abonoPara(ab, p.precio))}</strong> en línea${p.precio > abonoPara(ab, p.precio) ? `; el resto, ${money(p.precio - abonoPara(ab, p.precio))}, lo pagas en el local` : ''}.
-        <small>Pago seguro con Flow (tarjetas, transferencia y más). Tienes ${ab.minutos} minutos para pagarlo; si no, la hora se libera.</small>
+        <small>Pago seguro con Flow (tarjetas, transferencia y más). Tu hora queda reservada cuando se confirma el pago.</small>
         <small><strong>El abono no es reembolsable</strong> si cancelas o no asistes.</small></div>` : ''}
     </div>
     ${ab ? `<label class="acepto"><input type="checkbox" id="aceptoTerminos" /> <span>Acepto los <a href="/terminos.html#abono" target="_blank" rel="noopener">términos y condiciones</a>, incluido que el abono no es reembolsable.</span></label>` : ''}
@@ -521,7 +551,7 @@ function render(){
       ${giftcard ? `<div class="gc-aviso">Gift card <strong>${esc(giftcard.codigo)}</strong>${giftcard.para ? ' de ' + esc(giftcard.para) : ''} · válida hasta el ${giftcard.vence.split('-').reverse().join('/')}. No pagas nada al reservar.</div>` : ''}
     </div>
     ${pintarBienvenida()}
-    ${(() => { const pp = reservaPorPagar(); return pp && !citaCambiar ? `<div class="pendiente-aviso"><strong>Tienes una hora esperando el pago del abono:</strong> ${esc(pp.servicio)}, ${esc(fechaLarga(pp.fecha))} a las ${esc(pp.hora)} hrs. Se libera sola si no lo pagas a tiempo.<br><button id="btnPagarPend" onclick="pagarPendiente()">Pagar el abono ahora</button></div>` : '' })()}
+    ${(() => { const pp = reservaPorPagar(); return pp && !citaCambiar ? `<div class="pendiente-aviso"><strong>Tienes un pago de abono sin terminar:</strong> ${esc(pp.servicio)}, ${esc(fechaLarga(pp.fecha))} a las ${esc(pp.hora)} hrs. ${pp.url ? 'La hora no queda reservada hasta que pagues.' : 'Se libera sola si no lo pagas a tiempo.'}<br><button id="btnPagarPend" onclick="pagarPendiente()">${pp.url ? 'Terminar el pago' : 'Pagar el abono ahora'}</button></div>` : '' })()}
     ${citaCambiar ? `<div class="cambio-aviso"><strong>Estás cambiando tu hora</strong> del ${esc(fechaLarga(citaCambiar.fecha))} a las ${esc(String(citaCambiar.inicio).slice(0,5))} hrs. Elige el nuevo día y hora; la anterior se libera al confirmar. <a href="/mi-cuenta">No cambiar</a></div>` : ''}
     ${pintarDias()}
     ${pintarProfesionales()}
@@ -600,6 +630,20 @@ async function reservar(){
       const otra = await consultarGiftCard()
       if(otra.error) throw new Error(otra.error)
     }
+    /* con el abono activo (y sin gift card) no se toma la hora: se paga primero */
+    if(abonoWeb()){
+      const pago = await iniciarPagoAbono({ cliente: clienteId, profesional: prof.id, servicio: servicio.name, fecha: fechaSel,
+        inicio: horaSel + ':00', fin: toHHMM(toMin(horaSel)+dur) + ':00', precio: money(p.precio),
+        nota: 'Reservado desde el sitio web' + (nota ? ' — ' + nota : ''), nombre, fono, correo: mail || undefined })
+      if(!pago.sinAbono){
+        if(!cuentaCliente) recordarDatos(nombre, fono, mail)
+        guardarPorPagar({ orden: pago.orden, url: pago.paymentUrl, servicio: servicio.name, fecha: fechaSel, hora: horaSel,
+          hasta: Date.now() + Math.max(1, (pago.minutos || 20) - 1) * 60000 })
+        irAPagar(pago, p.precio)
+        return
+      }
+      /* el abono se apagó mientras elegía: se reserva como siempre */
+    }
     const idReserva = await supabase.rpc('reservar_hora', {
       p_profesional: prof.id,
       p_cliente:     clienteId,
@@ -637,21 +681,7 @@ async function reservar(){
       if(pago.paymentUrl){
         guardarPorPagar({ id: idReserva, servicio: servicio.name, fecha: fechaSel, hora: horaSel,
           correo: mail, hasta: Date.now() + Math.max(1, (pago.minutos || 20) - 1) * 60000 })
-        const dd = new Date(fechaSel+'T00:00:00')
-        document.getElementById('body').innerHTML = `<div class="done ir-pago">
-          <div class="em">🔒</div>
-          <h2>Te llevamos a pagar el abono</h2>
-          <div class="det">
-            <strong>${esc(servicio.name)}</strong><br>
-            📅 ${DOW_S[dd.getDay()]} ${dd.getDate()} de ${MES_S[dd.getMonth()]} · ${horaSel} hrs<br>
-            💳 Abono: <strong>${money(pago.monto)}</strong>${p.precio > pago.monto ? ` · el resto (${money(p.precio - pago.monto)}) en el local` : ''}
-          </div>
-          <p>El pago se hace en <strong>Flow</strong> (flow.cl), la plataforma de pagos con que trabaja Spa Infinity: aceptan tarjetas de débito y crédito y transferencia. Nosotros nunca vemos los datos de tu tarjeta.</p>
-          <p class="ir-nota">En la página de Flow verás el cobro a nombre de <strong>SPA INFINITY</strong>. Tu hora queda apartada mientras pagas. Recuerda que el abono no es reembolsable si cancelas o no asistes.</p>
-          <a class="btn-ok" href="${esc(pago.paymentUrl)}">Ir a pagar ${money(pago.monto)}</a>
-        </div>`
-        /* se sigue solo en unos segundos, por si no toca el botón */
-        setTimeout(() => { location.href = pago.paymentUrl }, 6000)
+        irAPagar(pago, p.precio)
         return
       }
       yaConfirmada = !pago.yaEstaba
