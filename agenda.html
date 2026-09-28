@@ -14407,7 +14407,7 @@ function rvmTipo(t){
 const rvmK = n => n >= 1000000 ? (n / 1000000).toFixed(1).replace('.0', '') + 'M' : Math.round(n / 1000) + 'k'
 /* líneas: una por serie, con un punto por mes (al pasar el mouse muestra el monto) */
 function svgLineas(meses, series){
-  const W = 820, H = 250, izq = 54, der = 16, arr = 16, abj = 30
+  const W = 820, H = 250, izq = 54, der = 30, arr = 16, abj = 30
   const maxV = Math.max(1, ...series.flatMap(s => s.valores))
   const n = meses.length
   const x = i => izq + (n > 1 ? i * (W - izq - der) / (n - 1) : (W - izq - der) / 2)
