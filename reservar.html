@@ -56,6 +56,8 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .abono small{display:block;font-size:.74rem;color:var(--light);margin-top:2px}
 .pendiente-aviso{background:#fff7e6;border-left:4px solid #e0a526;border-radius:10px;padding:12px 14px;font-size:.86rem;line-height:1.55;margin-bottom:18px;color:var(--mid)}
 .pendiente-aviso button{margin-top:8px;padding:9px 16px;border:none;border-radius:20px;background:var(--gold);color:#fff;font-family:inherit;font-weight:700;font-size:.8rem;cursor:pointer}
+.pendiente-aviso .pp-botones{display:flex;gap:8px;flex-wrap:wrap}
+.pendiente-aviso button.sec{background:#fff;color:var(--gold-d);border:1px solid var(--gold)}
 .acepto{display:flex;gap:10px;align-items:flex-start;margin-top:16px;font-size:.82rem;font-weight:400;letter-spacing:0;text-transform:none;color:var(--mid);line-height:1.5;cursor:pointer}
 .acepto input{width:18px;height:18px;flex:0 0 18px;margin-top:1px;accent-color:var(--gold)}
 .acepto a{color:var(--gold-d);font-weight:600}
@@ -257,6 +259,14 @@ async function pagarPendiente(){
     try{ sessionStorage.removeItem(CLAVE_PENDIENTE) }catch(x){}
     alert(e.message); render()
   }
+}
+/* descarta el pago sin terminar para empezar otra reserva (pedido de Luis).
+   Con el sistema nuevo no hay ninguna hora apartada: el pago de Flow que quedó
+   abierto vence solo y, sin pagar, no se crea nada en la agenda. */
+function anularPendiente(){
+  if(!confirm('¿Anular este pago sin terminar? No se hizo ningún cargo y podrás elegir otra hora.')) return
+  try{ sessionStorage.removeItem(CLAVE_PENDIENTE) }catch(e){}
+  render()
 }
 function guardarPorPagar(r){ try{ sessionStorage.setItem(CLAVE_PENDIENTE, JSON.stringify(r)) }catch(e){} }
 /* La hora NO se toma antes de pagar (Luis, 28-sep): el servidor revisa que se
@@ -551,7 +561,7 @@ function render(){
       ${giftcard ? `<div class="gc-aviso">Gift card <strong>${esc(giftcard.codigo)}</strong>${giftcard.para ? ' de ' + esc(giftcard.para) : ''} · válida hasta el ${giftcard.vence.split('-').reverse().join('/')}. No pagas nada al reservar.</div>` : ''}
     </div>
     ${pintarBienvenida()}
-    ${(() => { const pp = reservaPorPagar(); return pp && !citaCambiar ? `<div class="pendiente-aviso"><strong>Tienes un pago de abono sin terminar:</strong> ${esc(pp.servicio)}, ${esc(fechaLarga(pp.fecha))} a las ${esc(pp.hora)} hrs. ${pp.url ? 'La hora no queda reservada hasta que pagues.' : 'Se libera sola si no lo pagas a tiempo.'}<br><button id="btnPagarPend" onclick="pagarPendiente()">${pp.url ? 'Terminar el pago' : 'Pagar el abono ahora'}</button></div>` : '' })()}
+    ${(() => { const pp = reservaPorPagar(); return pp && !citaCambiar ? `<div class="pendiente-aviso"><strong>Tienes un pago de abono sin terminar:</strong> ${esc(pp.servicio)}, ${esc(fechaLarga(pp.fecha))} a las ${esc(pp.hora)} hrs. ${pp.url ? 'La hora no queda reservada hasta que pagues.' : 'Se libera sola si no lo pagas a tiempo.'}<div class="pp-botones"><button id="btnPagarPend" onclick="pagarPendiente()">${pp.url ? 'Terminar el pago' : 'Pagar el abono ahora'}</button><button class="sec" onclick="anularPendiente()">Anular y empezar de nuevo</button></div></div>` : '' })()}
     ${citaCambiar ? `<div class="cambio-aviso"><strong>Estás cambiando tu hora</strong> del ${esc(fechaLarga(citaCambiar.fecha))} a las ${esc(String(citaCambiar.inicio).slice(0,5))} hrs. Elige el nuevo día y hora; la anterior se libera al confirmar. <a href="/mi-cuenta">No cambiar</a></div>` : ''}
     ${pintarDias()}
     ${pintarProfesionales()}
