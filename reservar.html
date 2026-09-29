@@ -62,6 +62,8 @@ input:focus,textarea:focus{outline:none;border-color:var(--gold)}
 .acepto input{width:18px;height:18px;flex:0 0 18px;margin-top:1px;accent-color:var(--gold)}
 .acepto a{color:var(--gold-d);font-weight:600}
 .ir-pago p{margin-top:10px}
+.volvio-flow p{margin-top:6px}
+.volvio-flow button.btn-ok{width:100%;cursor:pointer;font-family:inherit;border:1px solid var(--gold)}
 .ir-pago .ir-nota{font-size:.8rem;color:var(--light)}
 .ir-pago .btn-ok{margin-top:22px}
 .bienvenida{display:flex;gap:12px;align-items:flex-start;background:linear-gradient(135deg,#fbf6ec,#f3e8d3);border:1px solid #e8d9bb;border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:.86rem;line-height:1.55;color:var(--mid)}
@@ -268,6 +270,39 @@ function anularPendiente(){
   try{ sessionStorage.removeItem(CLAVE_PENDIENTE) }catch(e){}
   render()
 }
+/* ── Volver atrás desde Flow (pedido de Luis) ──
+   La página de Flow no es nuestra, pero al apretar "atrás" ahí el navegador
+   vuelve a esta página: en vez de mostrar el formulario como si nada, se
+   pregunta si de verdad quiere salir del pago. */
+let saltoAFlow = null
+function mostrarVolvioDeFlow(pp){
+  clearTimeout(saltoAFlow)
+  document.getElementById('body').innerHTML = `<div class="done volvio-flow">
+    <div class="em">⚠️</div>
+    <h2>¿Seguro que quieres salir del pago?</h2>
+    <p>Tu pago${pp.monto ? ' de <strong>' + money(pp.monto) + '</strong>' : ''} no se completó y tu hora todavía <strong>no está reservada</strong>.</p>
+    <div class="det"><strong>${esc(pp.servicio || '')}</strong><br>📅 ${esc(fechaLarga(pp.fecha))} · ${esc(pp.hora)} hrs</div>
+    <div class="done-btns">
+      <a class="btn-ok" href="${esc(pp.url)}">Volver al pago</a>
+      <button class="btn-ok sec" onclick="salirDelPago()">Sí, salir y elegir otra hora</button>
+    </div>
+  </div>`
+  window.scrollTo(0, 0)
+}
+function salirDelPago(){
+  try{ sessionStorage.removeItem(CLAVE_PENDIENTE) }catch(e){}
+  if(servicio && profesionales.length){ render(); window.scrollTo(0, 0) } else location.reload()
+}
+/* ¿se llegó a esta página con el botón "atrás"? */
+function llegoConAtras(){
+  try{ const n = performance.getEntriesByType('navigation')[0]; return !!n && n.type === 'back_forward' }catch(e){ return false }
+}
+/* si el navegador restaura la página desde su memoria (sin recargar) */
+window.addEventListener('pageshow', e => {
+  if(!e.persisted) return
+  const pp = reservaPorPagar()
+  if(pp && pp.url) mostrarVolvioDeFlow(pp)
+})
 function guardarPorPagar(r){ try{ sessionStorage.setItem(CLAVE_PENDIENTE, JSON.stringify(r)) }catch(e){} }
 /* La hora NO se toma antes de pagar (Luis, 28-sep): el servidor revisa que se
    pueda reservar, crea el pago en Flow con los datos de la reserva, y la
@@ -295,7 +330,7 @@ function irAPagar(pago, precio){
     <a class="btn-ok" href="${esc(pago.paymentUrl)}">Ir a pagar ${money(pago.monto)}</a>
   </div>`
   /* se sigue solo en unos segundos, por si no toca el botón */
-  setTimeout(() => { location.href = pago.paymentUrl }, 6000)
+  saltoAFlow = setTimeout(() => { location.href = pago.paymentUrl }, 6000)
 }
 
 const pad = n => String(n).padStart(2,'0')
@@ -647,7 +682,7 @@ async function reservar(){
         nota: 'Reservado desde el sitio web' + (nota ? ' — ' + nota : ''), nombre, fono, correo: mail || undefined })
       if(!pago.sinAbono){
         if(!cuentaCliente) recordarDatos(nombre, fono, mail)
-        guardarPorPagar({ orden: pago.orden, url: pago.paymentUrl, servicio: servicio.name, fecha: fechaSel, hora: horaSel,
+        guardarPorPagar({ orden: pago.orden, url: pago.paymentUrl, monto: pago.monto, servicio: servicio.name, fecha: fechaSel, hora: horaSel,
           hasta: Date.now() + Math.max(1, (pago.minutos || 20) - 1) * 60000 })
         irAPagar(pago, p.precio)
         return
@@ -809,7 +844,9 @@ async function init(){
 
     if(!profesionales.length){ body.innerHTML = '<p class="empty">Por ahora no hay horas publicadas. Escríbenos por WhatsApp y te ayudamos.</p>'; return }
     elegirPrimerDiaConHoras()
-    render()
+    const pp = reservaPorPagar()
+    if(pp && pp.url && llegoConAtras() && !citaCambiar) mostrarVolvioDeFlow(pp)
+    else render()
   }catch(e){
     /* el motivo se muestra en letra chica: sin eso, cada vez que pasaba habia
        que adivinar si era la red, la base o un servicio mal configurado */
