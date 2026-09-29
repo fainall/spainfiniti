@@ -216,6 +216,16 @@ function enviar_correo_reserva($id, $forzar = false, $opc = []) {
     /* una reserva web que espera el abono se confirma cuando se paga (abono-lib.php) */
     if (($a['status'] ?? '') === 'pago_pendiente') return ['ok' => false, 'motivo' => 'la reserva espera el pago del abono'];
     if (!$forzar && !empty($a['correo_confirmacion_at'])) return ['ok' => true, 'ya_enviado' => $a['correo_confirmacion_at']];
+    /* Una sola confirmación por reserva, aunque dos avisos lleguen a la vez (29-sep:
+       a Luis le llegaron 4 iguales). Se "toma" el envío en la base en un solo paso:
+       solo quien logra anotar la hora manda el correo. */
+    if (!$forzar) {
+        $tomado = cr_supa('PATCH', 'appointments?id=eq.' . rawurlencode($id) . '&correo_confirmacion_at=is.null', ['correo_confirmacion_at' => gmdate('c')]);
+        if (!is_array($tomado) || isset($tomado['code']) || !count($tomado)) return ['ok' => true, 'ya_enviado' => true];
+    } elseif (!empty($a['correo_confirmacion_at']) && strtotime($a['correo_confirmacion_at']) > time() - 180) {
+        /* reenviar desde el panel: no más de una vez cada 3 minutos (un doble clic mandaba dos) */
+        return ['ok' => true, 'ya_enviado' => $a['correo_confirmacion_at'], 'motivo' => 'Se envió hace menos de 3 minutos; espera un momento antes de reenviarlo'];
+    }
 
     $prof = '';
     if (!empty($a['professional_id'])) $prof = cr_supa('GET', 'professionals?select=name&id=eq.' . rawurlencode($a['professional_id']))[0]['name'] ?? '';

@@ -8262,6 +8262,8 @@ async function desligarFicha(client, nombre){
 
 /* manda (o reenvía) el correo de confirmación con la invitación de calendario */
 async function enviarCorreoReserva(id, reenviar){
+  /* reenviar a mano pregunta antes: cada clic le mandaba al cliente otro correo igual */
+  if(reenviar && !await confirmar('El cliente y el spa recibirán otra vez el correo de confirmación de esta reserva.', { titulo:'¿Reenviar la confirmación?', ok:'Sí, reenviar' })) return
   try{
     if(typeof sesionLista === 'function') await sesionLista()
     const r = await fetch('/api/correo-reserva.php', { method:'POST', headers: authHeaders({ 'Content-Type':'application/json' }),
@@ -8269,6 +8271,7 @@ async function enviarCorreoReserva(id, reenviar){
     const j = await r.json().catch(() => ({}))
     if(reenviar){
       if(!r.ok || !j.ok) toast('No se pudo enviar el correo: ' + (j.error || j.motivo || r.status), 'error')
+      else if(j.ya_enviado) toast(j.motivo || 'La confirmación ya se había enviado', 'error')
       else toast(j.cliente && j.cliente.includes('@') ? 'Confirmación enviada a ' + j.cliente : 'El cliente no tiene correo: se envió solo al spa', 'success')
     }
     return j
