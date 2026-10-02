@@ -296,11 +296,23 @@ if (!$history || (end($history)['role'] ?? '') !== 'user') { if ($candado) flock
 
 /* ── Consultar al cerebro (con la clave interna que lo distingue de un extraño) ── */
 $internalKey = hash('sha256', (string)($cfg['openaiKey'] ?? '') . '|spa-internal');
-$ch = curl_init('https://spainfinity.cl/api/bot-reply.php');
-curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>45, CURLOPT_POST=>true,
-    CURLOPT_HTTPHEADER=>['Content-Type: application/json', 'X-Internal-Key: ' . $internalKey],
-    CURLOPT_POSTFIELDS=>json_encode(['messages'=>$history, 'phone'=>$from, 'voz'=>$conVoz])]);
-$brain = json_decode(curl_exec($ch), true); curl_close($ch);
+/* Se llama al cerebro dentro del mismo servidor (127.0.0.1), sin salir a internet
+   y volver a entrar por QUIC.cloud: el 02-oct QUIC.cloud empezó a cortar estas
+   peticiones con error 520 y Mariet contestaba "no pude procesar tu mensaje".
+   Si la llamada local fallara, se intenta una vez por la dirección pública. */
+$preguntarAlCerebro = function ($local) use ($internalKey, $history, $from, $conVoz) {
+    $ch = curl_init('https://spainfinity.cl/api/bot-reply.php');
+    $op = [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>45, CURLOPT_POST=>true,
+        CURLOPT_HTTPHEADER=>['Content-Type: application/json', 'X-Internal-Key: ' . $internalKey],
+        CURLOPT_POSTFIELDS=>json_encode(['messages'=>$history, 'phone'=>$from, 'voz'=>$conVoz])];
+    if ($local) $op[CURLOPT_RESOLVE] = ['spainfinity.cl:443:127.0.0.1'];
+    curl_setopt_array($ch, $op);
+    $r = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    $j = json_decode((string)$r, true);
+    if (!is_array($j) || !isset($j['reply'])) error_log('wa-webhook: cerebro ' . ($local ? 'local' : 'público') . " respondió HTTP $code");
+    return is_array($j) && isset($j['reply']) ? $j : null;
+};
+$brain = $preguntarAlCerebro(true) ?? $preguntarAlCerebro(false);
 $reply = $brain['reply'] ?? 'Disculpa, no pude procesar tu mensaje. Escríbenos y te ayudamos 🙏';
 /* mientras se pensaba la respuesta el cliente escribió otra cosa: esta respuesta
    ya quedó vieja y el proceso del mensaje nuevo contesta todo junto */
