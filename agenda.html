@@ -1567,6 +1567,23 @@ body.sin-scroll{overflow:hidden}
 .ad-auto-cab strong{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--texto,#1a2436)}
 .ad-auto-cab span{font-size:.74rem;color:var(--mid)}
 .ad-espera{font-size:.8rem;cursor:default;text-align:center;padding:10px}
+.evo-sel{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
+.evo-et{font-size:.76rem;color:var(--mid);margin:0 0 8px}
+.evo-fuentes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
+.evo-fuentes .evo-et{margin:0 4px 0 0}
+.evo-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border);border-radius:16px;font-size:.74rem;cursor:pointer;background:#fff}
+.evo-chip.on{border-color:var(--gold);background:var(--gold-pale,#faf5ec)}
+.evo-chip input{margin:0}
+.evo-grilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:420px;overflow-y:auto;padding:2px}
+.evo-foto{border:2px solid transparent;border-radius:10px;padding:4px;background:#fff;display:flex;flex-direction:column;gap:4px}
+.evo-foto.es-a{border-color:#7FA7C9}
+.evo-foto.es-d{border-color:var(--gold)}
+.evo-foto img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;background:#f3f1ec}
+.evo-info{font-size:.66rem;color:var(--mid);line-height:1.3}
+.evo-btns{display:flex;gap:4px}
+.evo-btns button{flex:1;padding:4px 0;border:1px solid var(--border);border-radius:6px;background:#fff;font-family:inherit;font-size:.68rem;font-weight:600;cursor:pointer;color:var(--mid)}
+.evo-btns button.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.evo-acciones{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
 .ad-espera:hover{border-color:var(--border);color:var(--mid)}
 .ad-compartir{margin-top:8px;padding:10px 12px;border:1px dashed var(--border);border-radius:10px}
 .ad-compartir.on{border-style:solid;border-color:var(--gold);background:var(--gold-pale,#faf5ec)}
@@ -8449,6 +8466,7 @@ function abrirFichaCliente(id){
 let cdCliente = null, cdTab = 'actividad'
 
 async function openClientDetail(id){
+  evoAbierto = false
   cdCliente = state.clients.find(x=>x.id===id); if(!cdCliente) return
   cdTab = isPro() ? 'fichas' : 'actividad'
   fichasCliente = []
@@ -8546,7 +8564,7 @@ function cdAntesDespues(){
       </div>
     </div>`).join('')
   const evo = evolucionCliente()
-  return `${evo.fotos.length ? adEvolucion(evo) : ''}
+  return `${evo.todas.length ? adEvolucion(evo) : ''}
     <div class="ad-cab">
       <p class="rem-note" style="margin:0">${evo.fotos.length
         ? 'Además puedes armar comparaciones puntuales, por zona o por tratamiento. Toma las fotos siempre con la misma luz y el mismo ángulo.'
@@ -8658,26 +8676,93 @@ function momentoFoto(url){
   const m = String(url).match(/(\d{13})(?:-\d+)?\.jpe?g(?:$|\?)/)
   return m ? Number(m[1]) : null
 }
+/* ── Elegir las fotos de la Evolución (pedido de Luis, 06-oct) ──
+   Por omisión se arma sola (primera y última). Se puede elegir de qué fichas
+   salen las fotos y cuáles van como Antes y Después; la elección se recuerda
+   en este computador, y con "Guardar como comparación" queda guardada para
+   todos (y se puede compartir con el cliente). */
+let evoAbierto = false
+function evoSeleccion(){
+  if(!cdCliente) return {}
+  try{ return (JSON.parse(localStorage.getItem('spa_evo_sel') || '{}') || {})[cdCliente.id] || {} }catch(e){ return {} }
+}
+function evoGuardarSel(sel){
+  if(!cdCliente) return
+  try{
+    const todo = JSON.parse(localStorage.getItem('spa_evo_sel') || '{}') || {}
+    if(sel && (sel.antes || sel.despues || sel.fuentes)) todo[cdCliente.id] = sel; else delete todo[cdCliente.id]
+    localStorage.setItem('spa_evo_sel', JSON.stringify(todo))
+  }catch(e){}
+}
 function evolucionCliente(){
-  const vistas = new Set(), fotos = []
-  const sumar = (url, respaldo, origen) => {
+  const vistas = new Set(), todas = []
+  const fecha = f => f ? new Date(String(f).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-CL', { day:'numeric', month:'short' }) : ''
+  const sumar = (url, respaldo, origen, fuente, fuenteNombre) => {
     if(typeof url !== 'string' || !url.includes('/object/public/fichas/') || vistas.has(url)) return
     vistas.add(url)
     const cuando = momentoFoto(url) || Date.parse(respaldo || '') || 0
-    fotos.push({ url, cuando, origen })
+    todas.push({ url, cuando, origen, fuente, fuenteNombre })
   }
   ;(fichasCliente || []).forEach(r => {
     let d = r.data || {}
     if(typeof d === 'string'){ try{ d = JSON.parse(d) }catch(e){ d = {} } }
+    const nombre = 'Ficha' + (r.template_name ? ' · ' + r.template_name : '') + ' · ' + fecha(r.record_date || r.created_at)
     Object.values(d).forEach(v => (Array.isArray(v) ? v : [v])
-      .forEach(u => sumar(u, r.record_date || r.created_at, 'Ficha' + (r.template_name ? ' · ' + r.template_name : ''))))
+      .forEach(u => sumar(u, r.record_date || r.created_at, 'Ficha' + (r.template_name ? ' · ' + r.template_name : ''), 'f:' + r.id, nombre)))
   })
   ;(comparaciones || []).forEach(c => {
-    sumar(c.antes_url, c.antes_fecha || c.created_at, c.titulo || 'Antes y después')
-    sumar(c.despues_url, c.despues_fecha || c.created_at, c.titulo || 'Antes y después')
+    const nombre = (c.titulo || 'Antes y después') + ' (comparación)'
+    sumar(c.antes_url, c.antes_fecha || c.created_at, c.titulo || 'Antes y después', 'c:' + c.id, nombre)
+    sumar(c.despues_url, c.despues_fecha || c.created_at, c.titulo || 'Antes y después', 'c:' + c.id, nombre)
   })
-  fotos.sort((a, b) => a.cuando - b.cuando)
-  return { fotos, antes: fotos[0] || null, despues: fotos.length > 1 ? fotos[fotos.length - 1] : null }
+  todas.sort((a, b) => a.cuando - b.cuando)
+  /* las fichas de donde salen las fotos, en el orden en que aparecen */
+  const fuentes = []
+  todas.forEach(f => { if(!fuentes.some(x => x.id === f.fuente)) fuentes.push({ id: f.fuente, nombre: f.fuenteNombre }) })
+  const sel = evoSeleccion()
+  const usar = Array.isArray(sel.fuentes) ? sel.fuentes.filter(id => fuentes.some(x => x.id === id)) : null
+  const fotos = usar && usar.length ? todas.filter(f => usar.includes(f.fuente)) : todas
+  const antesSel = sel.antes && fotos.find(f => f.url === sel.antes)
+  const despuesSel = sel.despues && fotos.find(f => f.url === sel.despues)
+  const antes = antesSel || fotos[0] || null
+  const ultima = fotos.length > 1 ? fotos[fotos.length - 1] : null
+  const despues = despuesSel || (ultima && (!antes || ultima.url !== antes.url) ? ultima : null)
+  return { fotos, todas, fuentes, usar: usar && usar.length ? usar : null, antes, despues,
+           elegida: !!(antesSel || despuesSel || (usar && usar.length && usar.length < fuentes.length)) }
+}
+function evoElegir(cual, url){
+  const sel = evoSeleccion()
+  sel[cual] = url
+  /* la misma foto no puede ser Antes y Después a la vez */
+  const otra = cual === 'antes' ? 'despues' : 'antes'
+  if(sel[otra] === url) sel[otra] = null
+  evoGuardarSel(sel); renderClientDetail()
+}
+function evoFuente(id, on){
+  const evo = evolucionCliente(), sel = evoSeleccion()
+  let lista = sel.fuentes && sel.fuentes.length ? sel.fuentes.slice() : evo.fuentes.map(f => f.id)
+  lista = on ? Array.from(new Set(lista.concat(id))) : lista.filter(x => x !== id)
+  if(!lista.length){ toast('Deja al menos una ficha marcada', 'error'); renderClientDetail(); return }
+  sel.fuentes = lista.length === evo.fuentes.length ? null : lista
+  evoGuardarSel(sel); renderClientDetail()
+}
+function evoAutomatico(){ evoGuardarSel(null); evoAbierto = false; renderClientDetail() }
+function evoAbrir(){ evoAbierto = !evoAbierto; renderClientDetail() }
+/* deja el par elegido como una comparación más (para todos los equipos y para compartir) */
+async function evoGuardarComparacion(){
+  const evo = evolucionCliente()
+  if(!cdCliente || !evo.antes || !evo.despues){ toast('Elige una foto de Antes y una de Después', 'error'); return }
+  const iso = ms => ms ? new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : null
+  try{
+    const r = await supabase.insert('client_comparisons', { client_id: cdCliente.id, titulo: 'Evolución',
+      antes_url: evo.antes.url, antes_fecha: iso(evo.antes.cuando), despues_url: evo.despues.url, despues_fecha: iso(evo.despues.cuando) })
+    const nueva = Array.isArray(r) ? r[0] : r
+    if(!nueva || !nueva.id) throw new Error('la base no la guardó')
+    comparaciones.unshift(nueva)
+    evoAbierto = false
+    renderClientDetail()
+    toast('Comparación guardada: ahora puedes ponerle título o compartirla con el cliente', 'success')
+  }catch(e){ toast('No se pudo guardar: ' + e.message, 'error') }
 }
 const fechaDeMomento = ms => ms ? new Date(ms).toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' }) : ''
 function adEvolucion(evo){
@@ -8694,13 +8779,41 @@ function adEvolucion(evo){
         <div class="ad-rot">${rotulo}</div>
         <div class="ad-vacio ad-espera"><span>La próxima foto que se suba aparecerá aquí</span></div>
       </div>`
+  const n = evo.fotos.length
+  const explica = evo.elegida
+    ? `Fotos elegidas por ti${evo.usar ? ' (de ' + evo.usar.length + ' de ' + evo.fuentes.length + ' fichas)' : ''}. ${n} foto${n === 1 ? '' : 's'} disponibles.`
+    : `Se arma sola: la primera foto que se le cargó y la última (${n} foto${n === 1 ? '' : 's'} en total, de sus fichas y comparaciones).`
+  /* el selector: de qué fichas, y cuál va como Antes y cuál como Después */
+  const selector = !evoAbierto ? '' : `<div class="evo-sel">
+      ${evo.fuentes.length > 1 ? `<div class="evo-fuentes"><span class="evo-et">Fichas a usar:</span>
+        ${evo.fuentes.map(f => { const on = !evo.usar || evo.usar.includes(f.id)
+          return `<label class="evo-chip ${on ? 'on' : ''}"><input type="checkbox" ${on ? 'checked' : ''} onchange="evoFuente('${esc(f.id)}', this.checked)"> ${esc(f.nombre)}</label>` }).join('')}
+      </div>` : ''}
+      <div class="evo-et">Toca <strong>Antes</strong> o <strong>Después</strong> bajo la foto que quieras:</div>
+      <div class="evo-grilla">${evo.fotos.map(f => {
+        const esA = evo.antes && evo.antes.url === f.url, esD = evo.despues && evo.despues.url === f.url
+        return `<div class="evo-foto ${esA ? 'es-a' : ''} ${esD ? 'es-d' : ''}">
+          <img src="${esc(f.url)}" alt="" loading="lazy">
+          <span class="evo-info">${esc(fechaDeMomento(f.cuando))} · ${esc(f.fuenteNombre || f.origen)}</span>
+          <div class="evo-btns">
+            <button class="${esA ? 'on' : ''}" onclick="evoElegir('antes','${esc(f.url)}')">Antes</button>
+            <button class="${esD ? 'on' : ''}" onclick="evoElegir('despues','${esc(f.url)}')">Después</button>
+          </div></div>` }).join('')}</div>
+      <div class="evo-acciones">
+        ${evo.elegida ? '<button class="mini-btn" onclick="evoAutomatico()">↺ Volver a automático</button>' : ''}
+        ${evo.antes && evo.despues ? '<button class="mini-btn" onclick="evoGuardarComparacion()">💾 Guardar como comparación</button>' : ''}
+        <button class="btn-primary" onclick="evoAbrir()">Listo</button>
+      </div>
+    </div>`
   return `<div class="ad-card ad-auto">
       <div class="ad-top">
         <div class="ad-auto-cab"><strong>Evolución</strong>
-          <span>Se arma sola: la primera foto que se le cargó y la última (${evo.fotos.length} foto${evo.fotos.length === 1 ? '' : 's'} en total, de sus fichas y comparaciones).</span></div>
+          <span>${explica}</span></div>
+        ${evo.todas.length > 1 ? `<button class="mini-btn" onclick="evoAbrir()">${evoAbierto ? 'Cerrar' : '🖼 Elegir fotos'}</button>` : ''}
         ${evo.despues ? '<button class="mini-btn" onclick="verEvolucion()">Comparar</button>' : ''}
       </div>
       <div class="ad-par">${lado(evo.antes, 'Antes')}${lado(evo.despues, 'Después')}</div>
+      ${selector}
     </div>`
 }
 /* abre el mismo visor de las comparaciones (lado a lado o deslizando) */
@@ -8788,7 +8901,7 @@ function renderClientDetail(){
   const todas = [['actividad','Actividad'],['asistencia','Asistencia'],
                 ['pagos','Pagos y deudas'],['fichas','Fichas ('+fichasCliente.length+')'],
                 ['consent','Consentimientos ('+firmasCliente.length+')'],
-                ['antesdespues','Antes y después ('+(comparaciones.length + (evolucionCliente().fotos.length ? 1 : 0))+')'],
+                ['antesdespues','Antes y después ('+(comparaciones.length + (evolucionCliente().todas.length ? 1 : 0))+')'],
                 ['bonos','Bonos ('+bonos.length+')']]
   /* una profesional ve y crea fichas, consentimientos y fotos de antes y después */
   const PRO_TABS = ['fichas','consent','antesdespues']
