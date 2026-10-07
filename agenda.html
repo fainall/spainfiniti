@@ -1567,6 +1567,21 @@ body.sin-scroll{overflow:hidden}
 .ad-auto-cab strong{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--texto,#1a2436)}
 .ad-auto-cab span{font-size:.74rem;color:var(--mid)}
 .ad-espera{font-size:.8rem;cursor:default;text-align:center;padding:10px}
+.ins-badge{background:#efe7fb;color:#6b45b8;font-size:.62rem;vertical-align:middle;margin-left:4px}
+.ins-lista{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.ins-fila{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+.ins-fila select{min-width:0}
+.ins-qty{display:flex;align-items:center;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.ins-qty button{border:0;background:#f6f4ef;width:30px;height:34px;font-size:1rem;cursor:pointer}
+.ins-qty input{width:52px;border:0;text-align:center;height:34px;-moz-appearance:textfield}
+.ins-quitar{border:0;background:none;color:var(--red);font-size:1rem;cursor:pointer;padding:4px 6px}
+.ins-vacio{font-size:.82rem;color:var(--mid);padding:10px;border:1px dashed var(--border);border-radius:8px;text-align:center}
+.kit-grid{display:grid;grid-template-columns:minmax(200px,280px) 1fr;gap:16px;align-items:start}
+.kit-svcs{max-height:520px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:#fff}
+.kit-svc{display:flex;justify-content:space-between;gap:8px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--border);background:#fff;padding:9px 12px;font-family:inherit;font-size:.8rem;cursor:pointer}
+.kit-svc.on{background:var(--gold-pale,#faf5ec);font-weight:700}
+.kit-svc em{font-style:normal;color:var(--mid);font-size:.72rem;white-space:nowrap}
+@media(max-width:820px){ .kit-grid{grid-template-columns:1fr} }
 .evo-sel{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
 .evo-et{font-size:.76rem;color:var(--mid);margin:0 0 8px}
 .evo-fuentes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
@@ -2734,6 +2749,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <button class="adm-nav" data-sec="servicios" onclick="admSec('servicios')">🧾 Servicios</button>
           <button class="adm-nav" data-sec="usuarios" onclick="admSec('usuarios')">🔐 Usuarios y accesos</button>
           <button class="adm-nav" data-sec="abono" onclick="admSec('abono')">💳 Pago en línea (abono)</button>
+          <button class="adm-nav" data-sec="insumos" onclick="admSec('insumos')">🧴 Insumos por servicio</button>
         </div>
         <div class="adm-box">
           <button class="adm-box-head" onclick="document.getElementById('admAdvanced').classList.toggle('hide')">Opciones avanzadas <span>▾</span></button>
@@ -4257,6 +4273,18 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           </div>
           <div><label>Precio de venta al público</label><input type="number" id="prodPrice" min="0" step="500" value="0" /></div>
         </div>
+        <div class="row2" style="margin-top:14px">
+          <div>
+            <label>Uso</label>
+            <select id="prodUso">
+              <option value="venta">Para venta</option>
+              <option value="insumo">Insumo (uso interno en las sesiones)</option>
+              <option value="ambos">Ambos (se vende y se usa)</option>
+            </select>
+          </div>
+          <div><label>Unidad (opcional)</label><input type="text" id="prodUnidad" maxlength="20" placeholder="Ej: unidad, par, caja de 100" /></div>
+        </div>
+        <p class="rem-note" style="margin-top:6px">Los insumos se descuentan del stock al registrar lo usado en cada sesión, y no aparecen al vender.</p>
       </div>
       <div class="fbox">
         <label>Cantidad en stock</label>
@@ -4345,6 +4373,19 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal('alarmsModal')">Cerrar</button>
       <button class="btn-primary" onclick="saveStockAlarms()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: insumos usados en una sesión -->
+<div class="modal-ov" id="insumosModal">
+  <div class="modal" style="width:560px;max-width:94vw">
+    <h2 id="insTitulo">Insumos</h2>
+    <p class="rem-note" id="insSub" style="margin:-6px 0 12px"></p>
+    <div id="insBody"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('insumosModal')">Cerrar</button>
+      <button class="btn-primary" id="insGuardar" onclick="guardarInsumos()">Guardar y descontar del stock</button>
     </div>
   </div>
 </div>
@@ -6549,6 +6590,7 @@ function openApptQuickView(id){
     <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
       ${pro ? (canEditAppt(a) ? pagoSoloVer(id) : '') : botonPagar(id)}
       ${!pro && a.status !== 'block' ? `<button class="mini-btn" title="Enviar de nuevo el correo con la reserva y el calendario" onclick="enviarCorreoReserva('${id}', true)">✉</button>` : ''}
+      ${a.status !== 'block' && a.status !== 'cancelled' && (!pro || canEditAppt(a)) && puedeInsumos() ? `<button class="mini-btn" title="Registrar los insumos usados en esta sesión" onclick="abrirInsumos('${id}')">🧴 Insumos</button>` : ''}
       ${a.client_id?`<button class="mini-btn" style="margin-left:auto" onclick="closeQuickView();abrirFichaCliente('${a.client_id}')">Ver ficha completa</button>`:''}
     </div>`
   document.body.appendChild(qv)
@@ -7290,7 +7332,7 @@ function vdCatalogo(){
   return {
     servicios: state.services.filter(s => coincide(s.name))
       .map(s => ({ name:s.name, price:money2num(s.price), dur:s.duration||60 })),
-    productos: (state.products||[]).filter(x => coincide(x.name) && x.active!==false)
+    productos: (state.products||[]).filter(x => coincide(x.name) && x.active!==false && (x.uso||'venta')!=='insumo')
       .map(x => ({ name:x.name, price:Number(x.price)||0, productId:x.id, stock:x.stock })),
     giftcards: (typeof gcCatalogo!=='undefined' ? gcCatalogo : []).filter(g => g.active!==false && coincide(g.name))
       .map(g => ({ name:g.name, price:money2num(g.price), gift:true }))
@@ -8467,6 +8509,7 @@ let cdCliente = null, cdTab = 'actividad'
 
 async function openClientDetail(id){
   evoAbierto = false
+  insumosCliente = null
   cdCliente = state.clients.find(x=>x.id===id); if(!cdCliente) return
   cdTab = isPro() ? 'fichas' : 'actividad'
   fichasCliente = []
@@ -8902,9 +8945,10 @@ function renderClientDetail(){
                 ['pagos','Pagos y deudas'],['fichas','Fichas ('+fichasCliente.length+')'],
                 ['consent','Consentimientos ('+firmasCliente.length+')'],
                 ['antesdespues','Antes y después ('+(comparaciones.length + (evolucionCliente().todas.length ? 1 : 0))+')'],
-                ['bonos','Bonos ('+bonos.length+')']]
+                ['bonos','Bonos ('+bonos.length+')'],
+                ['insumos','Insumos' + (insumosCliente ? ' (' + insumosCliente.length + ')' : '')]]
   /* una profesional ve y crea fichas, consentimientos y fotos de antes y después */
-  const PRO_TABS = ['fichas','consent','antesdespues']
+  const PRO_TABS = ['fichas','consent','antesdespues','insumos']
   const tabs = pro ? todas.filter(([k]) => PRO_TABS.includes(k)) : todas
   if(pro && !PRO_TABS.includes(cdTab)) cdTab = 'fichas'
   document.getElementById('cdTabs').innerHTML = tabs.map(([k,t])=>
@@ -8917,6 +8961,7 @@ function renderClientDetail(){
   else if(cdTab==='fichas') body.innerHTML = cdFichas()
   else if(cdTab==='consent') body.innerHTML = cdConsent()
   else if(cdTab==='antesdespues') body.innerHTML = cdAntesDespues()
+  else if(cdTab==='insumos') body.innerHTML = cdInsumos()
   else body.innerHTML = cdBonos(bonos)
 
   document.getElementById('cdEditBtn').onclick=()=>{ closeModal('clientDetailModal'); openClientModal(true,c.id) }
@@ -10123,6 +10168,7 @@ function renderAdmin(){
   else if(admCurrent==='planes') el.innerHTML=admPlanes()
   else if(admCurrent==='precios') el.innerHTML=admPrecios()
   else if(admCurrent==='abono'){ el.innerHTML=admAbono(); if(abonosRecibidos === null) cargarAbonosRecibidos() }
+  else if(admCurrent==='insumos') el.innerHTML=admInsumos()
   else if(admCurrent==='recursos') el.innerHTML=admRecursos()
   else if(admCurrent==='config'){ el.innerHTML=admConfig(); if(isAdmin()) pintarRespaldos() }
   else if(admCurrent==='mensajes') el.innerHTML=admMensajes()
@@ -15222,7 +15268,7 @@ function fillSaleItemPick(){
   const byCat={}; state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
   let html=`<option value="">+ Agregar servicio…</option>`
   Object.entries(byCat).forEach(([cat,arr])=>{ html+=`<optgroup label="${esc(cat)}">`+arr.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}" data-price="${parseMoney(s.price)}">${esc(s.name)} — ${esc(s.price||'')}</option>`).join('')+`</optgroup>` })
-  const prods=(state.products||[]).filter(p=>p.active!==false)
+  const prods=(state.products||[]).filter(p=>p.active!==false && (p.uso||'venta')!=='insumo')
   if(prods.length){
     html+='<optgroup label="Productos">'+prods.map(p=>`<option value="prod-${p.id}" data-product-id="${p.id}" data-price="${p.price}" data-name="${esc(p.name)}">${esc(p.name)} — ${fmtMoney(Number(p.price||0))} (stock ${p.stock||0})</option>`).join('')+'</optgroup>'
   }
@@ -16132,7 +16178,7 @@ function renderProducts(){
   cont.innerHTML=`<table class="ctbl">
     <thead><tr><th>Producto</th><th>Categoría</th><th>Marca</th><th>Formato</th><th style="text-align:right">Precio</th><th style="text-align:center">Stock</th><th></th></tr></thead>
     <tbody>${list.map(p=>`<tr>
-      <td class="cname">${esc(p.name)}${p.sku?`<div style="font-size:.7rem;color:var(--light)">${esc(p.sku)}</div>`:''}</td>
+      <td class="cname">${esc(p.name)}${(p.uso||'venta')!=='venta'?` <span class="badge ins-badge">${p.uso==='ambos'?'Venta e insumo':'Insumo'}</span>`:''}${p.sku?`<div style="font-size:.7rem;color:var(--light)">${esc(p.sku)}</div>`:''}</td>
       <td>${esc(p.category||'—')}</td>
       <td>${esc(p.brand||'—')}</td>
       <td>${esc(p.format||'—')}</td>
@@ -16261,6 +16307,8 @@ function openProductModal(id){
   document.getElementById('prodBrand').value=p?(p.brand||''):''
   document.getElementById('prodCat').value=p?(p.category||''):''
   document.getElementById('prodFormat').value=p?(p.format||''):''
+  document.getElementById('prodUso').value=p?(p.uso||'venta'):'venta'
+  document.getElementById('prodUnidad').value=p?(p.unidad||''):''
   fillProductSelects()
   document.getElementById('prodDelBtn').style.display=p?'block':'none'
   prodTab('basicos')
@@ -16276,7 +16324,8 @@ async function saveProduct(){
     price:parseInt(document.getElementById('prodPrice').value)||0, cost:parseInt(document.getElementById('prodCost').value)||0,
     stock:parseInt(document.getElementById('prodStock').value)||0,
     min_stock: alarmOn ? (parseInt(document.getElementById('prodMin').value)||0) : 0,
-    active:document.getElementById('prodActive').value==='1', notes:document.getElementById('prodNotes').value.trim()
+    active:document.getElementById('prodActive').value==='1', notes:document.getElementById('prodNotes').value.trim(),
+    uso:document.getElementById('prodUso').value||'venta', unidad:document.getElementById('prodUnidad').value.trim()||null
   }
   const id=document.getElementById('prodId').value
   try{
@@ -16459,11 +16508,174 @@ function renderVentaProd(){
         <td style="text-align:right">${total?Math.round(s.total/total*100):0}%</td></tr>`).join('')}</tbody></table>`:empty
   }
 }
+/* ── INSUMOS USADOS EN CADA SESIÓN (pedido de Luis, 07-oct) ──
+   Los productos marcados como "insumo" (o "ambos") se registran por sesión
+   desde la ficha rápida de la cita (botón 🧴 Insumos). Viene cargado con el
+   kit del servicio (Administración → Insumos por servicio) y se ajusta a lo
+   que de verdad se usó. Guardar llama a registrar_insumos() en la base, que
+   deja la lista de la sesión y descuenta del stock solo la diferencia (si se
+   corrige, se devuelve o se descuenta lo justo). Lo pueden registrar
+   administración, recepción y la profesional de esa cita; los perfiles de
+   solo lectura y publicidad no. */
+const esInsumo = p => !!p && p.active !== false && ['insumo','ambos'].includes(p.uso || 'venta')
+function puedeInsumos(){ return !!me && !soloMira() && !['recepcion_ro','pro_ro'].includes(me.role) }
+let kitsServicio = null          // filas de servicio_insumos
+let insCita = null, insFilas = [], insYaRegistrado = false
+async function cargarKits(){
+  try{ kitsServicio = await supabase.fetch('servicio_insumos', { order:'created_at.asc' }) || [] }
+  catch(e){ console.warn('kits de insumos:', e.message); kitsServicio = [] }
+}
+function servicioDeCita(a){
+  return (a.service_id && (state.services||[]).find(s => s.id === a.service_id))
+      || (state.services||[]).find(s => s.name === a.service_name) || null
+}
+async function abrirInsumos(id){
+  const a = findAppt(id); if(!a) return
+  if(isPro() && !canEditAppt(a)){ toast('Solo puedes registrar los insumos de tus sesiones','error'); return }
+  closeQuickView()
+  insCita = a
+  if(!state.products.length) await loadProducts()
+  if(kitsServicio === null) await cargarKits()
+  let previos = []
+  try{ previos = await supabase.fetch('consumos', { filters:'appointment_id=eq.' + encodeURIComponent(id) }) || [] }
+  catch(e){ previos = [] }
+  const svc = servicioDeCita(a)
+  insYaRegistrado = previos.length > 0
+  insFilas = previos.length
+    ? previos.map(x => ({ product_id: x.product_id || '', qty: Math.max(1, Math.round(Number(x.qty) || 1)) }))
+    : (kitsServicio || []).filter(k => svc && k.service_id === svc.id).map(k => ({ product_id: k.product_id, qty: Math.max(1, Math.round(Number(k.qty) || 1)) }))
+  pintarInsumos()
+  openModal('insumosModal')
+}
+function pintarInsumos(){
+  const a = insCita; if(!a) return
+  const insumos = state.products.filter(esInsumo)
+  document.getElementById('insTitulo').textContent = 'Insumos · ' + (a.client_name || 'Sesión')
+  document.getElementById('insSub').textContent = [a.service_name, fmtLongDate(a.appt_date) + ' · ' + a.start_time.slice(0,5) + ' hrs'].filter(Boolean).join(' · ')
+  const aviso = insYaRegistrado
+    ? 'Esta sesión ya tiene insumos registrados. Puedes corregirlos y guardar de nuevo: solo se descuenta (o se devuelve) la diferencia.'
+    : insFilas.length ? 'Viene cargado con el kit del servicio. Ajusta las cantidades a lo que de verdad se usó.'
+    : 'Agrega los insumos que se usaron en esta sesión.'
+  const opciones = sel => '<option value="">Elige un insumo…</option>'
+    + insumos.map(p => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}${p.unidad ? ' (' + esc(p.unidad) + ')' : ''} · quedan ${p.stock || 0}</option>`).join('')
+    /* un insumo que ya no está activo pero quedó registrado en la sesión */
+    + (sel && !insumos.some(p => p.id === sel) ? `<option value="${esc(sel)}" selected>${esc((state.products.find(p => p.id === sel) || {}).name || 'Producto')}</option>` : '')
+  document.getElementById('insBody').innerHTML = !insumos.length && !insFilas.length
+    ? '<div class="empty-state">Todavía no hay productos marcados como insumo. En Productos → Inventario, edita el producto (bisturí, gasa, guantes…) y en "Uso" elige "Insumo".</div>'
+    : `<p class="rem-note" style="margin:0 0 12px">${aviso}</p>
+      <div class="ins-lista">${insFilas.map((f, i) => `<div class="ins-fila">
+          <select onchange="insFilas[${i}].product_id=this.value">${opciones(f.product_id)}</select>
+          <div class="ins-qty"><button type="button" onclick="insCant(${i},-1)">−</button><input type="number" min="1" step="1" value="${f.qty}"
+            onchange="insFilas[${i}].qty=Math.max(1,parseInt(this.value)||1)"><button type="button" onclick="insCant(${i},1)">+</button></div>
+          <button type="button" class="ins-quitar" title="Quitar" onclick="insFilas.splice(${i},1);pintarInsumos()">✕</button>
+        </div>`).join('') || '<div class="ins-vacio">Sin insumos en la lista. Si guardas así, se devuelve al stock lo que estaba registrado.</div>'}</div>
+      <button class="mini-link" onclick="insFilas.push({product_id:'',qty:1});pintarInsumos()">+ Agregar insumo</button>`
+}
+function insCant(i, d){ insFilas[i].qty = Math.max(1, (parseInt(insFilas[i].qty) || 1) + d); pintarInsumos() }
+async function guardarInsumos(){
+  if(!insCita) return
+  if(insFilas.some(f => !f.product_id)){ toast('Elige el insumo de cada fila o quítala','error'); return }
+  if(!insFilas.length && !insYaRegistrado){ closeModal('insumosModal'); return }
+  const items = insFilas.map(f => ({ product_id: f.product_id, qty: Math.max(1, parseInt(f.qty) || 1) }))
+  const b = document.getElementById('insGuardar'); b.disabled = true
+  try{
+    await supabase.rpc('registrar_insumos', { p_cita: insCita.id, p_items: items })
+    await loadProducts()
+    if(cdCliente && cdCliente.id === insCita.client_id) insumosCliente = null
+    closeModal('insumosModal')
+    toast(items.length ? 'Insumos registrados y descontados del stock' : 'Se quitaron los insumos de la sesión y se devolvieron al stock', 'success')
+    const bajos = items.map(i => state.products.find(p => p.id === i.product_id)).filter(p => p && isLowStock(p))
+    if(bajos.length) setTimeout(() => toast('Stock bajo: ' + bajos.map(p => p.name + ' (' + (p.stock || 0) + ')').join(', '), 'error'), 1800)
+    if(document.getElementById('view-productos') && document.getElementById('view-productos').classList.contains('on')) renderProducts()
+  }catch(e){ toast('No se pudo guardar: ' + (e.message || e), 'error') }
+  finally{ b.disabled = false }
+}
+
+/* ── ficha del cliente: lo usado en sus sesiones ── */
+let insumosCliente = null
+async function cargarInsumosCliente(id){
+  try{ insumosCliente = await supabase.fetch('consumos', { filters:'client_id=eq.' + encodeURIComponent(id), order:'fecha.desc,created_at.desc' }) || [] }
+  catch(e){ insumosCliente = [] }
+  if(cdCliente && cdCliente.id === id && cdTab === 'insumos') renderClientDetail()
+}
+function cdInsumos(){
+  if(insumosCliente === null){ if(cdCliente) cargarInsumosCliente(cdCliente.id); return '<p class="rem-note">Cargando…</p>' }
+  if(!insumosCliente.length) return '<div class="empty-state">Todavía no hay insumos registrados en las sesiones de este cliente. Se registran desde la cita, con el botón 🧴 Insumos.</div>'
+  const verCosto = !isPro()
+  const porSesion = {}
+  insumosCliente.forEach(x => { const k = x.appointment_id || ('sin-' + x.fecha); (porSesion[k] = porSesion[k] || { fecha: x.fecha, servicio: x.service_name, prof: x.professional_id, items: [] }).items.push(x) })
+  const fecha = f => String(f || '').split('-').reverse().join('/')
+  return Object.values(porSesion).sort((a, b) => String(b.fecha).localeCompare(String(a.fecha))).map(s => {
+    const costo = s.items.reduce((t, x) => t + Number(x.qty || 0) * Number(x.costo_unit || 0), 0)
+    const prof = (state.professionals.find(p => p.id === s.prof) || {}).name
+    return `<div class="ad-card" style="padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;gap:10px;font-size:.82rem;margin-bottom:6px">
+        <strong>${esc(fecha(s.fecha))} · ${esc(s.servicio || 'Sesión')}</strong>
+        <span style="color:var(--mid)">${prof ? esc(prof) : ''}${verCosto && costo ? ' · costo ' + fmtMoney(costo) : ''}</span></div>
+      <div style="font-size:.8rem;color:var(--mid)">${s.items.map(x => esc(x.product_name || 'Producto') + ' × ' + Number(x.qty)).join(' · ')}</div>
+    </div>`
+  }).join('')
+}
+
+/* ── Administración: el kit de cada servicio ── */
+let kitSvc = '', kitDraft = null
+function admInsumos(){
+  if(kitsServicio === null){ cargarKits().then(() => { if(admCurrent === 'insumos') renderAdmin() }); return '<p class="rem-note">Cargando…</p>' }
+  if(!state.products.length){ loadProducts().then(() => { if(admCurrent === 'insumos' && state.products.length) renderAdmin() }) }
+  const svcs = (state.services || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name)))
+  const insumos = state.products.filter(esInsumo)
+  const cuenta = id => (kitsServicio || []).filter(k => k.service_id === id).length
+  const sel = kitSvc && svcs.find(s => s.id === kitSvc)
+  if(sel && kitDraft === null) kitDraft = (kitsServicio || []).filter(k => k.service_id === sel.id).map(k => ({ product_id: k.product_id, qty: Math.max(1, Math.round(Number(k.qty) || 1)) }))
+  const opciones = cur => '<option value="">Elige un insumo…</option>' + insumos.map(p => `<option value="${p.id}" ${p.id === cur ? 'selected' : ''}>${esc(p.name)}${p.unidad ? ' (' + esc(p.unidad) + ')' : ''}</option>`).join('')
+  const editor = !sel ? '<div class="empty-state">Elige un servicio a la izquierda para definir qué insumos usa.</div>'
+    : `<div class="rr-panel">
+        <h5 style="margin-top:0">${esc(sel.name)}</h5>
+        <p class="rem-note" style="margin:0 0 12px">Lo que se usa normalmente en una sesión. En cada cita viene cargado así y se ajusta si se usó más o menos.</p>
+        ${!insumos.length ? '<div class="empty-state">Primero marca productos como insumo en Productos → Inventario (campo "Uso").</div>' : `
+        <div class="ins-lista">${kitDraft.map((f, i) => `<div class="ins-fila">
+            <select onchange="kitDraft[${i}].product_id=this.value">${opciones(f.product_id)}</select>
+            <div class="ins-qty"><button type="button" onclick="kitCant(${i},-1)">−</button><input type="number" min="1" step="1" value="${f.qty}"
+              onchange="kitDraft[${i}].qty=Math.max(1,parseInt(this.value)||1)"><button type="button" onclick="kitCant(${i},1)">+</button></div>
+            <button type="button" class="ins-quitar" title="Quitar" onclick="kitDraft.splice(${i},1);renderAdmin()">✕</button>
+          </div>`).join('') || '<div class="ins-vacio">Este servicio todavía no tiene kit.</div>'}</div>
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <button class="mini-link" onclick="kitDraft.push({product_id:'',qty:1});renderAdmin()">+ Agregar insumo</button>
+          <button class="btn-primary" id="kitGuardar" onclick="guardarKit()">Guardar kit</button>
+        </div>`}
+      </div>`
+  return `<div class="inv-notice">🧴 <strong>Insumos por servicio:</strong> define qué se usa normalmente en cada servicio (bisturí, gasas, guantes…). Al registrar los insumos de una sesión, la lista viene cargada con este kit.</div>
+    <div class="kit-grid">
+      <div class="kit-svcs">${svcs.map(s => `<button class="kit-svc ${sel && sel.id === s.id ? 'on' : ''}" onclick="kitElegir('${esc(s.id)}')">
+        <span>${esc(s.name)}</span><em>${cuenta(s.id) ? cuenta(s.id) + ' insumo' + (cuenta(s.id) === 1 ? '' : 's') : '—'}</em></button>`).join('')}</div>
+      <div>${editor}</div>
+    </div>`
+}
+function kitElegir(id){ kitSvc = id; kitDraft = null; renderAdmin() }
+function kitCant(i, d){ kitDraft[i].qty = Math.max(1, (parseInt(kitDraft[i].qty) || 1) + d); renderAdmin() }
+async function guardarKit(){
+  if(!kitSvc || !kitDraft) return
+  if(kitDraft.some(f => !f.product_id)){ toast('Elige el insumo de cada fila o quítala','error'); return }
+  const suma = {}
+  kitDraft.forEach(f => { suma[f.product_id] = (suma[f.product_id] || 0) + Math.max(1, parseInt(f.qty) || 1) })
+  const b = document.getElementById('kitGuardar'); if(b) b.disabled = true
+  try{
+    /* se reemplaza el kit completo del servicio */
+    for(const k of (kitsServicio || []).filter(k => k.service_id === kitSvc)) await supabase.delete('servicio_insumos', k.id)
+    const filas = Object.entries(suma).map(([product_id, qty]) => ({ service_id: kitSvc, product_id, qty }))
+    if(filas.length) await supabase.insert('servicio_insumos', filas)
+    await cargarKits()
+    kitDraft = null
+    toast('Kit guardado', 'success')
+  }catch(e){ toast('No se pudo guardar el kit: ' + (e.message || e), 'error'); await cargarKits() }
+  renderAdmin()
+}
+
 /* ── MOVIMIENTOS DE STOCK ──
    Las salidas por venta se derivan de las boletas; los ingresos/ajustes manuales
    se guardan en la tabla stock_movements (si no existe, quedan en este navegador). */
 state.stockMoves=[]
-const MOVE_LABEL={sale:'Venta',in:'Ingreso',out:'Salida',adjust:'Ajuste'}
+const MOVE_LABEL={sale:'Venta',in:'Ingreso',out:'Salida',adjust:'Ajuste',consumo:'Uso en sesión'}
 async function loadStockMoves(){
   try{ state.stockMoves = await supabase.fetch('stock_movements',{order:'move_date.desc'}) || [] }
   catch(e){ try{ state.stockMoves=JSON.parse(localStorage.getItem('spa_stock_moves')||'[]') }catch(_){ state.stockMoves=[] } }
@@ -16541,7 +16753,7 @@ function renderMovStock(){
   const rows=msRows()
   if(!rows.length){ el.innerHTML='<div class="empty-state"><div style="font-size:2.4rem;margin-bottom:6px">🔍</div>No hay resultados</div>'; return }
   const fecha=s=>{ const [y,m,d]=String(s).slice(0,10).split('-'); return `${d}/${m}/${y}` }
-  const badge=t=>{ const c={sale:'#fdecea|#c0392b',out:'#fdecea|#c0392b',in:'#e4f7ec|#2e9e63',adjust:'#eef1f6|#4a5568'}[t].split('|')
+  const badge=t=>{ const c=({sale:'#fdecea|#c0392b',out:'#fdecea|#c0392b',in:'#e4f7ec|#2e9e63',adjust:'#eef1f6|#4a5568',consumo:'#efe7fb|#6b45b8'}[t]||'#eef1f6|#4a5568').split('|')
     return `<span class="badge" style="background:${c[0]};color:${c[1]}">${MOVE_LABEL[t]}</span>` }
   el.innerHTML=`<table class="ctbl">
     <thead><tr><th>Fecha</th><th>Producto</th><th>Categoría</th><th>Movimiento</th><th style="text-align:center">Cantidad</th><th>Detalle</th></tr></thead>
@@ -16557,7 +16769,7 @@ function exportMovStock(){
   const rows=msRows()
   if(!rows.length){ toast('No hay movimientos en el período','error'); return }
   downloadCSV('movimientos-stock.csv', ['Fecha','Producto','Categoría','Movimiento','Cantidad','Detalle'],
-    rows.map(r=>[r.date, r.product.name||'', r.product.category||'', MOVE_LABEL[r.type], r.qty, r.note||'']))
+    rows.map(r=>[r.date, r.product.name||'', r.product.category||'', MOVE_LABEL[r.type]||r.type, r.qty, r.note||'']))
 }
 
 function exportVentaProd(){
