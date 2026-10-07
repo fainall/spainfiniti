@@ -17229,10 +17229,13 @@ async function saveBlock(){
   }
   const id=document.getElementById('blkId').value
   try{
+    /* al editar un bloqueo y alargarlo (otra fecha "Hasta" o "Repetir"), el
+       primero se actualiza y los demás días se crean; antes se perdían */
     if(id) await supabase.update('appointments',id,rows[0])
-    else { for(const r of rows) await supabase.insert('appointments',r) }
+    const nuevos = id ? rows.slice(1) : rows
+    if(nuevos.length) await supabase.insert('appointments', nuevos)
     closeModal('blockModal')
-    toast(rows.length>1?`${rows.length} bloqueos creados`:'Horario bloqueado','success')
+    toast(rows.length>1?`Bloqueo guardado en ${rows.length} días`:'Horario bloqueado','success')
     loadAndRender()
   }catch(e){ console.error(e); toast('Error al guardar','error') }
 }
