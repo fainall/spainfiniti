@@ -30,7 +30,7 @@ alter table public.servicio_insumos enable row level security;
 drop policy if exists kit_lee on public.servicio_insumos;
 create policy kit_lee on public.servicio_insumos for select to authenticated using (public.is_panel_datos());
 drop policy if exists kit_admin on public.servicio_insumos;
-create policy kit_admin on public.servicio_insumos for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy kit_admin on public.servicio_insumos for all to authenticated using (public.is_panel_admin()) with check (public.is_panel_admin());
 revoke all on public.servicio_insumos from anon;
 
 -- ── lo usado en cada sesión ──
