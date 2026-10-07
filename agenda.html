@@ -1567,6 +1567,9 @@ body.sin-scroll{overflow:hidden}
 .ad-auto-cab strong{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--texto,#1a2436)}
 .ad-auto-cab span{font-size:.74rem;color:var(--mid)}
 .ad-espera{font-size:.8rem;cursor:default;text-align:center;padding:10px}
+/* la fila de botones de la ficha rápida pasa a otra línea si no cabe (con Insumos ya no cabía) */
+.qv-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.qv-acciones .mini-btn{white-space:nowrap}
 .ins-badge{background:#efe7fb;color:#6b45b8;font-size:.62rem;vertical-align:middle;margin-left:4px}
 .ins-lista{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
 .ins-fila{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
@@ -6587,7 +6590,7 @@ function openApptQuickView(id){
     ${!pro && email?`<div class="qv-row">✉ ${esc(email)}</div>`:''}
     ${pro ? '' : `<div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>`}
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--texto)">${STATUS_LABEL[a.status]||''}</span></div>
-    <div style="display:flex;gap:8px;margin-top:14px;align-items:center">
+    <div class="qv-acciones">
       ${pro ? (canEditAppt(a) ? pagoSoloVer(id) : '') : botonPagar(id)}
       ${!pro && a.status !== 'block' ? `<button class="mini-btn" title="Enviar de nuevo el correo con la reserva y el calendario" onclick="enviarCorreoReserva('${id}', true)">✉</button>` : ''}
       ${a.status !== 'block' && a.status !== 'cancelled' && (!pro || canEditAppt(a)) && puedeInsumos() ? `<button class="mini-btn" title="Registrar los insumos usados en esta sesión" onclick="abrirInsumos('${id}')">🧴 Insumos</button>` : ''}
