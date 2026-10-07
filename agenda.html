@@ -1570,6 +1570,11 @@ body.sin-scroll{overflow:hidden}
 /* la fila de botones de la ficha rápida pasa a otra línea si no cabe (con Insumos ya no cabía) */
 .qv-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
 .qv-acciones .mini-btn{white-space:nowrap}
+#cdTabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
+#cdTabs button{white-space:nowrap;flex:0 0 auto;padding:10px 12px}
+.ins-sesion{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.8rem}
+.ins-sesion:last-child{border-bottom:0}
+.ins-sesion .ok{color:#2e9e63;font-weight:600;font-size:.74rem;white-space:nowrap}
 .ins-badge{background:#efe7fb;color:#6b45b8;font-size:.62rem;vertical-align:middle;margin-left:4px}
 .ins-lista{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
 .ins-fila{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
@@ -16595,7 +16600,7 @@ function servicioDeCita(a){
       || (state.services||[]).find(s => s.name === a.service_name) || null
 }
 async function abrirInsumos(id){
-  const a = findAppt(id); if(!a) return
+  const a = findAppt(id) || (cdCitas || []).find(x => x.id === id); if(!a) return
   if(isPro() && !canEditAppt(a)){ toast('Solo puedes registrar los insumos de tus sesiones','error'); return }
   closeQuickView()
   insCita = a
@@ -16648,6 +16653,7 @@ async function guardarInsumos(){
     await loadProducts()
     if(cdCliente && cdCliente.id === insCita.client_id) insumosCliente = null
     closeModal('insumosModal')
+    if(cdCliente && document.getElementById('clientDetailModal').classList.contains('open')) renderClientDetail()
     toast(items.length ? 'Insumos registrados y descontados del stock' : 'Se quitaron los insumos de la sesión y se devolvieron al stock', 'success')
     const bajos = items.map(i => state.products.find(p => p.id === i.product_id)).filter(p => p && isLowStock(p))
     if(bajos.length) setTimeout(() => toast('Stock bajo: ' + bajos.map(p => p.name + ' (' + (p.stock || 0) + ')').join(', '), 'error'), 1800)
@@ -16665,7 +16671,21 @@ async function cargarInsumosCliente(id){
 }
 function cdInsumos(){
   if(insumosCliente === null){ if(cdCliente) cargarInsumosCliente(cdCliente.id); return '<p class="rem-note">Cargando…</p>' }
-  if(!insumosCliente.length) return '<div class="empty-state">Todavía no hay insumos registrados en las sesiones de este cliente. Se registran desde la cita, con el botón 🧴 Insumos.</div>'
+  /* sus últimas sesiones (hasta hoy), para registrar sin ir a buscar la cita a la agenda */
+  const hoy = isoDate(new Date())
+  const conRegistro = new Set(insumosCliente.map(x => x.appointment_id).filter(Boolean))
+  const sesiones = (cdCitas || state.appointments).filter(a => a.client_id === cdCliente.id && a.status !== 'block' && a.status !== 'cancelled' && a.status !== 'no_show' && a.appt_date <= hoy)
+    .sort((a, b) => (b.appt_date + b.start_time).localeCompare(a.appt_date + a.start_time)).slice(0, 6)
+  const fechaS = f => String(f || '').split('-').reverse().join('/')
+  const registrar = !sesiones.length ? '' : `<div class="rr-panel" style="margin-bottom:14px">
+      <h5 style="margin-top:0">Registrar insumos de una sesión</h5>
+      ${sesiones.map(a => { const prof = (state.professionals.find(p => p.id === a.professional_id) || {}).name
+        const puede = puedeInsumos() && (!isPro() || canEditAppt(a)), hecho = conRegistro.has(a.id)
+        return `<div class="ins-sesion"><span><strong>${esc(fechaS(a.appt_date))} ${esc(String(a.start_time).slice(0, 5))}</strong> · ${esc(a.service_name || 'Sesión')}${prof ? ' · ' + esc(prof) : ''}</span>
+          <span style="display:flex;gap:8px;align-items:center">${hecho ? '<span class="ok">✓ registrado</span>' : ''}
+          ${puede ? `<button class="mini-btn" onclick="abrirInsumos('${a.id}')">🧴 ${hecho ? 'Corregir' : 'Registrar'}</button>` : ''}</span></div>` }).join('')}
+    </div>`
+  if(!insumosCliente.length) return registrar + '<div class="empty-state">Todavía no hay insumos registrados en las sesiones de este cliente.</div>'
   const verCosto = !isPro()
   const porSesion = {}
   insumosCliente.forEach(x => { const k = x.appointment_id || ('sin-' + x.fecha); (porSesion[k] = porSesion[k] || { fecha: x.fecha, servicio: x.service_name, prof: x.professional_id, items: [] }).items.push(x) })
@@ -16679,7 +16699,7 @@ function cdInsumos(){
         <span style="color:var(--mid)">${prof ? esc(prof) : ''}${verCosto && costo ? ' · costo ' + fmtMoney(costo) : ''}</span></div>
       <div style="font-size:.8rem;color:var(--mid)">${s.items.map(x => esc(x.product_name || 'Producto') + ' × ' + Number(x.qty)).join(' · ')}</div>
     </div>`
-  }).join('')
+  }).join('').replace(/^/, registrar + '<h5 style="margin:4px 0 10px">Lo usado en sus sesiones</h5>')
 }
 
 /* ── Administración: el kit de cada servicio ── */
