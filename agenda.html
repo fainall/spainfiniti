@@ -1570,8 +1570,8 @@ body.sin-scroll{overflow:hidden}
 /* la fila de botones de la ficha rápida pasa a otra línea si no cabe (con Insumos ya no cabía) */
 .qv-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
 .qv-acciones .mini-btn{white-space:nowrap}
-#cdTabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
-#cdTabs button{white-space:nowrap;flex:0 0 auto;padding:10px 12px}
+#cdTabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin;position:relative}
+#cdTabs button{white-space:nowrap;flex:0 0 auto;padding:9px 10px;font-size:.8rem}
 .ins-sesion{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.8rem}
 .ins-sesion:last-child{border-bottom:0}
 .ins-sesion .ok{color:#2e9e63;font-weight:600;font-size:.74rem;white-space:nowrap}
@@ -9021,8 +9021,13 @@ function renderClientDetail(){
   const PRO_TABS = ['fichas','consent','antesdespues','insumos']
   const tabs = pro ? todas.filter(([k]) => PRO_TABS.includes(k)) : todas
   if(pro && !PRO_TABS.includes(cdTab)) cdTab = 'fichas'
-  document.getElementById('cdTabs').innerHTML = tabs.map(([k,t])=>
+  const tabsEl = document.getElementById('cdTabs'), x0 = tabsEl.scrollLeft
+  tabsEl.innerHTML = tabs.map(([k,t])=>
     `<button class="${cdTab===k?'on':''}" onclick="cdSetTab('${k}')">${t}</button>`).join('')
+  /* al repintar, la fila de pestañas no salta al inicio y la pestaña elegida queda a la vista */
+  tabsEl.scrollLeft = x0
+  const tabOn = tabsEl.querySelector('.on')
+  if(tabOn && (tabOn.offsetLeft < tabsEl.scrollLeft || tabOn.offsetLeft + tabOn.offsetWidth > tabsEl.scrollLeft + tabsEl.clientWidth)) tabsEl.scrollLeft = tabOn.offsetLeft - 20
 
   const body = document.getElementById('cdBody')
   if(cdTab==='actividad') body.innerHTML = cdActividad(appts)
