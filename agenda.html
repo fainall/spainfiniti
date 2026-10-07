@@ -1585,6 +1585,14 @@ body.sin-scroll{overflow:hidden}
 .kit-svc.on{background:var(--gold-pale,#faf5ec);font-weight:700}
 .kit-svc em{font-style:normal;color:var(--mid);font-size:.72rem;white-space:nowrap}
 @media(max-width:820px){ .kit-grid{grid-template-columns:1fr} }
+.ad-mini{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ad-mini figure{position:relative;margin:0}
+.ad-mini img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:zoom-in;background:#f3f1ec}
+.ad-mini span{position:absolute;left:5px;top:5px;background:rgba(0,0,0,.55);color:#fff;font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:8px}
+.evo-visor{max-height:92vh;overflow-y:auto}
+.evo-par-fila{padding:10px 0;border-bottom:1px solid var(--border)}
+.evo-par-fila .mini-btn{margin-top:6px}
+.evo-falta{display:flex;align-items:center;justify-content:center;min-height:120px;border:2px dashed var(--border);border-radius:10px;color:var(--mid)}
 .evo-sel{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
 .evo-et{font-size:.76rem;color:var(--mid);margin:0 0 8px}
 .evo-fuentes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
@@ -8722,11 +8730,14 @@ function momentoFoto(url){
   const m = String(url).match(/(\d{13})(?:-\d+)?\.jpe?g(?:$|\?)/)
   return m ? Number(m[1]) : null
 }
-/* ── Elegir las fotos de la Evolución (pedido de Luis, 06-oct) ──
-   Por omisión se arma sola (primera y última). Se puede elegir de qué fichas
-   salen las fotos y cuáles van como Antes y Después; la elección se recuerda
-   en este computador, y con "Guardar como comparación" queda guardada para
-   todos (y se puede compartir con el cliente). */
+/* ── Elegir las fotos de la Evolución (pedido de Luis, 06-oct; varias por lado, 07-oct) ──
+   Cada lado lleva hasta 4 fotos (por ejemplo, una por uña). Por omisión se
+   arma sola: Antes son las fotos de la primera ficha y Después las de la
+   última. Se puede elegir de qué fichas salen y qué fotos van en cada lado;
+   se emparejan por orden (Antes 1 con Después 1…). La elección se recuerda en
+   este computador, y con "Guardar como comparación" cada par queda guardado
+   para todos (y se puede compartir con el cliente). */
+const EVO_MAX = 4
 let evoAbierto = false
 function evoSeleccion(){
   if(!cdCliente) return {}
@@ -8736,10 +8747,11 @@ function evoGuardarSel(sel){
   if(!cdCliente) return
   try{
     const todo = JSON.parse(localStorage.getItem('spa_evo_sel') || '{}') || {}
-    if(sel && (sel.antes || sel.despues || sel.fuentes)) todo[cdCliente.id] = sel; else delete todo[cdCliente.id]
+    if(sel && ((sel.antes && sel.antes.length) || (sel.despues && sel.despues.length) || sel.fuentes)) todo[cdCliente.id] = sel; else delete todo[cdCliente.id]
     localStorage.setItem('spa_evo_sel', JSON.stringify(todo))
   }catch(e){}
 }
+const evoLista = v => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : [])
 function evolucionCliente(){
   const vistas = new Set(), todas = []
   const fecha = f => f ? new Date(String(f).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-CL', { day:'numeric', month:'short' }) : ''
@@ -8768,20 +8780,34 @@ function evolucionCliente(){
   const sel = evoSeleccion()
   const usar = Array.isArray(sel.fuentes) ? sel.fuentes.filter(id => fuentes.some(x => x.id === id)) : null
   const fotos = usar && usar.length ? todas.filter(f => usar.includes(f.fuente)) : todas
-  const antesSel = sel.antes && fotos.find(f => f.url === sel.antes)
-  const despuesSel = sel.despues && fotos.find(f => f.url === sel.despues)
-  const antes = antesSel || fotos[0] || null
-  const ultima = fotos.length > 1 ? fotos[fotos.length - 1] : null
-  const despues = despuesSel || (ultima && (!antes || ultima.url !== antes.url) ? ultima : null)
+  /* automático: las fotos de la primera ficha y las de la última */
+  const grupos = []
+  fotos.forEach(f => { const g = grupos.find(x => x.fuente === f.fuente); if(g) g.fotos.push(f); else grupos.push({ fuente: f.fuente, fotos: [f] }) })
+  let autoAntes = [], autoDespues = []
+  if(grupos.length >= 2){ autoAntes = grupos[0].fotos.slice(0, EVO_MAX); autoDespues = grupos[grupos.length - 1].fotos.slice(-EVO_MAX) }
+  else if(fotos.length){ autoAntes = [fotos[0]]; autoDespues = fotos.length > 1 ? [fotos[fotos.length - 1]] : [] }
+  /* lo elegido a mano (solo lo que siga disponible con las fichas marcadas) */
+  const buscar = u => fotos.find(f => f.url === u)
+  const antesSel = evoLista(sel.antes).map(buscar).filter(Boolean).slice(0, EVO_MAX)
+  const despuesSel = evoLista(sel.despues).map(buscar).filter(Boolean).slice(0, EVO_MAX)
+  const antes = antesSel.length ? antesSel : autoAntes
+  const despues = (despuesSel.length ? despuesSel : autoDespues).filter(f => !antes.includes(f))
   return { fotos, todas, fuentes, usar: usar && usar.length ? usar : null, antes, despues,
-           elegida: !!(antesSel || despuesSel || (usar && usar.length && usar.length < fuentes.length)) }
+           elegida: !!(antesSel.length || despuesSel.length || (usar && usar.length && usar.length < fuentes.length)) }
 }
+/* agrega o quita una foto de un lado (hasta 4 por lado) */
 function evoElegir(cual, url){
-  const sel = evoSeleccion()
-  sel[cual] = url
-  /* la misma foto no puede ser Antes y Después a la vez */
+  const evo = evolucionCliente(), sel = evoSeleccion()
   const otra = cual === 'antes' ? 'despues' : 'antes'
-  if(sel[otra] === url) sel[otra] = null
+  /* se parte de lo que se está viendo, aunque sea lo automático */
+  let lado = evo[cual].map(f => f.url), opuesto = evo[otra].map(f => f.url)
+  if(lado.includes(url)) lado = lado.filter(u => u !== url)
+  else {
+    if(lado.length >= EVO_MAX){ toast('Puedes elegir hasta ' + EVO_MAX + ' fotos por lado', 'error'); return }
+    lado.push(url)
+    opuesto = opuesto.filter(u => u !== url)        // una foto no va en los dos lados
+  }
+  sel[cual] = lado; sel[otra] = opuesto
   evoGuardarSel(sel); renderClientDetail()
 }
 function evoFuente(id, on){
@@ -8794,32 +8820,41 @@ function evoFuente(id, on){
 }
 function evoAutomatico(){ evoGuardarSel(null); evoAbierto = false; renderClientDetail() }
 function evoAbrir(){ evoAbierto = !evoAbierto; renderClientDetail() }
-/* deja el par elegido como una comparación más (para todos los equipos y para compartir) */
+const evoIso = ms => ms ? new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : null
+/* cada par (Antes 1 con Después 1…) queda como una comparación más */
 async function evoGuardarComparacion(){
   const evo = evolucionCliente()
-  if(!cdCliente || !evo.antes || !evo.despues){ toast('Elige una foto de Antes y una de Después', 'error'); return }
-  const iso = ms => ms ? new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : null
+  const pares = Math.min(evo.antes.length, evo.despues.length)
+  if(!cdCliente || !pares){ toast('Elige al menos una foto de Antes y una de Después', 'error'); return }
   try{
-    const r = await supabase.insert('client_comparisons', { client_id: cdCliente.id, titulo: 'Evolución',
-      antes_url: evo.antes.url, antes_fecha: iso(evo.antes.cuando), despues_url: evo.despues.url, despues_fecha: iso(evo.despues.cuando) })
-    const nueva = Array.isArray(r) ? r[0] : r
-    if(!nueva || !nueva.id) throw new Error('la base no la guardó')
-    comparaciones.unshift(nueva)
+    const filas = Array.from({ length: pares }, (_, i) => ({ client_id: cdCliente.id,
+      titulo: pares > 1 ? 'Evolución ' + (i + 1) + ' de ' + pares : 'Evolución',
+      antes_url: evo.antes[i].url, antes_fecha: evoIso(evo.antes[i].cuando),
+      despues_url: evo.despues[i].url, despues_fecha: evoIso(evo.despues[i].cuando) }))
+    const r = await supabase.insert('client_comparisons', filas)
+    const nuevas = Array.isArray(r) ? r : [r]
+    if(!nuevas.length || !nuevas[0] || !nuevas[0].id) throw new Error('la base no las guardó')
+    comparaciones.unshift(...nuevas.reverse())
     evoAbierto = false
     renderClientDetail()
-    toast('Comparación guardada: ahora puedes ponerle título o compartirla con el cliente', 'success')
+    const sobran = Math.max(evo.antes.length, evo.despues.length) - pares
+    toast((pares > 1 ? pares + ' comparaciones guardadas' : 'Comparación guardada') + (sobran ? ' (' + sobran + ' foto' + (sobran === 1 ? '' : 's') + ' sin pareja quedaron fuera)' : '') + ': puedes ponerles título o compartirlas con el cliente', 'success')
   }catch(e){ toast('No se pudo guardar: ' + e.message, 'error') }
 }
 const fechaDeMomento = ms => ms ? new Date(ms).toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' }) : ''
 function adEvolucion(evo){
-  /* si las dos son del mismo día, se agrega la hora para distinguirlas */
-  const mismoDia = evo.antes && evo.despues && fechaDeMomento(evo.antes.cuando) === fechaDeMomento(evo.despues.cuando)
-  const cuando = f => fechaDeMomento(f.cuando) + (mismoDia && f.cuando ? ', ' + new Date(f.cuando).toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' }) : '')
-  const lado = (f, rotulo) => f
+  /* la fecha de cada lado: la de su foto, o el rango si son de días distintos */
+  const fechaLado = lista => {
+    const ds = Array.from(new Set(lista.map(f => fechaDeMomento(f.cuando)).filter(Boolean)))
+    return ds.length > 1 ? ds[0] + ' – ' + ds[ds.length - 1] : (ds[0] || '')
+  }
+  const lado = (lista, rotulo, letra) => lista.length
     ? `<div class="ad-lado">
-        <div class="ad-rot">${rotulo} · ${esc(cuando(f))}</div>
-        <img src="${esc(f.url)}" alt="${rotulo}" onclick="verEvolucion()">
-        <span class="ad-sub">${esc(f.origen)}</span>
+        <div class="ad-rot">${rotulo}${lista.length > 1 ? ' (' + lista.length + ')' : ''} · ${esc(fechaLado(lista))}</div>
+        ${lista.length === 1
+          ? `<img src="${esc(lista[0].url)}" alt="${rotulo}" onclick="verEvolucion(0)">`
+          : `<div class="ad-mini">${lista.map((f, i) => `<figure><img src="${esc(f.url)}" alt="${rotulo} ${i + 1}" loading="lazy" onclick="verEvolucion(${i})"><span>${letra}${i + 1}</span></figure>`).join('')}</div>`}
+        <span class="ad-sub">${esc(Array.from(new Set(lista.map(f => f.fuenteNombre || f.origen))).join(' · '))}</span>
       </div>`
     : `<div class="ad-lado">
         <div class="ad-rot">${rotulo}</div>
@@ -8828,26 +8863,27 @@ function adEvolucion(evo){
   const n = evo.fotos.length
   const explica = evo.elegida
     ? `Fotos elegidas por ti${evo.usar ? ' (de ' + evo.usar.length + ' de ' + evo.fuentes.length + ' fichas)' : ''}. ${n} foto${n === 1 ? '' : 's'} disponibles.`
-    : `Se arma sola: la primera foto que se le cargó y la última (${n} foto${n === 1 ? '' : 's'} en total, de sus fichas y comparaciones).`
-  /* el selector: de qué fichas, y cuál va como Antes y cuál como Después */
+    : `Se arma sola: las fotos de la primera ficha y las de la última, hasta ${EVO_MAX} por lado (${n} foto${n === 1 ? '' : 's'} en total).`
+  /* el selector: de qué fichas, y qué fotos van en cada lado */
+  const pos = (lista, f) => lista.findIndex(x => x.url === f.url)
   const selector = !evoAbierto ? '' : `<div class="evo-sel">
       ${evo.fuentes.length > 1 ? `<div class="evo-fuentes"><span class="evo-et">Fichas a usar:</span>
         ${evo.fuentes.map(f => { const on = !evo.usar || evo.usar.includes(f.id)
           return `<label class="evo-chip ${on ? 'on' : ''}"><input type="checkbox" ${on ? 'checked' : ''} onchange="evoFuente('${esc(f.id)}', this.checked)"> ${esc(f.nombre)}</label>` }).join('')}
       </div>` : ''}
-      <div class="evo-et">Toca <strong>Antes</strong> o <strong>Después</strong> bajo la foto que quieras:</div>
+      <div class="evo-et">Toca <strong>Antes</strong> o <strong>Después</strong> para agregar o quitar fotos (hasta ${EVO_MAX} por lado). Se comparan en orden: A1 con D1, A2 con D2…</div>
       <div class="evo-grilla">${evo.fotos.map(f => {
-        const esA = evo.antes && evo.antes.url === f.url, esD = evo.despues && evo.despues.url === f.url
-        return `<div class="evo-foto ${esA ? 'es-a' : ''} ${esD ? 'es-d' : ''}">
+        const ia = pos(evo.antes, f), id = pos(evo.despues, f)
+        return `<div class="evo-foto ${ia >= 0 ? 'es-a' : ''} ${id >= 0 ? 'es-d' : ''}">
           <img src="${esc(f.url)}" alt="" loading="lazy">
           <span class="evo-info">${esc(fechaDeMomento(f.cuando))} · ${esc(f.fuenteNombre || f.origen)}</span>
           <div class="evo-btns">
-            <button class="${esA ? 'on' : ''}" onclick="evoElegir('antes','${esc(f.url)}')">Antes</button>
-            <button class="${esD ? 'on' : ''}" onclick="evoElegir('despues','${esc(f.url)}')">Después</button>
+            <button class="${ia >= 0 ? 'on' : ''}" onclick="evoElegir('antes','${esc(f.url)}')">${ia >= 0 ? 'A' + (ia + 1) : 'Antes'}</button>
+            <button class="${id >= 0 ? 'on' : ''}" onclick="evoElegir('despues','${esc(f.url)}')">${id >= 0 ? 'D' + (id + 1) : 'Después'}</button>
           </div></div>` }).join('')}</div>
       <div class="evo-acciones">
         ${evo.elegida ? '<button class="mini-btn" onclick="evoAutomatico()">↺ Volver a automático</button>' : ''}
-        ${evo.antes && evo.despues ? '<button class="mini-btn" onclick="evoGuardarComparacion()">💾 Guardar como comparación</button>' : ''}
+        ${evo.antes.length && evo.despues.length ? `<button class="mini-btn" onclick="evoGuardarComparacion()">💾 Guardar como comparación${Math.min(evo.antes.length, evo.despues.length) > 1 ? 'es' : ''}</button>` : ''}
         <button class="btn-primary" onclick="evoAbrir()">Listo</button>
       </div>
     </div>`
@@ -8856,18 +8892,44 @@ function adEvolucion(evo){
         <div class="ad-auto-cab"><strong>Evolución</strong>
           <span>${explica}</span></div>
         ${evo.todas.length > 1 ? `<button class="mini-btn" onclick="evoAbrir()">${evoAbierto ? 'Cerrar' : '🖼 Elegir fotos'}</button>` : ''}
-        ${evo.despues ? '<button class="mini-btn" onclick="verEvolucion()">Comparar</button>' : ''}
+        ${evo.despues.length ? '<button class="mini-btn" onclick="verEvolucion(0)">Comparar</button>' : ''}
       </div>
-      <div class="ad-par">${lado(evo.antes, 'Antes')}${lado(evo.despues, 'Después')}</div>
+      <div class="ad-par">${lado(evo.antes, 'Antes', 'A')}${lado(evo.despues, 'Después', 'D')}</div>
       ${selector}
     </div>`
 }
-/* abre el mismo visor de las comparaciones (lado a lado o deslizando) */
-function verEvolucion(){
-  const evo = evolucionCliente(); if(!evo.antes) return
-  const iso = ms => ms ? new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ''
-  verComparacion(null, { titulo:'Evolución', antes_url: evo.antes.url, antes_fecha: iso(evo.antes.cuando),
-    despues_url: evo.despues ? evo.despues.url : null, despues_fecha: evo.despues ? iso(evo.despues.cuando) : null, notas:'' })
+/* Con un par, el mismo visor de las comparaciones (lado a lado o deslizando).
+   Con varios, los pares uno bajo otro (Antes 1 | Después 1…), y cada uno se
+   puede abrir en el visor de siempre. */
+function verEvolucion(i){
+  const evo = evolucionCliente(); if(!evo.antes.length) return
+  const par = k => ({ titulo: 'Evolución' + (Math.max(evo.antes.length, evo.despues.length) > 1 ? ' ' + (k + 1) : ''),
+    antes_url: evo.antes[k] ? evo.antes[k].url : null, antes_fecha: evo.antes[k] ? evoIso(evo.antes[k].cuando) : null,
+    despues_url: evo.despues[k] ? evo.despues[k].url : null, despues_fecha: evo.despues[k] ? evoIso(evo.despues[k].cuando) : null, notas:'' })
+  const n = Math.max(evo.antes.length, evo.despues.length)
+  if(n <= 1) return verComparacion(null, par(0))
+  const v0 = document.getElementById('adVisor'); if(v0) v0.remove()
+  const v = document.createElement('div'); v.id = 'adVisor'; v.className = 'ad-visor'
+  const fig = (f, rot) => f
+    ? `<figure><img src="${esc(f.url)}"><figcaption>${rot} · ${esc(fechaDeMomento(f.cuando))}</figcaption></figure>`
+    : `<figure class="evo-falta"><figcaption>${rot}: sin foto</figcaption></figure>`
+  v.innerHTML = `<div class="ad-visor-caja evo-visor">
+      <div class="ad-visor-top"><strong>Evolución · ${n} pares</strong>
+        <button class="qv-icon" onclick="document.getElementById('adVisor').remove()">✕</button></div>
+      ${Array.from({ length: n }, (_, k) => `<div class="evo-par-fila" data-k="${k}">
+        <div class="ad-visor-lado">${fig(evo.antes[k], 'Antes ' + (k + 1))}${fig(evo.despues[k], 'Después ' + (k + 1))}</div>
+        ${evo.antes[k] && evo.despues[k] ? `<button class="mini-btn" onclick="verEvolucionPar(${k})">Ver este par en grande (lado a lado o deslizando)</button>` : ''}
+      </div>`).join('')}
+    </div>`
+  v.addEventListener('click', e => { if(e.target === v) v.remove() })
+  document.body.appendChild(v)
+  const fila = v.querySelector('.evo-par-fila[data-k="' + (i || 0) + '"]')
+  if(fila && i) fila.scrollIntoView({ block:'center' })
+}
+function verEvolucionPar(k){
+  const evo = evolucionCliente()
+  verComparacion(null, { titulo: 'Evolución ' + (k + 1), antes_url: evo.antes[k].url, antes_fecha: evoIso(evo.antes[k].cuando),
+    despues_url: evo.despues[k].url, despues_fecha: evoIso(evo.despues[k].cuando), notas:'' })
 }
 function verComparacion(id, dada){
   const c = dada || comparaciones.find(x => x.id === id); if(!c) return
