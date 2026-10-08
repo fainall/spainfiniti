@@ -62,6 +62,31 @@ $nombreCat = [];
 foreach ($categorias as $c) $nombreCat[$c['id']] = $c['name'];
 $pros = supa('GET', 'professionals?select=id,name,work_start,work_end,work_days&active=eq.true') ?: [];
 
+/* El equipo, con los dias que atiende cada una. Antes Mariet solo conocia a las
+   profesionales por lo que devolvia la disponibilidad: si un cliente pedia a
+   alguien por su nombre (Luis, con Sorimar recien llegada) no sabia quien era. */
+$equipoTxt = '';
+(function () use ($pros, $bot, &$equipoTxt) {
+    $meta = $bot['prof_meta'] ?? [];
+    if (is_string($meta)) $meta = json_decode($meta, true);
+    $dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    foreach ($pros as $p) {
+        $m = (is_array($meta) && isset($meta[$p['id']])) ? $meta[$p['id']] : [];
+        if (($m['online'] ?? true) === false) continue;           // no se ofrece por internet
+        $hpd = $m['horasPorDia'] ?? null; $lista = [];
+        if (is_array($hpd) && count($hpd)) {
+            foreach ([1, 2, 3, 4, 5, 6, 0] as $d) { $r = $hpd[$d] ?? ($hpd[(string)$d] ?? null);
+                if (is_array($r) && !empty($r[0])) $lista[] = $dias[$d] . ' ' . substr($r[0], 0, 5) . '-' . substr($r[1], 0, 5); }
+        } else {
+            $wd = is_string($p['work_days']) ? json_decode($p['work_days'], true) : $p['work_days'];
+            foreach ([1, 2, 3, 4, 5, 6, 0] as $d) if (in_array($d, (array)$wd) || ($d === 0 && in_array(7, (array)$wd)))
+                $lista[] = $dias[$d] . ' ' . substr($p['work_start'], 0, 5) . '-' . substr($p['work_end'], 0, 5);
+        }
+        $nombre = trim((string)($m['publicName'] ?? '')) ?: $p['name'];
+        $equipoTxt .= "\n- $nombre: " . ($lista ? implode(', ', $lista) : 'sin horario fijo');
+    }
+})();
+
 $svcLines = [];
 /* La descripcion es lo que de verdad distingue un servicio de otro: dice,
    por ejemplo, que un tratamiento es para 1 a 4 unas y el otro para 5 a 10.
@@ -322,7 +347,9 @@ INSTRUCCIONES DEL NEGOCIO:
 
 SERVICIOS:
 $svcText$smartText
-" . ($faq ? "\nPREGUNTAS FRECUENTES:$faq" : '');
+" . ($equipoTxt ? "\nEQUIPO (profesionales y días que atienden; las horas libres de cada una se ven con check_availability y free_slots):$equipoTxt
+Si el cliente pide a una profesional por su nombre, es del equipo: busca horas en los días que atiende y pásala en professional_name. No inventes profesionales que no estén en esta lista.
+" : '') . ($faq ? "\nPREGUNTAS FRECUENTES:$faq" : '');
 
 
 /* ── Reglas del servicio (horario especial, cupos y recursos) ── */

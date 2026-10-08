@@ -11362,8 +11362,8 @@ function formularioFicha(tpl, datos, soloLectura){
         else if(f.type==='decimal') campo = `<input type="number" step="0.01" inputmode="decimal" data-fk="${k}" value="${esc(v||'')}" />`
         else if(f.type==='fecha') campo = `<input type="date" data-fk="${k}" value="${esc(v||'')}" />`
         else if(f.type==='si_no') campo = unoHTML(k, [['si','Sí'],['no','No']], v||'')
-        else if(f.type==='opcion') campo = unoHTML(k, f.options||[], v)
-        else if(f.type==='varias') campo = multiHTML(k, f.options||[], v)
+        else if(f.type==='opcion') campo = unoHTML(k, opcionesCampo(f), v)
+        else if(f.type==='varias') campo = multiHTML(k, opcionesCampo(f), v)
         else if(f.type==='archivo'){
           const urls = Array.isArray(v) ? v : (v ? [v] : [])
           campo = `<div class="ff-fotos" data-fk="${k}" data-urls='${JSON.stringify(urls)}'>
@@ -11506,6 +11506,21 @@ function quitarFotoFicha(clave, indice){
   pintarFotosFicha(clave)
 }
 
+/* Un campo "Profesional" de la plantilla tiene sus opciones escritas a mano:
+   al llegar una profesional nueva no aparecía para elegirla (Luis, con Sorimar).
+   Se suman solas las profesionales activas que todavía no están en la lista
+   (se compara el primer nombre, así "Michell" y "Michel" no se duplican). */
+function opcionesCampo(f){
+  const ops = (f.options || []).slice()
+  if(!/^\s*(profesional|atendid[oa] por|prestador)/i.test(f.label || '')) return ops
+  const sinTilde = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+  const primeros = ops.map(o => sinTilde(Array.isArray(o) ? o[1] : o).split(/\s+/)[0].replace(/l+$/, 'l'))
+  state.professionals.filter(p => p.active !== false).forEach(p => {
+    const primero = sinTilde(p.name).split(/\s+/)[0].replace(/l+$/, 'l')
+    if(!primeros.includes(primero)){ ops.push(p.name); primeros.push(primero) }
+  })
+  return ops
+}
 /* ── desplegable de selección múltiple ──
    Con siete u once opciones, la lista de casillas ocupaba media pantalla.
    Ahora se ve un campo cerrado que resume lo elegido y se abre al pulsarlo. */
