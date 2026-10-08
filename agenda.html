@@ -3141,11 +3141,10 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
             <label class="sw"><input type="checkbox" id="proOnline" checked /><i></i></label>
             <div class="sw-txt"><strong>Este profesional acepta reservas en línea</strong><span>Aparece como opción cuando tus clientes agendan desde el sitio web.</span></div>
           </div>
-          <div class="sw-row">
-            <label class="sw"><input type="checkbox" id="proUser" onchange="document.getElementById('proEmailBox').style.display=this.checked?'block':'none'" /><i></i></label>
-            <div class="sw-txt"><strong>Crear un usuario a este profesional</strong><span>Ingresa el email para que el profesional pueda ver su propia agenda.</span></div>
-          </div>
-          <div id="proEmailBox" style="display:none"><input type="text" id="proEmail" placeholder="Ingresa el email del profesional" /></div>
+          <!-- antes era un interruptor "Crear un usuario" que solo guardaba un correo
+               y no creaba nada (Luis lo activaba y no pasaba nada): ahora muestra
+               la cuenta real del panel y deja crearla o abrirla -->
+          <div class="sw-row" id="proCuenta"></div>
         </div>
         <div class="fbox">
           <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">Selecciona los servicios que realiza el profesional</h3>
@@ -11041,6 +11040,7 @@ async function saveUser(){
         : 'Cuenta creada — entrégale la contraseña para que la cambie al entrar', 'success')
     }
     await loadPanelUsers(); closeModal('userModal'); renderAdmin()
+    if(document.getElementById('proModal').classList.contains('open')) pintarCuentaPro()
   }catch(e){ console.error(e); toast(e.message,'error') }
 }
 async function sendUserReset(email){
@@ -13765,9 +13765,7 @@ function openProModal(id){
   document.getElementById('proName').value=p?p.name:''
   document.getElementById('proPublic').value=m.publicName||''
   document.getElementById('proOnline').checked=m.online!==false
-  document.getElementById('proUser').checked=!!m.email
-  document.getElementById('proEmailBox').style.display=m.email?'block':'none'
-  document.getElementById('proEmail').value=m.email||''
+  pintarCuentaPro()
   document.getElementById('proSvcTree').innerHTML=proSvcTree(m.services||'all')
   document.getElementById('proAllSvc').checked=!m.services || m.services==='all'
   proSyncSvc()
@@ -13787,6 +13785,29 @@ function openProModal(id){
   document.getElementById('proTabDocs').hidden = !isAdmin()
   proTab('basicos')
   openModal('proModal')
+}
+/* la cuenta del panel de esta profesional (Administración → Usuarios) */
+async function pintarCuentaPro(){
+  const box = document.getElementById('proCuenta'); if(!box) return
+  const profId = document.getElementById('proId').value
+  const txt = (t, s) => `<div class="sw-txt" style="flex:1"><strong>${t}</strong><span>${s}</span></div>`
+  if(!profId){ box.innerHTML = txt('Cuenta para entrar al panel', 'Guarda primero a la profesional; después podrás crearle su cuenta aquí.'); return }
+  if(!isAdmin()){ box.innerHTML = ''; return }
+  box.innerHTML = txt('Cuenta para entrar al panel', 'Revisando…')
+  await loadPanelUsers()
+  if(document.getElementById('proId').value !== profId) return
+  const u = panelUsers.find(x => x.professional_id === profId)
+  box.innerHTML = u
+    ? txt('✓ Tiene cuenta para entrar al panel', esc(u.email || '') + ' · ' + esc((ROLES[u.role]||{}).nombre || u.role) + (u.active === false ? ' · <b style="color:var(--red)">desactivada</b>' : '') + '. Con ella ve su propia agenda.')
+        + `<button class="mini-btn" type="button" onclick="openUserModal('${u.id}')">Ver cuenta</button>`
+    : txt('Sin cuenta para entrar al panel', 'Créale una con su correo para que vea su propia agenda.')
+        + `<button class="mini-btn" type="button" onclick="crearCuentaPro()">+ Crear cuenta</button>`
+}
+function crearCuentaPro(){
+  const profId = document.getElementById('proId').value
+  openUserModal()
+  document.getElementById('usName').value = document.getElementById('proName').value.trim()
+  document.getElementById('usProf').value = profId
 }
 /* explica el 0% mientras se escribe, para que no pase inadvertido */
 function avisarComisionCero(inp){
@@ -13833,7 +13854,7 @@ async function savePro(){
     const _foto = (_img && _img.style.display!=='none') ? (_img.getAttribute('src')||'') : ''
     profMeta[pid]={ publicName:document.getElementById('proPublic').value.trim(),
       online:document.getElementById('proOnline').checked,
-      email:document.getElementById('proUser').checked?document.getElementById('proEmail').value.trim():'',
+      email:metaOf(pid).email||'',
       services, breaks, horasPorDia, bio:document.getElementById('proBio').value.trim(),
       photo:_foto }
     const ok=await persistProfMeta()
