@@ -62,6 +62,35 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') responder(405, ['error' => 'solo POST
 $d = json_decode((string)file_get_contents('php://input'), true);
 if (!is_array($d)) responder(400, ['error' => 'Los datos llegaron ilegibles; vuelve a intentarlo']);
 $accion = (string)($d['accion'] ?? '');
+
+/* POST {accion:'eliminar', id} — solo un administrador (Luis, al desvincular a
+   una profesional). Si la cuenta se creó para el equipo y no es también cuenta
+   de cliente del sitio, se borra entera; si no, solo se le quita el acceso al
+   panel y la persona conserva su cuenta de cliente. */
+if ($accion === 'eliminar') {
+    $yo = require_panel_user(true);
+    $id = (string)($d['id'] ?? '');
+    if (!preg_match('/^[0-9a-f-]{36}$/i', $id)) responder(400, ['error' => 'Cuenta no válida']);
+    if (strcasecmp($id, (string)$yo['id']) === 0) responder(400, ['error' => 'No puedes eliminar tu propia cuenta']);
+    [$c, $pu] = rest('GET', 'panel_users?select=id,role,active&id=eq.' . rawurlencode($id));
+    if (!is_array($pu) || !count($pu)) responder(404, ['error' => 'Esa cuenta ya no existe']);
+    if ($pu[0]['role'] === 'admin') {
+        [$c, $otros] = rest('GET', 'panel_users?select=id&role=eq.admin&active=eq.true&id=neq.' . rawurlencode($id));
+        if (!is_array($otros) || !count($otros)) responder(400, ['error' => 'Es el único administrador: no se puede eliminar']);
+    }
+    [$c, $u] = admin_api('GET', '/users/' . rawurlencode($id));
+    [$c, $cli] = rest('GET', 'clients?select=id&user_id=eq.' . rawurlencode($id) . '&limit=1');
+    $soloEquipo = !empty($u['user_metadata']['equipo']) && is_array($cli) && !count($cli);
+    if ($soloEquipo) {
+        [$c, $r] = admin_api('DELETE', '/users/' . rawurlencode($id));   // el perfil del panel se va con ella
+        if ($c >= 300) responder(500, ['error' => 'Supabase no dejó borrar la cuenta']);
+    }
+    rest('DELETE', 'panel_users?id=eq.' . rawurlencode($id));
+    [$c, $queda] = rest('GET', 'panel_users?select=id&id=eq.' . rawurlencode($id));
+    if (is_array($queda) && count($queda)) responder(500, ['error' => 'No se pudo quitar el acceso al panel']);
+    responder(200, ['ok' => true, 'cuenta_borrada' => $soloEquipo]);
+}
+
 $email = strtolower(trim((string)($d['email'] ?? '')));
 $nombre = trim((string)($d['name'] ?? ''));
 $clave = (string)($d['password'] ?? '');

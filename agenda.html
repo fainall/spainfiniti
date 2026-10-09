@@ -3325,6 +3325,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <p class="rem-note" style="margin-top:6px">Es la agenda cuyas horas e ingresos podrá ver y gestionar.</p>
       </div>
       <div class="modal-actions">
+        <button class="btn-danger" id="usDelBtn" onclick="unaVez(event,eliminarUsuario)" style="display:none">Eliminar cuenta</button>
         <button class="btn-ghost" onclick="closeModal('userModal')">Cancelar</button>
         <button class="btn-primary" onclick="saveUser()">Guardar</button>
       </div>
@@ -10989,6 +10990,8 @@ function openUserModal(id){
   document.getElementById('usName').value=u?(u.name||''):''
   document.getElementById('usEmail').value=u?(u.email||''):''
   document.getElementById('usEmail').disabled=!!u
+  /* eliminar: solo cuentas ya creadas, y nunca la propia */
+  document.getElementById('usDelBtn').style.display = (u && isAdmin() && !(me && me.id === u.id)) ? 'block' : 'none'
   const selRol=document.getElementById('usRole')
   /* 'Profesional (sin edicion)' ya no se ofrece (Luis): una sola opcion de profesional.
      Una cuenta que aun lo tenga se abre como Profesional y queda asi al guardar. */
@@ -11042,6 +11045,24 @@ async function saveUser(){
     await loadPanelUsers(); closeModal('userModal'); renderAdmin()
     if(document.getElementById('proModal').classList.contains('open')) pintarCuentaPro()
   }catch(e){ console.error(e); toast(e.message,'error') }
+}
+/* Eliminar la cuenta de alguien que ya no trabaja en el spa (Luis). Sus
+   reservas, fichas, ventas y comisiones no se tocan: solo deja de poder entrar. */
+async function eliminarUsuario(){
+  const id = document.getElementById('usId').value
+  const u = panelUsers.find(x => x.id === id); if(!u) return
+  if(!await confirmar(`${u.name || u.email} (${u.email}) ya no podrá entrar al panel. Sus reservas, fichas, ventas y comisiones se mantienen. No se puede deshacer: si vuelve, habrá que crearle una cuenta nueva.`,
+    { titulo:'¿Eliminar esta cuenta?', ok:'Sí, eliminar' })) return
+  try{
+    if(typeof sesionLista === 'function') await sesionLista()
+    const r = await fetch('/api/panel-usuarios.php', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}),
+      body: JSON.stringify({ accion:'eliminar', id }) })
+    const j = await r.json().catch(() => ({}))
+    if(!r.ok) throw new Error(j.error || 'No se pudo eliminar la cuenta')
+    await loadPanelUsers(); closeModal('userModal'); renderAdmin()
+    if(document.getElementById('proModal').classList.contains('open')) pintarCuentaPro()
+    toast(j.cuenta_borrada ? 'Cuenta eliminada' : 'Ya no tiene acceso al panel (conserva su cuenta de cliente del sitio)', 'success')
+  }catch(e){ toast(e.message, 'error') }
 }
 async function sendUserReset(email){
   if(!email){ toast('Esa cuenta no tiene correo','error'); return }
