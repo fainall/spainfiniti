@@ -6608,7 +6608,8 @@ function openApptQuickView(id){
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--texto)">${esc(p.name)}</strong></div>`:''}
     ${!pro && phone?`<div class="qv-row">📱 ${esc(phone)} ${menuWhatsapp(id, phone)}</div>`:''}
     ${!pro && email?`<div class="qv-row">✉ ${esc(email)}</div>`:''}
-    ${pro ? '' : `<div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>`}
+    ${/* las notas también las ve la profesional (Luis): ahí va lo que tiene que saber de la sesión */''}
+    <div class="qv-row">📝 ${a.notes?esc(a.notes):'<em>Sin información</em>'}</div>
     <div class="qv-dots">${dots}<span style="margin-left:auto;font-weight:600;color:var(--texto)">${STATUS_LABEL[a.status]||''}</span></div>
     <div class="qv-acciones">
       ${pro ? (canEditAppt(a) ? pagoSoloVer(id) : '') : botonPagar(id)}
@@ -9015,7 +9016,7 @@ function renderClientDetail(){
     ${!pro && c.email?`<span>✉ ${esc(c.email)}</span>`:''}
     ${!pro && c.rut?`<span>RUT ${esc(c.rut)}</span>`:''}
     ${c.birthday?`<span>🎂 ${esc(c.birthday)}</span>`:''}</div>
-    ${!pro && c.notes?`<div class="cd-nota">${esc(c.notes)}</div>`:''}`
+    ${c.notes?`<div class="cd-nota">${esc(c.notes)}</div>`:''}`
 
   const { appts, bonos, sales } = cdDatos()
   const todas = [['actividad','Actividad'],['asistencia','Asistencia'],
