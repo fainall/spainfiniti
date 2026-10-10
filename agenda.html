@@ -5996,6 +5996,7 @@ function tocaReleer(minimo){
 }
 function refrescoRespaldo(minimo){
   if(document.visibilityState !== 'visible') return
+  if(typeof revisarEquipo === 'function') revisarEquipo()
   if(!tocaReleer(minimo)) return
   const v = pantallaAbierta()
   if(!v || v === 'agenda') refrescarAgenda()
@@ -6206,6 +6207,12 @@ function checkProfHours(profId, fecha, inicio, dur){
   const ini = toMin(inicio), fin = ini + (dur||60)
   if(ini < toMin(h.desde) || fin > toMin(h.hasta))
     return `${nombre} atiende ese día de ${h.desde} a ${h.hasta}.`
+  /* el descanso se respetaba en la web y con Mariet, pero el panel dejaba
+     agendar encima sin decir nada (Luis) */
+  const dow = new Date(fecha+'T00:00:00').getDay()
+  const brk = metaOf(profId).breaks || {}
+  const choca = (brk[dow] || brk[String(dow)] || []).find(b => ini < toMin(b[1]) && fin > toMin(b[0]))
+  if(choca) return `${nombre} tiene su descanso de ${choca[0]} a ${choca[1]} ese día.`
   return null
 }
 
@@ -11177,7 +11184,9 @@ function pintarSecciones(){
         <select onchange="plantillaEdit.sections[${i}].fields[${j}].type=this.value;pintarSecciones()">
           ${TIPOS_CAMPO.map(([v,n])=>`<option value="${v}" ${f.type===v?'selected':''}>${n}</option>`).join('')}
         </select>
-        ${['opcion','varias'].includes(f.type)?`<button class="btn-g ft-ops${(f.options||[]).length?'':' vacio'}"
+        ${['opcion','varias'].includes(f.type) && esCampoProfesional(f)
+          ? `<span class="rem-note ft-ops" title="Este campo muestra solo a las profesionales activas de Administración → Profesionales">👥 Profesionales activas (automático)</span>`
+          : ['opcion','varias'].includes(f.type)?`<button class="btn-g ft-ops${(f.options||[]).length?'':' vacio'}"
           onclick="abrirOpciones(${i},${j})" title="Configurar las opciones de este campo">⚙ ${(f.options||[]).length
             ? (f.options.length===1 ? '1 opción' : f.options.length+' opciones')
             : 'Definir opciones'}</button>`:''}
@@ -11383,8 +11392,8 @@ function formularioFicha(tpl, datos, soloLectura){
         else if(f.type==='decimal') campo = `<input type="number" step="0.01" inputmode="decimal" data-fk="${k}" value="${esc(v||'')}" />`
         else if(f.type==='fecha') campo = `<input type="date" data-fk="${k}" value="${esc(v||'')}" />`
         else if(f.type==='si_no') campo = unoHTML(k, [['si','Sí'],['no','No']], v||'')
-        else if(f.type==='opcion') campo = unoHTML(k, opcionesCampo(f), v)
-        else if(f.type==='varias') campo = multiHTML(k, opcionesCampo(f), v)
+        else if(f.type==='opcion') campo = unoHTML(k, opcionesCampo(f, v), v)
+        else if(f.type==='varias') campo = multiHTML(k, opcionesCampo(f, v), v)
         else if(f.type==='archivo'){
           const urls = Array.isArray(v) ? v : (v ? [v] : [])
           campo = `<div class="ff-fotos" data-fk="${k}" data-urls='${JSON.stringify(urls)}'>
@@ -11527,19 +11536,16 @@ function quitarFotoFicha(clave, indice){
   pintarFotosFicha(clave)
 }
 
-/* Un campo "Profesional" de la plantilla tiene sus opciones escritas a mano:
-   al llegar una profesional nueva no aparecía para elegirla (Luis, con Sorimar).
-   Se suman solas las profesionales activas que todavía no están en la lista
-   (se compara el primer nombre, así "Michell" y "Michel" no se duplican). */
-function opcionesCampo(f){
-  const ops = (f.options || []).slice()
-  if(!/^\s*(profesional|atendid[oa] por|prestador)/i.test(f.label || '')) return ops
-  const sinTilde = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
-  const primeros = ops.map(o => sinTilde(Array.isArray(o) ? o[1] : o).split(/\s+/)[0].replace(/l+$/, 'l'))
-  state.professionals.filter(p => p.active !== false).forEach(p => {
-    const primero = sinTilde(p.name).split(/\s+/)[0].replace(/l+$/, 'l')
-    if(!primeros.includes(primero)){ ops.push(p.name); primeros.push(primero) }
-  })
+/* Un campo "Profesional" de una plantilla de ficha no usa una lista escrita a
+   mano: muestra a las profesionales activas, tal como están en Administración →
+   Profesionales (Luis: al integrar a alguien nuevo tiene que aparecer sola, y
+   quien ya no trabaja deja de ofrecerse). Lo que una ficha ya tenía marcado se
+   conserva aunque esa persona ya no esté en la lista. */
+const esCampoProfesional = f => /^\s*(profesional|atendid[oa] por|prestador)/i.test((f && f.label) || '')
+function opcionesCampo(f, valor){
+  if(!esCampoProfesional(f)) return (f.options || []).slice()
+  const ops = state.professionals.filter(p => p.active !== false).map(p => p.name)
+  ;(Array.isArray(valor) ? valor : (valor ? [valor] : [])).forEach(v => { if(typeof v === 'string' && v && !ops.includes(v)) ops.push(v) })
   return ops
 }
 /* ── desplegable de selección múltiple ──
@@ -13561,12 +13567,59 @@ function loadProfMeta(){
   if(botCfg && botCfg.prof_meta) profMeta=botCfg.prof_meta
   if(botCfg && botCfg.prof_groups) profGroups=botCfg.prof_groups
 }
-async function persistProfMeta(){
+/* Guarda los datos extra de las profesionales. `cambio(est)` recibe
+   { meta, grupos } y aplica ahí lo que se quiere cambiar.
+   Antes cada navegador guardaba SU copia completa de todas las profesionales:
+   uno abierto desde antes (recepción, el celular) pisaba los horarios y
+   descansos que otro acababa de cambiar, y parecía que "no guardaba" (Luis).
+   Ahora se parte de lo que hay guardado en ese momento y se toca solo lo que
+   cambió. */
+async function persistProfMeta(cambio){
+  const est = { meta: profMeta, grupos: profGroups }
+  try{
+    const f = await supabase.fetch('bot_config', { select:'prof_meta,prof_groups', filters:'id=eq.1' })
+    const fila = f && f[0]
+    if(fila && fila.prof_meta && typeof fila.prof_meta === 'object' && !Array.isArray(fila.prof_meta)) est.meta = fila.prof_meta
+    if(fila && Array.isArray(fila.prof_groups)) est.grupos = fila.prof_groups
+  }catch(e){ console.warn('profesionales: no se pudo releer antes de guardar', e) }
+  if(typeof cambio === 'function') cambio(est)
+  profMeta = est.meta; profGroups = est.grupos
   localStorage.setItem('spa_prof_meta',JSON.stringify(profMeta))
   localStorage.setItem('spa_prof_groups',JSON.stringify(profGroups))
-  try{ await supabase.update('bot_config','1',{prof_meta:profMeta, prof_groups:profGroups})
-    botCfg.prof_meta=profMeta; botCfg.prof_groups=profGroups; return true }
+  try{
+    const marca = new Date().toISOString()
+    const filas = await supabase.update('bot_config','1',{prof_meta:profMeta, prof_groups:profGroups, updated_at:marca})
+    if(Array.isArray(filas) && !filas.length) return false     // la base no dejó guardar
+    botCfg.prof_meta=profMeta; botCfg.prof_groups=profGroups; botCfg.updated_at=marca
+    equipoVisto = null                                          // este navegador ya lo tiene
+    return true }
   catch(e){ return false }
+}
+/* ── cambios del equipo hechos desde otro computador ──
+   Los horarios, descansos y servicios de cada profesional se leían una sola
+   vez, al abrir el panel: si Luis los cambiaba, la recepción seguía viendo los
+   antiguos hasta recargar la página. Ahora cada par de minutos se mira (con
+   una consulta mínima) si cambiaron, y solo entonces se vuelven a leer. */
+let equipoVisto = null, equipoMirado = 0
+async function revisarEquipo(){
+  if(document.visibilityState !== 'visible' || Date.now() - equipoMirado < 120000) return
+  if(typeof soloMira === 'function' && soloMira()) return
+  equipoMirado = Date.now()
+  try{
+    const [cfg, pros] = await Promise.all([
+      supabase.fetch('bot_config', { select:'updated_at', filters:'id=eq.1' }),
+      supabase.fetch('professionals', { select:'id,name,color,active,work_start,work_end,work_days,commission_pct', order:'id.asc' }) ])
+    const marca = ((cfg && cfg[0] && cfg[0].updated_at) || '') + '|' + JSON.stringify(pros || [])
+    if(equipoVisto === null){ equipoVisto = marca; return }
+    if(marca === equipoVisto) return
+    if(hayAlgoAbierto()){ equipoMirado = Date.now() - 90000; return }   // se reintenta en medio minuto
+    equipoVisto = marca
+    const f = await supabase.fetch('bot_config', { select:'prof_meta,prof_groups,comm_cfg', filters:'id=eq.1' })
+    if(f && f[0]){ Object.assign(botCfg, f[0]); loadProfMeta(); loadCommCfg() }
+    await loadProfessionals()
+    const v = pantallaAbierta()
+    if(!v || v === 'agenda') render()
+  }catch(e){ /* sin conexión: se mira de nuevo más tarde */ }
 }
 function metaOf(id){ return profMeta[id] || {} }
 function admProfSetTab(t){ admProfTab=t; renderAdmin() }
@@ -13873,12 +13926,12 @@ async function savePro(){
     const _img=document.getElementById('proPhotoImg')
     /* si no hay foto, src devuelve la URL de la página: hay que leer el atributo */
     const _foto = (_img && _img.style.display!=='none') ? (_img.getAttribute('src')||'') : ''
-    profMeta[pid]={ publicName:document.getElementById('proPublic').value.trim(),
+    const suya={ publicName:document.getElementById('proPublic').value.trim(),
       online:document.getElementById('proOnline').checked,
       email:metaOf(pid).email||'',
       services, breaks, horasPorDia, bio:document.getElementById('proBio').value.trim(),
       photo:_foto }
-    const ok=await persistProfMeta()
+    const ok=await persistProfMeta(est => { est.meta[pid] = suya })
     await loadProfessionals(); closeModal('proModal'); renderAdmin(); render()
     toast(ok?'Profesional guardado':'Guardado (los datos extra quedaron en este navegador)','success')
   }catch(e){ console.error(e); toast('Error al guardar','error') }
@@ -13887,7 +13940,7 @@ async function deletePro(){
   const id=document.getElementById('proId').value
   if(!id) return
   if(!await confirmar('¿Eliminar este profesional? Sus reservas quedarán sin profesional asignado.')) return
-  try{ await supabase.delete('professionals',id); delete profMeta[id]; await persistProfMeta()
+  try{ await supabase.delete('professionals',id); await persistProfMeta(est => { delete est.meta[id] })
     await loadProfessionals(); closeModal('proModal'); renderAdmin(); render(); toast('Profesional eliminado','success') }
   catch(e){ toast('Error al eliminar','error') }
 }
@@ -13907,9 +13960,11 @@ async function saveGroup(){
   if(!name){ toast('Escribe el nombre del grupo','error'); return }
   const members=[...document.querySelectorAll('#grpMembers input:checked')].map(c=>c.value)
   const id=document.getElementById('grpId').value
-  if(id){ const g=profGroups.find(x=>x.id===id); g.name=name; g.members=members }
-  else profGroups.push({ id:'g'+(profGroups.length+1)+'-'+name.toLowerCase().replace(/\s+/g,'-'), name, members })
-  const ok=await persistProfMeta()
+  const ok=await persistProfMeta(est => {
+    const g = id ? est.grupos.find(x=>x.id===id) : null
+    if(g){ g.name=name; g.members=members }
+    else est.grupos.push({ id: id || 'g'+(est.grupos.length+1)+'-'+name.toLowerCase().replace(/\s+/g,'-'), name, members })
+  })
   closeModal('groupModal'); renderAdmin()
   toast(ok?'Grupo guardado':'Guardado solo en este navegador','success')
 }
@@ -13917,8 +13972,7 @@ async function deleteGroup(){
   const id=document.getElementById('grpId').value
   if(!id) return
   if(!await confirmar('¿Eliminar este grupo?')) return
-  profGroups=profGroups.filter(g=>g.id!==id)
-  await persistProfMeta(); closeModal('groupModal'); renderAdmin(); toast('Grupo eliminado','success')
+  await persistProfMeta(est => { est.grupos = est.grupos.filter(g=>g.id!==id) }); closeModal('groupModal'); renderAdmin(); toast('Grupo eliminado','success')
 }
 
 /* ── ADMINISTRACIÓN · SERVICIOS · CLASES · PAQUETES ──
@@ -14266,15 +14320,14 @@ async function saveSvc(){
 async function saveSvcProfs(name, oldName){
   const marcados=new Set([...document.querySelectorAll('#svcProfs input:checked')].map(c=>c.value))
   const todos=state.services.map(s=>s.name)
-  state.professionals.forEach(p=>{
-    const m=profMeta[p.id]=profMeta[p.id]||{}
+  await persistProfMeta(est => state.professionals.forEach(p=>{
+    const m=est.meta[p.id]=est.meta[p.id]||{}
     let list = (!m.services || m.services==='all') ? todos.slice() : m.services.slice()
     if(oldName && oldName!==name) list=list.map(n=>n===oldName?name:n)
     list=list.filter(n=>n!==name)
     if(marcados.has(p.id)) list.push(name)
     m.services = list.length===todos.length ? 'all' : list
-  })
-  await persistProfMeta()
+  }))
 }
 async function deleteSvc(){
   const id=document.getElementById('svcId').value
