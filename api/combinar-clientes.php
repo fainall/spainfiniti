@@ -56,7 +56,7 @@ const TABLAS = [
     'payment_links'      => ['Links de pago', true],
     'consumos'           => ['Insumos registrados', false],
 ];
-function cliente($id) {
+function ficha_cli($id) {
     [$c, $r] = rest('GET', 'clients?select=*&id=eq.' . $id);
     return ($c === 200 && is_array($r) && count($r)) ? $r[0] : null;
 }
@@ -70,7 +70,7 @@ function cuantos($id) {
     return $n;
 }
 
-$a = cliente($queda); $b = cliente($sobra);
+$a = ficha_cli($queda); $b = ficha_cli($sobra);
 if (!$a || !$b) responder(404, ['error' => 'Una de las dos fichas ya no existe. Actualiza la lista de clientes.']);
 
 if ($accion === 'previa') {
@@ -126,7 +126,7 @@ if ($completa) {
 $restan = array_sum(cuantos($sobra));
 if ($restan > 0) responder(500, ['error' => 'Quedaron ' . $restan . ' registros sin pasar. No se borró nada; vuelve a intentarlo.']);
 [$c] = rest('DELETE', 'clients?id=eq.' . $sobra, null, 'return=minimal');
-if ($c >= 300 || cliente($sobra)) responder(500, ['error' => 'Todo quedó en una sola ficha, pero no se pudo borrar la duplicada. Bórrala desde la lista de clientes.']);
+if ($c >= 300 || ficha_cli($sobra)) responder(500, ['error' => 'Todo quedó en una sola ficha, pero no se pudo borrar la duplicada. Bórrala desde la lista de clientes.']);
 
 unset($completa['user_id']);
 responder(200, ['ok' => true, 'movidos' => $movidos, 'completados' => array_keys($completa)]);
