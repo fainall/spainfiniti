@@ -43,12 +43,15 @@ if ($accion === 'auto') {
     $parejas = cmb_parejas_seguras($todas);
     $ver = fn($f) => ['id' => $f['id'], 'nombre' => $f['name'], 'telefono' => $f['phone'], 'correo' => $f['email']];
     if (!empty($d['simular'])) responder(200, ['ok' => true, 'parejas' => array_map(fn($p) => [$ver($p[0]), $ver($p[1])], $parejas)]);
-    $hechas = []; $fallas = [];
-    foreach ($parejas as [$a, $b]) {
+    /* de a pocas por llamada: el servidor corta las peticiones largas, y el panel
+       vuelve a llamar mientras queden (cada combinación es segura de repetir) */
+    $hechas = []; $fallas = []; $inicio = microtime(true);
+    foreach ($parejas as $i => [$a, $b]) {
+        if ($i >= 3 || microtime(true) - $inicio > 12) break;
         $r = cmb_combinar_pareja($a, $b, $quien . ' (automático)');
         if (!empty($r['ok'])) $hechas[] = $r['nombre']; else $fallas[] = ($a['name'] ?? '') . ': ' . ($r['error'] ?? 'error');
     }
-    responder(200, ['ok' => true, 'combinadas' => $hechas, 'fallas' => $fallas]);
+    responder(200, ['ok' => true, 'combinadas' => $hechas, 'fallas' => $fallas, 'quedan' => max(0, count($parejas) - count($hechas) - count($fallas))]);
 }
 
 $queda = strtolower((string)($d['queda'] ?? '')); $sobra = strtolower((string)($d['sobra'] ?? ''));

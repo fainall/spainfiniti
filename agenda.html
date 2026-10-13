@@ -8594,8 +8594,14 @@ async function combinarSolos(){
   const hoy = isoDate(new Date())
   try{ if(localStorage.getItem('spa_combinar_auto') === hoy) return; localStorage.setItem('spa_combinar_auto', hoy) }catch(e){}
   try{
-    const j = await cbPedir({ accion:'auto' })
-    const n = (j.combinadas || []).length
+    /* el servidor combina de a pocas por llamada: se repite mientras queden */
+    const j = { combinadas: [] }
+    for(let vuelta = 0; vuelta < 20; vuelta++){
+      const r = await cbPedir({ accion:'auto' })
+      j.combinadas.push(...(r.combinadas || []))
+      if(!(r.combinadas || []).length || !r.quedan) break
+    }
+    const n = j.combinadas.length
     if(!n) return
     await loadClients()
     if(pantallaAbierta() === 'clientes') renderClientList()
