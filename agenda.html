@@ -4102,9 +4102,21 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     <div class="mtabs" id="cdTabs"></div>
     <div id="cdBody"></div>
     <div class="modal-actions">
+      <button class="btn-ghost" id="cdCombinarBtn" style="margin-right:auto" title="Si este cliente quedó con dos fichas, júntalas en una sola" onclick="abrirCombinar(cdCliente.id)">🔗 Combinar con otra ficha</button>
       <button class="btn-ghost" onclick="cerrarFichaCliente()">Cerrar</button>
       <button class="btn-primary" id="cdEditBtn">Editar cliente</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: combinar dos fichas del mismo cliente -->
+<div class="modal-ov" id="combinarModal">
+  <div class="modal" style="width:720px;max-width:94vw">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="margin:0">Combinar fichas duplicadas</h2>
+      <button class="qv-icon" onclick="closeModal('combinarModal')">✕</button>
+    </div>
+    <div id="cbBody"></div>
   </div>
 </div>
 
@@ -8518,6 +8530,119 @@ async function deleteClient(id, name){
   catch(e){ toast('Error al borrar','error') }
 }
 
+/* ══════════ COMBINAR FICHAS DUPLICADAS (pedido de Luis, 13-oct) ══════════
+   El mismo cliente con dos fichas (una creada en recepción y otra por Mariet o
+   por la web, con el teléfono escrito distinto). Se elige cuál queda: a esa
+   pasan las reservas, ventas, fichas clínicas, fotos, consentimientos, planes
+   e insumos de la otra, se le completan los datos que le falten, y la otra se
+   borra. Lo hace el servidor (api/combinar-clientes.php), que no borra nada
+   hasta que todo quedó en la ficha que se conserva. */
+let cb = { a:null, b:null, queda:null, previa:null, buscando:'' }
+const puedeCombinar = () => !!me && ['admin','admin_local','recepcion'].includes(me.role)
+/* fichas que parecen de la misma persona: mismo correo, mismo teléfono o mismo nombre */
+function posiblesDuplicados(c){
+  const tel = t => soloDigitos(t).slice(-8), mail = t => String(t || '').trim().toLowerCase()
+  const t0 = tel(c.phone), m0 = mail(c.email), n0 = normalBus(c.name)
+  return state.clients.filter(x => x.id !== c.id && (
+    (m0 && mail(x.email) === m0) || (t0.length === 8 && tel(x.phone) === t0) || (n0 && normalBus(x.name) === n0)))
+}
+function abrirCombinar(id){
+  if(!puedeCombinar()){ toast('Tu perfil no puede combinar clientes', 'error'); return }
+  cb = { a:id, b:null, queda:null, previa:null, buscando:'' }
+  pintarCombinar(); openModal('combinarModal')
+}
+function cbFilaCliente(x, motivo){
+  return `<div class="adm-row" style="cursor:pointer" onclick="cbElegir('${x.id}')">
+    <span class="ar-name">${esc(x.name)}</span>
+    <span class="ar-meta">${esc(x.phone || 'sin teléfono')}</span>
+    <span class="ar-meta">${esc(x.email || 'sin correo')}</span>
+    ${motivo ? `<span class="ar-meta" style="color:var(--gold-d)">${motivo}</span>` : ''}
+    <button class="mini-btn" type="button">Elegir</button></div>`
+}
+function pintarCombinar(){
+  const box = document.getElementById('cbBody'); if(!box) return
+  const a = state.clients.find(x => x.id === cb.a)
+  if(!a){ box.innerHTML = '<div class="empty-state">Ese cliente ya no está en la base.</div>'; return }
+  /* paso 2: las dos fichas lado a lado, y cuál se conserva */
+  if(cb.b && cb.previa){
+    const p = cb.previa, lados = [p.queda, p.sobra].sort((x, y) => (x.cliente.id === cb.a ? -1 : 1))
+    const tarjeta = l => { const c = l.cliente, on = cb.queda === c.id
+      const tiene = Object.entries(l.tiene).filter(([, n]) => n > 0).map(([t, n]) => `${n} ${esc((p.rotulos[t] || t).toLowerCase())}`)
+      return `<label class="rr-panel" style="flex:1;min-width:230px;cursor:pointer;border:2px solid ${on ? 'var(--gold)' : 'var(--border)'}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <input type="radio" name="cbQueda" ${on ? 'checked' : ''} onchange="cb.queda='${c.id}';pintarCombinar()">
+          <strong>${on ? '✓ Se conserva esta ficha' : 'Conservar esta'}</strong></div>
+        <div style="font-size:.95rem;font-weight:700">${esc(c.name)}</div>
+        <div class="rem-note" style="margin:4px 0 0">📞 ${esc(c.phone || '—')}<br>✉ ${esc(c.email || '—')}<br>RUT ${esc(c.rut || '—')}
+          <br>Creada el ${c.created_at ? new Date(c.created_at).toLocaleDateString('es-CL') : '—'}${c.user_id ? '<br>🔑 Con cuenta en el sitio web' : ''}</div>
+        <div style="margin-top:8px;font-size:.82rem">${tiene.length ? tiene.join(' · ') : '<em>Sin reservas ni registros</em>'}</div>
+        ${on ? '' : '<div style="margin-top:8px;font-size:.78rem;color:var(--red);font-weight:600">Esta ficha se borra: todo lo suyo pasa a la otra</div>'}
+      </label>` }
+    box.innerHTML = `<p class="rem-note" style="margin:0 0 12px">Elige qué ficha se conserva. Todo lo de la otra (reservas, ventas, fichas clínicas, fotos, consentimientos, planes e insumos) pasa a ella, y los datos que le falten se completan con los de la otra.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">${lados.map(tarjeta).join('')}</div>
+      <div class="modal-actions">
+        <button class="btn-ghost" style="margin-right:auto" onclick="cb.b=null;cb.previa=null;pintarCombinar()">← Elegir otra ficha</button>
+        <button class="btn-ghost" onclick="closeModal('combinarModal')">Cancelar</button>
+        <button class="btn-primary" onclick="unaVez(event,combinarClientes)">🔗 Combinar fichas</button>
+      </div>`
+    return
+  }
+  if(cb.b){ box.innerHTML = '<p class="rem-note">Revisando las dos fichas…</p>'; return }
+  /* paso 1: con cuál se combina */
+  const sug = posiblesDuplicados(a)
+  const q = normalBus(cb.buscando), qd = soloDigitos(cb.buscando)
+  const hallados = q.length < 2 ? [] : state.clients.filter(x => x.id !== a.id && !sug.includes(x)
+    && (normalBus(x.name).includes(q) || normalBus(x.email).includes(q) || (qd.length >= 4 && soloDigitos(x.phone).includes(qd)))).slice(0, 8)
+  const motivo = x => [String(x.email || '').trim().toLowerCase() && String(x.email || '').trim().toLowerCase() === String(a.email || '').trim().toLowerCase() ? 'mismo correo' : '',
+    soloDigitos(x.phone).slice(-8).length === 8 && soloDigitos(x.phone).slice(-8) === soloDigitos(a.phone).slice(-8) ? 'mismo teléfono' : '',
+    normalBus(x.name) === normalBus(a.name) ? 'mismo nombre' : ''].filter(Boolean).join(' · ')
+  box.innerHTML = `<p class="rem-note" style="margin:0 0 12px">Vas a juntar la ficha de <strong>${esc(a.name)}</strong> (${esc(a.phone || 'sin teléfono')}) con otra ficha de la misma persona. En el siguiente paso eliges cuál se conserva.</p>
+    <h5 style="margin:0 0 8px">Fichas que parecen de la misma persona</h5>
+    ${sug.length ? sug.map(x => cbFilaCliente(x, motivo(x))).join('') : '<p class="rem-note" style="margin:0 0 6px">No encontramos otra ficha con el mismo correo, teléfono o nombre.</p>'}
+    <h5 style="margin:16px 0 8px">O búscala</h5>
+    <input type="text" id="cbBuscar" placeholder="Nombre, teléfono o correo de la otra ficha" value="${esc(cb.buscando)}"
+      oninput="cb.buscando=this.value;clearTimeout(cb.t);cb.t=setTimeout(()=>{pintarCombinar();const i=document.getElementById('cbBuscar');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},250)">
+    <div style="margin-top:8px">${hallados.map(x => cbFilaCliente(x, '')).join('') || (q.length >= 2 ? '<p class="rem-note" style="margin:0">Sin resultados.</p>' : '')}</div>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('combinarModal')">Cancelar</button></div>`
+}
+async function cbPedir(cuerpo){
+  if(typeof sesionLista === 'function') await sesionLista()
+  const r = await fetch('/api/combinar-clientes.php', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body: JSON.stringify(cuerpo) })
+  const j = await r.json().catch(() => ({}))
+  if(!r.ok) throw new Error(j.error || 'No se pudo completar')
+  return j
+}
+async function cbElegir(id){
+  cb.b = id; cb.previa = null; pintarCombinar()
+  try{
+    const p = await cbPedir({ accion:'previa', queda: cb.a, sobra: id })
+    /* por omisión se conserva la que tiene más historia; si empatan, la más antigua */
+    const peso = l => Object.values(l.tiene).reduce((t, n) => t + n, 0) + (l.cliente.user_id ? 1000 : 0)
+    const pa = peso(p.queda), pb = peso(p.sobra)
+    cb.queda = pa > pb ? p.queda.cliente.id : pb > pa ? p.sobra.cliente.id
+      : (String(p.queda.cliente.created_at) <= String(p.sobra.cliente.created_at) ? p.queda.cliente.id : p.sobra.cliente.id)
+    cb.previa = p; pintarCombinar()
+  }catch(e){ cb.b = null; pintarCombinar(); toast(e.message, 'error') }
+}
+async function combinarClientes(){
+  if(!cb.previa || !cb.queda) return
+  const queda = cb.queda, sobra = queda === cb.a ? cb.b : cb.a
+  const cq = [cb.previa.queda, cb.previa.sobra].find(l => l.cliente.id === queda).cliente
+  const cs = [cb.previa.queda, cb.previa.sobra].find(l => l.cliente.id === sobra).cliente
+  if(!await confirmar(`Se conservará la ficha de ${cq.name} (${cq.phone || 'sin teléfono'}) y se borrará la otra (${cs.phone || 'sin teléfono'}), después de pasarle todo su historial. No se puede deshacer.`,
+    { titulo:'¿Combinar estas dos fichas?', ok:'Sí, combinar' })) return
+  try{
+    const j = await cbPedir({ accion:'combinar', queda, sobra })
+    closeModal('combinarModal')
+    await Promise.all([loadClients(), loadAppointments().catch(()=>{}), soloMira() ? null : loadSales().catch(()=>{})])
+    if(typeof renderClientList === 'function' && pantallaAbierta() === 'clientes') renderClientList()
+    render()
+    const mov = Object.entries(j.movidos || {}).map(([t, n]) => n + ' ' + t.toLowerCase()).join(', ')
+    toast('Fichas combinadas' + (mov ? ': se pasaron ' + mov : ''), 'success')
+    if(document.getElementById('clientDetailModal').classList.contains('open')) openClientDetail(queda)
+  }catch(e){ toast(e.message, 'error') }
+}
+
 /* abre la ficha del cliente venga de donde venga: agenda, ventas o cobros */
 function abrirFichaCliente(id){
   if(!id) return
@@ -9058,6 +9183,7 @@ function renderClientDetail(){
 
   document.getElementById('cdEditBtn').onclick=()=>{ closeModal('clientDetailModal'); openClientModal(true,c.id) }
   document.getElementById('cdEditBtn').style.display = pro ? 'none' : ''
+  document.getElementById('cdCombinarBtn').style.display = puedeCombinar() ? '' : 'none'
 }
 
 /* ── Actividad: cuántas reservas hay de cada estado, y el historial ── */

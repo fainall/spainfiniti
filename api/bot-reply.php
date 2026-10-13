@@ -709,18 +709,33 @@ function nombre_dicho_por_cliente($n) {
     return false;
 }
 
+/* Fichas con ese teléfono (sus últimos 8 dígitos), esté escrito como esté.
+   En recepción se anota "+56 9 4598 0461" y WhatsApp entrega "+56945980461":
+   buscando el número pegado no se encontraba la ficha con espacios y Mariet
+   creaba una segunda ficha del mismo cliente (Luis, 13-oct). Se busca dejando
+   pasar cualquier separador entre los dígitos y se confirma comparando solo
+   los dígitos. La más antigua primero. */
+function fichas_con_telefono($ult, $campos = 'id,name,email,rut') {
+    if (strlen($ult) !== 8) return [];
+    $patron = '*' . implode('*', str_split($ult)) . '*';
+    $cand = supa('GET', 'clients?select=' . $campos . ',phone&phone=like.' . rawurlencode($patron) . '&order=created_at.asc&limit=40');
+    $out = [];
+    foreach ((is_array($cand) ? $cand : []) as $c)
+        if (substr(preg_replace('/\D/', '', (string)($c['phone'] ?? '')), -8) === $ult) $out[] = $c;
+    return $out;
+}
 function ficha_de_cliente($nombre, $telefono, $correo) {
     $dig = preg_replace('/\D/', '', (string)$telefono);
     if (strlen($dig) >= 8) {
         $ult = substr($dig, -8);
-        $hay = supa('GET', 'clients?select=id,name,email&phone=like.*' . $ult . '&limit=1');
+        $hay = fichas_con_telefono($ult);
         if (is_array($hay) && count($hay)) {
             $c = $hay[0];
             /* mismo telefono pero otro nombre (una hija, un acompañante): ficha propia */
             $pn = fn($t) => explode(' ', trim(strtr(mb_strtolower((string)$t, 'UTF-8'), ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n'])))[0] ?? '';
             if (trim((string)$nombre) !== '' && $pn($nombre) !== $pn($c['name'] ?? '')) {
-                $otro = supa('GET', 'clients?select=id&phone=like.*' . $ult . '&name=ilike.' . rawurlencode($pn($nombre)) . '*&limit=1');
-                if (is_array($otro) && count($otro)) return $otro[0]['id'];
+                /* ¿ya hay una ficha con ese teléfono y ese primer nombre? */
+                foreach ($hay as $otro) if ($pn($otro['name'] ?? '') === $pn($nombre)) return $otro['id'];
                 $nuevo = supa('POST', 'clients', ['name' => trim($nombre), 'phone' => $telefono, 'email' => $correo ?: null,
                                                   'notes' => 'Creado por el asistente de WhatsApp (mismo teléfono que ' . ($c['name'] ?? '') . ')']);
                 return (is_array($nuevo) && count($nuevo) && !empty($nuevo[0]['id'])) ? $nuevo[0]['id'] : $c['id'];
@@ -1076,7 +1091,7 @@ function enmascarar_correo($e) {
 function cliente_por_telefono($telefono) {
     $dig = preg_replace('/\D/', '', (string)$telefono);
     if (strlen($dig) < 8) return null;
-    $hay = supa('GET', 'clients?select=id,name,email,rut&phone=like.*' . substr($dig, -8) . '&order=created_at.asc&limit=1');
+    $hay = fichas_con_telefono(substr($dig, -8));
     if (!is_array($hay) || !count($hay) || nombre_generico($hay[0]['name'] ?? '')) return null;
     $c = $hay[0];
     $hoy = date('Y-m-d');
