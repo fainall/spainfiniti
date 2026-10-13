@@ -4114,7 +4114,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
 
 <!-- MODAL: combinar dos fichas del mismo cliente -->
 <div class="modal-ov" id="combinarModal">
-  <div class="modal" style="width:720px;max-width:94vw">
+  <div class="modal" style="width:860px;max-width:94vw">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <h2 style="margin:0">Combinar fichas duplicadas</h2>
       <button class="qv-icon" onclick="closeModal('combinarModal')">✕</button>
@@ -8593,7 +8593,8 @@ function combinarDesdeLista(id){
 /* Acciones → Combinar clientes: todos los repetidos, de un vistazo */
 function abrirDuplicados(){
   if(!puedeCombinar()){ toast('Tu perfil no puede combinar clientes', 'error'); return }
-  cb = { modo:'lista', a:null, b:null, queda:null, previa:null, buscando:'' }
+  /* si ya había algo escrito en el buscador de la lista, se parte de ahí */
+  cb = { modo:'lista', a:null, b:null, queda:null, previa:null, buscando: (document.getElementById('clientListSearch') || {}).value || '' }
   pintarCombinar(); openModal('combinarModal')
 }
 function cbVolver(){
@@ -8620,7 +8621,7 @@ function pintarListaDuplicados(box){
     <div style="margin:10px 0 6px;font-size:.78rem;color:var(--mid)">${grupos.length ? grupos.length + (grupos.length === 1 ? ' cliente repetido' : ' clientes repetidos') + (q ? ' con esa búsqueda' : '') : ''}</div>
     <div style="max-height:52vh;overflow:auto;padding-right:4px">
     ${grupos.slice(0, 60).map(g => `<div class="rr-panel" style="margin-bottom:8px;padding:10px 12px;display:flex;gap:12px;align-items:center">
-        <div style="flex:1;min-width:0">${g.map(fila).join('')}${g.length > 2 ? `<div class="rem-note" style="margin:4px 0 0">Son ${g.length} fichas: se combinan de a dos.</div>` : ''}</div>
+        <div style="flex:1;min-width:0">${g.map(fila).join('')}${g.length > 2 ? `<div class="rem-note" style="margin:4px 0 0">Son ${g.length} fichas: se combinan de a dos.</div>` : ''}${new Set(g.map(c => soloDigitos(c.phone).slice(-8)).filter(Boolean)).size > 1 ? '<div class="rem-note" style="margin:4px 0 0;color:var(--red)">⚠ Tienen teléfonos distintos: revisa que sea la misma persona antes de combinar.</div>' : ''}</div>
         <button class="btn-primary" style="padding:9px 14px;white-space:nowrap" onclick="cbPar('${g[0].id}','${g[1].id}')">🔗 Combinar</button>
       </div>`).join('') || `<div class="empty-state" style="padding:18px">${q ? 'No hay clientes repetidos con esa búsqueda.' : 'No encontramos clientes repetidos. 🎉'}</div>`}
     ${sueltos.length ? `<h5 style="margin:14px 0 6px">¿Es otro cliente? Elige uno y luego con cuál combinarlo</h5>` + sueltos.map(c => `<div class="adm-row" style="cursor:pointer" onclick="cb.modo='ficha';cb.a='${c.id}';cb.buscando='';pintarCombinar()">
