@@ -8734,11 +8734,14 @@ async function borrarComparacion(id){
 /* Vista grande para comparar: las dos fotos lado a lado, o una encima de la
    otra con una barra que se desliza para ir descubriendo el después. */
 /* ── Evolución automática (pedido de Luis) ──
-   "Antes" es la primera foto que se le cargó al cliente y "Después" la última,
-   juntando las fotos de sus fichas clínicas y las de las comparaciones. Se
-   ordenan por el momento en que se subieron: el panel pone la hora exacta en
-   el nombre de cada archivo (…/1727380000000-0.jpg). Si un archivo no la
-   tiene, se usa la fecha de la ficha o de la comparación. */
+   "Antes" son las fotos de la primera atención del cliente y "Después" las de
+   la última, juntando las fotos de sus fichas clínicas y las de las
+   comparaciones. Manda la FECHA DE LA FICHA (el día en que se atendió), no el
+   día en que se subió la foto: una foto de la primera visita cargada semanas
+   después aparecía con la fecha de carga y quedaba como "Después" (Luis,
+   13-oct). La hora de carga, que el panel deja en el nombre del archivo
+   (…/1727380000000-0.jpg), solo ordena las fotos de un mismo día y sirve de
+   respaldo cuando no hay fecha. */
 function momentoFoto(url){
   const m = String(url).match(/(\d{13})(?:-\d+)?\.jpe?g(?:$|\?)/)
   return m ? Number(m[1]) : null
@@ -8767,26 +8770,32 @@ function evoGuardarSel(sel){
 const evoLista = v => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : [])
 function evolucionCliente(){
   const vistas = new Set(), todas = []
-  const fecha = f => f ? new Date(String(f).slice(0, 10) + 'T12:00:00').toLocaleDateString('es-CL', { day:'numeric', month:'short' }) : ''
-  const sumar = (url, respaldo, origen, fuente, fuenteNombre) => {
+  /* una fecha sola (2026-08-26) se toma al mediodía, para que no retroceda un día por la zona horaria */
+  const aMs = f => { const t = String(f || ''); return (/^\d{4}-\d{2}-\d{2}$/.test(t) ? Date.parse(t + 'T12:00:00') : Date.parse(t)) || 0 }
+  const fecha = f => aMs(f) ? new Date(aMs(f)).toLocaleDateString('es-CL', { day:'numeric', month:'short' }) : ''
+  /* fechaReal: el día de la atención (la ficha, o la fecha puesta en la comparación) */
+  const sumar = (url, fechaReal, respaldo, origen, fuente, fuenteNombre) => {
     if(typeof url !== 'string' || !url.includes('/object/public/fichas/') || vistas.has(url)) return
     vistas.add(url)
-    const cuando = momentoFoto(url) || Date.parse(respaldo || '') || 0
-    todas.push({ url, cuando, origen, fuente, fuenteNombre })
+    const subida = momentoFoto(url) || 0
+    const cuando = aMs(fechaReal) || subida || aMs(respaldo)
+    todas.push({ url, cuando, subida, origen, fuente, fuenteNombre })
   }
   ;(fichasCliente || []).forEach(r => {
     let d = r.data || {}
     if(typeof d === 'string'){ try{ d = JSON.parse(d) }catch(e){ d = {} } }
     const nombre = 'Ficha' + (r.template_name ? ' · ' + r.template_name : '') + ' · ' + fecha(r.record_date || r.created_at)
     Object.values(d).forEach(v => (Array.isArray(v) ? v : [v])
-      .forEach(u => sumar(u, r.record_date || r.created_at, 'Ficha' + (r.template_name ? ' · ' + r.template_name : ''), 'f:' + r.id, nombre)))
+      .forEach(u => sumar(u, r.record_date || r.created_at, null, 'Ficha' + (r.template_name ? ' · ' + r.template_name : ''), 'f:' + r.id, nombre)))
   })
   ;(comparaciones || []).forEach(c => {
     const nombre = (c.titulo || 'Antes y después') + ' (comparación)'
-    sumar(c.antes_url, c.antes_fecha || c.created_at, c.titulo || 'Antes y después', 'c:' + c.id, nombre)
-    sumar(c.despues_url, c.despues_fecha || c.created_at, c.titulo || 'Antes y después', 'c:' + c.id, nombre)
+    sumar(c.antes_url, c.antes_fecha, c.created_at, c.titulo || 'Antes y después', 'c:' + c.id, nombre)
+    sumar(c.despues_url, c.despues_fecha, c.created_at, c.titulo || 'Antes y después', 'c:' + c.id, nombre)
   })
-  todas.sort((a, b) => a.cuando - b.cuando)
+  /* por día de atención; dentro del mismo día, en el orden en que se subieron */
+  const dia = ms => { const d = new Date(ms); return d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate() }
+  todas.sort((a, b) => (dia(a.cuando) - dia(b.cuando)) || (a.subida - b.subida) || (a.cuando - b.cuando))
   /* las fichas de donde salen las fotos, en el orden en que aparecen */
   const fuentes = []
   todas.forEach(f => { if(!fuentes.some(x => x.id === f.fuente)) fuentes.push({ id: f.fuente, nombre: f.fuenteNombre }) })
