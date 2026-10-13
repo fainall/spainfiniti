@@ -1575,6 +1575,8 @@ body.sin-scroll{overflow:hidden}
 .ins-sesion{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.8rem}
 .ins-sesion:last-child{border-bottom:0}
 .ins-sesion .ok{color:#2e9e63;font-weight:600;font-size:.74rem;white-space:nowrap}
+.chip-dup{display:block;margin-top:3px;padding:2px 8px;border:1px solid var(--gold);border-radius:20px;background:#fdf8ec;color:var(--gold-d);font-size:.68rem;font-weight:600;white-space:nowrap;cursor:pointer}
+.chip-dup:hover{background:var(--gold);color:#fff}
 .ins-badge{background:#efe7fb;color:#6b45b8;font-size:.62rem;vertical-align:middle;margin-left:4px}
 .ins-lista{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
 .ins-fila{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
@@ -2086,6 +2088,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
               <div class="cli-acciones">
                 <button class="btn-g" onclick="toggleCliActions(event)">Acciones ▾</button>
                 <div class="cols-menu" id="cliActionsMenu" style="right:0">
+                  <label onclick="abrirDuplicados()">🔗 Combinar clientes</label>
                   <label onclick="exportClients()">⬇ Exportar a Excel</label>
                   <label onclick="switchView('clientes');toggleAcc('campAcc');document.getElementById('campAcc').scrollIntoView({behavior:'smooth'})">✉️ Enviar campaña</label>
                 </div>
@@ -8546,9 +8549,89 @@ function posiblesDuplicados(c){
   return state.clients.filter(x => x.id !== c.id && (
     (m0 && mail(x.email) === m0) || (t0.length === 8 && tel(x.phone) === t0) || (n0 && normalBus(x.name) === n0)))
 }
+/* ── Duplicados a la vista (Luis: "tiene que ser más intuitivo") ──
+   En la lista de Clientes, cada ficha que parece repetida lleva un aviso
+   "Posible duplicado · Combinar", y en Acciones → Combinar clientes sale la
+   lista completa de repetidos. Se consideran la misma persona las fichas con
+   el mismo teléfono o correo y el mismo primer nombre, o con el mismo nombre
+   y apellido. El índice se arma una vez por cada carga de clientes. */
+let _dupIdx = null
+function indiceDuplicados(){
+  if(_dupIdx && _dupIdx.de === state.clients) return _dupIdx
+  const tel = t => { const d = soloDigitos(t).slice(-8); return d.length === 8 ? d : '' }
+  const mail = t => String(t || '').trim().toLowerCase()
+  const palabras = n => normalBus(n).split(' ').filter(Boolean)
+  const porClave = new Map()
+  state.clients.forEach(c => {
+    const w = palabras(c.name), claves = []
+    if(!w.length) return
+    if(tel(c.phone)) claves.push('t:' + tel(c.phone) + '|' + w[0])
+    if(mail(c.email)) claves.push('m:' + mail(c.email) + '|' + w[0])
+    if(w.length >= 2) claves.push('n:' + w.join(' '))
+    claves.forEach(k => { if(!porClave.has(k)) porClave.set(k, []); porClave.get(k).push(c.id) })
+  })
+  /* se juntan en grupos las fichas unidas por cualquiera de esas coincidencias */
+  const padre = new Map()
+  const raiz = x => { while(padre.get(x) !== x){ padre.set(x, padre.get(padre.get(x))); x = padre.get(x) } return x }
+  porClave.forEach(ids => {
+    if(ids.length < 2) return
+    ids.forEach(id => { if(!padre.has(id)) padre.set(id, id) })
+    const r = raiz(ids[0]); ids.slice(1).forEach(id => padre.set(raiz(id), r))
+  })
+  const grupos = new Map()
+  padre.forEach((_, id) => { const r = raiz(id); if(!grupos.has(r)) grupos.set(r, []); grupos.get(r).push(id) })
+  const deCliente = new Map(), lista = []
+  grupos.forEach(ids => { if(ids.length < 2) return; lista.push(ids); ids.forEach(id => deCliente.set(id, ids)) })
+  return _dupIdx = { de: state.clients, deCliente, lista }
+}
+/* desde el aviso de la lista: si la ficha tiene un solo duplicado, va directo a elegir cuál queda */
+function combinarDesdeLista(id){
+  const grupo = (indiceDuplicados().deCliente.get(id) || []).filter(x => x !== id)
+  abrirCombinar(id)
+  if(grupo.length === 1) cbElegir(grupo[0])
+}
+/* Acciones → Combinar clientes: todos los repetidos, de un vistazo */
+function abrirDuplicados(){
+  if(!puedeCombinar()){ toast('Tu perfil no puede combinar clientes', 'error'); return }
+  cb = { modo:'lista', a:null, b:null, queda:null, previa:null, buscando:'' }
+  pintarCombinar(); openModal('combinarModal')
+}
+function cbVolver(){
+  if(cb.modo === 'lista') cb = { modo:'lista', a:null, b:null, queda:null, previa:null, buscando: cb.buscando || '' }
+  else { cb.b = null; cb.previa = null }
+  pintarCombinar()
+}
+function cbPar(a, b){ cb.a = a; cbElegir(b) }
+function pintarListaDuplicados(box){
+  const porId = new Map(state.clients.map(c => [c.id, c]))
+  const q = normalBus(cb.buscando), qd = soloDigitos(cb.buscando)
+  const calza = c => !q || normalBus(c.name).includes(q) || normalBus(c.email).includes(q) || (qd.length >= 4 && soloDigitos(c.phone).includes(qd))
+  const todos = indiceDuplicados().lista.map(ids => ids.map(id => porId.get(id)).filter(Boolean)).filter(g => g.length >= 2)
+    .sort((x, y) => String(x[0].name).localeCompare(String(y[0].name), 'es'))
+  const grupos = todos.filter(g => g.some(calza))
+  const fila = c => `<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:.82rem;padding:3px 0">
+      <strong style="min-width:170px">${esc(c.name)}</strong><span style="min-width:130px">${esc(c.phone || 'sin teléfono')}</span>
+      <span style="color:var(--mid)">${esc(c.email || 'sin correo')}</span>
+      <span style="color:var(--light);margin-left:auto">creada ${c.created_at ? new Date(c.created_at).toLocaleDateString('es-CL') : '—'}</span></div>`
+  const sueltos = q.length < 2 ? [] : state.clients.filter(c => calza(c) && !indiceDuplicados().deCliente.has(c.id)).slice(0, 6)
+  box.innerHTML = `<p class="rem-note" style="margin:0 0 10px">Estos clientes parecen estar <strong>repetidos</strong> (mismo teléfono o correo, o mismo nombre). Pulsa <strong>Combinar</strong> para dejarlos en una sola ficha: se juntan sus reservas, ventas y fichas clínicas, sin pisar ninguna.</p>
+    <input type="text" id="cbBuscar" placeholder="Buscar por nombre, teléfono o correo" value="${esc(cb.buscando)}"
+      oninput="cb.buscando=this.value;clearTimeout(cb.t);cb.t=setTimeout(()=>{pintarCombinar();const i=document.getElementById('cbBuscar');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}},250)">
+    <div style="margin:10px 0 6px;font-size:.78rem;color:var(--mid)">${grupos.length ? grupos.length + (grupos.length === 1 ? ' cliente repetido' : ' clientes repetidos') + (q ? ' con esa búsqueda' : '') : ''}</div>
+    <div style="max-height:52vh;overflow:auto;padding-right:4px">
+    ${grupos.slice(0, 60).map(g => `<div class="rr-panel" style="margin-bottom:8px;padding:10px 12px;display:flex;gap:12px;align-items:center">
+        <div style="flex:1;min-width:0">${g.map(fila).join('')}${g.length > 2 ? `<div class="rem-note" style="margin:4px 0 0">Son ${g.length} fichas: se combinan de a dos.</div>` : ''}</div>
+        <button class="btn-primary" style="padding:9px 14px;white-space:nowrap" onclick="cbPar('${g[0].id}','${g[1].id}')">🔗 Combinar</button>
+      </div>`).join('') || `<div class="empty-state" style="padding:18px">${q ? 'No hay clientes repetidos con esa búsqueda.' : 'No encontramos clientes repetidos. 🎉'}</div>`}
+    ${sueltos.length ? `<h5 style="margin:14px 0 6px">¿Es otro cliente? Elige uno y luego con cuál combinarlo</h5>` + sueltos.map(c => `<div class="adm-row" style="cursor:pointer" onclick="cb.modo='ficha';cb.a='${c.id}';cb.buscando='';pintarCombinar()">
+        <span class="ar-name">${esc(c.name)}</span><span class="ar-meta">${esc(c.phone || 'sin teléfono')}</span><span class="ar-meta">${esc(c.email || 'sin correo')}</span>
+        <button class="mini-btn" type="button">Elegir</button></div>`).join('') : ''}
+    </div>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('combinarModal')">Cerrar</button></div>`
+}
 function abrirCombinar(id){
   if(!puedeCombinar()){ toast('Tu perfil no puede combinar clientes', 'error'); return }
-  cb = { a:id, b:null, queda:null, previa:null, buscando:'' }
+  cb = { modo:'ficha', a:id, b:null, queda:null, previa:null, buscando:'' }
   pintarCombinar(); openModal('combinarModal')
 }
 function cbFilaCliente(x, motivo){
@@ -8561,6 +8644,7 @@ function cbFilaCliente(x, motivo){
 }
 function pintarCombinar(){
   const box = document.getElementById('cbBody'); if(!box) return
+  if(cb.modo === 'lista' && !cb.b){ pintarListaDuplicados(box); return }
   const a = state.clients.find(x => x.id === cb.a)
   if(!a){ box.innerHTML = '<div class="empty-state">Ese cliente ya no está en la base.</div>'; return }
   /* paso 2: las dos fichas lado a lado, y cuál se conserva */
@@ -8578,10 +8662,10 @@ function pintarCombinar(){
         <div style="margin-top:8px;font-size:.82rem">${tiene.length ? tiene.join(' · ') : '<em>Sin reservas ni registros</em>'}</div>
         ${on ? '' : '<div style="margin-top:8px;font-size:.78rem;color:var(--red);font-weight:600">Esta ficha se borra: todo lo suyo pasa a la otra</div>'}
       </div>` }
-    box.innerHTML = `<p class="rem-note" style="margin:0 0 12px">Elige qué ficha se conserva. Todo lo de la otra (reservas, ventas, fichas clínicas, fotos, consentimientos, planes e insumos) pasa a ella, y los datos que le falten se completan con los de la otra.</p>
+    box.innerHTML = `<p class="rem-note" style="margin:0 0 12px">Elige qué ficha se conserva. Todo lo de la otra (reservas, ventas, fichas clínicas, fotos, consentimientos, planes e insumos) pasa a ella, y los datos que le falten se completan con los de la otra. <strong>Las fichas clínicas no se pisan:</strong> quedan todas, cada una con su fecha.</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">${lados.map(tarjeta).join('')}</div>
       <div class="modal-actions">
-        <button class="btn-ghost" style="margin-right:auto" onclick="cb.b=null;cb.previa=null;pintarCombinar()">← Elegir otra ficha</button>
+        <button class="btn-ghost" style="margin-right:auto" onclick="cbVolver()">← ${cb.modo === 'lista' ? 'Volver a la lista' : 'Elegir otra ficha'}</button>
         <button class="btn-ghost" onclick="closeModal('combinarModal')">Cancelar</button>
         <button class="btn-primary" onclick="unaVez(event,combinarClientes)">🔗 Combinar fichas</button>
       </div>`
@@ -8622,7 +8706,7 @@ async function cbElegir(id){
     cb.queda = pa > pb ? p.queda.cliente.id : pb > pa ? p.sobra.cliente.id
       : (String(p.queda.cliente.created_at) <= String(p.sobra.cliente.created_at) ? p.queda.cliente.id : p.sobra.cliente.id)
     cb.previa = p; pintarCombinar()
-  }catch(e){ cb.b = null; pintarCombinar(); toast(e.message, 'error') }
+  }catch(e){ cbVolver(); toast(e.message, 'error') }
 }
 async function combinarClientes(){
   if(!cb.previa || !cb.queda) return
@@ -8633,12 +8717,14 @@ async function combinarClientes(){
     { titulo:'¿Combinar estas dos fichas?', ok:'Sí, combinar' })) return
   try{
     const j = await cbPedir({ accion:'combinar', queda, sobra })
-    closeModal('combinarModal')
+    const seguir = cb.modo === 'lista'
+    if(!seguir) closeModal('combinarModal')
     await Promise.all([loadClients(), loadAppointments().catch(()=>{}), soloMira() ? null : loadSales().catch(()=>{})])
     if(typeof renderClientList === 'function' && pantallaAbierta() === 'clientes') renderClientList()
     render()
     const mov = Object.entries(j.movidos || {}).map(([t, n]) => n + ' ' + t.toLowerCase()).join(', ')
     toast('Fichas combinadas' + (mov ? ': se pasaron ' + mov : ''), 'success')
+    if(seguir){ cbVolver(); return }
     if(document.getElementById('clientDetailModal').classList.contains('open')) openClientDetail(queda)
   }catch(e){ toast(e.message, 'error') }
 }
@@ -10058,11 +10144,12 @@ function renderClientList(){
   const pages=Math.max(1,Math.ceil(list.length/cliPerPage))
   if(cliPage>pages) cliPage=pages
   const slice=list.slice((cliPage-1)*cliPerPage, cliPage*cliPerPage)
+  const dup = puedeCombinar() ? indiceDuplicados().deCliente : new Map()
   cont.innerHTML=`<table class="ctbl">
     <thead><tr><th>Nombre</th><th>Apellido</th><th>Correo</th><th>Teléfono</th><th>RUT</th><th style="text-align:right">Opciones</th></tr></thead>
     <tbody>${slice.map(c=>{ const n=splitName(c.name)
       return `<tr>
-      <td class="cname"><button class="link-cliente" onclick="openClientDetail('${c.id}')">${esc(n.first)}</button></td>
+      <td class="cname"><button class="link-cliente" onclick="openClientDetail('${c.id}')">${esc(n.first)}</button>${dup.has(c.id) ? `<button class="chip-dup" title="Hay otra ficha que parece de esta misma persona" onclick="combinarDesdeLista('${c.id}')">🔗 Posible duplicado · Combinar</button>` : ''}</td>
       <td>${esc(n.last||'—')}</td>
       <td>${esc(c.email||'—')}</td>
       <td>${esc(c.phone||'—')}</td>
