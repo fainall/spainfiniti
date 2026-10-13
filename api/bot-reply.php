@@ -722,6 +722,26 @@ function fichas_con_telefono($ult, $campos = 'id,name,email,rut') {
     $out = [];
     foreach ((is_array($cand) ? $cand : []) as $c)
         if (substr(preg_replace('/\D/', '', (string)($c['phone'] ?? '')), -8) === $ult) $out[] = $c;
+    /* Dos fichas con este teléfono y el mismo nombre son la misma persona: se
+       combinan solas en una (Luis, 13-oct), para que la reserva y el historial
+       no queden repartidos. Con nombres distintos (una hija, un acompañante)
+       no se tocan. */
+    if (count($out) >= 2) {
+        require_once __DIR__ . '/combinar-lib.php';
+        [$cc, $completas] = cmb_rest('GET', 'clients?select=id,name,phone,email,rut,user_id,created_at&id=in.(' . implode(',', array_column($out, 'id')) . ')&order=created_at.asc');
+        $hubo = false;
+        foreach (cmb_parejas_seguras(is_array($completas) ? $completas : []) as [$a, $b]) {
+            $r = cmb_combinar_pareja($a, $b, 'Mariet (automático)');
+            if (!empty($r['ok'])) $hubo = true;
+        }
+        if ($hubo) {
+            /* se vuelve a leer sin pasar por la memoria de lecturas de esta respuesta */
+            [$cc, $cand] = cmb_rest('GET', 'clients?select=' . $campos . ',phone&phone=like.' . rawurlencode($patron) . '&order=created_at.asc&limit=40');
+            $out = [];
+            foreach ((is_array($cand) ? $cand : []) as $c)
+                if (substr(preg_replace('/\D/', '', (string)($c['phone'] ?? '')), -8) === $ult) $out[] = $c;
+        }
+    }
     return $out;
 }
 function ficha_de_cliente($nombre, $telefono, $correo) {

@@ -8584,6 +8584,24 @@ function indiceDuplicados(){
   grupos.forEach(ids => { if(ids.length < 2) return; lista.push(ids); ids.forEach(id => deCliente.set(id, ids)) })
   return _dupIdx = { de: state.clients, deCliente, lista }
 }
+/* Las fichas que son la misma persona con seguridad (mismo teléfono y mismo
+   nombre) se combinan solas, sin preguntar (Luis, 13-oct): lo hace Mariet
+   cuando ese cliente escribe, y el panel una vez al día al abrirse. Las
+   dudosas (mismo nombre con otro teléfono, mismo teléfono con otro nombre)
+   siguen a la vista para decidirlas a mano. */
+async function combinarSolos(){
+  if(!puedeCombinar()) return
+  const hoy = isoDate(new Date())
+  try{ if(localStorage.getItem('spa_combinar_auto') === hoy) return; localStorage.setItem('spa_combinar_auto', hoy) }catch(e){}
+  try{
+    const j = await cbPedir({ accion:'auto' })
+    const n = (j.combinadas || []).length
+    if(!n) return
+    await loadClients()
+    if(pantallaAbierta() === 'clientes') renderClientList()
+    toast(n === 1 ? 'Se combinó sola una ficha repetida: ' + j.combinadas[0] : 'Se combinaron solas ' + n + ' fichas repetidas (mismo teléfono y nombre)', 'success')
+  }catch(e){ console.warn('combinar solos:', e.message) }
+}
 /* desde el aviso de la lista: si la ficha tiene un solo duplicado, va directo a elegir cuál queda */
 function combinarDesdeLista(id){
   const grupo = (indiceDuplicados().deCliente.get(id) || []).filter(x => x !== id)
@@ -17998,6 +18016,7 @@ async function boot(){
   render()
   if(isPro()) switchView('agenda')
   iniciarRefresco()
+  setTimeout(combinarSolos, 9000)
   /* copia automatica si ya toca (la hace un administrador al entrar) */
   if(isAdmin()) setTimeout(respaldoAutomatico, 45000)
   // scroll a las 9:00 aprox
