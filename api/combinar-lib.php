@@ -28,7 +28,11 @@ function cmb_rest($metodo, $ruta, $cuerpo = null, $prefer = 'return=representati
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => $metodo, CURLOPT_TIMEOUT => 30,
         CURLOPT_HTTPHEADER => ['apikey: ' . supa_key(), 'Authorization: Bearer ' . supa_key(), 'Content-Type: application/json', 'Prefer: ' . $prefer]]);
     if ($cuerpo !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($cuerpo, JSON_UNESCAPED_UNICODE));
-    $r = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    $r = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    /* un corte de red o un error pasajero del servidor: se intenta una vez más
+       (todo lo que se hace aquí da lo mismo hacerlo dos veces) */
+    if ($code === 0 || $code >= 500) { usleep(400000); $r = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); }
+    curl_close($ch);
     return [$code, json_decode((string)$r, true)];
 }
 function cmb_ficha($id) {
