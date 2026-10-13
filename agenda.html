@@ -8568,16 +8568,16 @@ function pintarCombinar(){
     const p = cb.previa, lados = [p.queda, p.sobra].sort((x, y) => (x.cliente.id === cb.a ? -1 : 1))
     const tarjeta = l => { const c = l.cliente, on = cb.queda === c.id
       const tiene = Object.entries(l.tiene).filter(([, n]) => n > 0).map(([t, n]) => `${n} ${esc((p.rotulos[t] || t).toLowerCase())}`)
-      return `<label class="rr-panel" style="flex:1;min-width:230px;cursor:pointer;border:2px solid ${on ? 'var(--gold)' : 'var(--border)'}">
+      return `<div class="rr-panel" onclick="cb.queda='${c.id}';pintarCombinar()" style="flex:1;min-width:230px;cursor:pointer;border:2px solid ${on ? 'var(--gold)' : 'var(--border)'}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <input type="radio" name="cbQueda" ${on ? 'checked' : ''} onchange="cb.queda='${c.id}';pintarCombinar()">
+          <input type="radio" name="cbQueda" ${on ? 'checked' : ''} style="width:auto;margin:0">
           <strong>${on ? '✓ Se conserva esta ficha' : 'Conservar esta'}</strong></div>
         <div style="font-size:.95rem;font-weight:700">${esc(c.name)}</div>
         <div class="rem-note" style="margin:4px 0 0">📞 ${esc(c.phone || '—')}<br>✉ ${esc(c.email || '—')}<br>RUT ${esc(c.rut || '—')}
           <br>Creada el ${c.created_at ? new Date(c.created_at).toLocaleDateString('es-CL') : '—'}${c.user_id ? '<br>🔑 Con cuenta en el sitio web' : ''}</div>
         <div style="margin-top:8px;font-size:.82rem">${tiene.length ? tiene.join(' · ') : '<em>Sin reservas ni registros</em>'}</div>
         ${on ? '' : '<div style="margin-top:8px;font-size:.78rem;color:var(--red);font-weight:600">Esta ficha se borra: todo lo suyo pasa a la otra</div>'}
-      </label>` }
+      </div>` }
     box.innerHTML = `<p class="rem-note" style="margin:0 0 12px">Elige qué ficha se conserva. Todo lo de la otra (reservas, ventas, fichas clínicas, fotos, consentimientos, planes e insumos) pasa a ella, y los datos que le falten se completan con los de la otra.</p>
       <div style="display:flex;gap:12px;flex-wrap:wrap">${lados.map(tarjeta).join('')}</div>
       <div class="modal-actions">
