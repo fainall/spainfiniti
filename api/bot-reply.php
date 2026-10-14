@@ -1157,7 +1157,22 @@ function cliente_por_telefono($telefono, $perfil = '') {
     $otras = array_map(fn($f) => trim($f['name']), array_slice($hay, 1));
     return ['id' => $c['id'], 'nombre' => trim($c['name']), 'correo' => trim((string)($c['email'] ?? '')),
             'correo_oculto' => enmascarar_correo($c['email'] ?? ''), 'atendidas' => $atendidas, 'ultima' => $ultima,
-            'habituales' => $habituales, 'otras' => $otras, 'proximas' => array_reverse($proximas)];
+            'habituales' => $habituales, 'habituales_nombres' => array_keys(array_slice($frec, 0, 3, true)),
+            'otras' => $otras, 'proximas' => array_reverse($proximas)];
+}
+/* ¿el cliente pidió este servicio? Es uno de los que suele tomar, o lo nombró
+   en la conversación (basta el comienzo de una palabra: "podología" calza con
+   "Atención Podológica Integral"). */
+function servicio_dicho($svc, array $habituales) {
+    global $convo;
+    foreach ($habituales as $h) if (svc_clave($h) === svc_clave($svc)) return true;
+    $dicho = ' ' . svc_clave(implode(' ', array_map(fn($m) => ($m['role'] ?? '') === 'user' && is_string($m['content'] ?? null) ? $m['content'] : '', $convo ?: []))) . ' ';
+    $comunes = ['atencion', 'servicio', 'tratamiento', 'profesional', 'integral', 'premium', 'sesion', 'tipo'];
+    foreach (explode(' ', svc_clave($svc)) as $p) {
+        if (strlen($p) < 5 || in_array($p, $comunes, true)) continue;
+        if (strpos($dicho, ' ' . substr($p, 0, 5)) !== false) return true;
+    }
+    return false;
 }
 /* ── Aprendizaje: como responde el equipo (Luis) ──
    Se eligen las respuestas reales del equipo mas parecidas a lo que pregunta
@@ -1315,7 +1330,18 @@ for ($i=0; $i<5; $i++) {
             $herramientas = ['check_availability'=>'do_check', 'cancel_booking'=>'do_cancel', 'confirm_booking'=>'do_confirm',
                              'free_slots'=>'do_free_slots', 'next_available'=>'do_next_slots', 'ask_team'=>'do_ask_team'];
             $fn = $herramientas[$name] ?? 'do_book';
-            $out = $fn($args);
+            /* Clienta conocida que pide hora sin decir el servicio: no se le busca
+               uno que no suele tomar. Carmen Gloria siempre se hace masajes con
+               Keidy y Mariet le buscó y agendó una evaluación podológica (Luis, 14-oct). */
+            $svcPedido = trim((string)($args['service_name'] ?? ''));
+            if ($clienteConocido && !empty($clienteConocido['habituales_nombres']) && $svcPedido !== ''
+                && in_array($name, ['free_slots', 'next_available', 'check_availability', 'create_booking'], true)
+                && !servicio_dicho($svcPedido, $clienteConocido['habituales_nombres'])) {
+                $out = ['ok' => false, 'reason' => 'NO consultado: el cliente no ha dicho que quiera ' . $svcPedido . ' y no es lo que suele tomar. '
+                    . 'Pregúntale primero si quiere repetir lo de siempre (' . implode('; ', $clienteConocido['habituales']) . ')'
+                    . ($clienteConocido['ultima'] ? ', su última atención fue ' . $clienteConocido['ultima'] : '')
+                    . ', o si prefiere otro servicio. Busca horas recién cuando lo diga.'];
+            } else $out = $fn($args);
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
             $anotarHoras(json_encode($out, JSON_UNESCAPED_UNICODE));
