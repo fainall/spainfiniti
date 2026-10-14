@@ -1155,9 +1155,12 @@ function cliente_por_telefono($telefono, $perfil = '') {
         $habituales[] = $svc . ' (' . $d['veces'] . ($d['veces'] === 1 ? ' vez' : ' veces') . ($d['pros'] ? ', con ' . array_key_first($d['pros']) : '') . ')';
     }
     $otras = array_map(fn($f) => trim($f['name']), array_slice($hay, 1));
+    /* cómo saludarla: el primer nombre del perfil de WhatsApp si calza con la ficha, si no el de la ficha */
+    $primer = $calza($c) ? explode(' ', trim($perfil))[0] : explode(' ', trim($c['name']))[0];
+    $primer = mb_convert_case(mb_strtolower($primer, 'UTF-8'), MB_CASE_TITLE, 'UTF-8');
     return ['id' => $c['id'], 'nombre' => trim($c['name']), 'correo' => trim((string)($c['email'] ?? '')),
             'correo_oculto' => enmascarar_correo($c['email'] ?? ''), 'atendidas' => $atendidas, 'ultima' => $ultima,
-            'habituales' => $habituales, 'habituales_nombres' => array_keys(array_slice($frec, 0, 3, true)),
+            'primer_nombre' => $primer, 'habituales' => $habituales, 'habituales_nombres' => array_keys(array_slice($frec, 0, 3, true)),
             'otras' => $otras, 'proximas' => array_reverse($proximas)];
 }
 /* ¿el cliente pidió este servicio? Es uno de los que suele tomar, o lo nombró
@@ -1229,7 +1232,7 @@ CÓMO USARLO:
 - Si quiere agendar y NO dijo qué servicio, NO elijas tú uno: ofrécele repetir el que suele tomar, con su fecha y su profesional, por ejemplo:
   \"¡Hola, {$k['nombre']}! Tu última atención fue el masaje descontracturante con Keidy el 18 de agosto. ¿Te agendo lo mismo o prefieres otro servicio?\"
   Si toma varios, nómbrale los dos o tres que más se hace. Busca horas con la profesional de siempre, salvo que pida otra.
-- Salúdalo por su primer nombre, con naturalidad, sin decir que lo buscaste en una base de datos.
+- Salúdalo por su primer nombre ({$k['primer_nombre']}), con naturalidad, sin decir que lo buscaste en una base de datos.
 - NO le pidas nombre ni correo. Confirma el nombre UNA SOLA VEZ en toda la conversación, corto y junto con la hora que le ofreces, por ejemplo:
   \"Tengo el viernes a las 19:00 con Keidy. ¿Te la dejo a nombre de {$k['nombre']}?\"
   Si ya lo confirmó antes en esta conversación (aunque sea para otra hora), NO lo vuelvas a preguntar: agenda directo.
@@ -1337,10 +1340,13 @@ for ($i=0; $i<5; $i++) {
             if ($clienteConocido && !empty($clienteConocido['habituales_nombres']) && $svcPedido !== ''
                 && in_array($name, ['free_slots', 'next_available', 'check_availability', 'create_booking'], true)
                 && !servicio_dicho($svcPedido, $clienteConocido['habituales_nombres'])) {
+                $hab = $clienteConocido['habituales_nombres'];
                 $out = ['ok' => false, 'reason' => 'NO consultado: el cliente no ha dicho que quiera ' . $svcPedido . ' y no es lo que suele tomar. '
-                    . 'Pregúntale primero si quiere repetir lo de siempre (' . implode('; ', $clienteConocido['habituales']) . ')'
-                    . ($clienteConocido['ultima'] ? ', su última atención fue ' . $clienteConocido['ultima'] : '')
-                    . ', o si prefiere otro servicio. Busca horas recién cuando lo diga.'];
+                    . 'En tu respuesta OFRÉCELE REPETIR lo que suele tomar, nombrándolo, con su profesional y la fecha de su última atención, y pregúntale si quiere eso u otro servicio. '
+                    . 'Lo que suele tomar: ' . implode('; ', $clienteConocido['habituales']) . '.'
+                    . ($clienteConocido['ultima'] ? ' Última atención: ' . $clienteConocido['ultima'] . '.' : '')
+                    . ' Ejemplo: "¡Hola, ' . $clienteConocido['primer_nombre'] . '! ¿Te agendo de nuevo tu ' . mb_strtolower($hab[0], 'UTF-8') . ($clienteConocido['ultima'] ? ', como la última vez' : '') . ', o prefieres otro servicio?"'
+                    . ' No busques horas hasta que responda.'];
             } else $out = $fn($args);
             if ($name==='create_booking' && !empty($out['ok'])) $booked=$out;
             $messages[] = ['role'=>'tool','tool_call_id'=>$tc['id'],'content'=>json_encode($out, JSON_UNESCAPED_UNICODE)];
