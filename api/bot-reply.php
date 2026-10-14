@@ -319,6 +319,7 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - Nunca ofrezcas una hora que ya pasó: la hora actual está al final, en HOY Y CALENDARIO.
 - Antes de confirmar SIEMPRE usa check_availability. Agenda con create_booking solo cuando tengas servicio, fecha (YYYY-MM-DD), hora (HH:MM) y nombre.
 - En service_name escribe el nombre EXACTO del servicio tal como aparece en la lista de abajo.
+- Si el cliente pide hora sin decir para qué servicio, NO supongas uno (por ejemplo, no pongas Evaluación Podológica por tu cuenta): pregúntale qué servicio quiere, o, si es un cliente que ya conocemos, ofrécele el que suele tomar (ver CLIENTE QUE YA CONOCEMOS).
 - No preguntes con qué profesional quiere: si hay varias libres, agenda con la primera y dile con quién quedó. Solo si el cliente pide a alguien en particular, o si tú ya le nombraste a una, pásala en professional_name: no se agenda con otra sin avisarle.
 - Si el cliente quiere CAMBIAR una hora, busca horas para EL MISMO SERVICIO de la reserva que cambia (aparece en sus próximas reservas o en la conversación); no mezcles con otro servicio: uno de 90 minutos no cabe donde cabe uno de 60.
 - Si una hora que ofreciste ya no se puede, dilo una sola vez y claro (\"esa hora se acaba de ocupar\"); no te contradigas diciendo que hay y que no hay.
@@ -1108,28 +1109,55 @@ function enmascarar_correo($e) {
     $u = $m[1];
     return mb_substr($u, 0, 2) . '***@' . $m[2];
 }
-function cliente_por_telefono($telefono) {
+/* El cliente que escribe, por su número. Si el número está en varias fichas
+   (una familia, o fichas importadas repetidas de AgendaPro), se elige la que
+   calza con el nombre de su perfil de WhatsApp y, si no, la que tiene más
+   historia. Antes se tomaba la primera: Carmen Gloria quedaba como "Gloria
+   Gonzalez", una ficha vacía, y Mariet no sabía que siempre se hace masajes
+   con Keidy (Luis, 14-oct). */
+function cliente_por_telefono($telefono, $perfil = '') {
     $dig = preg_replace('/\D/', '', (string)$telefono);
     if (strlen($dig) < 8) return null;
-    $hay = fichas_con_telefono(substr($dig, -8));
-    if (!is_array($hay) || !count($hay) || nombre_generico($hay[0]['name'] ?? '')) return null;
-    $c = $hay[0];
+    $hay = array_values(array_filter(fichas_con_telefono(substr($dig, -8)) ?: [], fn($f) => !nombre_generico($f['name'] ?? '')));
+    if (!count($hay)) return null;
     $hoy = date('Y-m-d');
-    $citas = supa('GET', 'appointments?select=appt_date,start_time,service_name,status,professional_id&client_id=eq.' . urlencode($c['id']) . '&order=appt_date.desc,start_time.desc&limit=40') ?: [];
+    $citasDe = [];
+    foreach ($hay as $f) $citasDe[$f['id']] = supa('GET', 'appointments?select=appt_date,start_time,service_name,status,professional_id&client_id=eq.' . urlencode($f['id']) . '&order=appt_date.desc,start_time.desc&limit=60') ?: [];
+    $pal = fn($t) => array_filter(explode(' ', svc_clave($t)), fn($x) => strlen($x) >= 3);
+    $calza = fn($f) => $perfil !== '' && count(array_intersect($pal($f['name'] ?? ''), $pal($perfil))) > 0;
+    usort($hay, fn($x, $y) => [$calza($y), count($citasDe[$y['id']])] <=> [$calza($x), count($citasDe[$x['id']])]);
+    $c = $hay[0];
+    $citas = $citasDe[$c['id']];
     global $pros;
     $nombrePro = function ($id) use ($pros) { foreach ($pros as $p) if ($p['id'] === $id) return $p['name']; return ''; };
-    $proximas = []; $ultima = null; $atendidas = 0;
+    $proximas = []; $ultima = null; $atendidas = 0; $frec = [];
     foreach ($citas as $a) {
         $st = $a['status'] ?? '';
         if ($a['appt_date'] >= $hoy && !in_array($st, ['cancelled', 'no_show', 'block'], true)) {
             $estadoTxt = ['confirmed'=>'CONFIRMADA', 'reserved'=>'sin confirmar', 'pending'=>'sin confirmar', 'waiting'=>'sin confirmar', 'attending'=>'asistió'][$st] ?? $st;
             $proximas[] = $a['appt_date'] . ' ' . substr($a['start_time'], 0, 5) . ' · ' . $a['service_name'] . ($nombrePro($a['professional_id']) ? ' con ' . $nombrePro($a['professional_id']) : '') . ' (' . $estadoTxt . ')';
         }
-        if ($st === 'attending') { $atendidas++; if (!$ultima) $ultima = $a['appt_date'] . ' · ' . $a['service_name']; }
+        /* lo que ya se hizo: las citas pasadas que no se anularon ni faltó */
+        if ($a['appt_date'] < $hoy && !in_array($st, ['cancelled', 'no_show', 'block', 'pago_pendiente'], true) && trim((string)$a['service_name']) !== '') {
+            $atendidas++;
+            $pro = $nombrePro($a['professional_id']);
+            if (!$ultima) $ultima = dia_es($a['appt_date']) . ' · ' . $a['service_name'] . ($pro ? ' con ' . $pro : '');
+            $k = $a['service_name'];
+            $frec[$k] = $frec[$k] ?? ['veces' => 0, 'pros' => []];
+            $frec[$k]['veces']++;
+            if ($pro) $frec[$k]['pros'][$pro] = ($frec[$k]['pros'][$pro] ?? 0) + 1;
+        }
     }
+    uasort($frec, fn($x, $y) => $y['veces'] <=> $x['veces']);
+    $habituales = [];
+    foreach (array_slice($frec, 0, 3, true) as $svc => $d) {
+        arsort($d['pros']);
+        $habituales[] = $svc . ' (' . $d['veces'] . ($d['veces'] === 1 ? ' vez' : ' veces') . ($d['pros'] ? ', con ' . array_key_first($d['pros']) : '') . ')';
+    }
+    $otras = array_map(fn($f) => trim($f['name']), array_slice($hay, 1));
     return ['id' => $c['id'], 'nombre' => trim($c['name']), 'correo' => trim((string)($c['email'] ?? '')),
             'correo_oculto' => enmascarar_correo($c['email'] ?? ''), 'atendidas' => $atendidas, 'ultima' => $ultima,
-            'proximas' => array_reverse($proximas)];
+            'habituales' => $habituales, 'otras' => $otras, 'proximas' => array_reverse($proximas)];
 }
 /* ── Aprendizaje: como responde el equipo (Luis) ──
    Se eligen las respuestas reales del equipo mas parecidas a lo que pregunta
@@ -1170,7 +1198,7 @@ if ($aclaraciones) {
     $system .= "\n\nACLARACIONES QUE YA DIO EL EQUIPO (son válidas, úsalas como propias y no vuelvas a consultarlas):" . $txtAcl;
 }
 
-$clienteConocido = $phone ? cliente_por_telefono($phone) : null;
+$clienteConocido = $phone ? cliente_por_telefono($phone, (string)($input['perfil'] ?? '')) : null;
 /* ya se le pregunto el nombre en esta conversacion? (no se repite) */
 $yaPreguntoNombre = (bool)array_filter($convo, fn($m) => $m['role'] === 'assistant' && preg_match('/a nombre de/iu', $m['content']));
 if ($clienteConocido) {
@@ -1179,8 +1207,13 @@ if ($clienteConocido) {
 - Nombre en la ficha: {$k['nombre']}
 - Correo en la ficha: " . ($k['correo'] ? $k['correo_oculto'] : '(no tiene)') . "
 - Veces atendido: {$k['atendidas']}" . ($k['ultima'] ? " · última atención: {$k['ultima']}" : '') . "
-- Próximas reservas: " . ($k['proximas'] ? implode('; ', $k['proximas']) : 'ninguna') . "
+- Servicios que suele tomar: " . ($k['habituales'] ? implode('; ', $k['habituales']) : '(todavía ninguno)') . "
+- Próximas reservas: " . ($k['proximas'] ? implode('; ', $k['proximas']) : 'ninguna') . ($k['otras'] ? "
+- Este número también está en la ficha de: " . implode(', ', $k['otras']) . " (otra persona de la familia o una ficha repetida). Si por cómo escribe parece que es esa otra persona, pregúntale con naturalidad para quién es la hora." : '') . "
 CÓMO USARLO:
+- Si quiere agendar y NO dijo qué servicio, NO elijas tú uno: ofrécele repetir el que suele tomar, con su fecha y su profesional, por ejemplo:
+  \"¡Hola, {$k['nombre']}! Tu última atención fue el masaje descontracturante con Keidy el 18 de agosto. ¿Te agendo lo mismo o prefieres otro servicio?\"
+  Si toma varios, nómbrale los dos o tres que más se hace. Busca horas con la profesional de siempre, salvo que pida otra.
 - Salúdalo por su primer nombre, con naturalidad, sin decir que lo buscaste en una base de datos.
 - NO le pidas nombre ni correo. Confirma el nombre UNA SOLA VEZ en toda la conversación, corto y junto con la hora que le ofreces, por ejemplo:
   \"Tengo el viernes a las 19:00 con Keidy. ¿Te la dejo a nombre de {$k['nombre']}?\"
@@ -1339,7 +1372,7 @@ for ($i=0; $i<5; $i++) {
     }
     $salida = ['reply'=>trim($m['content'] ?? '') ?: '¿Podrías darme más detalles? 🙂', 'booked'=>$booked];
     if ($traza) $salida['traza'] = $traza;
-    if ($esWebhook && !empty($input['debug'])) $salida['cliente'] = $clienteConocido ? ['nombre'=>$clienteConocido['nombre'], 'correo'=>$clienteConocido['correo_oculto'], 'proximas'=>count($clienteConocido['proximas'])] : null;
+    if ($esWebhook && !empty($input['debug'])) $salida['cliente'] = $clienteConocido ? ['nombre'=>$clienteConocido['nombre'], 'correo'=>$clienteConocido['correo_oculto'], 'proximas'=>count($clienteConocido['proximas']), 'ultima'=>$clienteConocido['ultima'], 'habituales'=>$clienteConocido['habituales'], 'otras'=>$clienteConocido['otras']] : null;
     echo json_encode($salida, JSON_UNESCAPED_UNICODE); exit;
 }
 echo json_encode(['reply'=>'¿Seguimos? Cuéntame qué servicio y día prefieres 🙂', 'booked'=>$booked], JSON_UNESCAPED_UNICODE);

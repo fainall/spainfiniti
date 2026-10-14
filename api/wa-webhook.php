@@ -300,11 +300,11 @@ $internalKey = hash('sha256', (string)($cfg['openaiKey'] ?? '') . '|spa-internal
    y volver a entrar por QUIC.cloud: el 02-oct QUIC.cloud empezó a cortar estas
    peticiones con error 520 y Mariet contestaba "no pude procesar tu mensaje".
    Si la llamada local fallara, se intenta una vez por la dirección pública. */
-$preguntarAlCerebro = function ($local) use ($internalKey, $history, $from, $conVoz) {
+$preguntarAlCerebro = function ($local) use ($internalKey, $history, $from, $conVoz, $nombrePerfil) {
     $ch = curl_init('https://spainfinity.cl/api/bot-reply.php');
     $op = [CURLOPT_RETURNTRANSFER=>true, CURLOPT_TIMEOUT=>45, CURLOPT_POST=>true,
         CURLOPT_HTTPHEADER=>['Content-Type: application/json', 'X-Internal-Key: ' . $internalKey],
-        CURLOPT_POSTFIELDS=>json_encode(['messages'=>$history, 'phone'=>$from, 'voz'=>$conVoz])];
+        CURLOPT_POSTFIELDS=>json_encode(['messages'=>$history, 'phone'=>$from, 'voz'=>$conVoz, 'perfil'=>$nombrePerfil])];
     if ($local) $op[CURLOPT_RESOLVE] = ['spainfinity.cl:443:127.0.0.1'];
     curl_setopt_array($ch, $op);
     $r = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
