@@ -1229,8 +1229,8 @@ if ($clienteConocido) {
 - Próximas reservas: " . ($k['proximas'] ? implode('; ', $k['proximas']) : 'ninguna') . ($k['otras'] ? "
 - Este número también está en la ficha de: " . implode(', ', $k['otras']) . " (otra persona de la familia o una ficha repetida). Si por cómo escribe parece que es esa otra persona, pregúntale con naturalidad para quién es la hora." : '') . "
 CÓMO USARLO:
-- Si quiere agendar y NO dijo qué servicio, NO elijas tú uno: ofrécele repetir el que suele tomar, con su fecha y su profesional, por ejemplo:
-  \"¡Hola, {$k['nombre']}! Tu última atención fue el masaje descontracturante con Keidy el 18 de agosto. ¿Te agendo lo mismo o prefieres otro servicio?\"
+- Si quiere agendar y NO dijo qué servicio, NO elijas tú uno ni le preguntes en general \"qué servicio\": ofrécele repetir el que suele tomar, nombrándolo, con su profesional y su fecha. " . ($k['habituales_nombres'] ? "Por ejemplo:
+  \"¡Hola, {$k['primer_nombre']}! ¿Te agendo de nuevo tu " . mb_strtolower($k['habituales_nombres'][0], 'UTF-8') . ($k['ultima'] ? " (tu última atención fue el {$k['ultima']})" : '') . ", o prefieres otro servicio?\"" : '') . "
   Si toma varios, nómbrale los dos o tres que más se hace. Busca horas con la profesional de siempre, salvo que pida otra.
 - Salúdalo por su primer nombre ({$k['primer_nombre']}), con naturalidad, sin decir que lo buscaste en una base de datos.
 - NO le pidas nombre ni correo. Confirma el nombre UNA SOLA VEZ en toda la conversación, corto y junto con la hora que le ofreces, por ejemplo:
@@ -1337,11 +1337,11 @@ for ($i=0; $i<5; $i++) {
                uno que no suele tomar. Carmen Gloria siempre se hace masajes con
                Keidy y Mariet le buscó y agendó una evaluación podológica (Luis, 14-oct). */
             $svcPedido = trim((string)($args['service_name'] ?? ''));
-            if ($clienteConocido && !empty($clienteConocido['habituales_nombres']) && $svcPedido !== ''
+            if ($clienteConocido && !empty($clienteConocido['habituales_nombres'])
                 && in_array($name, ['free_slots', 'next_available', 'check_availability', 'create_booking'], true)
-                && !servicio_dicho($svcPedido, $clienteConocido['habituales_nombres'])) {
+                && ($svcPedido === '' || !servicio_dicho($svcPedido, $clienteConocido['habituales_nombres']))) {
                 $hab = $clienteConocido['habituales_nombres'];
-                $out = ['ok' => false, 'reason' => 'NO consultado: el cliente no ha dicho que quiera ' . $svcPedido . ' y no es lo que suele tomar. '
+                $out = ['ok' => false, 'reason' => 'NO consultado: ' . ($svcPedido === '' ? 'el cliente no ha dicho qué servicio quiere. ' : 'el cliente no ha dicho que quiera ' . $svcPedido . ' y no es lo que suele tomar. ')
                     . 'En tu respuesta OFRÉCELE REPETIR lo que suele tomar, nombrándolo, con su profesional y la fecha de su última atención, y pregúntale si quiere eso u otro servicio. '
                     . 'Lo que suele tomar: ' . implode('; ', $clienteConocido['habituales']) . '.'
                     . ($clienteConocido['ultima'] ? ' Última atención: ' . $clienteConocido['ultima'] . '.' : '')
