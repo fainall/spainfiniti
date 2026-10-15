@@ -1577,6 +1577,20 @@ body.sin-scroll{overflow:hidden}
 .ins-sesion .ok{color:#2e9e63;font-weight:600;font-size:.74rem;white-space:nowrap}
 .chip-dup{display:block;margin-top:3px;padding:2px 8px;border:1px solid var(--gold);border-radius:20px;background:#fdf8ec;color:var(--gold-d);font-size:.68rem;font-weight:600;white-space:nowrap;cursor:pointer}
 .chip-dup:hover{background:var(--gold);color:#fff}
+.pg-grilla{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.pg-tarjeta{padding:14px}
+.pg-cab{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.pg-cab span{font-size:.76rem;color:var(--mid)}
+.pg-cab .pg-tipo{color:var(--gold-d)}
+.pg-par figure{margin:0}
+.pg-par img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:zoom-in}
+.pg-par figcaption{font-size:.72rem;color:var(--mid);margin-top:3px}
+.pg-acc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.pg-todas{margin-top:12px;border-top:1px solid var(--border);padding-top:10px;max-height:420px;overflow:auto}
+.pg-sesion{margin-bottom:10px}
+.pg-sesion-cab{font-size:.76rem;font-weight:600;margin-bottom:4px}
+.pg-fotos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.pg-fotos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px}
 .ins-badge{background:#efe7fb;color:#6b45b8;font-size:.62rem;vertical-align:middle;margin-left:4px}
 .ins-lista{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
 .ins-fila{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
@@ -1929,6 +1943,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <button data-view="clientes" onclick="switchView('clientes')">Clientes ▾</button>
         <div class="topnav-dd-menu">
           <button onclick="switchView('clientes')">Base de Clientes</button>
+          <button onclick="switchView('antesdespues')">Antes y después</button>
           <button onclick="switchView('encuestas')">Reportes de encuestas</button>
           <button onclick="switchView('recordatorios')">Recordatorios</button>
           <button onclick="switchView('cuentas')">Cuentas web</button>
@@ -3710,6 +3725,21 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   </div>
 
   <!-- VISTA: REPORTE DE VENTAS -->
+  <div class="view" id="view-antesdespues">
+    <div class="view-inner" style="max-width:1400px">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem">Antes y después</h2>
+      <p class="inv-sub" style="margin-top:4px">Las fotos de las fichas clínicas por paciente, para comparar su evolución. Cada paciente aparece con un código: no se muestran nombres, datos de contacto ni el contenido clínico de la ficha.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:14px 0">
+        <input type="text" id="pgBuscar" placeholder="Filtrar por tipo de ficha (ej. podología) o por código" oninput="pgPagina=1;pintarGaleria()" style="flex:1;min-width:220px">
+        <select id="pgOrden" onchange="pgPagina=1;pintarGaleria()" style="width:auto">
+          <option value="reciente">Atendidos hace poco primero</option>
+          <option value="fotos">Con más fotos primero</option>
+          <option value="sesiones">Con más sesiones primero</option></select>
+      </div>
+      <div id="pgCuerpo"></div>
+    </div>
+  </div>
+
   <div class="view" id="view-repventas">
     <div class="view-inner" style="max-width:1600px">
       <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem">Reporte de ventas</h2>
@@ -4602,8 +4632,8 @@ const ROLES = {
                   vistas:['agenda','misingresos'], edita:true, soloSuyo:true },
   pro_ro:       { nombre:'Profesional (sin edición)', desc:'Solo mira su agenda. No puede crear ni cambiar reservas.',
                   vistas:['agenda','misingresos'], edita:false, soloSuyo:true },
-  publicidad:   { nombre:'Publicidad (solo mirar)', desc:'Ve la agenda de las profesionales para planificar campañas (qué horas están ocupadas y con qué servicio) y el reporte de ventas. No ve datos de clientes ni comisiones, ni puede crear, editar, copiar ni descargar nada.',
-                  vistas:['agenda','repventas'], edita:false, soloMirar:true }
+  publicidad:   { nombre:'Publicidad (solo mirar)', desc:'Ve la agenda de las profesionales para planificar campañas (qué horas están ocupadas y con qué servicio) y el reporte de ventas, y las fotos de antes y después sin datos del paciente. No ve datos de clientes ni comisiones, ni puede crear, editar, copiar ni descargar nada.',
+                  vistas:['agenda','repventas','antesdespues'], edita:false, soloMirar:true }
 }
 /* perfil de publicidad: mira la agenda y el reporte de ventas, y nada más */
 function soloMira(){ return !!(me && rolDe().soloMirar) }
@@ -4619,7 +4649,7 @@ const MODULOS_PERMISO = [
   { grupo:'Agenda', items:[['agenda','Agenda']] },
   { grupo:'Ventas', items:[['ventas','Detalle de ventas'],['cobros','Cobros pendientes'],['transacciones','Transacciones'],
       ['planes','Planes / Bonos'],['giftcards','Gift Cards'],['caja','Caja / Cierre diario'],['propinas','Propinas'],['comisiones','Comisiones']] },
-  { grupo:'Clientes', items:[['clientes','Base de clientes'],['encuestas','Reportes de encuestas'],['recordatorios','Recordatorios'],['cuentas','Cuentas web']] },
+  { grupo:'Clientes', items:[['clientes','Base de clientes'],['antesdespues','Antes y después (fotos, sin datos del paciente)'],['encuestas','Reportes de encuestas'],['recordatorios','Recordatorios'],['cuentas','Cuentas web']] },
   { grupo:'Productos', items:[['productos','Inventario'],['ventaprod','Venta de productos'],['movstock','Movimientos de stock']] },
   { grupo:'Reportes', items:[['reportes','Resumen'],['represervas','Reporte de reservas'],['repventas','Reporte de ventas']] },
   { grupo:'Otros', items:[['misingresos','Mis ingresos'],['whatsapp','WhatsApp'],['asistente','Asistente'],['admin','Administración']] },
@@ -9189,6 +9219,90 @@ function verEvolucionPar(k){
   verComparacion(null, { titulo: 'Evolución ' + (k + 1), antes_url: evo.antes[k].url, antes_fecha: evoIso(evo.antes[k].cuando),
     despues_url: evo.despues[k].url, despues_fecha: evoIso(evo.despues[k].cuando), notas:'' })
 }
+/* ══════════ ANTES Y DESPUÉS: GALERÍA SIN DATOS DEL PACIENTE (pedido de Luis, 15-oct) ══════════
+   Para la cuenta de publicidad: las fotos de las fichas clínicas por paciente,
+   para comparar su evolución. Cada paciente va con un código (P-3F9A2C): el
+   servidor (api/fotos-publicidad.php) no entrega nombres, contacto ni el texto
+   clínico de la ficha. Por omisión se compara la primera foto de la primera
+   sesión con la última de la última; se pueden elegir otras. */
+let pgDatos = null, pgPagina = 1, pgAbierto = null, pgSel = {}
+async function cargarGaleria(forzar){
+  const cuerpo = document.getElementById('pgCuerpo'); if(!cuerpo) return
+  if(pgDatos && !forzar){ pintarGaleria(); return }
+  cuerpo.innerHTML = '<p class="rem-note">Cargando fotos…</p>'
+  try{
+    if(typeof sesionLista === 'function') await sesionLista()
+    const r = await fetch('/api/fotos-publicidad.php', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}), body:'{}' })
+    const j = await r.json().catch(() => ({}))
+    if(!r.ok) throw new Error(j.error || 'No se pudieron cargar las fotos')
+    pgDatos = j.pacientes || []
+    pintarGaleria()
+  }catch(e){ cuerpo.innerHTML = '<div class="inv-notice aviso">⚠ ' + esc(e.message) + '</div>' }
+}
+const pgFecha = f => f ? new Date(f + 'T12:00:00').toLocaleDateString('es-CL', { day:'numeric', month:'short', year:'numeric' }) : ''
+function pgPar(p){
+  const s = pgSel[p.codigo] || {}
+  const todas = p.fichas.flatMap(f => f.fotos.map(u => ({ url:u, fecha:f.fecha })))
+  const buscar = u => todas.find(x => x.url === u)
+  const ultima = p.fichas.length > 1 ? p.fichas[p.fichas.length - 1] : null
+  const antes = buscar(s.antes) || todas[0] || null
+  let despues = buscar(s.despues) || (ultima ? { url: ultima.fotos[ultima.fotos.length - 1], fecha: ultima.fecha } : (todas.length > 1 ? todas[todas.length - 1] : null))
+  if(despues && antes && despues.url === antes.url) despues = null
+  return { antes, despues, todas }
+}
+function pgComparar(codigo){
+  const p = (pgDatos || []).find(x => x.codigo === codigo); if(!p) return
+  const { antes, despues } = pgPar(p)
+  if(!antes) return
+  verComparacion(null, { titulo: 'Paciente ' + p.codigo, antes_url: antes.url, antes_fecha: antes.fecha,
+    despues_url: despues ? despues.url : null, despues_fecha: despues ? despues.fecha : null, notas:'' })
+}
+function pgVerGuardada(codigo, i){
+  const p = (pgDatos || []).find(x => x.codigo === codigo), c = p && p.comparaciones[i]
+  if(c) verComparacion(null, Object.assign({ notas:'' }, c, { titulo: 'Paciente ' + codigo + ' · ' + (c.titulo || 'Antes y después') }))
+}
+function pgElegir(codigo, lado, url){ pgSel[codigo] = Object.assign({}, pgSel[codigo], { [lado]: url }); pintarGaleria() }
+function pgAbrir(codigo){ pgAbierto = pgAbierto === codigo ? null : codigo; pintarGaleria() }
+function pintarGaleria(){
+  const cuerpo = document.getElementById('pgCuerpo'); if(!cuerpo || !pgDatos) return
+  const q = normalBus((document.getElementById('pgBuscar') || {}).value || '')
+  const orden = (document.getElementById('pgOrden') || {}).value || 'reciente'
+  const nFotos = p => p.fichas.reduce((t, f) => t + f.fotos.length, 0)
+  let lista = pgDatos.filter(p => !q || normalBus(p.codigo).includes(q) || p.fichas.some(f => normalBus(f.plantilla).includes(q)))
+  if(orden === 'fotos') lista = lista.slice().sort((a, b) => nFotos(b) - nFotos(a))
+  if(orden === 'sesiones') lista = lista.slice().sort((a, b) => b.fichas.length - a.fichas.length)
+  const porPag = 12, pags = Math.max(1, Math.ceil(lista.length / porPag)); if(pgPagina > pags) pgPagina = pags
+  const vista = lista.slice((pgPagina - 1) * porPag, pgPagina * porPag)
+  const tarjeta = p => {
+    const { antes, despues, todas } = pgPar(p)
+    const lado = (f, rot) => f
+      ? `<figure><img src="${esc(f.url)}" loading="lazy" onclick="pgComparar('${p.codigo}')"><figcaption>${rot} · ${esc(pgFecha(f.fecha))}</figcaption></figure>`
+      : `<figure class="evo-falta"><figcaption>${rot}: falta otra sesión con fotos</figcaption></figure>`
+    const tipos = Array.from(new Set(p.fichas.map(f => f.plantilla).filter(Boolean)))
+    const rango = p.fichas.length ? pgFecha(p.fichas[0].fecha) + (p.fichas.length > 1 ? ' – ' + pgFecha(p.fichas[p.fichas.length - 1].fecha) : '') : ''
+    return `<div class="rr-panel pg-tarjeta">
+      <div class="pg-cab"><strong>Paciente ${esc(p.codigo)}</strong>
+        <span>${p.fichas.length} ${p.fichas.length === 1 ? 'sesión' : 'sesiones'} · ${todas.length} ${todas.length === 1 ? 'foto' : 'fotos'}${rango ? ' · ' + esc(rango) : ''}</span>
+        ${tipos.length ? `<span class="pg-tipo">${esc(tipos.join(' · '))}</span>` : ''}</div>
+      <div class="ad-visor-lado pg-par">${lado(antes, 'Antes')}${lado(despues, 'Después')}</div>
+      <div class="pg-acc">
+        ${antes && despues ? `<button class="btn-primary" style="padding:8px 14px" onclick="pgComparar('${p.codigo}')">Comparar</button>` : ''}
+        ${todas.length > 2 ? `<button class="mini-btn" onclick="pgAbrir('${p.codigo}')">${pgAbierto === p.codigo ? 'Cerrar' : '🖼 Elegir otras fotos'}</button>` : ''}
+        ${p.comparaciones.map((c, i) => `<button class="mini-btn" onclick="pgVerGuardada('${p.codigo}',${i})">⭐ ${esc(c.titulo || 'Comparación guardada')}</button>`).join('')}
+      </div>
+      ${pgAbierto === p.codigo ? `<div class="pg-todas"><p class="rem-note" style="margin:0 0 6px">Toca <strong>Antes</strong> o <strong>Después</strong> en la foto que quieras comparar.</p>
+        ${p.fichas.map(f => `<div class="pg-sesion"><div class="pg-sesion-cab">${esc(pgFecha(f.fecha))}${f.plantilla ? ' · ' + esc(f.plantilla) : ''}</div>
+          <div class="pg-fotos">${f.fotos.map(u => `<div class="evo-foto ${antes && antes.url === u ? 'es-a' : ''} ${despues && despues.url === u ? 'es-d' : ''}"><img src="${esc(u)}" loading="lazy">
+            <div class="evo-btns"><button class="${antes && antes.url === u ? 'on' : ''}" onclick="pgElegir('${p.codigo}','antes','${esc(u)}')">Antes</button><button class="${despues && despues.url === u ? 'on' : ''}" onclick="pgElegir('${p.codigo}','despues','${esc(u)}')">Después</button></div></div>`).join('')}</div></div>`).join('')}</div>` : ''}
+    </div>`
+  }
+  cuerpo.innerHTML = `<p class="rem-note" style="margin:0 0 10px">${lista.length} ${lista.length === 1 ? 'paciente' : 'pacientes'} con fotos${q ? ' con ese filtro' : ''}.</p>
+    <div class="pg-grilla">${vista.map(tarjeta).join('') || '<div class="empty-state">No hay fotos con ese filtro.</div>'}</div>
+    ${pags > 1 ? `<div style="margin-top:16px;display:flex;gap:10px;align-items:center;justify-content:center">
+      <button class="mini-btn" ${pgPagina <= 1 ? 'disabled' : ''} onclick="pgPagina--;pintarGaleria();window.scrollTo(0,0)">‹ Anterior</button>
+      <span style="font-size:.82rem">${pgPagina} de ${pags}</span>
+      <button class="mini-btn" ${pgPagina >= pags ? 'disabled' : ''} onclick="pgPagina++;pintarGaleria();window.scrollTo(0,0)">Siguiente ›</button></div>` : ''}`
+}
 function verComparacion(id, dada){
   const c = dada || comparaciones.find(x => x.id === id); if(!c) return
   const cerrar = () => { const v = document.getElementById('adVisor'); if(v) v.remove() }
@@ -9531,7 +9645,7 @@ function authHeaders(extra){
 
 /* ── VIEW SWITCHING ── */
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones','cobros']
-const CLIENTES_GROUP=['clientes','encuestas','recordatorios','cuentas']
+const CLIENTES_GROUP=['clientes','antesdespues','encuestas','recordatorios','cuentas']
 const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
 const REPORTES_GROUP=['reportes','represervas','repventas']
 const PRO_VIEWS=['agenda','misingresos']
@@ -9561,6 +9675,7 @@ function switchView(v){
   if(v==='movstock') renderMovStock()
   if(v==='represervas') renderRepReservas()
   if(v==='repventas') renderRepVentas()
+  if(v==='antesdespues') cargarGaleria()
   if(v==='admin') renderAdmin()
   if(v==='misingresos') renderMisIngresos()
   if(v==='asistente') renderAsistente()
