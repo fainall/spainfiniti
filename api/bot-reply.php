@@ -336,6 +336,9 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 
 LO QUE NO HACES:
 - No inventas servicios, precios, promociones ni horarios: usa solo lo que aparece aquí abajo.
+- Los mensajes que empiezan con \"[Equipo]\" los escribió una persona del spa (Luis o su equipo), no tú. Lo que digan MANDA sobre todo lo demás, también sobre esta información: si corrigieron algo, no lo repitas. Nunca escribas \"[Equipo]\" en tus respuestas.
+- No inventes detalles clínicos que no estén escritos en esta información: tipo de anestesia, cómo se aplica, medicamentos, técnicas, si duele. Si te preguntan algo así y no está aquí, usa ask_team.
+- ANESTESIA (confirmado por el equipo): en Spa Infinity solo se usa anestesia TÓPICA en spray, por ejemplo en las uñas encarnadas. NUNCA se aplica anestesia inyectable ni se pincha. Si en el catálogo dice \"anestesia local\", se refiere a ese spray.
 - Si te preguntan algo que no está en esta información (estacionamiento, formas de pago, convenios, si un tratamiento sirve para un caso puntual), NO lo adivines: usa ask_team para preguntárselo al equipo por WhatsApp y dile al cliente que lo estás confirmando y que le respondes en cuanto te contesten. Una consulta por duda, no repitas la misma.
 - No das diagnósticos ni indicaciones médicas. Para eso, invitas a evaluación con la podóloga.
 
@@ -1402,7 +1405,7 @@ for ($i=0; $i<5; $i++) {
             continue;
         }
     }
-    $salida = ['reply'=>trim($m['content'] ?? '') ?: '¿Podrías darme más detalles? 🙂', 'booked'=>$booked];
+    $salida = ['reply'=>trim(preg_replace('/^\s*\[Equipo\]\s*/u', '', (string)($m['content'] ?? ''))) ?: '¿Podrías darme más detalles? 🙂', 'booked'=>$booked];
     if ($traza) $salida['traza'] = $traza;
     if ($esWebhook && !empty($input['debug'])) $salida['cliente'] = $clienteConocido ? ['nombre'=>$clienteConocido['nombre'], 'correo'=>$clienteConocido['correo_oculto'], 'proximas'=>count($clienteConocido['proximas']), 'ultima'=>$clienteConocido['ultima'], 'habituales'=>$clienteConocido['habituales'], 'otras'=>$clienteConocido['otras']] : null;
     echo json_encode($salida, JSON_UNESCAPED_UNICODE); exit;

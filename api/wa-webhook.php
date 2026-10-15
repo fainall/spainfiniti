@@ -103,7 +103,10 @@ if (($cambio['field'] ?? '') === 'smb_message_echoes') {
         }
         wa_log($eco['to'], 'equipo', $txtEco, $extraEco);
         if (($eco['type'] ?? '') === 'text') {
-            wa_contexto_agregar($eco['to'], 'assistant', $txtEco); wa_aprender($eco['to'], $txtEco, 'Celular');
+            /* marcado como del equipo: Mariet lo veía como si lo hubiera dicho ella y
+               no le daba prioridad (el 13-oct el equipo aclaró que no se usa anestesia
+               inyectable y el 15-oct Mariet lo volvió a decir) */
+            wa_contexto_agregar($eco['to'], 'assistant', '[Equipo] ' . $txtEco); wa_aprender($eco['to'], $txtEco, 'Celular');
             /* le contestaron directo: su consulta pendiente ya no se reenvía */
             require_once __DIR__ . '/wa-consultas.php';
             wa_consultas_cerrar_de_cliente($eco['to'], $txtEco);

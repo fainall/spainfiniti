@@ -99,7 +99,7 @@ if ($code < 200 || $code >= 300) {
 
 $autor = trim((string)($yo['name'] ?? '')) ?: (string)($yo['email'] ?? 'Equipo');
 wa_log($tel, 'panel', $texto, ['autor' => $autor, 'id' => (string)($res['messages'][0]['id'] ?? '')]);
-wa_contexto_agregar($tel, 'assistant', $texto);
+wa_contexto_agregar($tel, 'assistant', '[Equipo] ' . $texto);     // lo escribió una persona del equipo (ver wa-webhook.php)
 wa_aprender($tel, $texto, $autor);
 /* le contestaron directo desde el panel: su consulta pendiente queda cerrada */
 require_once __DIR__ . '/wa-consultas.php';
