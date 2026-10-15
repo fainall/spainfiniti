@@ -91,7 +91,7 @@ const CATEGORIES = [
         longDesc: "Tratamiento clínico y extracción segura de uñas encarnadas bilaterales para aliviar el dolor, reducir la inflamación y sanar la zona afectada con protocolos de asepsia rigurosos.\nNota: El valor del servicio es por uña. Si el tratamiento presenta otras alteraciones o requerimientos adicionales, el valor puede variar.",
         img: IMG + 'podologia-clinica/una-encarnada-bilateral.jpeg',
         link: 'https://spainfinity.site.agendapro.com/cl/sucursal/452261?services_id=2569310',
-        includes: ['Evaluación clínica bilateral', 'Anestesia local si requerida', 'Extracción segura del fragmento', 'Curación y vendaje aséptico'],
+        includes: ['Evaluación clínica bilateral', 'Anestesia tópica en spray si se requiere', 'Extracción segura del fragmento', 'Curación y vendaje aséptico'],
       },
       {
         id: 'curacion-simple',
