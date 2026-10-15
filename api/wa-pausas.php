@@ -89,6 +89,47 @@ function wa_es_prueba($tel) {
    400 mensajes. quien = cliente | asistente | equipo (celular) | panel. */
 function wa_chat_archivo($tel) { return __DIR__ . '/bot-sessions/chat-' . wa_tel($tel) . '.json'; }
 
+/* WhatsApp acepta el mensaje al enviarlo, pero a veces avisa segundos después
+   que no lo pudo entregar ("failed"). Antes el panel lo mostraba como enviado y
+   el cliente nunca lo recibía (Gloria Muñoz, 15-oct). Ahora se marca en el chat
+   con el motivo. */
+function wa_log_no_entregado($tel, $wamid, $motivo) {
+    $tel = wa_tel($tel);
+    if ($tel === '' || $wamid === '') return false;
+    $f = wa_chat_archivo($tel);
+    if (!is_file($f)) return false;
+    $fp = @fopen($f, 'c+');
+    if (!$fp) return false;
+    flock($fp, LOCK_EX);
+    $lista = json_decode((string)stream_get_contents($fp), true);
+    $hallado = false;
+    if (is_array($lista)) foreach ($lista as &$m) {
+        if (($m['id'] ?? '') === $wamid) { $m['error'] = 'No le llegó al cliente: ' . $motivo; $m['no_entregado'] = true; $hallado = true; }
+    }
+    unset($m);
+    if ($hallado) { ftruncate($fp, 0); rewind($fp); fwrite($fp, json_encode($lista, JSON_UNESCAPED_UNICODE)); }
+    flock($fp, LOCK_UN); fclose($fp);
+    return $hallado;
+}
+/* el motivo, en palabras (códigos de la API de WhatsApp Cloud) */
+function wa_motivo_falla($err) {
+    $c = (int)($err['code'] ?? 0);
+    $mapa = [
+        131047 => 'pasaron más de 24 horas desde su último mensaje; hay que escribirle desde el celular o con una plantilla',
+        131026 => 'WhatsApp no pudo entregarlo a ese número (puede tener WhatsApp desactualizado, no haber aceptado las condiciones o tener bloqueado al spa)',
+        131049 => 'WhatsApp lo frenó para no saturar al cliente con mensajes de empresas',
+        130472 => 'el número del cliente está en una prueba de WhatsApp que bloquea estos mensajes',
+        131050 => 'el cliente dejó de recibir mensajes de marketing del spa',
+        131042 => 'hay un problema con el medio de pago de la cuenta de WhatsApp Business',
+        131048 => 'WhatsApp limitó los envíos del número por reportes de spam',
+        131056 => 'se le mandaron demasiados mensajes seguidos',
+        131021 => 'el destinatario es el mismo número del spa',
+        131031 => 'la cuenta de WhatsApp Business está bloqueada',
+        368    => 'la cuenta de WhatsApp Business está restringida temporalmente',
+    ];
+    $txt = $mapa[$c] ?? trim((string)($err['error_data']['details'] ?? $err['title'] ?? $err['message'] ?? 'motivo desconocido'));
+    return $txt . ($c ? ' (código ' . $c . ')' : '');
+}
 function wa_log($tel, $quien, $texto, $extra = []) {
     $tel = wa_tel($tel);
     if ($tel === '') return;

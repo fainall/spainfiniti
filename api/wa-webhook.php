@@ -22,7 +22,9 @@ function wa_enviar_texto($cfg, $to, $texto) {
         CURLOPT_POSTFIELDS=>json_encode(['messaging_product'=>'whatsapp','to'=>$to,'type'=>'text','text'=>['body'=>$texto]])]);
     $r = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
     if ($code < 200 || $code >= 300) error_log('wa-webhook: envio fallo ' . $code . ' ' . substr((string)$r, 0, 300));
-    return $code >= 200 && $code < 300;
+    if ($code < 200 || $code >= 300) return false;
+    /* el identificador del mensaje, para reconocerlo si después WhatsApp avisa que no lo entregó */
+    return (string)(json_decode((string)$r, true)['messages'][0]['id'] ?? '') ?: true;
 }
 function supa_escribir_cita($id, $estado) {
     require_once __DIR__ . '/supa-key.php';
@@ -72,7 +74,8 @@ $cambio = json_decode($raw, true)['entry'][0]['changes'][0] ?? [];
         $det = [];
         foreach ((array)($v['messages'] ?? []) as $m) $det[] = 'msg de ' . $ult($m['from'] ?? '') . ' tipo ' . ($m['type'] ?? '?');
         foreach ((array)($v['message_echoes'] ?? []) as $m) $det[] = 'eco a ' . $ult($m['to'] ?? '') . ' tipo ' . ($m['type'] ?? '?');
-        foreach ((array)($v['statuses'] ?? []) as $m) $det[] = 'estado ' . ($m['status'] ?? '?') . ' a ' . $ult($m['recipient_id'] ?? '');
+        foreach ((array)($v['statuses'] ?? []) as $m) $det[] = 'estado ' . ($m['status'] ?? '?') . ' a ' . $ult($m['recipient_id'] ?? '')
+            . (!empty($m['errors'][0]) ? ' (' . ($m['errors'][0]['code'] ?? '?') . ' ' . substr((string)($m['errors'][0]['title'] ?? ''), 0, 80) . ')' : '');
         $lineas[] = date('Y-m-d H:i:s') . ' campo=' . ($ch['field'] ?? '?') . ' claves=' . implode(',', array_keys($v)) . ' ' . implode(' | ', $det);
     }
     $f = __DIR__ . '/bot-sessions/_eventos.log';
@@ -81,6 +84,13 @@ $cambio = json_decode($raw, true)['entry'][0]['changes'][0] ?? [];
 ", array_merge($prev, $lineas)) . "
 ");
 })($raw);
+/* WhatsApp avisa que un mensaje no se entregó: queda marcado en el chat del panel */
+foreach ((array)($cambio['value']['statuses'] ?? []) as $st) {
+    if (($st['status'] ?? '') !== 'failed') continue;
+    $motivo = wa_motivo_falla($st['errors'][0] ?? []);
+    wa_log_no_entregado((string)($st['recipient_id'] ?? ''), (string)($st['id'] ?? ''), $motivo);
+    error_log('wa-webhook: no entregado a …' . substr((string)($st['recipient_id'] ?? ''), -4) . ': ' . $motivo);
+}
 if (($cambio['field'] ?? '') === 'smb_message_echoes') {
     $minutos = wa_control_leer()['pausaMin'];
     if ($minutos > 0) {
@@ -198,7 +208,7 @@ if ($botonClave === 'confirmo' || $botonClave === 'cancelar') {
         wa_contexto_agregar($from, 'assistant', $respuesta);
         if ($encendido || wa_es_prueba($from)) {
             $okEnvio = wa_enviar_texto($cfg, $from, $respuesta);
-            wa_log($from, 'asistente', $respuesta, $okEnvio ? [] : ['error' => 'No se pudo enviar']);
+            wa_log($from, 'asistente', $respuesta, $okEnvio ? (is_string($okEnvio) ? ['id' => $okEnvio] : []) : ['error' => 'No se pudo enviar']);
         }
     }
     echo 'ok'; exit;
@@ -218,7 +228,7 @@ if (wa_es_equipo($cfg, $from)) {
         $okCli = $c && wa_enviar_texto($cfg, $c['cliente'], $paraCliente);
         if ($c) {
             /* el mensaje de Luis ya quedó en su chat más arriba */
-            wa_log($c['cliente'], 'asistente', $paraCliente, $okCli ? [] : ['error' => 'No se pudo enviar']);
+            wa_log($c['cliente'], 'asistente', $paraCliente, $okCli ? (is_string($okCli) ? ['id' => $okCli] : []) : ['error' => 'No se pudo enviar']);
             wa_contexto_agregar($c['cliente'], 'assistant', $paraCliente);
             wa_enviar_texto($cfg, $from, $okCli
                 ? '¡Gracias! Se lo pasé al cliente y me quedo con la respuesta para la próxima 🙌'
@@ -356,5 +366,6 @@ if (!empty($cfg['waToken']) && !empty($cfg['waPhoneId'])) {
         CURLOPT_POSTFIELDS=>json_encode(['messaging_product'=>'whatsapp','to'=>$from,'type'=>'text','text'=>['body'=>$reply]])]);
     $resEnvio = curl_exec($ch); $codEnvio = curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
     if ($codEnvio < 200 || $codEnvio >= 300) error_log('wa-webhook: envio fallo ' . $codEnvio . ' ' . substr((string)$resEnvio, 0, 300));
-    wa_log($from, 'asistente', $reply, ($codEnvio >= 200 && $codEnvio < 300) ? [] : ['error' => 'No se pudo enviar (' . $codEnvio . ')']);
+    $idEnvio = (string)(json_decode((string)$resEnvio, true)['messages'][0]['id'] ?? '');
+    wa_log($from, 'asistente', $reply, ($codEnvio >= 200 && $codEnvio < 300) ? ($idEnvio !== '' ? ['id' => $idEnvio] : []) : ['error' => 'No se pudo enviar (' . $codEnvio . ')']);
 }
