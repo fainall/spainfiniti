@@ -64,7 +64,9 @@ if (!hash_equals('sha256=' . hash_hmac('sha256', $raw, $secret), $firma)) {
    WhatsApp Business llega aqui como "smb_message_echoes". */
 require_once __DIR__ . '/wa-pausas.php';
 $cambio = json_decode($raw, true)['entry'][0]['changes'][0] ?? [];
-/* registro breve de lo que llega (sin textos de mensajes), para diagnosticar */
+/* registro breve de lo que llega (sin textos de mensajes), para diagnosticar.
+   Guarda las últimas 4.000 líneas (un par de días): con 300 duraba hora y media
+   y no alcanzaba para revisar desde cuándo fallaban entregas (15-oct). */
 (function($raw){
     $j = json_decode($raw, true);
     $lineas = [];
@@ -79,7 +81,7 @@ $cambio = json_decode($raw, true)['entry'][0]['changes'][0] ?? [];
         $lineas[] = date('Y-m-d H:i:s') . ' campo=' . ($ch['field'] ?? '?') . ' claves=' . implode(',', array_keys($v)) . ' ' . implode(' | ', $det);
     }
     $f = __DIR__ . '/bot-sessions/_eventos.log';
-    $prev = is_file($f) ? array_slice(file($f, FILE_IGNORE_NEW_LINES), -300) : [];
+    $prev = is_file($f) ? array_slice(file($f, FILE_IGNORE_NEW_LINES), -4000) : [];
     @file_put_contents($f, implode("
 ", array_merge($prev, $lineas)) . "
 ");
