@@ -18105,16 +18105,12 @@ async function boot(){
   document.getElementById('app').style.display='flex'
   if(typeof initSupabaseData==='function'){ try{ await initSupabaseData() }catch(e){} }
   flattenServices()
-  await loadProfessionals()
-  await loadClients()
-  await loadAppointments()
-  if(!soloMira()) await loadSales()
-  await loadPlans()
-  await loadProducts()
-  await loadStockMoves()
-  await loadCash()
+  /* todo a la vez: antes se pedía una tabla tras otra (unas once consultas en
+     fila, de medio segundo a un segundo cada una) y el panel tardaba en abrir
+     (Luis, 20-oct). Ninguna depende de otra; cada una maneja su propio error. */
+  await Promise.allSettled([loadProfessionals(), loadClients(), loadAppointments(),
+    soloMira() ? null : loadSales(), loadPlans(), loadProducts(), loadStockMoves(), loadCash(), loadBotConfig()])
   cargarGiftCards()   // en segundo plano: la Caja y el cobro las necesitan
-  await loadBotConfig()
   loadInvSettings()
   loadLocalInfo()
   loadProfMeta()
