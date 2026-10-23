@@ -14319,13 +14319,37 @@ async function savePro(){
     toast(ok?'Profesional guardado':'Guardado (los datos extra quedaron en este navegador)','success')
   }catch(e){ console.error(e); toast('Error al guardar','error') }
 }
+/* Eliminar a una profesional con historial lo borraba TODO: en la base, sus
+   reservas se van con ella (borrado en cascada), y el aviso decía lo contrario.
+   El 22-oct Luis eliminó a tres y se perdieron 849 reservas de sus clientes
+   (se recuperaron del respaldo). Ahora, si tiene reservas, ventas o fichas, no
+   se elimina: se marca como inactiva, que la saca de la agenda, del sitio web y
+   de Mariet y conserva su historial. Solo se elimina si no tiene nada. */
+async function eliminarProfesional(id, nombre){
+  let tiene = 0
+  try{
+    const [a, v, f] = await Promise.all([
+      supabase.fetch('appointments', { select:'id', filters:'professional_id=eq.' + id + '&limit=1' }),
+      supabase.fetch('sales', { select:'id', filters:'professional_id=eq.' + id + '&limit=1' }),
+      supabase.fetch('client_records', { select:'id', filters:'professional_id=eq.' + id + '&limit=1' }) ])
+    tiene = (a || []).length + (v || []).length + (f || []).length
+  }catch(e){ toast('No se pudo revisar su historial; no se eliminó nada. Vuelve a intentarlo.', 'error'); return false }
+  if(tiene){
+    if(!await confirmar(nombre + ' tiene reservas, ventas o fichas registradas. Si se elimina, se pierde ese historial de sus clientes. La marcaré como INACTIVA: deja de aparecer en la agenda, en el sitio web y con Mariet, y su historial se conserva.',
+      { titulo:'No se puede eliminar', ok:'Marcar como inactiva', suave:true })) return false
+    try{ await supabase.update('professionals', id, { active:false }); toast(nombre + ' quedó inactiva; su historial se conserva', 'success'); return true }
+    catch(e){ toast('Error al guardar', 'error'); return false }
+  }
+  if(!await confirmar('¿Eliminar a ' + nombre + '? No tiene reservas, ventas ni fichas registradas.', { titulo:'Eliminar profesional', ok:'Sí, eliminar' })) return false
+  try{ await supabase.delete('professionals', id); await persistProfMeta(est => { delete est.meta[id] }); toast('Profesional eliminado', 'success'); return true }
+  catch(e){ toast('Error al eliminar', 'error'); return false }
+}
 async function deletePro(){
   const id=document.getElementById('proId').value
   if(!id) return
-  if(!await confirmar('¿Eliminar este profesional? Sus reservas quedarán sin profesional asignado.')) return
-  try{ await supabase.delete('professionals',id); await persistProfMeta(est => { delete est.meta[id] })
-    await loadProfessionals(); closeModal('proModal'); renderAdmin(); render(); toast('Profesional eliminado','success') }
-  catch(e){ toast('Error al eliminar','error') }
+  const nombre = (state.professionals.find(p => p.id === id) || {}).name || 'Esta profesional'
+  if(!await eliminarProfesional(id, nombre)) return
+  await loadProfessionals(); closeModal('proModal'); renderAdmin(); render()
 }
 function openGroupModal(id){
   const g=id?profGroups.find(x=>x.id===id):null
@@ -17801,9 +17825,8 @@ async function saveProf(){
   }catch(e){ console.error(e); toast('Error al guardar','error') }
 }
 async function deleteProf(id,name){
-  if(!await confirmar(`¿Borrar a "${name}"? Se eliminarán también sus reservas.`)) return
-  try{ await supabase.delete('professionals',id); await loadProfessionals(); if(state.profId===id) state.profId='all'; renderProfManage(); render(); toast('Profesional borrado','success') }
-  catch(e){ toast('Error al borrar','error') }
+  if(!await eliminarProfesional(id, name)) return
+  await loadProfessionals(); if(state.profId===id) state.profId='all'; renderProfManage(); render()
 }
 
 /* ── UTIL ── */
