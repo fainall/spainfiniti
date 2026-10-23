@@ -802,6 +802,7 @@ function do_next_slots($args) {
     $cerrados = [];
     for ($i = 0; $i < $dias && count($encontrados) < 3; $i++) {
         $fecha = date('Y-m-d', strtotime($desde . ' +' . $i . ' day'));
+        if ($fecha > tope_agenda()) break;          // nunca más allá del plazo que fijó Luis
         $r = do_free_slots(['date' => $fecha, 'service_name' => $svc ? $svc['name'] : '', 'sin_siguientes' => true]);
         if (!empty($r['free'])) {
             $encontrados[] = ['date' => $fecha, 'dia' => dia_es($fecha),
@@ -870,12 +871,13 @@ function do_free_slots($args) {
        reales: así Mariet ofrece la más próxima en el mismo mensaje y no se
        inventa que "la próxima es la otra semana" (Luis). */
     if (!$libres && empty($args['sin_siguientes'])) {
-        $sig = do_next_slots(['service_name' => $svc ? $svc['name'] : '', 'from' => $date, 'days' => 9]);
+        /* hasta el final del plazo de Mariet (antes quedó fijo en 9 días aunque Luis le diera 20) */
+        $sig = do_next_slots(['service_name' => $svc ? $svc['name'] : '', 'from' => $date, 'days' => dias_agenda_bot()]);
         $salida['proximas_fechas_con_horas'] = $sig['proximos'];
         $salida['dias_sin_horas'] = $sig['dias_sin_horas'];
         $salida['nota'] = $sig['proximos']
             ? 'Ese día no hay. Dilo y ofrece en el MISMO mensaje dos o tres horas del primer día de proximas_fechas_con_horas, con su fecha. No preguntes si quiere que busques: ya están buscadas.'
-            : 'No hay horas en las próximas dos semanas: ofrécele que el equipo le avise apenas se libere una.';
+            : 'No hay horas hasta el ' . dia_es(tope_visible()) . ' (el último día en que se puede agendar por aquí): ofrécele que el equipo le avise apenas se libere una.';
     }
     return $salida;
 }
