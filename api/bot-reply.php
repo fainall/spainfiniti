@@ -325,7 +325,7 @@ un servicio. Nunca des por hecho que lo que pidieron es lo que les conviene.
 - Si una hora que ofreciste ya no se puede, dilo una sola vez y claro (\"esa hora se acaba de ocupar\"); no te contradigas diciendo que hay y que no hay.
 - El correo es OPCIONAL: si el cliente no tiene o no sabe, agenda igual sin correo. NUNCA inventes ni sugieras un correo.
 - Si el cliente quiere CAMBIAR una hora que ya tiene, crea la nueva con replace_date y replace_time de la anterior: así la anterior se cancela sola. Si tenía VARIOS servicios ese día y cambia de día, crea cada uno en el día nuevo y luego cancela CADA UNO de los anteriores con cancel_booking (una llamada por reserva; create_booking te devuelve la lista en otras_reservas_vigentes). Si solo quiere anular, usa cancel_booking. Nunca digas que una hora quedó cancelada si la función no respondió ok. Y al revés: si create_booking devolvió previous_cancelled true, o cancel_booking respondió ok, la anterior YA está cancelada: dilo como hecho, no preguntes si quiere cancelarla.
-- REGLA DE ORO: por WhatsApp se agenda desde hoy hasta el " . dia_es(tope_visible()) . " inclusive (8 días).
+- REGLA DE ORO: por WhatsApp se agenda desde hoy hasta el " . dia_es(tope_visible()) . " inclusive (" . dias_agenda_bot() . " días contando hoy).
   TODAS las fechas hasta ese día están DENTRO del plazo, sábados incluidos: agéndalas normalmente, sin decir que están fuera del plazo ni consultar al equipo por eso. Solo las fechas POSTERIORES al " . dia_es(tope_visible()) . " quedan fuera.
 - LOS DOMINGOS NO SE ATIENDE: no ofrezcas domingos ni los nombres como fecha posible, ni siquiera como tope.
   Si el cliente pide una fecha posterior al " . dia_es(tope_visible()) . ", dile con naturalidad que esas fechas las coordina el equipo y ofrécele horas hasta el " . dia_es(tope_visible()) . ".
@@ -797,7 +797,7 @@ function do_next_slots($args) {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $desde)) $desde = date('Y-m-d');
     if ($desde < date('Y-m-d')) $desde = date('Y-m-d');
     $svc = !empty($args['service_name']) ? svc_del_catalogo($args['service_name']) : null;
-    $dias = max(1, min(9, (int)($args['days'] ?? 9)));   // la regla de oro: hoy y 8 días más
+    $dias = max(1, min(dias_agenda_bot(), (int)($args['days'] ?? dias_agenda_bot())));   // dentro del plazo configurado
     $encontrados = [];
     $cerrados = [];
     for ($i = 0; $i < $dias && count($encontrados) < 3; $i++) {
@@ -816,8 +816,17 @@ function do_next_slots($args) {
                 ? 'Ofrece las horas del primer día de la lista; los días que aparecen en dias_sin_horas están cerrados o llenos, no los ofrezcas ni los saltes en silencio.'
                 : 'No hay horas en el rango revisado: dile que le avisas en cuanto se libere una, o consulta con el equipo.'];
 }
-/* Hasta dónde se puede agendar por WhatsApp: 8 días (regla de oro de Luis) */
-function tope_agenda() { return date('Y-m-d', strtotime('+8 day')); }
+/* Hasta dónde se puede agendar por WhatsApp. Antes fijo en hoy y 8 días más (la
+   "regla de oro" de Luis); ahora lo elige Luis en el panel: Asistente →
+   Entrenamiento → "días por delante" (Luis, 22-oct). Hoy cuenta como el primero. */
+function dias_agenda_bot() {
+    global $bot;
+    $li = $bot['local_info'] ?? [];
+    if (is_string($li)) $li = json_decode($li, true);
+    $n = (int)(is_array($li) ? ($li['diasBot'] ?? 0) : 0);
+    return ($n >= 1 && $n <= 120) ? $n : 9;
+}
+function tope_agenda() { return date('Y-m-d', strtotime('+' . (dias_agenda_bot() - 1) . ' day')); }
 /* El último día del plazo en que sí se atiende: si el tope cae domingo (o en un
    día que nadie trabaja), no tiene sentido nombrarlo como fecha límite. */
 function tope_visible() {
@@ -999,7 +1008,7 @@ function do_book($args) {
        7 días. Más allá lo coordina el equipo. */
     if (($args['date'] ?? '') > tope_agenda())
         return ['ok'=>false, 'reason'=>'NO AGENDADO: por aquí solo se agenda hasta el ' . dia_es(tope_visible())
-            . ' (8 días). Dile que para una fecha más lejana lo coordina el equipo, y ofrécele horas hasta el ' . dia_es(tope_visible()) . '.'
+            . ' (' . dias_agenda_bot() . ' días contando hoy). Dile que para una fecha más lejana lo coordina el equipo, y ofrécele horas hasta el ' . dia_es(tope_visible()) . '.'
             . ' Si el cliente insiste en la fecha lejana, usa ask_team para preguntarle a Luis si se puede hacer una excepción.'];
     $args['service_name'] = $svc['name'];
     if (empty($args['duration'])) $args['duration'] = svc_minutos($svc);

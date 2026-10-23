@@ -3972,7 +3972,13 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
             <label style="margin-top:14px">Cómo llegar y datos prácticos</label>
             <textarea id="botTips" rows="4" placeholder="Metro más cercano, estacionamiento, cómo entrar al edificio, piso, timbre…"></textarea>
             <p class="rem-note" style="margin:4px 0 0">Lo que suelen preguntar antes de venir. Si algo no está aquí, la asistente dice que lo confirma con el equipo en vez de inventarlo.</p>
-            <label>Palabras para derivar a una persona</label>
+            <label style="margin-top:14px" for="botDias">Puede agendar con cuánta anticipación</label>
+            <div class="lc-dias">
+              <input type="number" id="botDias" min="1" max="120" step="1" />
+              <span>días por delante</span>
+            </div>
+            <p class="rem-note" style="margin:4px 0 0">Hasta dónde ofrece y agenda horas por WhatsApp. Hoy cuenta como el primero: con 9 agenda hoy y los 8 días siguientes. Para fechas más lejanas le dice al cliente que lo coordina el equipo.</p>
+            <label style="margin-top:14px">Palabras para derivar a una persona</label>
             <input type="text" id="botHandoff" placeholder="reclamo, urgente, hablar con alguien" />
             <label style="margin-top:14px">Preguntas frecuentes</label>
             <div id="botFaq"></div>
@@ -10068,6 +10074,8 @@ function renderAsistente(){
   document.getElementById('botTone').value=botCfg.tone||''
   document.getElementById('botTips').value=botCfg.local_tips||''
   document.getElementById('botHandoff').value=botCfg.handoff_keywords||''
+  { let li = botCfg.local_info; if(typeof li === 'string'){ try{ li = JSON.parse(li) }catch(e){ li = {} } }
+    document.getElementById('botDias').value = (li && Number(li.diasBot)) || 9 }
   renderFaq()
   // estado de conexión
   fetch('/api/bot-reply.php',{method:'POST',headers:{'Content-Type':'application/json','Authorization':supaAuthHeader()},body:JSON.stringify({messages:[{role:'user',content:'ping'}]})})
@@ -10199,6 +10207,18 @@ async function saveBotConfig(){
     faq:(botCfg.faq||[]).filter(q=>q.q&&q.a), updated_at:new Date().toISOString() }
   /* una pregunta sin respuesta no se guarda: conviene decirlo */
   const aMedias=(botCfg.faq||[]).filter(q=>q.q&&!q.a).length
+  /* el plazo de Mariet vive en local_info: se lee lo guardado y se cambia solo esa clave,
+     para no pisar el resto de los datos del local */
+  const dias = Math.round(Number(document.getElementById('botDias').value))
+  if(!(dias >= 1 && dias <= 120)){ toast('Los días por delante tienen que ser entre 1 y 120', 'error'); return }
+  try{
+    let li = ((await supabase.fetch('bot_config', { select:'local_info', filters:'id=eq.1' })) || [])[0]
+    li = li && li.local_info; if(typeof li === 'string'){ try{ li = JSON.parse(li) }catch(e){ li = null } }
+    if(li && typeof li === 'object' && Number(li.diasBot) !== dias){
+      li.diasBot = dias; row.local_info = li
+      if(typeof localInfo === 'object' && localInfo) localInfo.diasBot = dias
+    }
+  }catch(e){ console.warn('días de Mariet:', e); toast('No se pudo leer la configuración del local; vuelve a intentarlo', 'error'); return }
   try{ await supabase.update('bot_config','1',row); botCfg={...botCfg,...row}
     toast(aMedias ? ('Guardado. '+aMedias+' pregunta(s) sin respuesta no se guardaron') : 'Entrenamiento guardado', aMedias?'error':'success') }
   catch(e){ console.error(e); toast('Error al guardar','error') }
