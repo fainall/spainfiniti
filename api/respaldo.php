@@ -87,6 +87,24 @@ function storage_bajar($bucket, $ruta, $token) {
     $b = curl_exec($ch); $code = curl_getinfo($ch, CURLINFO_HTTP_CODE); $tipo = curl_getinfo($ch, CURLINFO_CONTENT_TYPE); curl_close($ch);
     return $code === 200 ? [$b, $tipo] : [null, null];
 }
+/* Las fotos de las fichas no cambian nunca (cada una tiene su propio nombre):
+   se bajan de Supabase una sola vez y quedan guardadas junto a las copias. Antes
+   cada copia volvía a bajarlas todas, gastando la cuota de transferencia de
+   Supabase y tardando tanto que el servidor cortaba el proceso (23-oct). */
+function storage_bajar_guardada($DIR, $bucket, $ruta, $token) {
+    $local = $DIR . '/fotos/' . $bucket . '/' . $ruta;
+    if (strpos($ruta, '..') === false && is_file($local) && filesize($local) > 0) {
+        $tipo = is_file($local . '.tipo') ? (string)file_get_contents($local . '.tipo') : '';
+        return [$local, $tipo];
+    }
+    [$b, $tipo] = storage_bajar($bucket, $ruta, $token);
+    if ($b === null) return [null, null];
+    if (strpos($ruta, '..') === false) {
+        @mkdir(dirname($local), 0700, true);
+        if (@file_put_contents($local, $b) !== false) { @file_put_contents($local . '.tipo', (string)$tipo); return [$local, $tipo]; }
+    }
+    return [$b, $tipo, true];    // no se pudo guardar: va el contenido directo
+}
 function storage_subir($bucket, $ruta, $contenido, $tipo, $token) {
     $ch = curl_init(supa_url() . '/storage/v1/object/' . $bucket . '/' . implode('/', array_map('rawurlencode', explode('/', $ruta))));
     curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 60, CURLOPT_POST => true, CURLOPT_POSTFIELDS => $contenido,
@@ -149,6 +167,11 @@ if ($accion === 'guardar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $registros = 0;
     foreach ($j['tablas'] as $filas) if (is_array($filas)) $registros += count($filas);
 
+    /* sigue aunque se cierre el panel; y la automática queda anotada ANTES de
+       empezar: si el servidor la corta, no se reintenta en cada apertura del panel
+       (quedaban cientos de copias a medias y se repetía la descarga completa) */
+    ignore_user_abort(true);
+    if ($tipo === 'auto') { $c0 = leer_config($CFG); $c0['ultimo'] = date('Y-m-d'); @file_put_contents($CFG, json_encode($c0)); }
     $nombre = 'respaldo-' . date('Y-m-d-His') . '-' . $tipo . '.zip';
     $ruta = $DIR . '/' . $nombre;
     $zip = new ZipArchive();
@@ -159,10 +182,13 @@ if ($accion === 'guardar' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $archivos = 0; $faltaron = [];
     $tipos = [];
     foreach (rutas_storage($raw) as [$bucket, $r]) {
-        [$contenido, $ct] = storage_bajar($bucket, $r, $TOKEN);
-        if ($contenido === null) { $faltaron[] = $bucket . '/' . $r; continue; }
-        $zip->addFromString('archivos/storage/' . $bucket . '/' . $r, $contenido);
-        $tipos[$bucket . '/' . $r] = $ct;
+        $x = storage_bajar_guardada($DIR, $bucket, $r, $TOKEN);
+        if ($x[0] === null) { $faltaron[] = $bucket . '/' . $r; continue; }
+        $dentro = 'archivos/storage/' . $bucket . '/' . $r;
+        if (!empty($x[2])) $zip->addFromString($dentro, $x[0]); else $zip->addFile($x[0], $dentro);
+        /* las fotos ya vienen comprimidas: volver a comprimirlas solo gasta tiempo */
+        $zip->setCompressionName($dentro, ZipArchive::CM_STORE);
+        $tipos[$bucket . '/' . $r] = $x[1];
         $archivos++;
     }
     /* pedidos de gift cards y fotos subidas desde el panel */
