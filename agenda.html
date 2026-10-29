@@ -3357,8 +3357,11 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       <input type="hidden" id="cmProf" /><input type="hidden" id="cmKind" />
       <div class="fbox" id="cmDefaultBox">
         <label>Comisión por defecto (%)</label>
-        <input type="number" id="cmDefault" min="0" max="100" value="0" />
+        <input type="number" id="cmDefault" min="0" max="100" value="0" oninput="cmEjemploIva()" />
         <p class="rem-note" style="margin-top:6px">Se aplica a todo lo que no tenga una comisión propia definida abajo.</p>
+        <label style="margin-top:14px" for="cmIva">IVA que se descuenta antes de calcular la comisión (%)</label>
+        <input type="number" id="cmIva" min="0" max="100" step="0.1" value="19" oninput="cmEjemploIva()" />
+        <p class="rem-note" style="margin-top:6px" id="cmIvaNota">La comisión se calcula sobre el precio sin IVA. Con 0 se calcula sobre el precio completo.</p>
       </div>
       <div class="fbox">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -4922,7 +4925,7 @@ function renderMisIngresos(){
     lineasComision(s).forEach(it=>{
       const monto=it.monto
       const pct=commPctFor(pid,it.name,tipoDeItem(it.name))
-      rows.push({date:s.sale_date, client:s.client_name||'', item:it.name, monto, pct, comm:Math.round(monto*pct/100), tip:0})
+      rows.push({date:s.sale_date, client:s.client_name||'', item:it.name, monto, pct, comm:comisionDe(pid, monto, pct), tip:0})
     })
     if(Number(s.tip||0)) rows.push({date:s.sale_date, client:s.client_name||'', item:'Propina', monto:0, pct:100, comm:Number(s.tip), tip:Number(s.tip)})
   })
@@ -4985,7 +4988,7 @@ function exportMisIngresos(){
     /* igual que en pantalla: los abonos comisionan recien al cerrar la cuenta */
     lineasComision(s).forEach(it=>{ const monto=it.monto
       const pct=commPctFor(pid,it.name,tipoDeItem(it.name))
-      rows.push([s.sale_date, s.client_name||'', it.name, monto, pct, Math.round(monto*pct/100)]) })
+      rows.push([s.sale_date, s.client_name||'', it.name, monto, pct, comisionDe(pid, monto, pct)]) })
   })
   if(!rows.length){ toast('No hay ganancias en el período','error'); return }
   downloadCSV('mis-ganancias.csv',['Fecha','Cliente','Servicio o producto','Monto','% Comisión','Comisión'],rows)
@@ -11005,6 +11008,17 @@ async function persistCommCfg(){
   try{ await supabase.update('bot_config','1',{comm_cfg:commCfg}); botCfg.comm_cfg=commCfg; return true }
   catch(e){ return false }
 }
+/* IVA de cada profesional (pedido de Luis, 29-oct): la comisión se calcula
+   sobre el precio SIN IVA. Se fija en la ventana de comisiones de cada una;
+   si no tiene uno guardado, no se descuenta nada (como antes). */
+function ivaDe(profId){
+  const v = (commCfg.iva || {})[profId]
+  return (v === undefined || v === null || v === '') ? 0 : Math.max(0, Math.min(100, Number(v) || 0))
+}
+/* lo que gana por un monto cobrado (con IVA incluido) a un porcentaje dado */
+function comisionDe(profId, monto, pct){
+  return Math.round(Number(monto || 0) / (1 + ivaDe(profId) / 100) * Number(pct || 0) / 100)
+}
 function commDefaultOf(profId){
   if(commCfg.default[profId]!==undefined) return Number(commCfg.default[profId])
   const p=state.professionals.find(x=>x.id===profId)
@@ -11026,7 +11040,7 @@ function detalleComision(profId, ventas){
   ventas.filter(s => s.professional_id === profId).forEach(s => {
     lineasComision(s).forEach(it => {
       const pct = commPctFor(profId, it.name, tipoDeItem(it.name))
-      lineas.push({ name:it.name, pct, veces:it.qty || 1, monto:it.monto, comm:Math.round(it.monto * pct / 100),
+      lineas.push({ name:it.name, pct, veces:it.qty || 1, monto:it.monto, comm:comisionDe(profId, it.monto, pct),
                     fecha:s.sale_date || '', cliente:s.client_name || '' })
     })
   })
@@ -11091,12 +11105,12 @@ function comisionDeVenta(s){
   /* si la venta no trae el detalle, se usa el porcentaje general sobre el total */
   if(!itemsDe(s).length){
     if(esAbono(s)) return { base: 0, comm: 0 }
-    return { base: cobrado, comm: Math.round(cobrado * commDefaultOf(s.professional_id) / 100) }
+    return { base: cobrado, comm: comisionDe(s.professional_id, cobrado, commDefaultOf(s.professional_id)) }
   }
   let base = 0, comm = 0
   lineasComision(s).forEach(l => {
     base += l.monto
-    comm += Math.round(l.monto * commPctFor(s.professional_id, l.name, tipoDeItem(l.name)) / 100)
+    comm += comisionDe(s.professional_id, l.monto, commPctFor(s.professional_id, l.name, tipoDeItem(l.name)))
   })
   return { base, comm }
 }
@@ -11156,6 +11170,9 @@ function openCommModal(profId,kind,onlyDefault){
   document.getElementById('cmProf').value=profId
   document.getElementById('cmKind').value=kind
   document.getElementById('cmDefault').value=commDefaultOf(profId)
+  /* si todavía no tiene IVA guardado, se propone el 19% de Chile (se aplica al guardar) */
+  { const g = (commCfg.iva || {})[profId]; document.getElementById('cmIva').value = (g === undefined || g === null || g === '') ? 19 : g }
+  cmEjemploIva()
   document.getElementById('cmListTitle').textContent='Comisión por '+label
   const items = kind==='services'?state.services.map(s=>s.name)
     : kind==='plans'?[...new Set((state.plans||[]).map(x=>x.name))]
@@ -11170,6 +11187,16 @@ function openCommModal(profId,kind,onlyDefault){
   document.getElementById('cmList').parentElement.style.display = onlyDefault?'none':'block'
   openModal('commModal')
 }
+/* el ejemplo bajo el casillero: qué pasa con una venta de $25.600 */
+function cmEjemploIva(){
+  const n = document.getElementById('cmIvaNota'); if(!n) return
+  const iva = Math.max(0, Number(document.getElementById('cmIva').value) || 0)
+  const pct = Number(document.getElementById('cmDefault').value) || 0
+  const neto = Math.round(25600 / (1 + iva / 100))
+  n.textContent = iva
+    ? 'La comisión se calcula sobre el precio sin IVA. Ejemplo: venta de $25.600 → sin IVA $' + neto.toLocaleString('es-CL') + (pct ? ' → comisión ' + pct + '% = $' + Math.round(neto * pct / 100).toLocaleString('es-CL') : '') + '.'
+    : 'Con 0 la comisión se calcula sobre el precio completo, sin descontar IVA.'
+}
 function cmApplyAll(){
   const v=document.getElementById('cmDefault').value
   document.querySelectorAll('#cmList input[data-cm]').forEach(i=>i.value=v)
@@ -11177,6 +11204,9 @@ function cmApplyAll(){
 async function saveCommCfg(){
   const profId=document.getElementById('cmProf').value, kind=document.getElementById('cmKind').value
   commCfg.default[profId]=parseInt(document.getElementById('cmDefault').value)||0
+  { const iva = Number(document.getElementById('cmIva').value)
+    if(!(iva >= 0 && iva <= 100)){ toast('El IVA tiene que estar entre 0 y 100', 'error'); return }
+    commCfg.iva = commCfg.iva || {}; commCfg.iva[profId] = Math.round(iva * 10) / 10 }
   const map={}
   document.querySelectorAll('#cmList input[data-cm]').forEach(i=>{
     if(i.value!=='') map[i.dataset.cm]=parseInt(i.value)||0
@@ -11205,7 +11235,7 @@ function liqData(){
       const monto=it.monto
       const pct=commPctFor(profId,it.name,tipoDeItem(it.name))
       rows.push({ date:s.sale_date, hora:(s.created_at||'').slice(11,16)||'—', client:s.client_name||'',
-        item:it.name, qty:it.qty, monto, pct, comm:Math.round(monto*pct/100), tip:0 })
+        item:it.name, qty:it.qty, monto, pct, comm:comisionDe(profId, monto, pct), tip:0 })
     })
     if(Number(s.tip||0)) rows.push({date:s.sale_date, hora:'—', client:s.client_name||'', item:'Propina', qty:1,
       monto:0, pct:100, comm:Number(s.tip), tip:Number(s.tip)})
