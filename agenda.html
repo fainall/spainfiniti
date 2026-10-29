@@ -3359,9 +3359,9 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <label>Comisión por defecto (%)</label>
         <input type="number" id="cmDefault" min="0" max="100" value="0" oninput="cmEjemploIva()" />
         <p class="rem-note" style="margin-top:6px">Se aplica a todo lo que no tenga una comisión propia definida abajo.</p>
-        <label style="margin-top:14px" for="cmIva">IVA que se descuenta antes de calcular la comisión (%)</label>
+        <label style="margin-top:14px" for="cmIva">IVA que se le descuenta a la comisión (%)</label>
         <input type="number" id="cmIva" min="0" max="100" step="0.1" value="19" oninput="cmEjemploIva()" />
-        <p class="rem-note" style="margin-top:6px" id="cmIvaNota">La comisión se calcula sobre el precio sin IVA. Con 0 se calcula sobre el precio completo.</p>
+        <p class="rem-note" style="margin-top:6px" id="cmIvaNota">A lo que comisiona se le descuenta este %; lo que queda es su monto a recibir. Con 0 no se descuenta nada.</p>
       </div>
       <div class="fbox">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -4925,9 +4925,9 @@ function renderMisIngresos(){
     lineasComision(s).forEach(it=>{
       const monto=it.monto
       const pct=commPctFor(pid,it.name,tipoDeItem(it.name))
-      rows.push({date:s.sale_date, client:s.client_name||'', item:it.name, monto, pct, comm:comisionDe(pid, monto, pct), tip:0})
+      rows.push({date:s.sale_date, client:s.client_name||'', item:it.name, monto, pct, bruta:comisionBruta(monto, pct), comm:comisionDe(pid, monto, pct), tip:0})
     })
-    if(Number(s.tip||0)) rows.push({date:s.sale_date, client:s.client_name||'', item:'Propina', monto:0, pct:100, comm:Number(s.tip), tip:Number(s.tip)})
+    if(Number(s.tip||0)) rows.push({date:s.sale_date, client:s.client_name||'', item:'Propina', monto:0, pct:100, bruta:Number(s.tip), comm:Number(s.tip), tip:Number(s.tip)})
   })
   /* Antes salian de la semana que tuviera abierta la agenda: "Citas en el
      periodo" contaba solo esa semana y "Tus proximas horas" casi nunca
@@ -4939,6 +4939,8 @@ function renderMisIngresos(){
   const ventas=rows.reduce((a,r)=>a+r.monto,0)
   const tips=rows.reduce((a,r)=>a+r.tip,0)
   const comm=rows.reduce((a,r)=>a+r.comm,0)
+  const bruta=rows.reduce((a,r)=>a+r.bruta,0)
+  const iva=ivaDe(pid), descIva=bruta-comm
   const kpi=(l,v,s)=>`<div class="rr-kpi"><h5>${l}</h5><div class="k-num">${v}</div><div class="k-sub">${s}</div></div>`
   const avisoCero = (!comm && ventas) ? `<div class="inv-notice aviso">⚠ <strong>Tus ventas no tienen comisión asignada.</strong>
     Aparecen ${fmtMoney(ventas)} facturados pero 0 de comisión: falta que el administrador configure tu porcentaje.</div>` : ''
@@ -4952,18 +4954,21 @@ function renderMisIngresos(){
     : '<p class="rem-note" style="margin:0">No tienes horas agendadas por delante en este período.</p>'
   const detalle = rows.length
     ? `<table class="ctbl"><thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio o producto</th>
-         <th style="text-align:right">Monto</th><th style="text-align:center">%</th><th style="text-align:right">Tu comisión</th></tr></thead>
+         <th style="text-align:right">Monto</th><th style="text-align:center">%</th>${iva ? `<th style="text-align:right">Comisión</th><th style="text-align:right">IVA ${iva}%</th><th style="text-align:right">A recibir</th>` : '<th style="text-align:right">Tu comisión</th>'}</tr></thead>
        <tbody>${rows.sort((a,b)=>b.date.localeCompare(a.date)).map(r=>`<tr>
          <td>${r.date.slice(8)}/${r.date.slice(5,7)}</td><td class="cname">${esc(r.client||'—')}</td><td>${esc(r.item)}</td>
          <td style="text-align:right">${fmtMoney(r.monto)}</td><td style="text-align:center">${r.pct}%</td>
+         ${iva ? `<td style="text-align:right">${fmtMoney(r.bruta)}</td><td style="text-align:right;color:#b42318">${r.bruta-r.comm ? '− ' + fmtMoney(r.bruta-r.comm) : '—'}</td>` : ''}
          <td style="text-align:right;font-weight:700">${fmtMoney(r.comm)}</td></tr>`).join('')}</tbody>
        <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700;padding:12px 16px">Total</td>
+         ${iva ? `<td style="text-align:right;font-weight:700;padding:12px 16px">${fmtMoney(bruta)}</td><td style="text-align:right;font-weight:700;padding:12px 16px;color:#b42318">− ${fmtMoney(descIva)}</td>` : ''}
          <td style="text-align:right;font-weight:700;padding:12px 16px">${fmtMoney(comm)}</td></tr></tfoot></table>`
     : '<div class="empty-state">Todavía no hay ventas registradas a tu nombre en este período.</div>'
   el.innerHTML = avisoCero + `<div class="rr-kpis mi-kpis" style="grid-template-columns:repeat(4,1fr)">
       ${kpi('Citas en el período', citas.length, atendidas+' marcadas como asistidas')}
       ${kpi('Ventas generadas', fmtMoney(ventas), 'Lo facturado por tu trabajo')}
-      ${kpi('Tu comisión', fmtMoney(comm-tips), 'Según el % de cada servicio')}
+      ${iva ? kpi('Monto a recibir', fmtMoney(comm-tips), 'Comisión ' + fmtMoney(bruta-tips) + ' − IVA ' + iva + '% (' + fmtMoney(descIva) + ')')
+            : kpi('Tu comisión', fmtMoney(comm-tips), 'Según el % de cada servicio')}
       ${kpi('Propinas', fmtMoney(tips), 'Se pagan íntegras')}
     </div>
     <div class="rr-panel" style="margin-bottom:18px"><h5>Tus próximas horas</h5><div class="tabla-scroll">${proxHtml}</div></div>
@@ -4988,10 +4993,11 @@ function exportMisIngresos(){
     /* igual que en pantalla: los abonos comisionan recien al cerrar la cuenta */
     lineasComision(s).forEach(it=>{ const monto=it.monto
       const pct=commPctFor(pid,it.name,tipoDeItem(it.name))
-      rows.push([s.sale_date, s.client_name||'', it.name, monto, pct, comisionDe(pid, monto, pct)]) })
+      const bruta=comisionBruta(monto, pct), neto=comisionDe(pid, monto, pct)
+      rows.push([s.sale_date, s.client_name||'', it.name, monto, pct, bruta, bruta-neto, neto]) })
   })
   if(!rows.length){ toast('No hay ganancias en el período','error'); return }
-  downloadCSV('mis-ganancias.csv',['Fecha','Cliente','Servicio o producto','Monto','% Comisión','Comisión'],rows)
+  downloadCSV('mis-ganancias.csv',['Fecha','Cliente','Servicio o producto','Monto','% Comisión','Comisión','IVA ' + ivaDe(pid) + '% descontado','A recibir'],rows)
 }
 
 /* ── cambiar mi contraseña ── */
@@ -11008,16 +11014,19 @@ async function persistCommCfg(){
   try{ await supabase.update('bot_config','1',{comm_cfg:commCfg}); botCfg.comm_cfg=commCfg; return true }
   catch(e){ return false }
 }
-/* IVA de cada profesional (pedido de Luis, 29-oct): la comisión se calcula
-   sobre el precio SIN IVA. Se fija en la ventana de comisiones de cada una;
-   si no tiene uno guardado, no se descuenta nada (como antes). */
+/* IVA de cada profesional (pedido de Luis, 29-oct): a lo que comisiona se le
+   descuenta ese % y lo que queda es su monto a recibir. Se fija en la ventana
+   de comisiones de cada una; si no tiene uno guardado, no se descuenta nada. */
 function ivaDe(profId){
   const v = (commCfg.iva || {})[profId]
   return (v === undefined || v === null || v === '') ? 0 : Math.max(0, Math.min(100, Number(v) || 0))
 }
-/* lo que gana por un monto cobrado (con IVA incluido) a un porcentaje dado */
+/* lo que comisiona por un monto cobrado, antes de descontarle el IVA */
+function comisionBruta(monto, pct){ return Math.round(Number(monto || 0) * Number(pct || 0) / 100) }
+/* lo que recibe: la comisión menos el % de IVA de esa profesional */
 function comisionDe(profId, monto, pct){
-  return Math.round(Number(monto || 0) / (1 + ivaDe(profId) / 100) * Number(pct || 0) / 100)
+  const bruta = comisionBruta(monto, pct)
+  return bruta - Math.round(bruta * ivaDe(profId) / 100)
 }
 function commDefaultOf(profId){
   if(commCfg.default[profId]!==undefined) return Number(commCfg.default[profId])
@@ -11192,10 +11201,11 @@ function cmEjemploIva(){
   const n = document.getElementById('cmIvaNota'); if(!n) return
   const iva = Math.max(0, Number(document.getElementById('cmIva').value) || 0)
   const pct = Number(document.getElementById('cmDefault').value) || 0
-  const neto = Math.round(25600 / (1 + iva / 100))
+  const p = pct || 10, bruta = Math.round(25600 * p / 100), desc = Math.round(bruta * iva / 100)
+  const plata = v => '$' + v.toLocaleString('es-CL')
   n.textContent = iva
-    ? 'La comisión se calcula sobre el precio sin IVA. Ejemplo: venta de $25.600 → sin IVA $' + neto.toLocaleString('es-CL') + (pct ? ' → comisión ' + pct + '% = $' + Math.round(neto * pct / 100).toLocaleString('es-CL') : '') + '.'
-    : 'Con 0 la comisión se calcula sobre el precio completo, sin descontar IVA.'
+    ? 'A lo que comisiona se le descuenta el ' + iva + '%. Ejemplo: venta de $25.600 al ' + p + '% → comisión ' + plata(bruta) + ' − IVA ' + plata(desc) + ' = recibe ' + plata(bruta - desc) + '.'
+    : 'Con 0 no se descuenta nada: recibe la comisión completa.'
 }
 function cmApplyAll(){
   const v=document.getElementById('cmDefault').value
