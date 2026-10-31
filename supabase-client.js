@@ -80,7 +80,35 @@ function errorDeEscritura(accion, table, status, cuerpo) {
 }
 
 const supabase = {
-  async fetch(table, { select = '*', filters = '', order = '' } = {}) {
+  /* Supabase entrega como maximo 1.000 filas por lectura y corta el resto sin
+     avisar. Con mas de 1.000 ventas, las mas antiguas desaparecian de reportes,
+     comisiones y caja (no se borraban: no se leian). Si la primera lectura
+     llega justo al tope, se vuelve a leer por paginas, ordenando tambien por id
+     para que ninguna fila quede repetida ni fuera entre una pagina y otra.
+     Las lecturas que ya piden un limite propio se dejan como estan. */
+  async fetch(table, opciones = {}) {
+    const TOPE = 1000
+    const primera = await supabase._leer(table, opciones)
+    const { filters = '', order = '' } = opciones
+    if (!Array.isArray(primera) || primera.length < TOPE || /(^|&)(limit|offset)=/.test(filters + '&' + order)) return primera
+    const orden = /(^|,)id\./.test(order) ? order : (order ? order + ',' : '') + 'id.asc'
+    let todas = []
+    try {
+      for (let desde = 0; desde < 1000000; desde += TOPE) {
+        const lote = await supabase._leer(table, { ...opciones, order: orden,
+          filters: (filters ? filters + '&' : '') + 'limit=' + TOPE + '&offset=' + desde })
+        todas = todas.concat(lote)
+        if (lote.length < TOPE) break
+      }
+    } catch (e) {
+      /* una vista sin columna id no se puede paginar asi: queda la primera lectura */
+      console.warn('No se pudo leer ' + table + ' completa:', e.message)
+      return primera
+    }
+    return todas
+  },
+
+  async _leer(table, { select = '*', filters = '', order = '' } = {}) {
     let url = `${SUPABASE_URL}/rest/v1/${table}?select=${encodeURIComponent(select)}`
     if (filters) url += `&${filters}`
     if (order) url += `&order=${order}`
