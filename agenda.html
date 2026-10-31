@@ -4673,11 +4673,17 @@ function permisosDeRol(role){
   }))
   return out
 }
+/* Ninguna profesional entra al menú Clientes (Luis, 31-oct): ni aunque en
+   Usuarios se le marque a mano. La ficha de una clienta la sigue abriendo
+   desde su propia reserva, para registrar la atención. */
+const VEDADAS_A_PROFESIONALES = MODULOS_PERMISO.find(g => g.grupo === 'Clientes').items.map(([v]) => v)
+function vedadaPorRol(role, v){ return !!((ROLES[role] || {}).soloSuyo) && VEDADAS_A_PROFESIONALES.includes(v) }
 function permisosDe(u){
   const base = permisosDeRol(u && u.role)
   let p = u && u.permisos
   if(typeof p === 'string'){ try{ p = JSON.parse(p) }catch(e){ p = null } }
   if(p && typeof p === 'object') Object.keys(base).forEach(v => { if(p[v]) base[v] = { ...base[v], ...p[v] } })
+  Object.keys(base).forEach(v => { if(vedadaPorRol(u && u.role, v)) base[v] = { ver:false, editar:false, eliminar:false, descargar:false } })
   return base
 }
 /* ¿el usuario conectado puede hacer esto en esta pantalla? (por omisión, la que está abierta) */
@@ -11374,7 +11380,9 @@ function pintarPermisos(){
   }
   if(reset) reset.hidden = false
   const aviso = rol === 'publicidad'
-    ? '<p class="rem-note perm-aviso">Con el rol Publicidad la base de datos solo le entrega la agenda, sin datos de clientes. Las otras pantallas se le abrirían vacías.</p>' : ''
+    ? '<p class="rem-note perm-aviso">Con el rol Publicidad la base de datos solo le entrega la agenda, sin datos de clientes. Las otras pantallas se le abrirían vacías.</p>'
+    : (ROLES[rol] || {}).soloSuyo
+    ? '<p class="rem-note perm-aviso">Las profesionales no tienen acceso al menú Clientes. La ficha de una clienta la abren desde su propia reserva.</p>' : ''
   el.innerHTML = aviso + MODULOS_PERMISO.map(g => {
     const cuantos = g.items.filter(([v]) => usPermEdit[v] && usPermEdit[v].ver).length
     const abierto = _usGruposAbiertos.has(g.grupo)
@@ -11386,7 +11394,7 @@ function pintarPermisos(){
       + g.items.map(([v, nombre]) => {
           const p = usPermEdit[v] || {}
           return '<tr><td>' + esc(nombre) + '</td>' + ACCIONES_PERMISO.map(([a]) =>
-            '<td><input type="checkbox" ' + (p[a] ? 'checked ' : '') + ((a !== 'ver' && !p.ver) ? 'disabled ' : '')
+            '<td><input type="checkbox" ' + (p[a] && !vedadaPorRol(rol, v) ? 'checked ' : '') + (((a !== 'ver' && !p.ver) || vedadaPorRol(rol, v)) ? 'disabled ' : '')
             + 'onchange="usPermMarcar(\'' + v + '\',\'' + a + '\',this.checked)" aria-label="' + esc(nombre) + ': ' + a + '"></td>').join('') + '</tr>'
         }).join('')
       + '</tbody></table></div></div>'
