@@ -91,6 +91,32 @@ if ($accion === 'eliminar') {
     responder(200, ['ok' => true, 'cuenta_borrada' => $soloEquipo]);
 }
 
+/* POST {accion:'cambiar_correo', id, email} — solo un administrador (Luis, 2-nov).
+   El correo es con lo que la persona entra, así que se cambia en su cuenta de
+   Supabase (queda confirmado, sin mandarle correos) y en su perfil del panel.
+   Su contraseña no cambia. */
+if ($accion === 'cambiar_correo') {
+    require_panel_user(true);
+    $id = (string)($d['id'] ?? '');
+    $nuevo = strtolower(trim((string)($d['email'] ?? '')));
+    if (!preg_match('/^[0-9a-f-]{36}$/i', $id)) responder(400, ['error' => 'Cuenta no válida']);
+    if (!filter_var($nuevo, FILTER_VALIDATE_EMAIL)) responder(400, ['error' => 'El correo nuevo no es válido']);
+    [$c, $pu] = rest('GET', 'panel_users?select=id&id=eq.' . rawurlencode($id));
+    if (!is_array($pu) || !count($pu)) responder(404, ['error' => 'Esa cuenta ya no existe']);
+    $otra = cuenta_por_correo($nuevo);
+    if ($otra && strcasecmp($otra['id'], $id) !== 0) responder(409, ['error' => 'Ese correo ya lo usa otra cuenta (del panel o de cliente del sitio)']);
+    if (!$otra) {
+        [$c, $u] = admin_api('PUT', '/users/' . rawurlencode($id), ['email' => $nuevo, 'email_confirm' => true]);
+        if ($c >= 300) {
+            $m = (string)($u['msg'] ?? $u['message'] ?? $u['error_description'] ?? '');
+            responder(400, ['error' => $m !== '' ? 'Supabase no aceptó el correo: ' . $m : 'No se pudo cambiar el correo']);
+        }
+    }
+    [$c, $r] = rest('PATCH', 'panel_users?id=eq.' . rawurlencode($id), ['email' => $nuevo]);
+    if ($c >= 300) responder(500, ['error' => 'Se cambió el correo de entrada, pero no el del perfil del panel']);
+    responder(200, ['ok' => true, 'email' => $nuevo]);
+}
+
 $email = strtolower(trim((string)($d['email'] ?? '')));
 $nombre = trim((string)($d['name'] ?? ''));
 $clave = (string)($d['password'] ?? '');

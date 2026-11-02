@@ -11427,7 +11427,8 @@ function openUserModal(id){
   document.getElementById('usId').value=u?u.id:''
   document.getElementById('usName').value=u?(u.name||''):''
   document.getElementById('usEmail').value=u?(u.email||''):''
-  document.getElementById('usEmail').disabled=!!u
+  /* el correo es con lo que entra: solo un administrador lo cambia (Luis, 2-nov) */
+  document.getElementById('usEmail').disabled=!!u && !isAdmin()
   /* eliminar: solo cuentas ya creadas, y nunca la propia */
   document.getElementById('usDelBtn').style.display = (u && isAdmin() && !(me && me.id === u.id)) ? 'block' : 'none'
   const selRol=document.getElementById('usRole')
@@ -11455,6 +11456,16 @@ async function saveUser(){
   if(!name||!email){ toast('Falta el nombre o el correo','error'); return }
   try{
     if(id){
+      const antes = panelUsers.find(x => x.id === id) || {}
+      if(email.toLowerCase() !== String(antes.email || '').toLowerCase()){
+        if(!await confirmar(`Desde ahora ${name} entrará al panel con ${email} (ya no con ${antes.email || 'el correo anterior'}). Su contraseña sigue siendo la misma.`,
+          { titulo:'¿Cambiar el correo de entrada?', ok:'Sí, cambiarlo' })) return
+        if(typeof sesionLista === 'function') await sesionLista()
+        const r = await fetch('/api/panel-usuarios.php', { method:'POST', headers: authHeaders({'Content-Type':'application/json'}),
+          body: JSON.stringify({ accion:'cambiar_correo', id, email }) })
+        const j = await r.json().catch(() => ({}))
+        if(!r.ok) throw new Error(j.error || 'No se pudo cambiar el correo')
+      }
       await supabase.update('panel_users',id,{name,role,professional_id:profId,active,permisos:usPermParaGuardar(role)})
       toast('Cuenta actualizada','success')
     } else {
