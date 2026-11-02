@@ -4710,10 +4710,13 @@ function soloLoSuyo(){ return !!(me && rolDe().soloSuyo) }
    en otra pantalla sí se puede (cada pantalla tiene su propio permiso). */
 function bloquearSiSoloLectura(){
   if(!me || isAdmin()) return
-  const edita = permiso('editar'), borra = permiso('eliminar'), baja = permiso('descargar')
+  const editaPantalla = permiso('editar'), borra = permiso('eliminar'), baja = permiso('descargar')
   const zonas = [document.querySelector('.view.on'), ...document.querySelectorAll('.modal-ov.open:not(#passModal)')].filter(Boolean)
   zonas.forEach(z => z.querySelectorAll('button, .btn-primary, .btn-danger, .mini-btn, .btn-g').forEach(b => {
     if(b.closest('.prof-multi-acc, .topnav, .mini-cal')) return
+    /* "Crear y editar" de la Agenda es sobre las reservas: una profesional con
+       la Agenda en solo ver igual registra la atención en la ficha (Luis, 2-nov) */
+    const edita = editaPantalla || (me.role === 'pro' && !!z.closest('#clientDetailModal, #ffModal, #fmModal'))
     const t = (b.textContent||'').trim()
     let ok = null
     if(/Descargar|Exportar|CSV|Excel|⬇/i.test(t)) ok = baja
@@ -5823,7 +5826,11 @@ async function apptMouseUp(){
   if(d.ghost) d.ghost.remove()
   clearDropHint()
   const a=findAppt(d.id); if(!a) return
-  if(!canEditAppt(a)){ toast('Esa hora es de otro profesional','error'); render(); return }
+  /* una profesional con la Agenda en solo ver igual abre sus reservas: es por
+     donde llega a las fichas (Luis, 2-nov). Moverlas sigue sin poder. */
+  const suya = soloLoSuyo() && a.professional_id === myProfId()
+  if(suya && !d.moved && a.status !== 'block' && !canEditAppt(a)){ openApptQuickView(d.id); return }
+  if(!canEditAppt(a)){ toast(suya ? 'Tu perfil no permite modificar la agenda' : 'Esa hora es de otro profesional','error'); render(); return }
   if(!d.moved){ if(a.status==='block') openBlockModal(null,a); else openApptQuickView(d.id); return }
   const profDestino = d.targetProf || a.professional_id
   /* OJO: antes solo se miraba la fecha y la hora, así que arrastrarla a otra
@@ -6651,7 +6658,7 @@ function openApptQuickView(id){
   const email=(c&&c.email)||''
   const phone=a.client_phone||''
   const waP=waPhone(phone)
-  const dots=['reserved','confirmed','attending','no_show','pending','waiting','cancelled']
+  const dots=(isPro() && !canEditAppt(a) ? [] : ['reserved','confirmed','attending','no_show','pending','waiting','cancelled'])
     .map(s=>`<span class="qv-dot ${a.status===s?'on':''}" title="${STATUS_LABEL[s]}" style="background:${STATUS_COLORS[s]}" onclick="setApptStatus('${id}','${s}')"></span>`).join('')
   /* Una profesional solo ve la reserva y entra a la ficha clinica: no elimina
      ni edita, no ve el contacto del cliente ni cobra (pedido de Luis). */
@@ -6753,6 +6760,7 @@ function closeQuickView(){
 }
 async function setApptStatus(id,status){
   const a=findAppt(id); if(!a) return
+  if(isPro() && !canEditAppt(a)) return
   if(status==='cancelled') return qvDelete(id)
   a.status=status
   try{ await supabase.update('appointments',id,{status}); renderCalendar(); openApptQuickView(id) }
