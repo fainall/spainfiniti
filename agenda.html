@@ -4358,8 +4358,13 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       </div>
       <div class="fbox">
         <div class="sw-row" style="margin-bottom:0">
-          <label class="sw"><input type="checkbox" id="prodComisionable" checked /><i></i></label>
-          <div class="sw-txt"><strong>Comisionable</strong><span>Encendido, la profesional gana comisión al vender este producto. Apagado, no gana comisión por él, y se aplica a todas las profesionales y a todas las ventas de este producto, también las ya hechas.</span></div>
+          <label class="sw"><input type="checkbox" id="prodComisionable" checked onchange="document.getElementById('prodValorComBox').style.display=this.checked?'':'none'" /><i></i></label>
+          <div class="sw-txt"><strong>Comisionable</strong><span>Encendido, la profesional gana comisión al vender este producto. Apagado, no gana comisión por él. Esto se aplica a todas las profesionales y a todas las ventas de este producto, también las ya hechas.</span></div>
+        </div>
+        <div id="prodValorComBox" style="margin-top:12px">
+          <label>Valor comisionable</label>
+          <input type="number" id="prodValorCom" min="0" step="500" placeholder="Vacío: se comisiona sobre el precio cobrado" />
+          <p class="rem-note" style="margin-top:6px">El % de cada profesional se calcula sobre este valor (por unidad). Ejemplo: se vende en $20.000 con valor comisionable $5.000 y comisión de 10% → comisiona $500.</p>
         </div>
       </div>
       <div class="fbox">
@@ -4940,7 +4945,7 @@ function renderMisIngresos(){
     lineasComision(s).forEach(it=>{
       const monto=it.monto
       const pct=commPctFor(pid,it.name,tipoDeItem(it.name))
-      rows.push({date:s.sale_date, client:s.client_name||'', item:it.name, monto, pct, bruta:comisionBruta(monto, pct), comm:comisionDe(pid, monto, pct), tip:0})
+      rows.push({date:s.sale_date, client:s.client_name||'', item:nombreLineaComision(it.name), monto, pct, bruta:comisionBruta(it.comisionable, pct), comm:comisionDe(pid, it.comisionable, pct), tip:0})
     })
     if(Number(s.tip||0)) rows.push({date:s.sale_date, client:s.client_name||'', item:'Propina', monto:0, pct:100, bruta:Number(s.tip), comm:Number(s.tip), tip:Number(s.tip)})
   })
@@ -5008,8 +5013,8 @@ function exportMisIngresos(){
     /* igual que en pantalla: los abonos comisionan recien al cerrar la cuenta */
     lineasComision(s).forEach(it=>{ const monto=it.monto
       const pct=commPctFor(pid,it.name,tipoDeItem(it.name))
-      const bruta=comisionBruta(monto, pct), neto=comisionDe(pid, monto, pct)
-      rows.push([s.sale_date, s.client_name||'', it.name, monto, pct, bruta, bruta-neto, neto]) })
+      const bruta=comisionBruta(it.comisionable, pct), neto=comisionDe(pid, it.comisionable, pct)
+      rows.push([s.sale_date, s.client_name||'', nombreLineaComision(it.name), monto, pct, bruta, bruta-neto, neto]) })
   })
   if(!rows.length){ toast('No hay ganancias en el período','error'); return }
   downloadCSV('mis-ganancias.csv',['Fecha','Cliente','Servicio o producto','Monto','% Comisión','Comisión','IVA ' + ivaDe(pid) + '% descontado','A recibir'],rows)
@@ -11069,7 +11074,7 @@ function detalleComision(profId, ventas){
   ventas.filter(s => s.professional_id === profId).forEach(s => {
     lineasComision(s).forEach(it => {
       const pct = commPctFor(profId, it.name, tipoDeItem(it.name))
-      lineas.push({ name:it.name, pct, veces:it.qty || 1, monto:it.monto, comm:comisionDe(profId, it.monto, pct),
+      lineas.push({ name:nombreLineaComision(it.name), pct, veces:it.qty || 1, monto:it.monto, comm:comisionDe(profId, it.comisionable, pct),
                     fecha:s.sale_date || '', cliente:s.client_name || '' })
     })
   })
@@ -11094,7 +11099,12 @@ function lineasComision(s){
   const valorLista = its => its.reduce((t,i)=> t + Number(i.qty||1)*Number(i.price||0), 0)
   /* si se cobro con descuento, cuenta lo cobrado */
   const factor = (v, its) => { const l = valorLista(its), c = Number(v.total||0); return (l>0 && c>0 && c!==l) ? c/l : 1 }
-  const lineas = (its, f) => its.map(it => ({ name: it.name, qty: Number(it.qty||1), monto: Math.round(Number(it.qty||1)*Number(it.price||0)*f) }))
+  /* monto es lo vendido (lo suman los totales de ventas); comisionable, sobre lo que se calcula el %.
+     Un producto con valor comisionable usa ese valor, con el mismo descuento que tuvo la venta. */
+  const lineas = (its, f) => its.map(it => {
+    const qty = Number(it.qty||1), v = valorComisionableDe(it.name), monto = Math.round(qty*Number(it.price||0)*f)
+    return { name: it.name, qty, monto, comisionable: v === null ? monto : Math.round(qty*v*f) }
+  })
   const hermanas = s.appointment_id
     ? state.sales.filter(v => v.appointment_id===s.appointment_id && v.id!==s.id && ventaVigente(v)) : []
   const porFecha = (a,b) => String(a.created_at||'').localeCompare(String(b.created_at||''))
@@ -11119,8 +11129,8 @@ function lineasComision(s){
       const its = itemsDe(v)
       lineas(its, factor(v, its)).forEach(l => {
         const igual = propias.find(p => p.name === l.name)
-        if(igual) igual.monto += l.monto                      // mismo servicio: una sola linea
-        else propias.push({ name: l.name, qty: 0, monto: l.monto })
+        if(igual){ igual.monto += l.monto; igual.comisionable += l.comisionable }   // mismo servicio: una sola linea
+        else propias.push({ name: l.name, qty: 0, monto: l.monto, comisionable: l.comisionable })
       })
     })
   }
@@ -11139,7 +11149,7 @@ function comisionDeVenta(s){
   let base = 0, comm = 0
   lineasComision(s).forEach(l => {
     base += l.monto
-    comm += comisionDe(s.professional_id, l.monto, commPctFor(s.professional_id, l.name, tipoDeItem(l.name)))
+    comm += comisionDe(s.professional_id, l.comisionable, commPctFor(s.professional_id, l.name, tipoDeItem(l.name)))
   })
   return { base, comm }
 }
@@ -11155,6 +11165,17 @@ function parteCobrada(s, items){
 function productoSinComision(name){
   const p=state.products.find(x=>x.name===name)
   return !!p && (commCfg.sinComision||[]).includes(p.id)
+}
+/* valor sobre el que comisiona un producto; null si es sobre lo cobrado */
+function valorComisionableDe(name){
+  const p=state.products.find(x=>x.name===name)
+  const v=p ? (commCfg.valorComisionable||{})[p.id] : null
+  return (v===undefined||v===null) ? null : Number(v)
+}
+/* en los detalles se avisa, para que el monto, el % y la comisión se entiendan */
+function nombreLineaComision(name){
+  const v=valorComisionableDe(name)
+  return (v===null || productoSinComision(name)) ? name : name + ' (valor comisionable ' + fmtMoney(v) + ')'
 }
 function commPctFor(profId,itemName,kind){
   if(kind==='products' && productoSinComision(itemName)) return 0
@@ -11216,7 +11237,7 @@ function openCommModal(profId,kind,onlyDefault){
   document.getElementById('cmList').innerHTML = items.length ? items.map(n=>{
     const sinCom = kind==='products' && productoSinComision(n)
     return `
-    <div class="rs-line"><span class="rl-n">${esc(n)}${sinCom?' <small style="color:var(--light)">· no comisionable (se cambia en Inventario)</small>':''}</span>
+    <div class="rs-line"><span class="rl-n">${esc(n)}${sinCom?' <small style="color:var(--light)">· no comisionable (se cambia en Inventario)</small>':(kind==='products' && valorComisionableDe(n)!==null?' <small style="color:var(--light)">· sobre '+fmtMoney(valorComisionableDe(n))+' (se cambia en Inventario)</small>':'')}</span>
       <input type="number" min="0" max="100" data-cm="${esc(n)}" value="${map[n]!==undefined?map[n]:''}"${sinCom?' disabled':''}
         placeholder="${commDefaultOf(profId)}" style="width:92px;padding:6px 8px;border:1px solid var(--border);border-radius:6px" />
       <span style="color:var(--light);font-size:.8rem">%</span></div>`}).join('')
@@ -11273,7 +11294,7 @@ function liqData(){
       const monto=it.monto
       const pct=commPctFor(profId,it.name,tipoDeItem(it.name))
       rows.push({ date:s.sale_date, hora:(s.created_at||'').slice(11,16)||'—', client:s.client_name||'',
-        item:it.name, qty:it.qty, monto, pct, comm:comisionDe(profId, monto, pct), tip:0 })
+        item:nombreLineaComision(it.name), qty:it.qty, monto, pct, comm:comisionDe(profId, it.comisionable, pct), tip:0 })
     })
     if(Number(s.tip||0)) rows.push({date:s.sale_date, hora:'—', client:s.client_name||'', item:'Propina', qty:1,
       monto:0, pct:100, comm:Number(s.tip), tip:Number(s.tip)})
@@ -16983,6 +17004,8 @@ function openProductModal(id){
   document.getElementById('prodUso').value=p?(p.uso||'venta'):'venta'
   document.getElementById('prodUnidad').value=p?(p.unidad||''):''
   document.getElementById('prodComisionable').checked=!(p && (commCfg.sinComision||[]).includes(p.id))
+  document.getElementById('prodValorComBox').style.display=document.getElementById('prodComisionable').checked?'':'none'
+  { const v=p ? (commCfg.valorComisionable||{})[p.id] : undefined; document.getElementById('prodValorCom').value=(v===undefined||v===null)?'':v }
   fillProductSelects()
   document.getElementById('prodDelBtn').style.display=p?'block':'none'
   prodTab('basicos')
@@ -16991,6 +17014,11 @@ function openProductModal(id){
 async function saveProduct(){
   const name=document.getElementById('prodName').value.trim()
   if(!name){ prodTab('basicos'); toast('Falta el nombre','error'); return }
+  const txtValorCom=document.getElementById('prodValorCom').value.trim()
+  const valorCom=txtValorCom==='' ? null : Math.round(Number(txtValorCom))
+  if(valorCom!==null && !(valorCom>=0)){ prodTab('basicos'); toast('El valor comisionable tiene que ser un monto válido','error'); return }
+  const precioVenta=parseInt(document.getElementById('prodPrice').value)||0
+  if(valorCom!==null && precioVenta>0 && valorCom>precioVenta){ prodTab('basicos'); toast('El valor comisionable no puede ser mayor que el precio de venta','error'); return }
   const alarmOn=document.getElementById('prodAlarmOn').checked
   const row={
     name, category:document.getElementById('prodCat').value.trim(), sku:document.getElementById('prodSku').value.trim(),
@@ -17009,10 +17037,10 @@ async function saveProduct(){
     else { const res=await supabase.insert('products',row); prodId=((Array.isArray(res)?res[0]:res)||{}).id }
     await loadProducts()
     let avisoComision=false
-    try{ await marcarComisionable(prodId, comisionable) }
+    try{ await marcarComisionable(prodId, comisionable, valorCom) }
     catch(e){ console.error(e); avisoComision=true }
     closeModal('productModal'); renderProducts()
-    if(avisoComision) toast('El producto se guardó, pero no se pudo cambiar si es comisionable. Vuelve a intentarlo.','error')
+    if(avisoComision) toast('El producto se guardó, pero no se pudo cambiar lo comisionable. Vuelve a intentarlo.','error')
     else toast('Producto guardado','success')
   }catch(e){ console.error(e); toast('Error al guardar','error') }
 }
@@ -17020,15 +17048,20 @@ async function saveProduct(){
    resto de las comisiones. Se relee antes de guardar porque se escribe la
    configuración entera: así no se pisa un cambio hecho desde otro equipo, ni se
    borran las comisiones si al abrir el panel no se pudieron leer. */
-async function marcarComisionable(prodId, comisionable){
-  if(!prodId || comisionable === !(commCfg.sinComision||[]).includes(prodId)) return
+async function marcarComisionable(prodId, comisionable, valor){
+  if(!prodId) return
+  const valorAntes=(commCfg.valorComisionable||{})[prodId]
+  const mismoValor=(valorAntes===undefined||valorAntes===null ? null : Number(valorAntes))===valor
+  if(comisionable === !(commCfg.sinComision||[]).includes(prodId) && mismoValor) return
   const f=await supabase.fetch('bot_config',{select:'comm_cfg',filters:'id=eq.1'})
   if(!f || !f[0]) throw new Error('No se pudo leer la configuración de comisiones')
   if(f[0].comm_cfg) commCfg=Object.assign(commCfg,f[0].comm_cfg)
-  const previa=commCfg.sinComision
+  const previa=commCfg.sinComision, valoresPrevios=commCfg.valorComisionable
   commCfg.sinComision=(previa||[]).filter(x=>x!==prodId).concat(comisionable?[]:[prodId])
+  commCfg.valorComisionable={...(valoresPrevios||{})}
+  if(valor===null) delete commCfg.valorComisionable[prodId]; else commCfg.valorComisionable[prodId]=valor
   if(!await persistCommCfg()){
-    commCfg.sinComision=previa
+    commCfg.sinComision=previa; commCfg.valorComisionable=valoresPrevios
     localStorage.setItem('spa_comm_cfg',JSON.stringify(commCfg))
     throw new Error('No se pudo guardar la configuración de comisiones')
   }
