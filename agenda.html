@@ -2003,7 +2003,13 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     </span>
     <div class="spacer"></div>
     <button class="btn-g" id="btnProfs" onclick="openProfManager()">Profesionales</button>
-    <button class="btn-primary" onclick="openApptModal()">+ Nuevo</button>
+    <div class="inv-new">
+      <button class="btn-primary" onclick="agendaNuevo(event)">+ Nuevo</button>
+      <div class="inv-new-menu" id="agNuevoMenu">
+        <button onclick="cerrarAgNuevo();openApptModal()"><strong>Nueva reserva</strong><span>Agenda una hora para una clienta</span></button>
+        <button onclick="cerrarAgNuevo();openSaleModal('productos')"><strong>Venta de productos</strong><span>Registra el producto, la clienta y la vendedora</span></button>
+      </div>
+    </div>
   </div>
 
   <div class="body">
@@ -4261,7 +4267,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       </div>
     </div>
     <div class="row2">
-      <div><label>Profesional</label><select id="saleProf"></select></div>
+      <div><label id="saleProfLbl">Profesional</label><select id="saleProf"></select></div>
       <div><label>Propina</label><input type="number" id="saleTip" min="0" step="500" value="0" /></div>
     </div>
     <label>Cliente (opcional)</label>
@@ -15969,10 +15975,10 @@ function exportGiftCards(){
   downloadCSV('giftcards.csv', ['Código','Fecha de venta','De','Para','Email','Estado','Valor','Servicios canjeados','Servicios por canjear'], rows)
 }
 
-function fillSaleItemPick(){
+function fillSaleItemPick(soloProductos){
   const sel=document.getElementById('saleItemPick')
-  const byCat={}; state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
-  let html=`<option value="">+ Agregar servicio…</option>`
+  const byCat={}; if(!soloProductos) state.services.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
+  let html=`<option value="">${soloProductos ? '+ Agregar producto…' : '+ Agregar servicio…'}</option>`
   Object.entries(byCat).forEach(([cat,arr])=>{ html+=`<optgroup label="${esc(cat)}">`+arr.map(s=>`<option value="${s.id}" data-name="${esc(s.name)}" data-price="${parseMoney(s.price)}">${esc(s.name)} — ${esc(s.price||'')}</option>`).join('')+`</optgroup>` })
   const prods=(state.products||[]).filter(p=>p.active!==false && (p.uso||'venta')!=='insumo')
   if(prods.length){
@@ -16038,12 +16044,16 @@ function ventaSoloLectura(si){
   const cancelar = m.querySelector('.modal-actions .btn-ghost'); if(cancelar) cancelar.textContent = si ? 'Cerrar' : 'Cancelar'
   if(si) document.getElementById('saleTitle').textContent = 'Pago'
 }
-function openSaleModal(){
+/* "Venta de productos" desde el + Nuevo de la agenda (Luis, 6-nov): la misma
+   venta, pero solo con productos y la persona que vende como "Vendedora" */
+function openSaleModal(modo){
   if(isPro()){ toast('Las ventas las registra la recepción.', 'error'); return }
+  const soloProductos = modo === 'productos'
   ventaSoloLectura(false)
   ventaDeReserva = null
-  fillSaleItemPick(); fillSaleProf()
-  document.getElementById('saleTitle').textContent='Nueva venta'
+  fillSaleItemPick(soloProductos); fillSaleProf()
+  document.getElementById('saleProfLbl').textContent = soloProductos ? 'Vendedora' : 'Profesional'
+  document.getElementById('saleTitle').textContent = soloProductos ? 'Venta de productos' : 'Nueva venta'
   document.getElementById('saleId').value=''
   document.getElementById('saleDate').value=isoDate(new Date())
   document.getElementById('salePay').value='Efectivo'
@@ -16062,6 +16072,7 @@ function editSale(id){
   const s=state.sales.find(x=>x.id===id); if(!s) return
   ventaDeReserva = s.appointment_id || null
   fillSaleItemPick(); fillSaleProf()
+  document.getElementById('saleProfLbl').textContent='Profesional'
   document.getElementById('saleTitle').textContent='Venta'
   document.getElementById('saleId').value=s.id
   document.getElementById('saleDate').value=s.sale_date
@@ -16919,6 +16930,16 @@ function catValues(kind){
   const used=state.products.map(p=>(p[key]||'').trim()).filter(Boolean)
   return [...new Set([...(invCatalog[kind]||[]),...used])].sort((a,b)=>a.localeCompare(b,'es'))
 }
+/* "+ Nuevo" de la agenda: quien puede registrar ventas elige entre reserva y
+   venta de productos; el resto va directo a la reserva, como antes */
+function puedeVender(){ return !isPro() && !soloMira() && (permiso('editar','ventas') || permiso('editar','ventaprod')) }
+function agendaNuevo(e){
+  if(!puedeVender()){ openApptModal(); return }
+  if(e) e.stopPropagation()
+  document.getElementById('agNuevoMenu').classList.toggle('open')
+}
+function cerrarAgNuevo(){ const m=document.getElementById('agNuevoMenu'); if(m) m.classList.remove('open') }
+document.addEventListener('click',e=>{ const m=document.getElementById('agNuevoMenu'); if(m&&m.classList.contains('open')&&!e.target.closest('.inv-new')) m.classList.remove('open') })
 function toggleInvNew(e){ if(e) e.stopPropagation(); document.getElementById('invNewMenu').classList.toggle('open') }
 function closeInvNew(){ const m=document.getElementById('invNewMenu'); if(m) m.classList.remove('open') }
 document.addEventListener('click',e=>{ const m=document.getElementById('invNewMenu'); if(m&&m.classList.contains('open')&&!e.target.closest('.inv-new')) m.classList.remove('open') })
