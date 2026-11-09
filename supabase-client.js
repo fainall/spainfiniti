@@ -266,9 +266,10 @@ async function loadFromSupabase() {
     ])
 
     // Transform DB rows → JS format matching data.js structure
-    const categories = cats.map(c => ({
+    const todas = cats.map(c => ({
       id: c.id,
       name: c.name,
+      interna: !!c.interna,
       tagline: c.tagline,
       shortDesc: c.short_desc,
       longDesc: c.long_desc,
@@ -306,9 +307,15 @@ async function loadFromSupabase() {
         }))
     }))
 
+    /* Una categoria interna (Luis, 9-nov) solo existe para el equipo: el sitio no
+       la muestra, no se puede reservar desde la web y Mariet no la ve. La agenda
+       la pide marcando window.CATALOGO_INTERNO antes de cargar este archivo.
+       El respaldo del navegador guarda solo lo publico, porque lo comparten
+       todas las paginas del sitio. */
+    const categories = todas.filter(c => !c.interna)
     window.CATALOGO_ORIGEN = 'base'
     guardarCatalogo(categories)
-    return categories
+    return window.CATALOGO_INTERNO ? todas : categories
   } catch (err) {
     const guardado = catalogoGuardado()
     if (guardado) {

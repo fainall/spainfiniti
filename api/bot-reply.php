@@ -57,9 +57,18 @@ supa('POST', 'rpc/liberar_abonos_vencidos', new stdClass);
 $botRows = supa('GET', 'bot_config?id=eq.1&select=*');
 $bot = (is_array($botRows) && count($botRows)) ? $botRows[0] : [];
 $services = supa('GET', 'services?select=id,name,price,duration,short_desc,long_desc,cat_id') ?: [];
-$categorias = supa('GET', 'categories?select=id,name') ?: [];
+/* select=* y no una lista de columnas: si la columna interna aun no existe, la consulta igual responde */
+$categorias = supa('GET', 'categories?select=*');
+if (!is_array($categorias) || isset($categorias['message'])) $categorias = [];
 $nombreCat = [];
-foreach ($categorias as $c) $nombreCat[$c['id']] = $c['name'];
+$catInternas = [];
+foreach ($categorias as $c) {
+    $nombreCat[$c['id']] = $c['name'];
+    if (!empty($c['interna'])) $catInternas[] = $c['id'];
+}
+/* Las categorias internas son solo del equipo (Luis, 9-nov): Mariet no conoce
+   sus servicios, asi que no los ofrece, no da sus precios y no los agenda. */
+if ($catInternas) $services = array_values(array_filter($services, fn($s) => !in_array($s['cat_id'] ?? '', $catInternas, true)));
 $pros = supa('GET', 'professionals?select=id,name,work_start,work_end,work_days&active=eq.true') ?: [];
 
 /* El equipo, con los dias que atiende cada una. Antes Mariet solo conocia a las

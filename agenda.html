@@ -299,6 +299,7 @@ input,select,textarea{font-family:inherit}
 .adm-dot.off{color:var(--light)}
 .adm-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
 .adm-cat{font-size:.82rem;font-weight:700;color:var(--mid);margin:18px 0 8px}
+.cat-interna{font-size:.72rem;font-weight:600;color:#8a5a00;background:#fff4dc;border-radius:10px;padding:2px 8px;margin-left:4px}
 .lc-hours td{padding:8px 6px}
 .lc-hours .sw{display:inline-block;width:42px;height:23px;flex:none;margin:0;vertical-align:middle}
 .pro-photo{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
@@ -3526,7 +3527,8 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   <!-- MODAL: categoría de servicios -->
   <div class="modal-ov" id="svcCatModal">
     <div class="modal" style="width:520px">
-      <h2>Nueva categoría</h2>
+      <h2 id="scTitulo">Nueva categoría</h2>
+      <input type="hidden" id="scId" />
       <div class="fbox">
         <label>Nombre <span style="color:var(--red)">*</span></label>
         <input type="text" id="scName" placeholder="Ej: Masajes" />
@@ -3534,10 +3536,14 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <input type="text" id="scTagline" placeholder="Ej: Relajación profunda" />
         <label style="margin-top:12px">Descripción</label>
         <textarea id="scDesc" rows="2"></textarea>
+        <div class="sw-row" style="margin-top:16px">
+          <label class="sw"><input type="checkbox" id="scInterna" /><i></i></label>
+          <div class="sw-txt"><strong>Interna</strong><span>Solo para el equipo. Sus servicios se agendan y se cobran en el panel, pero no aparecen en el sitio web, no se pueden reservar desde la web y Mariet no los conoce.</span></div>
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeModal('svcCatModal')">Cancelar</button>
-        <button class="btn-primary" onclick="saveSvcCat()">Agregar</button>
+        <button class="btn-primary" id="scGuardar" onclick="saveSvcCat()">Agregar</button>
       </div>
     </div>
   </div>
@@ -4561,7 +4567,8 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   </div>
 </div>
 
-<script src="/supabase-client.js?v=20"></script>
+<script>window.CATALOGO_INTERNO = true   /* la agenda tambien ve las categorias internas */</script>
+<script src="/supabase-client.js?v=21"></script>
 <script src="/data.js?v=7"></script>
 <script>
 /* Ya no hay contraseñas en el código: se entra con cuenta (Supabase Auth) */
@@ -14664,7 +14671,7 @@ function listaServicios(){
   const byCat={}
   filtrados.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
   return Object.entries(byCat).map(([cat,list])=>
-    `<div class="adm-cat">${esc(cat)} <span style="font-weight:400;color:var(--light)">(${list.length})</span></div>`+
+    `<div class="adm-cat">${esc(cat)} <span style="font-weight:400;color:var(--light)">(${list.length})</span>${catInterna(cat)?' <span class="cat-interna" title="No aparece en el sitio web ni la ve Mariet">🔒 Interna</span>':''}${svcCats.some(c=>c.name===cat)?` <button class="mini-link" style="margin-left:6px" onclick="openSvcCatModal('${esc((svcCats.find(c=>c.name===cat)||{}).id)}')">✎ Editar categoría</button>`:''}</div>`+
     list.map(s=>`<div class="adm-row" draggable-row="svc" data-id="${s.id}">
       <span class="asa" onmousedown="iniciarArrastre(event,this.parentElement)" title="Arrastra para reordenar">⠿</span>
       <span class="ar-name">${esc(s.name)}</span>
@@ -14872,20 +14879,37 @@ async function reloadServices(){
     state.services=rows.map(r=>({ id:r.id, name:r.name, duration:parseDur(r.duration), price:r.price, cat:catName(r.cat_id) }))
   }catch(e){ console.warn('No se pudieron recargar los servicios',e) }
 }
-function openSvcCatModal(){
-  document.getElementById('scName').value=''
-  document.getElementById('scTagline').value=''
-  document.getElementById('scDesc').value=''
+/* sin id crea una categoría; con id la edita (nombre, bajada, descripción y si es interna) */
+function openSvcCatModal(id){
+  const c=id ? svcCats.find(x=>x.id===id) : null
+  document.getElementById('scId').value=c ? c.id : ''
+  document.getElementById('scTitulo').textContent=c ? 'Editar categoría' : 'Nueva categoría'
+  document.getElementById('scGuardar').textContent=c ? 'Guardar' : 'Agregar'
+  document.getElementById('scName').value=c ? (c.name||'') : ''
+  document.getElementById('scTagline').value=c ? (c.tagline||'') : ''
+  document.getElementById('scDesc').value=c ? (c.short_desc||'') : ''
+  document.getElementById('scInterna').checked=!!(c && c.interna)
   openModal('svcCatModal')
 }
+function catInterna(nombre){ return !!(svcCats.find(c=>c.name===nombre)||{}).interna }
 async function saveSvcCat(){
+  const id=document.getElementById('scId').value
   const name=document.getElementById('scName').value.trim()
   if(!name){ toast('Escribe el nombre','error'); return }
+  const interna=document.getElementById('scInterna').checked
+  const row={ name, tagline:document.getElementById('scTagline').value.trim(), short_desc:document.getElementById('scDesc').value.trim() }
+  const antes=id ? svcCats.find(x=>x.id===id) : null
+  /* "interna" solo se manda si importa: así crear una categoría normal no depende de esa columna */
+  if(interna || (antes && antes.interna)) row.interna=interna
   try{
-    await supabase.insert('categories',{ id:slugify(name), name, tagline:document.getElementById('scTagline').value.trim(),
-      short_desc:document.getElementById('scDesc').value.trim(), sort_order:(svcCats.length||0)+1 })
-    await loadSvcCats(); fillSvcCatSelect('svcCat'); closeModal('svcCatModal'); renderAdmin(); toast('Categoría creada','success')
-  }catch(e){ console.error(e); toast('Error al crear la categoría','error') }
+    if(id) await supabase.update('categories', id, row)
+    else{
+      if(svcCats.some(c=>c.id===slugify(name))){ toast('Ya existe una categoría con ese nombre','error'); return }
+      await supabase.insert('categories',{ id:slugify(name), ...row, sort_order:(svcCats.length||0)+1 })
+    }
+    await reloadServices(); fillSvcCatSelect('svcCat', document.getElementById('svcCat').value); closeModal('svcCatModal'); renderAdmin()
+    toast(id ? 'Categoría guardada' : 'Categoría creada','success')
+  }catch(e){ console.error(e); toast(id ? 'Error al guardar la categoría' : 'Error al crear la categoría','error') }
 }
 function exportServicios(){
   if(!state.services.length){ toast('No hay servicios','error'); return }
