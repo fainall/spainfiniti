@@ -6889,7 +6889,7 @@ async function guardarCobroMultiple(medio){
       professional_id: a.professional_id || null,
       appointment_id: apptId,
       sale_date: isoDate(new Date()),
-      items: items.map(i=>({ name:i.name, qty:i.qty, price:i.price })),
+      items: items.map(i=>({ name:i.name, qty:i.qty, price:i.price, productId:i.productId||undefined })),
       total, payment_method: medio, status: 'paid',
       notes: ('Parte del cobro de ' + vd.apptIds.length + ' reservas del día. ' + (vd.nota||'')).trim()
     })
@@ -7618,7 +7618,7 @@ async function vdCobrar(){
       for(const i of vd.items){
         if(i.productId){
           const p = state.products.find(x=>x.id===i.productId)
-          if(p){ const ns = Math.max(0,(p.stock||0)-(i.qty||1)); await supabase.update('products',p.id,{stock:ns}); p.stock = ns }
+          if(p) await ajustarStock(p, -(i.qty||1))
         }
       }
       const _n = vd.apptIds.length
@@ -7649,7 +7649,7 @@ async function vdCobrar(){
     for(const i of vd.items){
       if(i.productId){
         const p = state.products.find(x=>x.id===i.productId)
-        if(p){ const ns = Math.max(0,(p.stock||0)-(i.qty||1)); await supabase.update('products',p.id,{stock:ns}); p.stock = ns }
+        if(p) await ajustarStock(p, -(i.qty||1))
       }
     }
     const apptId = vd.apptId
@@ -16153,7 +16153,7 @@ async function _saveSale(){
       for(const it of saleItemsArr){
         if(it.productId){
           const p=state.products.find(x=>x.id===it.productId)
-          if(p){ const ns=Math.max(0,(p.stock||0)-(it.qty||1)); await supabase.update('products',p.id,{stock:ns}); p.stock=ns }
+          if(p) await ajustarStock(p, -(it.qty||1))
         }
       }
     }
@@ -16180,10 +16180,24 @@ async function devolverStock(venta){
   for(const it of items){
     if(!it.productId) continue
     const p = state.products.find(x=>x.id===it.productId); if(!p) continue
-    const ns = (Number(p.stock)||0) + (Number(it.qty)||1)
-    try{ await supabase.update('products', p.id, { stock: ns }); p.stock = ns }
+    try{ await ajustarStock(p, Number(it.qty)||1) }
     catch(e){ console.warn('stock no devuelto:', e.message) }
   }
+}
+/* Stock al día (Luis, 11-nov): cada equipo guarda el stock que leyó al abrir el
+   panel. Si se restaba sobre ese número, un computador abierto desde antes de una
+   reposición volvía a dejar el stock como estaba y el ingreso se perdía (TOMA DE
+   MUESTRA: +20 el 5-nov y después aparecía en 0). Ahora siempre se lee de la base
+   justo antes de escribir. */
+async function stockEnBase(p){
+  const f = await supabase.fetch('products', { select:'stock', filters:'id=eq.' + encodeURIComponent(p.id) })
+  if(!f || !f[0]) throw new Error('No se pudo leer el stock de ' + p.name)
+  return Number(f[0].stock)||0
+}
+async function ajustarStock(p, delta){
+  const ns = Math.max(0, await stockEnBase(p) + Number(delta||0))
+  await supabase.update('products', p.id, { stock: ns }); p.stock = ns
+  return ns
 }
 /* lo contrario de devolverStock: si se deshace la eliminación, el stock vuelve a bajar */
 async function sacarStockDeNuevo(venta){
@@ -16192,8 +16206,7 @@ async function sacarStockDeNuevo(venta){
   for(const it of items){
     if(!it.productId) continue
     const p = state.products.find(x=>x.id===it.productId); if(!p) continue
-    const ns = Math.max(0, (Number(p.stock)||0) - (Number(it.qty)||1))
-    try{ await supabase.update('products', p.id, { stock: ns }); p.stock = ns }catch(e){ console.warn('stock:', e.message) }
+    try{ await ajustarStock(p, -(Number(it.qty)||1)) }catch(e){ console.warn('stock:', e.message) }
   }
 }
 /* Despues de guardar o eliminar una venta se repinta la pantalla que este
@@ -17048,6 +17061,7 @@ function openProductModal(id){
   document.getElementById('prodPrice').value=p?(p.price||0):0
   document.getElementById('prodCost').value=p?(p.cost||0):0
   document.getElementById('prodStock').value=p?(p.stock||0):0
+  document.getElementById('prodStock').dataset.abierto=p?String(p.stock||0):''
   document.getElementById('prodActive').value=p&&p.active===false?'0':'1'
   document.getElementById('prodNotes').value=p?(p.notes||''):''
   const min=p?(p.min_stock||0):0
@@ -17087,6 +17101,9 @@ async function saveProduct(){
     uso:document.getElementById('prodUso').value||'venta', unidad:document.getElementById('prodUnidad').value.trim()||null
   }
   const id=document.getElementById('prodId').value
+  /* El stock que trae el formulario es el que se leyó al abrir el panel, que puede
+     ser de hace días: si no se cambió a mano, no se manda y queda el de la base */
+  if(id && document.getElementById('prodStock').value.trim()===document.getElementById('prodStock').dataset.abierto) delete row.stock
   const comisionable=document.getElementById('prodComisionable').checked
   try{
     let prodId=id
@@ -17509,9 +17526,12 @@ async function saveStockMove(){
   const qty=parseInt(document.getElementById('stkQty').value)||0
   const note=document.getElementById('stkNote').value.trim()
   if(type!=='adjust' && qty<=0){ toast('Ingresa una cantidad','error'); return }
-  const before=p.stock||0
-  const after = type==='in' ? before+qty : type==='out' ? Math.max(0,before-qty) : qty
-  try{ await supabase.update('products',p.id,{stock:after}); p.stock=after }
+  let before, after
+  try{
+    before = await stockEnBase(p)
+    after = type==='in' ? before+qty : type==='out' ? Math.max(0,before-qty) : qty
+    await supabase.update('products',p.id,{stock:after}); p.stock=after
+  }
   catch(e){ toast('No se pudo actualizar el stock','error'); return }
   const ok=await logStockMove({ product_id:p.id, product_name:p.name, type, qty: type==='adjust'?(after-before):(type==='out'?-qty:qty),
     note, move_date:isoDate(new Date()) })
