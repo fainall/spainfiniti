@@ -6496,7 +6496,8 @@ function onApptServiceSearch(){
   const dd=document.getElementById('apptServiceDropdown')
   let list=state.services
   if(q) list=list.filter(s=>(s.name+' '+(s.cat||'')).toLowerCase().includes(q))
-  list=list.slice(0,40)
+  /* se muestran todos: con el tope de 40, los últimos (los de una categoría
+     nueva, como la interna de Luis) no aparecían si no se escribía nada (17-nov) */
   let html=`<div class="client-opt" style="color:var(--gold-d);font-weight:600" onclick="openSvcCreate()">+ Crear servicio</div>`
   html+=list.map(s=>`<div class="client-opt" onclick="selectApptService('${s.id}')"><div class="cn">${esc(s.name)}</div><div class="cd">${esc(s.cat||'')} · ${esc(s.price||'')} · ${s.duration||60} min</div></div>`).join('')
   if(!list.length && q) html+=`<div class="client-opt empty">Sin servicios — usa “+ Crear servicio”</div>`
