@@ -21,7 +21,6 @@ const CMB_TABLAS = [
     'plans'              => ['Planes', true],
     'payment_links'      => ['Links de pago', true],
     'consumos'           => ['Insumos registrados', false],
-    'client_documents'   => ['Documentos', false],
 ];
 
 function cmb_rest($metodo, $ruta, $cuerpo = null, $prefer = 'return=representation') {
