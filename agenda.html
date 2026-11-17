@@ -1964,6 +1964,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <button onclick="switchView('reportes')">Resumen</button>
           <button onclick="switchView('represervas')">Reporte de reservas</button>
           <button onclick="switchView('repventas')">Reporte de ventas</button>
+          <button onclick="switchView('repsesiones')">Seguimiento de tratamientos</button>
         </div>
       </div>
       <button data-view="whatsapp" onclick="switchView('whatsapp')">WhatsApp <span class="wa-badge" id="waBadge" hidden></span></button>
@@ -3392,6 +3393,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       <div class="mtabs" id="svcTabs">
         <button class="on" onclick="svcTab('basicos',this)">Datos básicos</button>
         <button onclick="svcTab('web',this)">🌐 Sitio Web</button>
+        <button onclick="svcTab('sesiones',this)">Sesiones</button>
         <button onclick="svcTab('avanzadas',this)">Opciones avanzadas</button>
       </div>
       <div class="mtab-pane on" id="svtab-basicos">
@@ -3441,6 +3443,21 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           </div>
           <label style="margin-top:12px">Link de reserva</label>
           <input type="text" id="svcLink" placeholder="https://…" />
+        </div>
+      </div>
+      <div class="mtab-pane" id="svtab-sesiones">
+        <div class="fbox">
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="svcSesOn" onchange="document.getElementById('svcSesBox').style.display=this.checked?'':'none'" /><i></i></label>
+            <div class="sw-txt"><strong>Este servicio es un tratamiento por sesiones</strong><span>Cada reserva de este servicio que queda en "Asiste" cuenta como una sesión: la primera es la sesión 1, la siguiente la 2, y así. En Reportes → Seguimiento de tratamientos ves en qué sesión va cada clienta, cuándo vino por última vez y a quién hay que escribirle.</span></div>
+          </div>
+          <div id="svcSesBox" style="display:none;margin-top:12px">
+            <div class="row2">
+              <div><label>Número de sesiones del tratamiento</label><input type="number" id="svcSesTotal" min="1" max="200" placeholder="Ej: 8" /></div>
+              <div><label>Avisar si no viene en (días)</label><input type="number" id="svcSesDias" min="1" max="365" placeholder="30" /></div>
+            </div>
+            <p class="rem-note" style="margin-top:8px">Si una clienta lleva más días que esos sin venir y no tiene una hora agendada, aparece en "Por contactar" para enviarle un recordatorio.</p>
+          </div>
         </div>
       </div>
       <div class="mtab-pane" id="svtab-avanzadas">
@@ -3520,6 +3537,32 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <button class="btn-danger" id="svcDelBtn" onclick="deleteSvc()" style="display:none">Eliminar</button>
         <button class="btn-ghost" onclick="closeModal('svcModal')">Cerrar</button>
         <button class="btn-primary" onclick="saveSvc()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: seguimiento de una clienta en un tratamiento -->
+  <div class="modal-ov" id="segModal">
+    <div class="modal" style="width:520px">
+      <h2>Seguimiento</h2>
+      <input type="hidden" id="segSvc" /><input type="hidden" id="segCli" />
+      <p class="rem-note" id="segResumen" style="margin:0 0 12px"></p>
+      <div class="fbox">
+        <label>Sesiones hechas antes de usar el panel</label>
+        <input type="number" id="segPrevias" min="0" max="200" placeholder="0" />
+        <p class="rem-note" style="margin-top:6px">Úsalo si la clienta empezó el tratamiento antes de que sus reservas quedaran en esta agenda: se suman a las que cuenta el panel.</p>
+        <label style="margin-top:12px">Estado del seguimiento</label>
+        <select id="segEstado">
+          <option value="">Activo (aparece en Por contactar si deja de venir)</option>
+          <option value="cerrado">Cerrado (ya no viene: mejoró, lo dejó, se cambió…)</option>
+        </select>
+        <label style="margin-top:12px">Notas del seguimiento</label>
+        <textarea id="segNota" rows="3" placeholder="Ej: 17-nov la llamamos, dice que mejoró y por ahora no sigue"></textarea>
+        <p class="rem-note" id="segContacto" style="margin-top:8px"></p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal('segModal')">Cancelar</button>
+        <button class="btn-primary" onclick="guardarSegModal()">Guardar</button>
       </div>
     </div>
   </div>
@@ -3884,6 +3927,34 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   </div>
 
   <!-- VISTA: MOVIMIENTOS DE STOCK -->
+  <!-- VISTA: SEGUIMIENTO DE TRATAMIENTOS (sesiones) -->
+  <div class="view" id="view-repsesiones">
+    <div class="view-inner" style="max-width:1600px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;margin:0">Seguimiento de tratamientos</h2>
+        <button class="btn-download" onclick="exportRepSesiones()">⬇ Descargar</button>
+      </div>
+      <p class="rem-note" style="margin:0 0 14px">Cada reserva en <strong>Asiste</strong> cuenta como una sesión. Los tratamientos y su número de sesiones se configuran en
+        <strong>Administración → Servicios → (servicio) → pestaña Sesiones</strong>.</p>
+      <div class="inv-filters">
+        <div><label>Tratamiento</label><select id="rsTrat" onchange="renderRepSesiones()"><option value="">Todos</option></select></div>
+        <div><label>Estado</label><select id="rsEstado" onchange="renderRepSesiones()">
+          <option value="">Todos</option>
+          <option value="contactar" selected>Por contactar</option>
+          <option value="aldia">Al día</option>
+          <option value="conhora">Con hora agendada</option>
+          <option value="completo">Completaron</option>
+          <option value="cerrado">Cerrados</option>
+        </select></div>
+        <div style="grid-column:span 2"><label>Buscar clienta</label><input type="text" id="rsBuscar" placeholder="Nombre o teléfono" oninput="renderRepSesiones()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem" /></div>
+      </div>
+      <div class="rr-kpis" id="rsKpis"></div>
+      <div class="inv-local">
+        <div id="rsTabla"><div class="empty-state">Cargando…</div></div>
+      </div>
+    </div>
+  </div>
+
   <div class="view" id="view-movstock">
     <div class="view-inner" style="max-width:1600px">
       <div class="inv-filters">
@@ -4653,7 +4724,7 @@ const ROLES = {
   admin:        { nombre:'Administrador general', desc:'Configura toda la cuenta. Acceso a todo, sin restricciones.',
                   vistas:'all', edita:true },
   admin_local:  { nombre:'Administrador de local', desc:'Encargado del local: ve y edita todo salvo la configuración de la cuenta.',
-                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','recordatorios','encuestas','misingresos','whatsapp','cuentas'],
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','repsesiones','recordatorios','encuestas','misingresos','whatsapp','cuentas'],
                   edita:true },
   recepcion:    { nombre:'Recepcionista', desc:'Agenda, clientes y cobros del día a día. No entra a reportes ni a administración.',
                   vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios','whatsapp','cuentas'],
@@ -4684,7 +4755,7 @@ const MODULOS_PERMISO = [
       ['planes','Planes / Bonos'],['giftcards','Gift Cards'],['caja','Caja / Cierre diario'],['propinas','Propinas'],['comisiones','Comisiones']] },
   { grupo:'Clientes', items:[['clientes','Base de clientes'],['antesdespues','Antes y después (fotos, sin datos del paciente)'],['encuestas','Reportes de encuestas'],['recordatorios','Recordatorios'],['cuentas','Cuentas web']] },
   { grupo:'Productos', items:[['productos','Inventario'],['ventaprod','Venta de productos'],['movstock','Movimientos de stock']] },
-  { grupo:'Reportes', items:[['reportes','Resumen'],['represervas','Reporte de reservas'],['repventas','Reporte de ventas']] },
+  { grupo:'Reportes', items:[['reportes','Resumen'],['represervas','Reporte de reservas'],['repventas','Reporte de ventas'],['repsesiones','Seguimiento de tratamientos']] },
   { grupo:'Otros', items:[['misingresos','Mis ingresos'],['whatsapp','WhatsApp'],['asistente','Asistente'],['admin','Administración']] },
 ]
 const ACCIONES_PERMISO = [['ver','Ver'],['editar','Crear y editar'],['eliminar','Eliminar'],['descargar','Descargar']]
@@ -9706,7 +9777,7 @@ function authHeaders(extra){
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones','cobros']
 const CLIENTES_GROUP=['clientes','antesdespues','encuestas','recordatorios','cuentas']
 const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
-const REPORTES_GROUP=['reportes','represervas','repventas']
+const REPORTES_GROUP=['reportes','represervas','repventas','repsesiones']
 const PRO_VIEWS=['agenda','misingresos']
 function switchView(v){
   if(typeof vePantalla==='function' && !vePantalla(v)) v = (typeof isPro==='function'&&isPro()) ? 'agenda' : 'agenda'   // el rol no abre esa pantalla
@@ -9734,6 +9805,7 @@ function switchView(v){
   if(v==='movstock') renderMovStock()
   if(v==='represervas') renderRepReservas()
   if(v==='repventas') renderRepVentas()
+  if(v==='repsesiones') renderRepSesiones()
   if(v==='antesdespues') cargarGaleria()
   if(v==='admin') renderAdmin()
   if(v==='misingresos') renderMisIngresos()
@@ -9768,6 +9840,7 @@ const DATOS_DE_PANTALLA = {
   movstock:      { carga: ['loadStockMoves','loadProducts'], pinta: 'renderMovStock',  mira: ['stockMoves','products'] },
   represervas:   { carga: ['loadAppointments'],           pinta: 'renderRepReservas',  mira: ['appointments'] },
   repventas:     { carga: ['loadSales'],                  pinta: 'renderRepVentas',    mira: ['sales'] },
+  repsesiones:   { carga: ['cargarSesiones'],             pinta: 'renderRepSesiones',  mira: ['sesAppts'] },
   reportes:      { carga: ['loadAppointments','loadSales'], pinta: 'renderReportes',   mira: ['appointments','sales'] },
   misingresos:   { carga: ['loadSales','loadAppointments'], pinta: 'renderMisIngresos',mira: ['sales','appointments'] },
   recordatorios: { carga: ['cargarRemCitas'],             pinta: 'renderRecordatorios', mira: ['remCitas'] }
@@ -14701,10 +14774,11 @@ function filtrarServicios(texto, limpiar){
   const x=document.getElementById('svcClear'); if(x) x.style.display = (svcFiltro||svcCatSel) ? 'block' : 'none'
 }
 function svcTab(name,btn){
-  ;['basicos','web','avanzadas'].forEach(n=>document.getElementById('svtab-'+n).classList.toggle('on',n===name))
+  const TABS_SVC=['basicos','web','sesiones','avanzadas']
+  TABS_SVC.forEach(n=>document.getElementById('svtab-'+n).classList.toggle('on',n===name))
   const btns=[...document.querySelectorAll('#svcTabs button')]
   btns.forEach(b=>b.classList.remove('on'))
-  ;(btn||btns[['basicos','web','avanzadas'].indexOf(name)]).classList.add('on')
+  ;(btn||btns[TABS_SVC.indexOf(name)]).classList.add('on')
 }
 function slugify(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,60) }
 function fillSvcCatSelect(sel,cur){
@@ -14792,6 +14866,10 @@ async function openSvcModal(id){
   document.getElementById('svcIva').checked=!!m.iva
   document.getElementById('svcComm').value=m.comm||0
   document.getElementById('svcCommType').value=m.commType||'pct'
+  document.getElementById('svcSesOn').checked=Number(m.sesiones)>0
+  document.getElementById('svcSesBox').style.display=Number(m.sesiones)>0?'':'none'
+  document.getElementById('svcSesTotal').value=Number(m.sesiones)>0?m.sesiones:''
+  document.getElementById('svcSesDias').value=m.sesDias||''
   renderResources(recursosMarcadosDe(s?s.name:''))
   const mode=m.hourMode||'none'
   document.querySelectorAll('input[name=svcHourMode]').forEach(r=>r.checked=(r.value===mode))
@@ -14827,7 +14905,12 @@ async function saveSvc(){
     discount_text:dcto.valido ? document.getElementById('svcDiscText').value.trim() : '',
     includes:document.getElementById('svcIncludes').value.split('\n').map(x=>x.trim()).filter(Boolean) }
   const oldName=(state.services.find(x=>x.id===id)||{}).name
-  const meta={ video:document.getElementById('svcVideo').checked,
+  const sesOn=document.getElementById('svcSesOn').checked
+  const sesTotal=parseInt(document.getElementById('svcSesTotal').value)||0
+  const sesDias=parseInt(document.getElementById('svcSesDias').value)||0
+  if(sesOn && (sesTotal<1 || sesTotal>200)){ svcTab('sesiones'); toast('Pon cuántas sesiones tiene el tratamiento','error'); return }
+  if(sesOn && sesDias && (sesDias<1 || sesDias>365)){ svcTab('sesiones'); toast('Los días para avisar van de 1 a 365','error'); return }
+  const meta={ sesiones:sesOn?sesTotal:0, sesDias:sesOn?(sesDias||30):0, video:document.getElementById('svcVideo').checked,
     home:document.getElementById('svcHome').checked,
     cap:document.getElementById('svcMulti').checked?(parseInt(document.getElementById('svcCap').value)||2):0,
     iva:document.getElementById('svcIva').checked,
@@ -14869,6 +14952,166 @@ async function deleteSvc(){
   if(!await confirmar('¿Eliminar este servicio? También desaparece del sitio web.')) return
   try{ await supabase.delete('services',id); await reloadServices(); closeModal('svcModal'); renderAdmin(); toast('Servicio eliminado','success') }
   catch(e){ toast('Error al eliminar','error') }
+}
+/* ══════════════ SEGUIMIENTO DE TRATAMIENTOS (sesiones) ══════════════
+   Pedido de Luis (17-nov): los tratamientos se venden por sesiones (Ácido
+   Nítrico, Desbaste… de 8 sesiones). En la ficha del servicio, pestaña
+   Sesiones, se marca como tratamiento y se pone el total. Cada reserva de ese
+   servicio que queda en "Asiste" cuenta como una sesión, en orden de fecha.
+   Aquí se ve en qué sesión va cada clienta, cuándo vino por última vez y a
+   quién hay que escribirle porque dejó de venir.
+   Lo que se anota a mano (sesiones previas al panel, notas, si se cerró y
+   cuándo se le escribió) va en bot_config.seguimiento[servicio][clienta].
+   NO en svc_meta: esa columna la lee el sitio sin sesión (vista public_pricing)
+   y las notas de las clientas quedarían a la vista de cualquiera. */
+state.sesAppts = []
+let rsFilas = [], segData = {}
+function tratamientosConSesiones(){
+  return state.services
+    .map(s => ({ id:s.id, name:s.name, total:Number(svcMetaOf(s.id).sesiones)||0, dias:Number(svcMetaOf(s.id).sesDias)||30 }))
+    .filter(t => t.total > 0)
+}
+async function cargarSesiones(){
+  const trats = tratamientosConSesiones()
+  if(!trats.length){ state.sesAppts = []; return }
+  try{
+    state.sesAppts = await supabase.fetch('appointments', {
+      select:'id,client_id,client_name,client_phone,service_id,service_name,appt_date,start_time,status',
+      filters:'status=in.(attending,reserved,confirmed,pending,waiting,active,pago_pendiente)',
+      order:'appt_date.asc' }) || []
+  }catch(e){ console.warn('sesiones:', e); state.sesAppts = [] }
+  try{ const f = await supabase.fetch('bot_config', { select:'seguimiento', filters:'id=eq.1' }); segData = (f && f[0] && f[0].seguimiento) || {} }
+  catch(e){ console.warn('seguimiento:', e) }
+}
+/* la clienta: por su ficha si la reserva la tiene, si no por el nombre */
+function claveClienta(a){ return a.client_id || ('n:' + normalBus(a.client_name)) }
+function segDe(svcId, ck){ return (segData[svcId] || {})[ck] || {} }
+function filasSesiones(){
+  const trats = tratamientosConSesiones()
+  const hoy = isoDate(new Date())
+  const grupos = {}
+  state.sesAppts.forEach(a => {
+    const t = trats.find(t => a.service_id === t.id || normalBus(a.service_name) === normalBus(t.name))
+    if(!t) return
+    const k = t.id + '|' + claveClienta(a)
+    const g = grupos[k] = grupos[k] || { t, ck:claveClienta(a), nombre:a.client_name||'', fono:a.client_phone||'', clientId:a.client_id||null, fechas:[], proxima:null }
+    if(a.client_name) g.nombre = a.client_name
+    if(a.client_phone) g.fono = a.client_phone
+    if(a.status === 'attending' && a.appt_date <= hoy) g.fechas.push(a.appt_date)
+    else if(a.status !== 'attending' && a.appt_date >= hoy && (!g.proxima || a.appt_date < g.proxima)) g.proxima = a.appt_date
+  })
+  return Object.values(grupos).map(g => {
+    const seg = segDe(g.t.id, g.ck)
+    const c = g.clientId ? state.clients.find(x => x.id === g.clientId) : null
+    if(c){ g.nombre = c.name || g.nombre; g.fono = c.phone || g.fono }
+    const hechas = g.fechas.length + (Number(seg.previas)||0)
+    const ultima = g.fechas.length ? g.fechas[g.fechas.length-1] : null
+    const dias = ultima ? Math.round((Date.parse(hoy) - Date.parse(ultima)) / 864e5) : null
+    const estado = seg.estado === 'cerrado' ? 'cerrado'
+      : hechas >= g.t.total ? 'completo'
+      : g.proxima ? 'conhora'
+      : (dias !== null && dias >= g.t.dias) ? 'contactar'
+      : 'aldia'
+    return { ...g, seg, hechas, ultima, dias, estado }
+  }).filter(f => f.hechas > 0 || f.proxima)
+}
+const RS_ESTADO = { contactar:['Por contactar','#fde8e4','#c0392b'], aldia:['Al día','#e6f5ec','#1e874b'],
+  conhora:['Con hora','#e3f2fb','#1f6f99'], completo:['Completó','#efe9fb','#6b47b8'], cerrado:['Cerrado','#eee','#666'] }
+function rsFecha(iso){ if(!iso) return '—'; const [y,m,d] = iso.split('-').map(Number); return d + ' ' + MONTHS_SHORT[m-1] + ' ' + y }
+async function renderRepSesiones(recargar){
+  const el = document.getElementById('rsTabla'); if(!el) return
+  const trats = tratamientosConSesiones()
+  const sel = document.getElementById('rsTrat'), cur = sel.value
+  sel.innerHTML = '<option value="">Todos</option>' + trats.map(t => `<option value="${esc(t.id)}">${esc(t.name)} (${t.total} sesiones)</option>`).join('')
+  sel.value = trats.some(t => t.id === cur) ? cur : ''
+  if(!trats.length){
+    document.getElementById('rsKpis').innerHTML = ''
+    el.innerHTML = `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🗂</div>Todavía no hay tratamientos por sesiones.<br>
+      Márcalos en <strong>Administración → Servicios → (servicio) → pestaña Sesiones</strong>.</div>`
+    return
+  }
+  if(recargar !== false && !state.sesAppts.length) await cargarSesiones()
+  const todas = filasSesiones().filter(f => !sel.value || f.t.id === sel.value)
+  const est = document.getElementById('rsEstado').value
+  const q = normalBus(document.getElementById('rsBuscar').value)
+  rsFilas = todas.filter(f => (!est || f.estado === est) && (!q || normalBus(f.nombre + ' ' + f.fono).includes(q)))
+  const orden = { contactar:0, aldia:1, conhora:2, completo:3, cerrado:4 }
+  rsFilas.sort((a,b) => (orden[a.estado]-orden[b.estado]) || ((b.dias||0)-(a.dias||0)) || a.nombre.localeCompare(b.nombre))
+  const n = e => todas.filter(f => f.estado === e).length
+  document.getElementById('rsKpis').innerHTML = `
+    <div class="rr-kpi"><h5>En tratamiento</h5><div class="k-num">${n('aldia') + n('conhora') + n('contactar')}</div><div class="k-sub">${n('conhora')} con su próxima hora agendada</div></div>
+    <div class="rr-kpi"><h5>Por contactar</h5><div class="k-num" style="color:#c0392b">${n('contactar')}</div><div class="k-sub">Dejaron de venir y no tienen hora agendada</div></div>
+    <div class="rr-kpi"><h5>Completaron el tratamiento</h5><div class="k-num">${n('completo')}</div><div class="k-sub">${n('cerrado')} seguimientos cerrados</div></div>`
+  if(!rsFilas.length){ el.innerHTML = '<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🔍</div>No hay clientas con ese filtro</div>'; return }
+  el.innerHTML = `<div style="overflow-x:auto"><table class="ctbl" style="min-width:980px">
+    <thead><tr><th>Clienta</th><th>Tratamiento</th><th>Sesión</th><th>Última sesión</th><th>Próxima hora</th><th>Estado</th><th>Seguimiento</th><th></th></tr></thead>
+    <tbody>${rsFilas.map((f,i) => {
+      const [lbl,bg,fg] = RS_ESTADO[f.estado]
+      const pct = Math.min(100, Math.round(f.hechas / f.t.total * 100))
+      return `<tr>
+        <td><strong>${esc(f.nombre||'Sin nombre')}</strong><br><span style="font-size:.74rem;color:var(--light)">${esc(f.fono||'sin teléfono')}</span></td>
+        <td>${esc(f.t.name)}</td>
+        <td style="min-width:120px"><strong>${Math.min(f.hechas, f.t.total)} de ${f.t.total}</strong>${f.hechas > f.t.total ? ` <span style="font-size:.72rem;color:var(--light)">(+${f.hechas - f.t.total})</span>` : ''}
+          <div style="height:6px;background:var(--border);border-radius:4px;margin-top:5px"><div style="height:6px;width:${pct}%;background:var(--gold,#b8975a);border-radius:4px"></div></div></td>
+        <td>${rsFecha(f.ultima)}${f.dias !== null ? `<br><span style="font-size:.74rem;color:${f.estado==='contactar'?'#c0392b':'var(--light)'}">hace ${f.dias} día${f.dias===1?'':'s'}</span>` : ''}</td>
+        <td>${f.proxima ? rsFecha(f.proxima) : '—'}</td>
+        <td><span class="badge" style="background:${bg};color:${fg}">${lbl}</span></td>
+        <td style="max-width:240px;font-size:.78rem">${f.seg.nota ? esc(f.seg.nota) : (f.seg.contactado ? '' : '<span style="color:var(--light)">—</span>')}${f.seg.contactado ? `${f.seg.nota ? '<br>' : ''}<span style="color:var(--light)">Escrito el ${rsFecha(f.seg.contactado)}</span>` : ''}</td>
+        <td style="white-space:nowrap">${waPhone(f.fono) ? `<button class="mini-btn" onclick="segWhatsapp(${i})">💬 WhatsApp</button>` : ''}
+          <button class="mini-btn" onclick="abrirSegModal(${i})">✎ Seguimiento</button></td></tr>`
+    }).join('')}</tbody></table></div>`
+  if(typeof bloquearSiSoloLectura === 'function') bloquearSiSoloLectura()
+}
+/* guarda lo anotado de una clienta en un tratamiento, releyendo antes la
+   configuración para no pisar lo que otro equipo haya guardado */
+async function guardarSeguimiento(svcId, ck, cambios){
+  const f = await supabase.fetch('bot_config', { select:'seguimiento', filters:'id=eq.1' })
+  if(!f || !f[0]) throw new Error('No se pudo leer el seguimiento')
+  const todo = f[0].seguimiento || {}
+  const s = todo[svcId] = todo[svcId] || {}
+  s[ck] = { ...(s[ck] || {}), ...cambios }
+  await supabase.update('bot_config', '1', { seguimiento: todo })
+  segData = todo
+}
+function segWhatsapp(i){
+  const f = rsFilas[i]; if(!f) return
+  const wa = waPhone(f.fono)
+  if(!wa){ toast('Esa clienta no tiene teléfono','error'); return }
+  const nombre = (f.nombre || '').split(' ')[0]
+  const sig = Math.min(f.hechas + 1, f.t.total)
+  const texto = f.hechas >= f.t.total
+    ? `Hola ${nombre} 😊 Te escribimos de Spa Infinity. Ya completaste tus ${f.t.total} sesiones de ${f.t.name}. ¿Cómo te has sentido con los resultados? Nos encantaría saber cómo sigues.`
+    : `Hola ${nombre} 😊 Te escribimos de Spa Infinity. Tu última sesión de ${f.t.name} fue el ${f.ultima ? fmtLongDate(f.ultima) : '—'} y llevas ${f.hechas} de ${f.t.total}. ¿Cómo te has sentido? Si quieres, te ayudamos a agendar tu sesión ${sig} para seguir con el tratamiento.`
+  window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(texto), '_blank')
+  guardarSeguimiento(f.t.id, f.ck, { contactado: isoDate(new Date()) })
+    .then(() => renderRepSesiones(false))
+    .catch(e => console.warn('seguimiento:', e))
+}
+function abrirSegModal(i){
+  const f = rsFilas[i]; if(!f) return
+  document.getElementById('segSvc').value = f.t.id
+  document.getElementById('segCli').value = f.ck
+  document.getElementById('segResumen').innerHTML = `<strong>${esc(f.nombre||'Sin nombre')}</strong> · ${esc(f.t.name)} · lleva ${f.hechas} de ${f.t.total} sesiones`
+    + (f.ultima ? ` · última el ${rsFecha(f.ultima)}` : '')
+  document.getElementById('segPrevias').value = f.seg.previas || ''
+  document.getElementById('segEstado').value = f.seg.estado || ''
+  document.getElementById('segNota').value = f.seg.nota || ''
+  document.getElementById('segContacto').textContent = f.seg.contactado ? 'Último WhatsApp enviado desde aquí: ' + rsFecha(f.seg.contactado) : ''
+  openModal('segModal')
+}
+async function guardarSegModal(){
+  const previas = parseInt(document.getElementById('segPrevias').value) || 0
+  if(previas < 0 || previas > 200){ toast('Revisa las sesiones previas','error'); return }
+  try{
+    await guardarSeguimiento(document.getElementById('segSvc').value, document.getElementById('segCli').value, {
+      previas, estado: document.getElementById('segEstado').value, nota: document.getElementById('segNota').value.trim() })
+    closeModal('segModal'); renderRepSesiones(false); toast('Seguimiento guardado','success')
+  }catch(e){ console.error(e); toast('No se pudo guardar el seguimiento','error') }
+}
+function exportRepSesiones(){
+  if(!rsFilas.length){ toast('No hay filas para descargar','error'); return }
+  downloadCSV('seguimiento-tratamientos.csv', ['Clienta','Teléfono','Tratamiento','Sesiones hechas','Total','Última sesión','Días sin venir','Próxima hora','Estado','Notas','Último WhatsApp'],
+    rsFilas.map(f => [f.nombre, f.fono, f.t.name, f.hechas, f.t.total, f.ultima||'', f.dias===null?'':f.dias, f.proxima||'', RS_ESTADO[f.estado][0], f.seg.nota||'', f.seg.contactado||'']))
 }
 /* recarga servicios desde Supabase y rearma state.services */
 async function reloadServices(){
@@ -18128,7 +18371,7 @@ const normalBus = t => String(t || '').toLowerCase().normalize('NFD').replace(/[
 const PANTALLAS_BUS = [
   ['agenda','Agenda','📅'], ['clientes','Clientes','👥'], ['ventas','Ventas','🧾'], ['caja','Caja','💵'],
   ['comisiones','Comisiones','📊'], ['reportes','Reportes · Resumen','📈'], ['represervas','Reporte de reservas','📋'],
-  ['repventas','Reporte de ventas','📋'], ['whatsapp','WhatsApp','💬'], ['asistente','Asistente (Mariet)','🤖'], ['admin','Administración','⚙️'],
+  ['repventas','Reporte de ventas','📋'], ['repsesiones','Seguimiento de tratamientos','🗂'], ['whatsapp','WhatsApp','💬'], ['asistente','Asistente (Mariet)','🤖'], ['admin','Administración','⚙️'],
   ['transacciones','Transacciones','🧾'], ['propinas','Propinas','💝'], ['cobros','Cobros por link','🔗'], ['recordatorios','Recordatorios','⏰'],
   ['productos','Productos','🧴'], ['movstock','Movimientos de stock','📦'], ['planes','Planes y bonos','🎟'], ['giftcards','Gift cards','🎁'],
   ['encuestas','Encuestas','📝'], ['misingresos','Mis ingresos','💰']]
