@@ -3585,6 +3585,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         </div>
       </div>
       <div class="modal-actions">
+        <button class="btn-danger" id="scBorrar" onclick="borrarSvcCat()" style="display:none">Eliminar</button>
         <button class="btn-ghost" onclick="closeModal('svcCatModal')">Cancelar</button>
         <button class="btn-primary" id="scGuardar" onclick="saveSvcCat()">Agregar</button>
       </div>
@@ -14806,7 +14807,7 @@ function admServicios(){
         value="${esc(svcFiltro)}" oninput="filtrarServicios(this.value)" />
       <select id="svcCatFiltro" onchange="svcCatSel=this.value;filtrarServicios(svcFiltro)" title="Filtrar por categoría">
         <option value="">Todas las categorías</option>
-        ${Object.keys(byCat).sort().map(c=>`<option value="${esc(c)}" ${c===svcCatSel?'selected':''}>${esc(c)}</option>`).join('')}
+        ${[...new Set([...Object.keys(byCat), ...svcCats.map(c=>c.name)])].sort().map(c=>`<option value="${esc(c)}" ${c===svcCatSel?'selected':''}>${esc(c)}</option>`).join('')}
       </select>
       <button class="svc-clear" id="svcClear" onclick="filtrarServicios('',true)" title="Limpiar" style="display:${svcFiltro?'block':'none'}">✕</button>
     </div>
@@ -14822,13 +14823,19 @@ function listaServicios(){
   const filtrados = q
     ? base.filter(s => ((s.name||'')+' '+(s.cat||'')+' '+(s.price||'')+' '+s.duration).toLowerCase().includes(q))
     : base
-  if(!state.services.length) return '<div class="empty-state">Aún no hay servicios.</div>'
-  if(!filtrados.length) return `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🔍</div>
-    Ningún servicio coincide con ${svcFiltro?`"${esc(svcFiltro)}"`:'ese filtro'}${svcCatSel?' en '+esc(svcCatSel):''}</div>`
   const byCat={}
   filtrados.forEach(s=>{ (byCat[s.cat]=byCat[s.cat]||[]).push(s) })
+  /* las categorías sin servicios también se ven, con su botón para editarlas:
+     Luis creó una categoría interna y, como estaba vacía, no aparecía (17-nov) */
+  if(!q) svcCats.forEach(c=>{ if((!svcCatSel || c.name===svcCatSel) && !state.services.some(s=>s.cat===c.name)) byCat[c.name]=[] })
+  if(!Object.keys(byCat).length){
+    if(!state.services.length) return '<div class="empty-state">Aún no hay servicios.</div>'
+    return `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🔍</div>
+    Ningún servicio coincide con ${svcFiltro?`"${esc(svcFiltro)}"`:'ese filtro'}${svcCatSel?' en '+esc(svcCatSel):''}</div>`
+  }
   return Object.entries(byCat).map(([cat,list])=>
     `<div class="adm-cat">${esc(cat)} <span style="font-weight:400;color:var(--light)">(${list.length})</span>${catInterna(cat)?' <span class="cat-interna" title="No aparece en el sitio web ni la ve Mariet">🔒 Interna</span>':''}${svcCats.some(c=>c.name===cat)?` <button class="mini-link" style="margin-left:6px" onclick="openSvcCatModal('${esc((svcCats.find(c=>c.name===cat)||{}).id)}')">✎ Editar categoría</button>`:''}</div>`+
+    (list.length ? '' : '<p class="rem-note" style="margin:0 0 10px">Todavía no tiene servicios: créalos con <strong>+ Nuevo</strong> y elige esta categoría.</p>')+
     list.map(s=>`<div class="adm-row" draggable-row="svc" data-id="${s.id}">
       <span class="asa" onmousedown="iniciarArrastre(event,this.parentElement)" title="Arrastra para reordenar">⠿</span>
       <span class="ar-name">${esc(s.name)}</span>
@@ -15216,7 +15223,21 @@ function openSvcCatModal(id){
   document.getElementById('scTagline').value=c ? (c.tagline||'') : ''
   document.getElementById('scDesc').value=c ? (c.short_desc||'') : ''
   document.getElementById('scInterna').checked=!!(c && c.interna)
+  /* solo se ofrece borrar una categoría vacía: borrarla borra también sus servicios */
+  document.getElementById('scBorrar').style.display=(c && !state.services.some(s=>s.cat===c.name)) ? '' : 'none'
   openModal('svcCatModal')
+}
+async function borrarSvcCat(){
+  const id=document.getElementById('scId').value
+  const c=svcCats.find(x=>x.id===id); if(!c) return
+  try{
+    /* se vuelve a mirar en la base: si alguien le agregó un servicio, no se borra */
+    const conServicios=await supabase.fetch('services',{select:'id',filters:'cat_id=eq.'+encodeURIComponent(id)+'&limit=1'})
+    if(conServicios && conServicios.length){ toast('Esta categoría tiene servicios: muévelos a otra antes de eliminarla','error'); return }
+    if(!await confirmar('¿Eliminar la categoría "'+c.name+'"? No tiene servicios.', { titulo:'Eliminar categoría', ok:'Eliminar' })) return
+    await supabase.delete('categories', id)
+    await reloadServices(); closeModal('svcCatModal'); renderAdmin(); toast('Categoría eliminada','success')
+  }catch(e){ console.error(e); toast('No se pudo eliminar la categoría','error') }
 }
 function catInterna(nombre){ return !!(svcCats.find(c=>c.name===nombre)||{}).interna }
 async function saveSvcCat(){
