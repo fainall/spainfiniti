@@ -3916,10 +3916,11 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
       <div class="rr-showing" id="rrShowing"></div>
       <div class="acc" id="rrMoreAcc" style="margin-top:10px">
         <div class="acc-body">
-          <div class="inv-filters" style="margin:0;border:none;padding:0;background:none;grid-template-columns:repeat(3,1fr)">
+          <div class="inv-filters" style="margin:0;border:none;padding:0;background:none;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
             <div><label>Estado de la reserva</label><select id="rrStatus" onchange="renderRepReservas()"><option value="">Todos</option></select></div>
             <div><label>Profesional</label><select id="rrProf" onchange="renderRepReservas()"><option value="">Todos</option></select></div>
             <div><label>Servicio</label><select id="rrService" onchange="renderRepReservas()"><option value="">Todos</option></select></div>
+            <div><label>Sesión del tratamiento</label><select id="rrSesion" onchange="renderRepReservas()"><option value="">Todas</option></select></div>
           </div>
         </div>
       </div>
@@ -3935,7 +3936,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;margin:0">Seguimiento de tratamientos</h2>
         <button class="btn-download" onclick="exportRepSesiones()">⬇ Descargar</button>
       </div>
-      <p class="rem-note" style="margin:0 0 14px">Cada reserva en <strong>Asiste</strong> cuenta como una sesión. Los tratamientos y su número de sesiones se configuran en
+      <p class="rem-note" style="margin:0 0 14px">Cada reserva en <strong>Asiste</strong> cuenta como una sesión; si al agendar se eligió el número de sesión, se respeta ese número. Los tratamientos y su número de sesiones se configuran en
         <strong>Administración → Servicios → (servicio) → pestaña Sesiones</strong>.</p>
       <div class="inv-filters">
         <div><label>Tratamiento</label><select id="rsTrat" onchange="renderRepSesiones()"><option value="">Todos</option></select></div>
@@ -3947,7 +3948,8 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <option value="completo">Completaron</option>
           <option value="cerrado">Cerrados</option>
         </select></div>
-        <div style="grid-column:span 2"><label>Buscar clienta</label><input type="text" id="rsBuscar" placeholder="Nombre o teléfono" oninput="renderRepSesiones()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem" /></div>
+        <div><label>Sesión en que va</label><select id="rsSesion" onchange="renderRepSesiones()"><option value="">Todas</option></select></div>
+        <div><label>Buscar clienta</label><input type="text" id="rsBuscar" placeholder="Nombre o teléfono" oninput="renderRepSesiones()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.82rem" /></div>
       </div>
       <div class="rr-kpis" id="rsKpis"></div>
       <div class="inv-local">
@@ -4111,7 +4113,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     </div>
     <input type="hidden" id="apptId" />
     <div class="row3">
-      <div><label>Fecha</label><input type="date" id="apptDate" /></div>
+      <div><label>Fecha</label><input type="date" id="apptDate" onchange="pintarSesionAppt()" /></div>
       <div><label>Hora inicio</label><input type="time" id="apptStart" step="300" onchange="inicioCambiado()" /></div>
       <div><label>Hora término</label><input type="time" id="apptEnd" step="300" onchange="terminoCambiado()" />
         <p class="rem-note" style="margin:5px 0 0" id="apptDurNota"></p></div>
@@ -4136,6 +4138,11 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
     </div>
     <input type="hidden" id="apptService" />
     <input type="hidden" id="apptServiceName" />
+    <div id="apptSesBox" style="display:none">
+      <label>Sesión del tratamiento</label>
+      <select id="apptSesion" onchange="this.dataset.auto=''"></select>
+      <p class="rem-note" style="margin:5px 0 0" id="apptSesNota"></p>
+    </div>
     <label>Precio</label>
     <div class="re-precio">
       <span>$</span>
@@ -6575,6 +6582,7 @@ function selectApptService(id){
   }
   document.getElementById('apptServiceDropdown').classList.remove('show')
   onServicioElegido(s.name)   // deja solo a quienes lo realizan
+  pintarSesionAppt()
 }
 document.addEventListener('click',e=>{ if(!e.target.closest('#apptServiceWrap')){ const dd=document.getElementById('apptServiceDropdown'); if(dd) dd.classList.remove('show') } })
 /* crear servicio rápido */
@@ -7888,6 +7896,7 @@ function reservaEditable(a){
 
     <label class="re-lbl">Servicios</label>
     <select class="re-input" onchange="reMarcar('${a.id}','servicio',this.value)">${svcOpts}</select>
+    ${reSesionCampo(a)}
 
     <label class="re-lbl">Precio${precioAjustado(a) ? ' <span class="re-ajustado">ajustado</span>' : ''}</label>
     <div class="re-precio">
@@ -7948,9 +7957,9 @@ async function reConfirmar(id){
   if(!reHayCambios()) return
   const btn = document.getElementById('reGuardarBtn'); if(btn){ btn.disabled = true; btn.textContent = 'Guardando…' }
   /* en orden: primero el día y la hora, después quién, qué y cuánto */
-  const orden = ['fecha','inicio','fin','prof','servicio','precio','notas','estado']
+  const orden = ['fecha','inicio','fin','prof','servicio','sesion','precio','notas','estado']
   const a0 = findAppt(id)
-  const COLS_ED = ['appt_date','start_time','end_time','professional_id','service_name','service_id','price','notes','status']
+  const COLS_ED = ['appt_date','start_time','end_time','professional_id','service_name','service_id','sesion','price','notes','status']
   const antesEd = a0 ? Object.fromEntries(COLS_ED.map(k => [k, a0[k] === undefined ? null : a0[k]])) : null
   let todos = true
   for(const campo of orden){
@@ -7994,6 +8003,7 @@ async function reGuardar(id, campo, valor, silencioso){
   } else if(campo === 'servicio'){
     const sv = state.services.find(x=>x.name===valor)
     cambio.service_name = valor
+    if(!(sv && metaSesiones(sv.id))) cambio.sesion = null   // ya no es un tratamiento por sesiones
     if(sv){
       /* si el precio estaba ajustado a mano, se pregunta antes de pisarlo */
       const ajustado = precioAjustado(a)
@@ -8008,6 +8018,8 @@ async function reGuardar(id, campo, valor, silencioso){
     const v = money2num(valor)
     if(v <= 0 && String(valor).trim() !== '0'){ toast('Escribe un precio válido','error'); renderApptTab(); return false }
     cambio.price = v > 0 ? ('$' + milesCL(v)) : '$0'
+  } else if(campo === 'sesion'){
+    cambio.sesion = Number(valor) || null
   } else if(campo === 'notas'){
     cambio.notes = valor
   } else if(campo === 'estado'){
@@ -8333,6 +8345,86 @@ function openApptModal(id,prefill){
   const hasExtra = document.getElementById('apptPhone').value || document.getElementById('apptNotes').value
   document.getElementById('apptCollapse').classList.toggle('open', !!hasExtra)
   openModal('apptModal')
+  pintarSesionAppt(id ? ((findAppt(id) || {}).sesion || '') : '')
+}
+/* ── Sesión del tratamiento en la reserva ──
+   Pedido de Luis (18-nov): al agendar un tratamiento por sesiones (Ácido
+   Nítrico de 8 sesiones…) elige en qué sesión va la clienta. Se le sugiere
+   la que le toca según sus reservas en "Asiste"; si se deja "Sin indicar",
+   el seguimiento la cuenta sola en orden de fecha. */
+function metaSesiones(svcId){
+  const m = svcMetaOf(svcId), total = Number(m.sesiones) || 0
+  return total > 0 ? { total, dias: Number(m.sesDias) || 30 } : null
+}
+/* el tratamiento de una reserva (por id o, si no lo tiene, por nombre) */
+function tratamientoDe(a){
+  const sv = state.services.find(s => s.id === a.service_id) || state.services.find(s => s.name === a.service_name)
+  const m = sv ? metaSesiones(sv.id) : null
+  return m ? { ...m, svc: sv } : null
+}
+function svcDeAppt(){
+  const id = document.getElementById('apptService').value
+  const nm = document.getElementById('apptServiceName').value
+  return state.services.find(s => s.id === id) || state.services.find(s => s.name === nm) || null
+}
+/* en qué sesión va: la visita con número puesto a mano manda y las
+   siguientes cuentan desde ahí */
+function contarSesiones(visitas, previas){
+  let n = Number(previas) || 0
+  visitas.forEach(v => { n = Number(v.sesion) > 0 ? Number(v.sesion) : n + 1 })
+  return n
+}
+function opcionesSesion(total, elegida){
+  const tope = Math.max(total, Number(elegida) || 0)
+  return '<option value="">Sin indicar (se cuenta sola)</option>' +
+    Array.from({ length: tope }, (_, i) => `<option value="${i+1}" ${Number(elegida)===i+1?'selected':''}>Sesión ${i+1} de ${total}${i+1>total?' (extra)':''}</option>`).join('')
+}
+let segCargado = false, apptSesPedido = 0
+async function cargarSegData(){
+  if(segCargado) return
+  try{ const f = await supabase.fetch('bot_config', { select:'seguimiento', filters:'id=eq.1' }); segData = (f && f[0] && f[0].seguimiento) || {}; segCargado = true }
+  catch(e){ console.warn('seguimiento:', e) }
+}
+async function pintarSesionAppt(elegida){
+  const box = document.getElementById('apptSesBox'), sel = document.getElementById('apptSesion'), nota = document.getElementById('apptSesNota')
+  if(!box) return
+  const svc = svcDeAppt(), m = svc ? metaSesiones(svc.id) : null
+  const pedido = ++apptSesPedido
+  if(elegida !== undefined) sel.dataset.auto = ''
+  if(!m){ box.style.display = 'none'; sel.innerHTML = ''; nota.textContent = ''; return }
+  const actual = elegida !== undefined ? (Number(elegida) || '') : sel.value
+  box.style.display = ''
+  sel.innerHTML = opcionesSesion(m.total, actual)
+  const cid = document.getElementById('apptClientId').value
+  if(!cid){ nota.textContent = 'Elige la clienta para ver en qué sesión va.'; return }
+  nota.textContent = 'Revisando sus sesiones…'
+  try{
+    await cargarSegData()
+    const filas = await supabase.fetch('appointments', { select:'id,appt_date,start_time,sesion,service_id,service_name',
+      filters:'client_id=eq.' + encodeURIComponent(cid) + '&status=eq.attending', order:'appt_date.asc,start_time.asc' }) || []
+    if(pedido !== apptSesPedido) return
+    const editando = document.getElementById('apptId').value
+    const fecha = document.getElementById('apptDate').value || isoDate(new Date())
+    const suyas = filas.filter(a => a.id !== editando && a.appt_date <= fecha &&
+      (a.service_id === svc.id || normalBus(a.service_name) === normalBus(svc.name)))
+    const hechas = contarSesiones(suyas, segDe(svc.id, cid).previas)
+    const ult = suyas.length ? suyas[suyas.length-1].appt_date : null
+    nota.innerHTML = hechas
+      ? `Va en la sesión <strong>${hechas} de ${m.total}</strong>${ult ? ' (última: ' + rsFecha(ult) + ')' : ''}. ` +
+        (hechas >= m.total ? 'Ya completó el tratamiento.' : 'Le toca la <strong>' + (hechas + 1) + '</strong>.')
+      : 'Sería su <strong>primera sesión</strong>.'
+    /* en una reserva nueva queda puesta la que le toca; Luis la puede cambiar */
+    if(!editando && (!sel.value || sel.dataset.auto === '1')){
+      sel.innerHTML = opcionesSesion(m.total, hechas + 1); sel.dataset.auto = '1' }
+  }catch(e){ if(pedido === apptSesPedido) nota.textContent = ''; console.warn('sesión:', e) }
+}
+/* el mismo campo en el detalle de la reserva */
+function reSesionCampo(a){
+  const sv = state.services.find(x => x.name === reVal(a,'servicio',a.service_name))
+  const m = sv ? metaSesiones(sv.id) : null
+  if(!m) return ''
+  return `<label class="re-lbl">Sesión del tratamiento</label>
+    <select class="re-input" onchange="reMarcar('${a.id}','sesion',this.value)">${opcionesSesion(m.total, reVal(a,'sesion',a.sesion))}</select>`
 }
 async function saveAppt(){
   let profId=document.getElementById('apptProf').value
@@ -8393,7 +8485,9 @@ async function saveAppt(){
     appt_date:date, start_time:start, end_time:end,
     forzada, origen:'panel',
     status:document.getElementById('apptStatus').value,
-    notes:document.getElementById('apptNotes').value.trim()
+    notes:document.getElementById('apptNotes').value.trim(),
+    /* la sesión solo se guarda si el servicio es un tratamiento por sesiones */
+    sesion:(() => { const sv = svcDeAppt(); return (sv && metaSesiones(sv.id)) ? (Number(document.getElementById('apptSesion').value) || null) : null })()
   }
   const id=document.getElementById('apptId').value
   const antes = id ? { ...(findAppt(id) || {}) } : null
@@ -8624,6 +8718,7 @@ function selectClient(id){
   document.getElementById('apptClientSearch').value=c.name
   document.getElementById('apptPhone').value=c.phone||''
   document.getElementById('clientDropdown').classList.remove('show')
+  if(document.getElementById('apptModal').classList.contains('open')) pintarSesionAppt()
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.client-search-wrap')){ const dd=document.getElementById('clientDropdown'); if(dd) dd.classList.remove('show') }
@@ -14984,11 +15079,11 @@ async function cargarSesiones(){
   if(!trats.length){ state.sesAppts = []; return }
   try{
     state.sesAppts = await supabase.fetch('appointments', {
-      select:'id,client_id,client_name,client_phone,service_id,service_name,appt_date,start_time,status',
+      select:'id,client_id,client_name,client_phone,service_id,service_name,appt_date,start_time,status,sesion',
       filters:'status=in.(attending,reserved,confirmed,pending,waiting,active,pago_pendiente)',
-      order:'appt_date.asc' }) || []
+      order:'appt_date.asc,start_time.asc' }) || []
   }catch(e){ console.warn('sesiones:', e); state.sesAppts = [] }
-  try{ const f = await supabase.fetch('bot_config', { select:'seguimiento', filters:'id=eq.1' }); segData = (f && f[0] && f[0].seguimiento) || {} }
+  try{ const f = await supabase.fetch('bot_config', { select:'seguimiento', filters:'id=eq.1' }); segData = (f && f[0] && f[0].seguimiento) || {}; segCargado = true }
   catch(e){ console.warn('seguimiento:', e) }
 }
 /* la clienta: por su ficha si la reserva la tiene, si no por el nombre */
@@ -15002,18 +15097,19 @@ function filasSesiones(){
     const t = trats.find(t => a.service_id === t.id || normalBus(a.service_name) === normalBus(t.name))
     if(!t) return
     const k = t.id + '|' + claveClienta(a)
-    const g = grupos[k] = grupos[k] || { t, ck:claveClienta(a), nombre:a.client_name||'', fono:a.client_phone||'', clientId:a.client_id||null, fechas:[], proxima:null }
+    const g = grupos[k] = grupos[k] || { t, ck:claveClienta(a), nombre:a.client_name||'', fono:a.client_phone||'', clientId:a.client_id||null, visitas:[], proxima:null, proxSes:0 }
     if(a.client_name) g.nombre = a.client_name
     if(a.client_phone) g.fono = a.client_phone
-    if(a.status === 'attending' && a.appt_date <= hoy) g.fechas.push(a.appt_date)
-    else if(a.status !== 'attending' && a.appt_date >= hoy && (!g.proxima || a.appt_date < g.proxima)) g.proxima = a.appt_date
+    if(a.status === 'attending' && a.appt_date <= hoy) g.visitas.push(a)
+    else if(a.status !== 'attending' && a.appt_date >= hoy && (!g.proxima || a.appt_date < g.proxima)){ g.proxima = a.appt_date; g.proxSes = Number(a.sesion) || 0 }
   })
   return Object.values(grupos).map(g => {
     const seg = segDe(g.t.id, g.ck)
     const c = g.clientId ? state.clients.find(x => x.id === g.clientId) : null
     if(c){ g.nombre = c.name || g.nombre; g.fono = c.phone || g.fono }
-    const hechas = g.fechas.length + (Number(seg.previas)||0)
-    const ultima = g.fechas.length ? g.fechas[g.fechas.length-1] : null
+    /* la sesión puesta en la reserva manda; las que no la tienen se cuentan en orden */
+    const hechas = contarSesiones(g.visitas, seg.previas)
+    const ultima = g.visitas.length ? g.visitas[g.visitas.length-1].appt_date : null
     const dias = ultima ? Math.round((Date.parse(hoy) - Date.parse(ultima)) / 864e5) : null
     const estado = seg.estado === 'cerrado' ? 'cerrado'
       : hechas >= g.t.total ? 'completo'
@@ -15032,6 +15128,10 @@ async function renderRepSesiones(recargar){
   const sel = document.getElementById('rsTrat'), cur = sel.value
   sel.innerHTML = '<option value="">Todos</option>' + trats.map(t => `<option value="${esc(t.id)}">${esc(t.name)} (${t.total} sesiones)</option>`).join('')
   sel.value = trats.some(t => t.id === cur) ? cur : ''
+  const ss = document.getElementById('rsSesion'), cs = ss.value
+  const maxT = Math.max(0, ...trats.filter(t => !sel.value || t.id === sel.value).map(t => t.total))
+  ss.innerHTML = '<option value="">Todas</option>' + Array.from({ length:maxT }, (_, i) => `<option value="${i+1}">Sesión ${i+1}</option>`).join('')
+  ss.value = cs && Number(cs) <= maxT ? cs : ''
   if(!trats.length){
     document.getElementById('rsKpis').innerHTML = ''
     el.innerHTML = `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">🗂</div>Todavía no hay tratamientos por sesiones.<br>
@@ -15041,8 +15141,9 @@ async function renderRepSesiones(recargar){
   if(recargar !== false && !state.sesAppts.length) await cargarSesiones()
   const todas = filasSesiones().filter(f => !sel.value || f.t.id === sel.value)
   const est = document.getElementById('rsEstado').value
+  const ses = Number(document.getElementById('rsSesion').value) || 0
   const q = normalBus(document.getElementById('rsBuscar').value)
-  rsFilas = todas.filter(f => (!est || f.estado === est) && (!q || normalBus(f.nombre + ' ' + f.fono).includes(q)))
+  rsFilas = todas.filter(f => (!est || f.estado === est) && (!ses || Math.min(f.hechas, f.t.total) === ses) && (!q || normalBus(f.nombre + ' ' + f.fono).includes(q)))
   const orden = { contactar:0, aldia:1, conhora:2, completo:3, cerrado:4 }
   rsFilas.sort((a,b) => (orden[a.estado]-orden[b.estado]) || ((b.dias||0)-(a.dias||0)) || a.nombre.localeCompare(b.nombre))
   const n = e => todas.filter(f => f.estado === e).length
@@ -15062,7 +15163,7 @@ async function renderRepSesiones(recargar){
         <td style="min-width:120px"><strong>${Math.min(f.hechas, f.t.total)} de ${f.t.total}</strong>${f.hechas > f.t.total ? ` <span style="font-size:.72rem;color:var(--light)">(+${f.hechas - f.t.total})</span>` : ''}
           <div style="height:6px;background:var(--border);border-radius:4px;margin-top:5px"><div style="height:6px;width:${pct}%;background:var(--gold,#b8975a);border-radius:4px"></div></div></td>
         <td>${rsFecha(f.ultima)}${f.dias !== null ? `<br><span style="font-size:.74rem;color:${f.estado==='contactar'?'#c0392b':'var(--light)'}">hace ${f.dias} día${f.dias===1?'':'s'}</span>` : ''}</td>
-        <td>${f.proxima ? rsFecha(f.proxima) : '—'}</td>
+        <td>${f.proxima ? rsFecha(f.proxima) + (f.proxSes ? `<br><span style="font-size:.74rem;color:var(--light)">sesión ${f.proxSes}</span>` : '') : '—'}</td>
         <td><span class="badge" style="background:${bg};color:${fg}">${lbl}</span></td>
         <td style="max-width:240px;font-size:.78rem">${f.seg.nota ? esc(f.seg.nota) : (f.seg.contactado ? '' : '<span style="color:var(--light)">—</span>')}${f.seg.contactado ? `${f.seg.nota ? '<br>' : ''}<span style="color:var(--light)">Escrito el ${rsFecha(f.seg.contactado)}</span>` : ''}</td>
         <td style="white-space:nowrap">${waPhone(f.fono) ? `<button class="mini-btn" onclick="segWhatsapp(${i})">💬 WhatsApp</button>` : ''}
@@ -15118,8 +15219,8 @@ async function guardarSegModal(){
 }
 function exportRepSesiones(){
   if(!rsFilas.length){ toast('No hay filas para descargar','error'); return }
-  downloadCSV('seguimiento-tratamientos.csv', ['Clienta','Teléfono','Tratamiento','Sesiones hechas','Total','Última sesión','Días sin venir','Próxima hora','Estado','Notas','Último WhatsApp'],
-    rsFilas.map(f => [f.nombre, f.fono, f.t.name, f.hechas, f.t.total, f.ultima||'', f.dias===null?'':f.dias, f.proxima||'', RS_ESTADO[f.estado][0], f.seg.nota||'', f.seg.contactado||'']))
+  downloadCSV('seguimiento-tratamientos.csv', ['Clienta','Teléfono','Tratamiento','Sesiones hechas','Total','Última sesión','Días sin venir','Próxima hora','Sesión de la próxima hora','Estado','Notas','Último WhatsApp'],
+    rsFilas.map(f => [f.nombre, f.fono, f.t.name, f.hechas, f.t.total, f.ultima||'', f.dias===null?'':f.dias, f.proxima||'', f.proxSes||'', RS_ESTADO[f.estado][0], f.seg.nota||'', f.seg.contactado||'']))
 }
 /* recarga servicios desde Supabase y rearma state.services */
 async function reloadServices(){
@@ -15728,11 +15829,28 @@ function rrFillFilters(){
   const sv=document.getElementById('rrService'); const cs=sv.value
   const names=[...new Set(state.services.map(s=>s.name))].sort()
   sv.innerHTML='<option value="">Todos</option>'+names.map(n=>`<option>${esc(n)}</option>`).join(''); sv.value=cs
+  /* la sesión: de los tratamientos (servicios con pestaña Sesiones) */
+  const se=document.getElementById('rrSesion'); if(!se) return
+  const cse=se.value
+  const tot=Math.max(0,...tratamientosConSesiones().filter(t=>!cs||t.name===cs).map(t=>t.total))
+  se.innerHTML='<option value="">Todas</option><option value="con">Con sesión indicada</option><option value="sin">Tratamientos sin sesión indicada</option>'+
+    Array.from({length:tot},(_,i)=>`<option value="${i+1}">Sesión ${i+1}</option>`).join('')
+  se.value=[...se.options].some(o=>o.value===cse)?cse:''
 }
 function rrFilter(list){
   const st=document.getElementById('rrStatus').value, pr=document.getElementById('rrProf').value, sv=document.getElementById('rrService').value
   return list.filter(a=>a.status!=='block')
     .filter(a=>!st||a.status===st).filter(a=>!pr||a.professional_id===pr).filter(a=>!sv||a.service_name===sv)
+    .filter(a=>{ const se=(document.getElementById('rrSesion')||{}).value||''
+      if(!se) return true
+      if(se==='con') return Number(a.sesion)>0
+      if(se==='sin') return !(Number(a.sesion)>0) && !!tratamientoDe(a)
+      return Number(a.sesion)===Number(se) })
+}
+function rrSesionTxt(a){
+  if(!(Number(a.sesion)>0)) return ''
+  const t=tratamientoDe(a)
+  return 'Sesión '+a.sesion+(t?' de '+t.total:'')
 }
 async function renderRepReservas(){
   const body=document.getElementById('rrBody'); if(!body) return
@@ -15821,10 +15939,11 @@ function rrHistorial(cur){
              : '<span class="badge" style="background:#eee;color:#3A3F47">Sin venta</span>' }
   return `<div class="rr-panel">
     <table class="ctbl">
-      <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Estado de la reserva</th><th>Estado de pago</th><th>Origen</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Sesión</th><th>Estado de la reserva</th><th>Estado de pago</th><th>Origen</th></tr></thead>
       <tbody>${slice.map(a=>{ const [y,m,d]=a.appt_date.split('-')
         return `<tr><td>${d}/${m}/${y} · ${a.start_time.slice(0,5)}</td>
         <td class="cname">${a.client_id?`<button class="link-cliente" onclick="abrirFichaCliente('${a.client_id}')">${esc(a.client_name||'—')}</button>`:esc(a.client_name||'—')}</td><td>${esc(a.service_name||'—')}</td>
+        <td>${rrSesionTxt(a) ? esc(rrSesionTxt(a)) : (tratamientoDe(a) ? '<span style="color:var(--light)">Sin indicar</span>' : '—')}</td>
         <td><span class="badge" style="background:${STATUS_COLORS[a.status]||'#eee'};color:#fff">${STATUS_LABEL[a.status]||a.status}</span></td>
         <td>${pagado(a)}</td>
         <td>${/asistente de whatsapp/i.test(a.notes||'')?'Asistente WhatsApp':'Panel / mostrador'}</td></tr>`}).join('')}</tbody>
@@ -15884,8 +16003,8 @@ function exportRepReservas(){
   const cur=rrFilter(rrCache.cur)
   if(!cur.length){ toast('No hay reservas en el período','error'); return }
   if(rrTab==='historial'){
-    downloadCSV('reservas-historial.csv', ['Fecha','Hora','Cliente','Servicio','Estado','Origen','Profesional'],
-      cur.map(a=>[a.appt_date, a.start_time.slice(0,5), a.client_name||'', a.service_name||'', STATUS_LABEL[a.status]||a.status,
+    downloadCSV('reservas-historial.csv', ['Fecha','Hora','Cliente','Servicio','Sesión','Estado','Origen','Profesional'],
+      cur.map(a=>[a.appt_date, a.start_time.slice(0,5), a.client_name||'', a.service_name||'', rrSesionTxt(a), STATUS_LABEL[a.status]||a.status,
         /asistente de whatsapp/i.test(a.notes||'')?'Asistente WhatsApp':'Panel / mostrador',
         (state.professionals.find(p=>p.id===a.professional_id)||{}).name||'']))
   } else {
