@@ -6787,6 +6787,7 @@ function openApptQuickView(id){
         : esc(a.client_name||'Sin cliente')}
       ${ORIGENES[origenDe(a)].icono ? `<span class="qv-org" title="${esc(ORIGENES[origenDe(a)].nombre)}">${ORIGENES[origenDe(a)].icono}</span>` : ''}</div>
     ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${qvPrecio(a)}</div>`:''}
+    ${tratamientoDe(a) ? '<div class="qv-row" id="qvSesion">🔢 Sesión…</div>' : ''}
     ${qvCobrado(a)}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--texto)">${esc(p.name)}</strong></div>`:''}
@@ -6829,12 +6830,39 @@ function openApptQuickView(id){
                { duration:200, easing:'cubic-bezier(.22,.61,.36,1)' })
   }
   hacerArrastrable(qv)
+  pintarSesionQV(a)
 }
 
 /* La ficha rápida se puede tomar con el mouse y correr por la pantalla, para
    destaparla de la agenda cuando tapa justo la hora que se quiere mirar (Luis).
    Se arrastra solo desde la franja de arriba, la de los botones: en el resto
    de la ficha se puede seleccionar y copiar texto sin que se mueva (Luis). */
+/* El número de sesión en la vista rápida (pedido de Luis, 18-nov): el que se
+   eligió en la reserva o, si no tiene, el que le toca contando sus visitas
+   anteriores en "Asiste" de ese mismo tratamiento. */
+async function sesionDeReserva(a){
+  const t = tratamientoDe(a); if(!t) return null
+  if(Number(a.sesion) > 0) return { n:Number(a.sesion), total:t.total, fija:true }
+  if(!a.client_id) return null
+  await cargarSegData()
+  const filas = await supabase.fetch('appointments', { select:'id,appt_date,start_time,sesion,service_id,service_name',
+    filters:'client_id=eq.' + encodeURIComponent(a.client_id) + '&status=eq.attending', order:'appt_date.asc,start_time.asc' }) || []
+  const cuando = x => x.appt_date + ' ' + String(x.start_time || '').slice(0,5)
+  const antes = filas.filter(x => x.id !== a.id && cuando(x) < cuando(a) &&
+    (x.service_id === t.svc.id || normalBus(x.service_name) === normalBus(t.svc.name)))
+  return { n: contarSesiones(antes, segDe(t.svc.id, a.client_id).previas) + 1, total:t.total, fija:false }
+}
+async function pintarSesionQV(a){
+  const fila = document.getElementById('qvSesion'); if(!fila) return
+  try{
+    const s = await sesionDeReserva(a)
+    const f = document.getElementById('qvSesion'); if(!f || f !== fila) return   // se cerró o se abrió otra
+    if(!s){ f.innerHTML = '🔢 Sesión <em>sin indicar</em>'; return }
+    f.innerHTML = `🔢 <strong style="color:var(--texto)">Sesión ${s.n} de ${s.total}</strong>` +
+      (s.n > s.total ? ' <span style="color:var(--light)">(extra)</span>' : '') +
+      (s.fija ? '' : ' <span style="color:var(--light);font-size:.85em" title="Contada según sus visitas en Asiste. Para fijarla, elígela en ✎ Editar">· calculada</span>')
+  }catch(e){ console.warn('sesión:', e); fila.remove() }
+}
 function hacerArrastrable(caja){
   if(window.innerWidth <= 820) return          // en el teléfono va centrada, no se mueve
   let mov=null
