@@ -17446,10 +17446,18 @@ function renderComisiones(){
   list.forEach(s => { baseDe[s.id] = comisionDeVenta(s).base })
   // KPIs por tipo de venta
   let vServ=0, vProd=0, tips=0
+  /* se suma por línea, igual que la comisión: lo abonado antes que trae el
+     cierre de una reserva es del servicio. Antes la base se repartía a
+     prorrata y al producto le tocaba parte del abono (19-nov: 4 Tomas de
+     muestra de $20.000 salían como $85.405, Luis) */
   list.forEach(s=>{
-    const {serv,prod}=splitSaleItems(s), tot=serv+prod, b=baseDe[s.id]
-    const bServ = tot>0 ? Math.round(serv*b/tot) : b
-    vServ+=bServ; vProd+=b-bServ; tips+=Number(s.tip||0)
+    const its=itemsDe(s)
+    if(!its.length) vServ+=baseDe[s.id]
+    else {
+      const productos=new Set(its.filter(i=>i.productId).map(i=>i.name))
+      lineasComision(s).forEach(l=>{ if(productos.has(l.name)) vProd+=l.monto; else vServ+=l.monto })
+    }
+    tips+=Number(s.tip||0)
   })
   // planes vendidos en el período
   const vPlans=state.plans.filter(p=>p.status!=='cancelled' && (!from||p.purchase_date>=from) && (!to||p.purchase_date<=to))
