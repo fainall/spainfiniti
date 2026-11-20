@@ -1285,6 +1285,30 @@ body.sin-scroll{overflow:hidden}
 .fz-aviso span{font-size:1.05rem;line-height:1.2}
 .fz-aviso p{margin:0;font-size:.85rem;color:#7a5c1e;line-height:1.5}
 .appt.forzada::after{content:'⚡';position:absolute;bottom:2px;right:3px;font-size:.6rem;opacity:.75}
+/* fichas pendientes (19-nov): marca en la reserva, aviso grande y franja roja */
+.appt .fp-mark{position:absolute;bottom:2px;left:4px;background:#c0392b;color:#fff;border-radius:8px;font-size:.58rem;font-weight:700;line-height:14px;padding:0 4px;z-index:2}
+.appt.pagada .fp-mark,.appt.abonada .fp-mark{left:19px}
+.qv-ficha{background:#fdf1ef;border:1px solid #f3c2bb;color:#a5281b;border-radius:8px;padding:8px 10px;font-weight:600}
+.fa-modal{width:700px;max-width:96vw;border-top:10px solid #c0392b}
+.fa-head{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px}
+.fa-head .fa-ico{font-size:3rem;line-height:1}
+.fa-head h2{color:#c0392b;font-size:1.7rem;margin:0 0 6px}
+.fa-head p{margin:0;font-size:.92rem;color:var(--texto,#3A3F47)}
+.fa-lista{max-height:56vh;overflow-y:auto}
+.fa-item{display:flex;gap:12px;align-items:center;justify-content:space-between;border:1px solid #f3c2bb;background:#fdf1ef;border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.fa-cita{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fa-cita strong{font-size:1rem}
+.fa-cita span{font-size:.8rem;color:var(--light)}
+.fa-faltas{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.fa-cita .fa-falta{background:#c0392b;color:#fff;border-radius:12px;padding:3px 10px;font-size:.74rem;font-weight:600}
+.ficha-barra{position:fixed;left:0;right:0;bottom:0;z-index:850;display:none;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;
+  background:#c0392b;color:#fff;padding:12px 16px calc(12px + env(safe-area-inset-bottom));font-size:1.05rem;font-weight:700;box-shadow:0 -6px 20px rgba(0,0,0,.25);animation:fbPulso 2.4s ease-in-out infinite}
+.ficha-barra .fb-ico{font-size:1.5rem}
+.ficha-barra button{background:#fff;color:#c0392b;border:0;border-radius:20px;padding:8px 18px;font-weight:700;font-size:.9rem;cursor:pointer}
+@keyframes fbPulso{0%,100%{background:#c0392b}50%{background:#e04b3a}}
+@media (prefers-reduced-motion: reduce){.ficha-barra{animation:none}}
+body.con-ficha-barra{padding-bottom:64px}
+@media (max-width:820px){.fa-item{flex-direction:column;align-items:stretch}.fa-head h2{font-size:1.35rem}}
 
 /* vista previa de la importación */
 .imp-linea{font-size:.8rem;color:var(--mid);margin-top:5px}
@@ -1965,6 +1989,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
           <button onclick="switchView('represervas')">Reporte de reservas</button>
           <button onclick="switchView('repventas')">Reporte de ventas</button>
           <button onclick="switchView('repsesiones')">Seguimiento de tratamientos</button>
+          <button onclick="switchView('repfichas')">Fichas pendientes</button>
         </div>
       </div>
       <button data-view="whatsapp" onclick="switchView('whatsapp')">WhatsApp <span class="wa-badge" id="waBadge" hidden></span></button>
@@ -3394,6 +3419,7 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
         <button class="on" onclick="svcTab('basicos',this)">Datos básicos</button>
         <button onclick="svcTab('web',this)">🌐 Sitio Web</button>
         <button onclick="svcTab('sesiones',this)">Sesiones</button>
+        <button onclick="svcTab('ficha',this)">Ficha</button>
         <button onclick="svcTab('avanzadas',this)">Opciones avanzadas</button>
       </div>
       <div class="mtab-pane on" id="svtab-basicos">
@@ -3457,6 +3483,21 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
               <div><label>Avisar si no viene en (días)</label><input type="number" id="svcSesDias" min="1" max="365" placeholder="30" /></div>
             </div>
             <p class="rem-note" style="margin-top:8px">Si una clienta lleva más días que esos sin venir y no tiene una hora agendada, aparece en "Por contactar" para enviarle un recordatorio.</p>
+          </div>
+        </div>
+      </div>
+      <div class="mtab-pane" id="svtab-ficha">
+        <div class="fbox">
+          <div class="sw-row">
+            <label class="sw"><input type="checkbox" id="svcFichaOn" onchange="document.getElementById('svcFotosBox').style.display=this.checked?'':'none'" /><i></i></label>
+            <div class="sw-txt"><strong>Pide ficha después de la atención</strong><span>Cuando la reserva queda en "Asiste", la profesional tiene que llenar la ficha de la clienta con los datos de la cita. Si no lo hace, le aparece un aviso grande en el panel y queda en Reportes → Fichas pendientes.</span></div>
+          </div>
+          <div id="svcFotosBox" style="margin-top:14px">
+            <label style="display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:.88rem;margin:8px 0">
+              <input type="checkbox" id="svcFotoAntes" style="width:18px;height:18px" /> Exige foto de <strong>antes</strong></label>
+            <label style="display:flex;gap:10px;align-items:center;text-transform:none;letter-spacing:0;font-weight:400;font-size:.88rem;margin:8px 0">
+              <input type="checkbox" id="svcFotoDespues" style="width:18px;height:18px" /> Exige foto de <strong>después</strong></label>
+            <p class="rem-note" style="margin-top:6px">Las fotos son las de la ficha: los campos de foto que dicen "Antes" o "Después".</p>
           </div>
         </div>
       </div>
@@ -3929,6 +3970,41 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
   </div>
 
   <!-- VISTA: MOVIMIENTOS DE STOCK -->
+  <!-- VISTA: FICHAS PENDIENTES -->
+  <div class="view" id="view-repfichas">
+    <div class="view-inner" style="max-width:1600px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.4rem;margin:0">Fichas pendientes</h2>
+        <button class="btn-download" onclick="exportRepFichas()">⬇ Descargar</button>
+      </div>
+      <p class="rem-note" style="margin:0 0 14px">Cada atención en <strong>Asiste</strong> debe quedar con su ficha: todos los datos de la cita (los comentarios son opcionales) y, si el servicio lo pide, las fotos de antes y después.
+        Qué pide cada servicio se marca al final de esta página o en <strong>Administración → Servicios → (servicio) → pestaña Ficha</strong>.</p>
+      <div class="inv-filters">
+        <div><label>Periodo</label><select id="rfPeriodo" onchange="renderRepFichas(true)">
+          <option value="0">Hoy</option>
+          <option value="7" selected>Últimos 7 días</option>
+          <option value="30">Últimos 30 días</option>
+          <option value="90">Últimos 90 días</option>
+        </select></div>
+        <div><label>Profesional</label><select id="rfProf" onchange="renderRepFichas()"><option value="">Todas</option></select></div>
+        <div><label>Qué falta</label><select id="rfFalta" onchange="renderRepFichas()">
+          <option value="">Todo lo pendiente</option>
+          <option value="sin">Sin ficha</option>
+          <option value="info">Datos incompletos</option>
+          <option value="antes">Foto de antes</option>
+          <option value="despues">Foto de después</option>
+          <option value="ok">Fichas completas</option>
+        </select></div>
+      </div>
+      <div class="rr-kpis" id="rfKpis"></div>
+      <div class="inv-local">
+        <div id="rfTabla"><div class="empty-state">Cargando…</div></div>
+      </div>
+      <details class="fbox" style="margin-top:18px"><summary style="cursor:pointer;font-weight:600">Qué pide cada servicio (ficha y fotos)</summary>
+        <div id="rfConfigBody"></div></details>
+    </div>
+  </div>
+
   <!-- VISTA: SEGUIMIENTO DE TRATAMIENTOS (sesiones) -->
   <div class="view" id="view-repsesiones">
     <div class="view-inner" style="max-width:1600px">
@@ -4093,6 +4169,18 @@ details.ff-sec .ff-campo{padding:0 14px 12px}
 </div>
 
 <!-- MODAL: Appointment -->
+<div class="modal-ov" id="fichaAlertaModal">
+  <div class="modal fa-modal">
+    <div class="fa-head">
+      <div class="fa-ico">⚠️</div>
+      <div><h2 id="faTitulo">Fichas pendientes</h2>
+        <p>Cada atención en <strong>Asiste</strong> tiene que quedar con su ficha: los datos de la cita y, si el servicio lo pide, las fotos de antes y después.</p></div>
+    </div>
+    <div class="fa-lista" id="faLista"></div>
+    <div class="modal-actions"><button class="btn-ghost" onclick="closeModal('fichaAlertaModal')">Lo hago en un rato</button></div>
+  </div>
+</div>
+
 <div class="modal-ov" id="apptModal">
   <div class="modal" style="width:520px;max-width:94vw">
     <div class="modal-head-row">
@@ -4732,7 +4820,7 @@ const ROLES = {
   admin:        { nombre:'Administrador general', desc:'Configura toda la cuenta. Acceso a todo, sin restricciones.',
                   vistas:'all', edita:true },
   admin_local:  { nombre:'Administrador de local', desc:'Encargado del local: ve y edita todo salvo la configuración de la cuenta.',
-                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','repsesiones','recordatorios','encuestas','misingresos','whatsapp','cuentas'],
+                  vistas:['agenda','clientes','ventas','cobros','transacciones','planes','giftcards','caja','propinas','comisiones','productos','ventaprod','movstock','reportes','represervas','repventas','repsesiones','repfichas','recordatorios','encuestas','misingresos','whatsapp','cuentas'],
                   edita:true },
   recepcion:    { nombre:'Recepcionista', desc:'Agenda, clientes y cobros del día a día. No entra a reportes ni a administración.',
                   vistas:['agenda','clientes','ventas','cobros','transacciones','giftcards','caja','planes','recordatorios','whatsapp','cuentas'],
@@ -4763,7 +4851,7 @@ const MODULOS_PERMISO = [
       ['planes','Planes / Bonos'],['giftcards','Gift Cards'],['caja','Caja / Cierre diario'],['propinas','Propinas'],['comisiones','Comisiones']] },
   { grupo:'Clientes', items:[['clientes','Base de clientes'],['antesdespues','Antes y después (fotos, sin datos del paciente)'],['encuestas','Reportes de encuestas'],['recordatorios','Recordatorios'],['cuentas','Cuentas web']] },
   { grupo:'Productos', items:[['productos','Inventario'],['ventaprod','Venta de productos'],['movstock','Movimientos de stock']] },
-  { grupo:'Reportes', items:[['reportes','Resumen'],['represervas','Reporte de reservas'],['repventas','Reporte de ventas'],['repsesiones','Seguimiento de tratamientos']] },
+  { grupo:'Reportes', items:[['reportes','Resumen'],['represervas','Reporte de reservas'],['repventas','Reporte de ventas'],['repsesiones','Seguimiento de tratamientos'],['repfichas','Fichas pendientes']] },
   { grupo:'Otros', items:[['misingresos','Mis ingresos'],['whatsapp','WhatsApp'],['asistente','Asistente'],['admin','Administración']] },
 ]
 const ACCIONES_PERMISO = [['ver','Ver'],['editar','Crear y editar'],['eliminar','Eliminar'],['descargar','Descargar']]
@@ -5599,7 +5687,7 @@ function renderCalendarRec(){
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(nombreEnBloque(a))}</div>
-        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}</div>`
+        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}${marcaFicha(a)}</div>`
     }).join('')
     cols += `<div class="dcol pcol" style="height:${gridH}px" data-date="${fecha}" data-rec="${r.id}"
       onclick="onSlotClick(event,this)">${lines}${noDisp}${blocks}</div>`
@@ -5686,7 +5774,7 @@ function renderCalendarDia(){
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)} – ${a.end_time.slice(0,5)}</div>
         <div class="n">${esc(nombreEnBloque(a))}</div>
-        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}</div>`
+        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}${marcaFicha(a)}</div>`
     }).join('')
 
     cols += `<div class="dcol pcol" style="height:${gridH}px" data-date="${fecha}" data-prof="${p.id}"
@@ -5799,7 +5887,7 @@ function renderCalendar(){
         onmousedown="apptMouseDown(event,'${a.id}')">
         <div class="t">${apptPagada(a)?'<i class="pag">$</i>':apptAbonada(a)?'<i class="pag abo">A</i>':''}${a.start_time.slice(0,5)}</div>
         <div class="n">${esc(nombreEnBloque(a))}</div>
-        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}
+        <div class="s">${esc(a.service_name||'')}</div>${marcaOrigen(a)}${marcaFicha(a)}
         ${profHaceServicio(a.professional_id,a.service_name)?'':'<span class="ojo-ico" title="Este profesional no tiene asignado este servicio">⚠</span>'}</div>`
     }).join('')
     cols+=`<div class="dcol ${working?'':'off'}" style="height:${gridH}px" data-date="${isoDate(dd)}" onclick="onSlotClick(event,this)">
@@ -6677,6 +6765,241 @@ function pasaFiltroOrigen(a){
   return !v || origenDe(a) === v
 }
 /* el iconito para la tarjeta de la agenda */
+/* ══════════════ FICHAS PENDIENTES ══════════════
+   Pedido de Luis (19-nov): cada atención que queda en "Asiste" tiene que
+   tener su ficha, con los datos de la cita (todos los campos que no son fotos
+   ni comentarios) y, si el servicio lo pide, las fotos de antes y después.
+   Qué pide cada servicio va en svc_meta: sinFicha, fotoAntes, fotoDespues
+   (Administración → Servicios → pestaña Ficha, o en el mismo reporte).
+   La profesional ve un aviso grande al entrar y una franja roja mientras le
+   falte algo; Luis lo ve en Reportes → Fichas pendientes.
+   La ficha se liga a la reserva por appointment_id cuando se abre desde el
+   aviso; las demás, por la clienta y el día de la ficha. */
+const FICHA_DESDE = '2026-11-19'          // el aviso a las profesionales parte aquí, sin arrastrar lo anterior
+let fichasPend = [], fichasPendIds = new Set()
+
+/* qué pide el servicio de una reserva; null si no pide ficha */
+function reglaFicha(a){
+  const sv = state.services.find(s => s.id === a.service_id) || state.services.find(s => s.name === a.service_name)
+  const m = sv ? svcMetaOf(sv.id) : {}
+  if(m.sinFicha) return null
+  const tpls = plantillas.filter(t => t.active !== false && (!t.services || t.services === 'all' ||
+    (Array.isArray(t.services) && (t.services.includes(sv && sv.id) || t.services.includes(a.service_name)))))
+  if(!tpls.length) return null
+  return { tpl: tpls[0], antes: !!m.fotoAntes, despues: !!m.fotoDespues }
+}
+/* lo que tiene una ficha: los datos que le faltan y si trae fotos de antes y de después */
+function revisarFicha(rec, regla){
+  const tpl = plantillas.find(t => t.id === rec.template_id) || plantillas.find(t => t.name === rec.template_name) || regla.tpl
+  const d = rec.data || {}
+  const lleno = v => Array.isArray(v) ? v.length > 0 : (v !== undefined && v !== null && String(v).trim() !== '')
+  const r = { faltan: [], antes: false, despues: false }
+  ;(tpl.sections || []).forEach((sec, i) => (sec.fields || []).forEach((f, j) => {
+    const v = d['s' + i + 'c' + j], lbl = normalBus(f.label || '')
+    if(f.type === 'archivo'){
+      if(/despu/.test(lbl)){ if(lleno(v)) r.despues = true }
+      else if(/antes/.test(lbl)){ if(lleno(v)) r.antes = true }
+      return
+    }
+    if(f.type === 'nota' || f.type === 'parrafo') return
+    if(!lleno(v)) r.faltan.push(f.label || 'un campo')
+  }))
+  return r
+}
+/* cada atención en "Asiste" del periodo (que ya terminó), con lo que le falta */
+async function calcularFichasPend(desde, hasta, profId){
+  if(!plantillas.length || errorPlantillas) await cargarPlantillas()
+  const ahora = new Date(), hoy = isoDate(ahora), hhmm = ahora.toTimeString().slice(0,5)
+  let filtro = 'status=eq.attending&appt_date=gte.' + desde + '&appt_date=lte.' + hasta
+  if(profId) filtro += '&professional_id=eq.' + encodeURIComponent(profId)
+  const citas = (await supabase.fetch('appointments', {
+      select:'id,client_id,client_name,service_id,service_name,appt_date,start_time,end_time,professional_id',
+      filters: filtro, order:'appt_date.desc,start_time.desc' }) || [])
+    .filter(a => a.appt_date < hoy || String(a.end_time || '').slice(0,5) <= hhmm)
+  const conRegla = citas.map(a => ({ a, regla: reglaFicha(a) })).filter(x => x.regla)
+  if(!conRegla.length) return []
+  /* las fichas desde el día anterior (por la hora de Chile), de a mil */
+  const desdeIso = new Date(isoDate(addDays(new Date(desde + 'T12:00:00'), -1)) + 'T00:00:00').toISOString()
+  let recs = [], off = 0
+  for(;;){
+    const lote = await supabase.fetch('client_records', { select:'id,client_id,template_id,template_name,record_date,appointment_id,data',
+      filters:'record_date=gte.' + encodeURIComponent(desdeIso) + '&limit=1000&offset=' + off, order:'record_date.asc' }) || []
+    recs = recs.concat(lote)
+    if(lote.length < 1000) break
+    off += 1000
+  }
+  const porDia = {}, porCita = {}
+  recs.forEach(r => {
+    if(r.appointment_id) (porCita[r.appointment_id] = porCita[r.appointment_id] || []).push(r)
+    else { const k = r.client_id + '|' + isoDate(new Date(r.record_date)); (porDia[k] = porDia[k] || []).push(r) }
+  })
+  return conRegla.map(({ a, regla }) => {
+    const suyas = (porCita[a.id] || []).concat(a.client_id ? (porDia[a.client_id + '|' + a.appt_date] || []) : [])
+    if(!suyas.length) return { a, regla, rec:null,
+      faltas:[{ tipo:'sin', txt: a.client_id ? 'Sin ficha' : 'Sin ficha (la reserva no tiene clienta de la base)' }] }
+    /* con varias fichas ese día: los datos de la más completa, las fotos de cualquiera */
+    let mejor = null, rev = null, antes = false, despues = false
+    suyas.forEach(r => { const x = revisarFicha(r, regla); antes = antes || x.antes; despues = despues || x.despues
+      if(!rev || x.faltan.length < rev.faltan.length){ rev = x; mejor = r } })
+    const faltas = []
+    if(rev.faltan.length) faltas.push({ tipo:'info', txt:'Faltan datos: ' + rev.faltan.join(', ') })
+    if(regla.antes && !antes) faltas.push({ tipo:'antes', txt:'Falta foto de antes' })
+    if(regla.despues && !despues) faltas.push({ tipo:'despues', txt:'Falta foto de después' })
+    return { a, regla, rec: mejor, faltas }
+  })
+}
+/* revisa lo pendiente: a la profesional, las suyas; al resto, todas (para marcar la agenda) */
+async function revisarFichasPend(mostrar){
+  if(!me || (typeof soloMira === 'function' && soloMira())) return
+  const pid = isPro() ? myProfId() : null
+  if(isPro() && !pid) return
+  const hoy = isoDate(new Date()), d30 = isoDate(addDays(new Date(), -30))
+  try{
+    const filas = await calcularFichasPend(d30 > FICHA_DESDE ? d30 : FICHA_DESDE, hoy, pid)
+    fichasPend = filas.filter(f => f.faltas.length)
+  }catch(e){ console.warn('fichas pendientes:', e); return }
+  const antes = fichasPendIds
+  fichasPendIds = new Set(fichasPend.map(f => f.a.id))
+  const cambio = antes.size !== fichasPendIds.size || [...fichasPendIds].some(id => !antes.has(id))
+  if(cambio && typeof render === 'function') render()
+  if(!isPro()) return
+  pintarBarraFichas()
+  const nuevas = [...fichasPendIds].some(id => !antes.has(id))
+  if(fichasPend.length && (mostrar || nuevas) && !document.querySelector('.modal-ov.open')) abrirAlertaFichas()
+}
+function iniciarAlertaFichas(){
+  if(typeof soloMira === 'function' && soloMira()) return
+  setTimeout(() => revisarFichasPend(true), 2500)
+  setInterval(() => revisarFichasPend(false), 10 * 60 * 1000)
+}
+function textoPendientes(n){ return n === 1 ? 'Tienes 1 ficha pendiente' : 'Tienes ' + n + ' fichas pendientes' }
+function pintarBarraFichas(){
+  let b = document.getElementById('fichaBarra')
+  if(!b){ b = document.createElement('div'); b.id = 'fichaBarra'; b.className = 'ficha-barra'; document.body.appendChild(b) }
+  const n = fichasPend.length
+  b.style.display = n ? 'flex' : 'none'
+  document.body.classList.toggle('con-ficha-barra', !!n)
+  if(n) b.innerHTML = `<span class="fb-ico">⚠️</span><span>${textoPendientes(n)} de completar</span>
+    <button onclick="abrirAlertaFichas()">Ver y completar</button>`
+}
+function abrirAlertaFichas(){
+  const n = fichasPend.length; if(!n) return
+  document.getElementById('faTitulo').textContent = textoPendientes(n)
+  document.getElementById('faLista').innerHTML = fichasPend.map((f, i) => `<div class="fa-item">
+      <div class="fa-cita"><strong>${esc(f.a.client_name || 'Sin nombre')}</strong>
+        <span>${esc(f.a.service_name || '')} · ${rsFecha(f.a.appt_date)}, ${String(f.a.start_time).slice(0,5)} hrs${isPro() ? '' : ' · ' + esc(profName(f.a.professional_id) || '')}</span>
+        <div class="fa-faltas">${f.faltas.map(x => `<span class="fa-falta">${esc(x.txt)}</span>`).join('')}</div></div>
+      <button class="btn-primary" onclick="completarFicha(fichasPend[${i}])">Completar ficha</button></div>`).join('')
+  openModal('fichaAlertaModal')
+}
+/* abre la ficha de esa atención: la que ya existe para completarla, o una nueva con la fecha de la cita */
+async function completarFicha(f){
+  if(!f) return
+  if(!f.a.client_id){ toast('Esta reserva no tiene una clienta de la base: elígela en la reserva para poder hacer su ficha', 'error'); return }
+  closeModal('fichaAlertaModal')
+  await openClientDetail(f.a.client_id)
+  if(!cdCliente || cdCliente.id !== f.a.client_id) return
+  cdSetTab('fichas')
+  if(f.rec && fichasCliente.some(r => r.id === f.rec.id)) openFichaCliente(f.rec.id, null, 'editar')
+  else {
+    openFichaCliente('', f.regla.tpl.id)
+    document.getElementById('ffFecha').value = paraCampoFechaHora(new Date(f.a.appt_date + 'T' + String(f.a.start_time).slice(0,5)))
+  }
+  if(fichaEdit) fichaEdit.apptId = f.a.id
+}
+function completarFichaCita(id){
+  completarFicha(fichasPend.find(f => f.a.id === id) || rfFilas.find(f => f.a.id === id))
+}
+function marcaFicha(a){
+  return fichasPendIds.has(a.id) ? '<span class="fp-mark" title="Falta completar la ficha de esta atención">📋!</span>' : ''
+}
+function qvFichaPend(a){
+  const f = fichasPend.find(x => x.a.id === a.id); if(!f) return ''
+  return `<div class="qv-row qv-ficha">⚠ ${esc(f.faltas.map(x => x.txt).join(' · '))}
+    <button class="mini-link" onclick="closeQuickView();completarFichaCita('${a.id}')">Completar ficha</button></div>`
+}
+
+/* ── Reportes → Fichas pendientes ── */
+let rfFilas = [], rfCache = { dias:null, filas:[] }
+const RF_FALTA = { sin:['#fde8e4','#c0392b'], info:['#fdf3e0','#9a6b12'], antes:['#e3f2fb','#1f6f99'], despues:['#efe9fb','#6b47b8'] }
+async function renderRepFichas(recargar){
+  const el = document.getElementById('rfTabla'); if(!el) return
+  const pr = document.getElementById('rfProf'), cp = pr.value
+  pr.innerHTML = '<option value="">Todas</option>' + state.professionals.filter(p => p.active !== false)
+    .map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')
+  pr.value = cp
+  const dias = Number(document.getElementById('rfPeriodo').value) || 0
+  if(recargar || rfCache.dias !== dias){
+    el.innerHTML = '<div class="empty-state">Revisando las fichas…</div>'
+    try{ rfCache = { dias, filas: await calcularFichasPend(isoDate(addDays(new Date(), -dias)), isoDate(new Date()), null) } }
+    catch(e){ el.innerHTML = '<div class="empty-state">No se pudieron revisar las fichas: ' + esc(e.message || String(e)) + '</div>'; return }
+  }
+  renderConfigFichas()
+  const p = pr.value, fa = document.getElementById('rfFalta').value
+  const delProf = rfCache.filas.filter(f => !p || f.a.professional_id === p)
+  rfFilas = delProf.filter(f => fa === 'ok' ? !f.faltas.length : (f.faltas.length && (!fa || f.faltas.some(x => x.tipo === fa))))
+  const pend = delProf.filter(f => f.faltas.length)
+  const cuenta = t => pend.filter(f => f.faltas.some(x => x.tipo === t)).length
+  const pct = delProf.length ? Math.round((delProf.length - pend.length) / delProf.length * 100) : 100
+  document.getElementById('rfKpis').innerHTML = `
+    <div class="rr-kpi"><h5>Atenciones revisadas</h5><div class="k-num">${delProf.length}</div><div class="k-sub">En "Asiste", de servicios que piden ficha</div></div>
+    <div class="rr-kpi"><h5>Con algo pendiente</h5><div class="k-num" style="color:#c0392b">${pend.length}</div><div class="k-sub">${cuenta('sin')} sin ficha · ${cuenta('info')} con datos incompletos</div></div>
+    <div class="rr-kpi"><h5>Fotos que faltan</h5><div class="k-num">${cuenta('antes') + cuenta('despues')}</div><div class="k-sub">${cuenta('antes')} de antes · ${cuenta('despues')} de después</div></div>
+    <div class="rr-kpi"><h5>Fichas al día</h5><div class="k-num">${pct}%</div><div class="k-sub">${delProf.length - pend.length} de ${delProf.length} completas</div></div>`
+  /* por profesional, para ver de un vistazo quién se está atrasando */
+  const porProf = {}
+  rfCache.filas.forEach(f => { const k = f.a.professional_id || '—'; const r = porProf[k] = porProf[k] || { n:0, pend:0 }; r.n++; if(f.faltas.length) r.pend++ })
+  const tablaProf = p ? '' : `<div class="rr-panel" style="margin-bottom:16px"><table class="ctbl">
+    <thead><tr><th>Profesional</th><th style="text-align:center">Atenciones</th><th style="text-align:center">Pendientes</th><th style="text-align:center">Al día</th></tr></thead>
+    <tbody>${Object.entries(porProf).sort((x, y) => y[1].pend - x[1].pend).map(([k, r]) => `<tr>
+      <td class="cname"><button class="link-cliente" onclick="document.getElementById('rfProf').value='${esc(k)}';renderRepFichas()">${esc(profName(k) || 'Sin profesional')}</button></td>
+      <td style="text-align:center">${r.n}</td><td style="text-align:center;${r.pend ? 'color:#c0392b;font-weight:700' : ''}">${r.pend}</td>
+      <td style="text-align:center">${r.n ? Math.round((r.n - r.pend) / r.n * 100) : 100}%</td></tr>`).join('')}</tbody></table></div>`
+  if(!rfFilas.length){
+    el.innerHTML = tablaProf + `<div class="empty-state"><div style="font-size:2.2rem;margin-bottom:6px">${fa === 'ok' ? '🔍' : '✅'}</div>${fa === 'ok' ? 'No hay fichas completas con ese filtro' : 'No hay fichas pendientes con ese filtro'}</div>`
+    return
+  }
+  el.innerHTML = tablaProf + `<div style="overflow-x:auto"><table class="ctbl" style="min-width:900px">
+    <thead><tr><th>Atención</th><th>Clienta</th><th>Servicio</th><th>Profesional</th><th>Qué falta</th><th></th></tr></thead>
+    <tbody>${rfFilas.map((f, i) => `<tr>
+      <td>${rsFecha(f.a.appt_date)}<br><span style="font-size:.74rem;color:var(--light)">${String(f.a.start_time).slice(0,5)} hrs</span></td>
+      <td>${f.a.client_id ? `<button class="link-cliente" onclick="abrirFichaCliente('${f.a.client_id}')">${esc(f.a.client_name || '—')}</button>` : esc(f.a.client_name || '—')}</td>
+      <td>${esc(f.a.service_name || '—')}</td>
+      <td>${esc(profName(f.a.professional_id) || '—')}</td>
+      <td style="max-width:320px">${f.faltas.length ? f.faltas.map(x => `<span class="badge" style="background:${RF_FALTA[x.tipo][0]};color:${RF_FALTA[x.tipo][1]};white-space:normal;margin:2px 2px 2px 0;display:inline-block">${esc(x.txt)}</span>`).join('') : '<span class="badge paid">Completa</span>'}</td>
+      <td style="white-space:nowrap">${f.a.client_id ? `<button class="mini-btn" onclick="completarFicha(rfFilas[${i}])">${f.rec ? 'Abrir ficha' : 'Crear ficha'}</button>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+}
+function exportRepFichas(){
+  if(!rfFilas.length){ toast('No hay filas para descargar', 'error'); return }
+  downloadCSV('fichas-pendientes.csv', ['Fecha','Hora','Clienta','Servicio','Profesional','Qué falta'],
+    rfFilas.map(f => [f.a.appt_date, String(f.a.start_time).slice(0,5), f.a.client_name || '', f.a.service_name || '',
+      profName(f.a.professional_id) || '', f.faltas.map(x => x.txt).join(' / ') || 'Completa']))
+}
+/* qué pide cada servicio, en una sola tabla (se guarda al marcar) */
+function renderConfigFichas(){
+  const box = document.getElementById('rfConfigBody'); if(!box) return
+  const puede = isAdmin()
+  const byCat = {}
+  state.services.forEach(s => { (byCat[s.cat] = byCat[s.cat] || []).push(s) })
+  const ck = (s, campo, on, apagado) => `<input type="checkbox" ${on ? 'checked' : ''} ${puede && !apagado ? '' : 'disabled'}
+    onchange="cambiarReglaFicha('${esc(s.id)}','${campo}',this.checked)" style="width:18px;height:18px">`
+  box.innerHTML = `<p class="rem-note" style="margin:10px 0">${puede ? 'Se guarda al marcar. ' : 'Solo administración puede cambiarlo. '}Lo mismo está en <strong>Administración → Servicios → (servicio) → pestaña Ficha</strong>.</p>
+    <div style="overflow-x:auto"><table class="ctbl"><thead><tr><th>Servicio</th><th style="text-align:center">Pide ficha</th><th style="text-align:center">Foto de antes</th><th style="text-align:center">Foto de después</th></tr></thead>
+    <tbody>${Object.entries(byCat).map(([cat, list]) => `<tr><td colspan="4" style="font-weight:700;background:var(--cream-2,#f6f1e8)">${esc(cat)}</td></tr>` +
+      list.map(s => { const m = svcMetaOf(s.id)
+        return `<tr><td>${esc(s.name)}</td><td style="text-align:center">${ck(s, 'ficha', !m.sinFicha)}</td>
+          <td style="text-align:center">${ck(s, 'fotoAntes', !!m.fotoAntes && !m.sinFicha, m.sinFicha)}</td>
+          <td style="text-align:center">${ck(s, 'fotoDespues', !!m.fotoDespues && !m.sinFicha, m.sinFicha)}</td></tr>` }).join('')).join('')}</tbody></table></div>`
+}
+async function cambiarReglaFicha(id, campo, on){
+  if(!isAdmin()) return
+  const m = svcMeta[id] = { ...(svcMeta[id] || {}) }
+  if(campo === 'ficha') m.sinFicha = !on
+  else m[campo] = on
+  if(!await persistSvcExtras()){ toast('No se pudo guardar', 'error'); return }
+  toast('Guardado', 'success')
+  renderRepFichas(true)
+}
 function marcaOrigen(a){
   const o = ORIGENES[origenDe(a)]
   return o && o.icono ? `<span class="org" title="${esc(o.nombre)}">${o.icono}</span>` : ''
@@ -6788,6 +7111,7 @@ function openApptQuickView(id){
       ${ORIGENES[origenDe(a)].icono ? `<span class="qv-org" title="${esc(ORIGENES[origenDe(a)].nombre)}">${ORIGENES[origenDe(a)].icono}</span>` : ''}</div>
     ${a.service_name?`<div class="qv-svc">${esc(a.service_name)}${qvPrecio(a)}</div>`:''}
     ${tratamientoDe(a) ? '<div class="qv-row" id="qvSesion">🔢 Sesión…</div>' : ''}
+    ${qvFichaPend(a)}
     ${qvCobrado(a)}
     <div class="qv-row">📅 ${fmtLongDate(a.appt_date)} · ${a.start_time.slice(0,5)} a ${a.end_time.slice(0,5)} hrs</div>
     ${p?`<div class="qv-row">Se atenderá con: <strong style="color:var(--texto)">${esc(p.name)}</strong></div>`:''}
@@ -9986,7 +10310,7 @@ function authHeaders(extra){
 const VENTAS_GROUP=['ventas','transacciones','planes','giftcards','caja','propinas','comisiones','cobros']
 const CLIENTES_GROUP=['clientes','antesdespues','encuestas','recordatorios','cuentas']
 const PRODUCTOS_GROUP=['productos','ventaprod','movstock']
-const REPORTES_GROUP=['reportes','represervas','repventas','repsesiones']
+const REPORTES_GROUP=['reportes','represervas','repventas','repsesiones','repfichas']
 const PRO_VIEWS=['agenda','misingresos']
 function switchView(v){
   if(typeof vePantalla==='function' && !vePantalla(v)) v = (typeof isPro==='function'&&isPro()) ? 'agenda' : 'agenda'   // el rol no abre esa pantalla
@@ -10015,6 +10339,7 @@ function switchView(v){
   if(v==='represervas') renderRepReservas()
   if(v==='repventas') renderRepVentas()
   if(v==='repsesiones') renderRepSesiones()
+  if(v==='repfichas') renderRepFichas(true)
   if(v==='antesdespues') cargarGaleria()
   if(v==='admin') renderAdmin()
   if(v==='misingresos') renderMisIngresos()
@@ -12541,13 +12866,17 @@ async function saveFichaCliente(){
   const record_date = cuando ? new Date(cuando).toISOString() : new Date().toISOString()
   const row = { client_id: cdCliente.id, template_id: tpl ? tpl.id : null,
     template_name: tpl ? tpl.name : (fichaEdit.record||{}).template_name, data, record_date,
-    professional_id: isPro() ? myProfId() : null }
+    professional_id: isPro() ? myProfId() : null, appointment_id: fichaEdit.apptId || null }
+  const ligar = fichaEdit.apptId && !(fichaEdit.record || {}).appointment_id ? { appointment_id: fichaEdit.apptId } : {}
   try{
     if(fichaEdit.id) await supabase.update('client_records', fichaEdit.id,
-      { data, record_date, updated_at:new Date().toISOString() })
+      { data, record_date, updated_at:new Date().toISOString(), ...ligar })
     else await supabase.insert('client_records', row)
     await cargarFichasDe(cdCliente.id)
     closeModal('ffModal'); renderClientDetail(); toast('Ficha guardada','success')
+    /* lo pendiente se vuelve a mirar: si con esta quedó al día, se apaga el aviso */
+    revisarFichasPend(false)
+    if(typeof pantallaAbierta === 'function' && pantallaAbierta() === 'repfichas') renderRepFichas(true)
   }catch(e){ console.error(e); toast('No se pudo guardar: ' + e.message,'error') }
 }
 
@@ -14989,7 +15318,7 @@ function filtrarServicios(texto, limpiar){
   const x=document.getElementById('svcClear'); if(x) x.style.display = (svcFiltro||svcCatSel) ? 'block' : 'none'
 }
 function svcTab(name,btn){
-  const TABS_SVC=['basicos','web','sesiones','avanzadas']
+  const TABS_SVC=['basicos','web','sesiones','ficha','avanzadas']
   TABS_SVC.forEach(n=>document.getElementById('svtab-'+n).classList.toggle('on',n===name))
   const btns=[...document.querySelectorAll('#svcTabs button')]
   btns.forEach(b=>b.classList.remove('on'))
@@ -15085,6 +15414,10 @@ async function openSvcModal(id){
   document.getElementById('svcSesBox').style.display=Number(m.sesiones)>0?'':'none'
   document.getElementById('svcSesTotal').value=Number(m.sesiones)>0?m.sesiones:''
   document.getElementById('svcSesDias').value=m.sesDias||''
+  document.getElementById('svcFichaOn').checked=!m.sinFicha
+  document.getElementById('svcFotosBox').style.display=m.sinFicha?'none':''
+  document.getElementById('svcFotoAntes').checked=!!m.fotoAntes
+  document.getElementById('svcFotoDespues').checked=!!m.fotoDespues
   renderResources(recursosMarcadosDe(s?s.name:''))
   const mode=m.hourMode||'none'
   document.querySelectorAll('input[name=svcHourMode]').forEach(r=>r.checked=(r.value===mode))
@@ -15126,6 +15459,8 @@ async function saveSvc(){
   if(sesOn && (sesTotal<1 || sesTotal>200)){ svcTab('sesiones'); toast('Pon cuántas sesiones tiene el tratamiento','error'); return }
   if(sesOn && sesDias && (sesDias<1 || sesDias>365)){ svcTab('sesiones'); toast('Los días para avisar van de 1 a 365','error'); return }
   const meta={ sesiones:sesOn?sesTotal:0, sesDias:sesOn?(sesDias||30):0, video:document.getElementById('svcVideo').checked,
+    sinFicha:!document.getElementById('svcFichaOn').checked,
+    fotoAntes:document.getElementById('svcFotoAntes').checked, fotoDespues:document.getElementById('svcFotoDespues').checked,
     home:document.getElementById('svcHome').checked,
     cap:document.getElementById('svcMulti').checked?(parseInt(document.getElementById('svcCap').value)||2):0,
     iva:document.getElementById('svcIva').checked,
@@ -18624,7 +18959,7 @@ const normalBus = t => String(t || '').toLowerCase().normalize('NFD').replace(/[
 const PANTALLAS_BUS = [
   ['agenda','Agenda','📅'], ['clientes','Clientes','👥'], ['ventas','Ventas','🧾'], ['caja','Caja','💵'],
   ['comisiones','Comisiones','📊'], ['reportes','Reportes · Resumen','📈'], ['represervas','Reporte de reservas','📋'],
-  ['repventas','Reporte de ventas','📋'], ['repsesiones','Seguimiento de tratamientos','🗂'], ['whatsapp','WhatsApp','💬'], ['asistente','Asistente (Mariet)','🤖'], ['admin','Administración','⚙️'],
+  ['repventas','Reporte de ventas','📋'], ['repsesiones','Seguimiento de tratamientos','🗂'], ['repfichas','Fichas pendientes','📋'], ['whatsapp','WhatsApp','💬'], ['asistente','Asistente (Mariet)','🤖'], ['admin','Administración','⚙️'],
   ['transacciones','Transacciones','🧾'], ['propinas','Propinas','💝'], ['cobros','Cobros por link','🔗'], ['recordatorios','Recordatorios','⏰'],
   ['productos','Productos','🧴'], ['movstock','Movimientos de stock','📦'], ['planes','Planes y bonos','🎟'], ['giftcards','Gift cards','🎁'],
   ['encuestas','Encuestas','📝'], ['misingresos','Mis ingresos','💰']]
@@ -18776,7 +19111,7 @@ function avisoDeshacer(msg, deshacer, ms){
 }
 /* las columnas de una reserva, para devolverla tal cual si se eliminó */
 const COLS_RESERVA = ['id','professional_id','client_id','service_id','service_name','client_name','client_phone','appt_date',
-  'start_time','end_time','status','price','notes','created_at','reminded_at','reminded_channel','forzada','origen']
+  'start_time','end_time','status','price','notes','created_at','reminded_at','reminded_channel','forzada','origen','sesion']
 const filaReserva = a => Object.fromEntries(COLS_RESERVA.filter(k => a[k] !== undefined).map(k => [k, a[k]]))
 
 /* ── Menú del teléfono (pedido de Luis: "como el sitio web") ──
@@ -18890,6 +19225,7 @@ async function boot(){
   render()
   if(isPro()) switchView('agenda')
   iniciarRefresco()
+  iniciarAlertaFichas()
   setTimeout(combinarSolos, 9000)
   /* copia automatica si ya toca (la hace un administrador al entrar) */
   if(isAdmin()) setTimeout(respaldoAutomatico, 45000)
