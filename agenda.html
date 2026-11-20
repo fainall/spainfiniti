@@ -1286,8 +1286,7 @@ body.sin-scroll{overflow:hidden}
 .fz-aviso p{margin:0;font-size:.85rem;color:#7a5c1e;line-height:1.5}
 .appt.forzada::after{content:'⚡';position:absolute;bottom:2px;right:3px;font-size:.6rem;opacity:.75}
 /* fichas pendientes (19-nov): marca en la reserva, aviso grande y franja roja */
-.appt .fp-mark{position:absolute;bottom:2px;left:4px;background:#c0392b;color:#fff;border-radius:8px;font-size:.58rem;font-weight:700;line-height:14px;padding:0 4px;z-index:2}
-.appt.pagada .fp-mark,.appt.abonada .fp-mark{left:19px}
+.appt .fp-mark{position:absolute;top:2px;right:20px;background:#c0392b;color:#fff;border-radius:8px;font-size:.58rem;font-weight:700;line-height:14px;padding:0 4px;z-index:2}
 .qv-ficha{background:#fdf1ef;border:1px solid #f3c2bb;color:#a5281b;border-radius:8px;padding:8px 10px;font-weight:600}
 .fa-modal{width:700px;max-width:96vw;border-top:10px solid #c0392b}
 .fa-head{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px}
@@ -1308,7 +1307,10 @@ body.sin-scroll{overflow:hidden}
 @keyframes fbPulso{0%,100%{background:#c0392b}50%{background:#e04b3a}}
 @media (prefers-reduced-motion: reduce){.ficha-barra{animation:none}}
 body.con-ficha-barra{padding-bottom:64px}
-@media (max-width:820px){.fa-item{flex-direction:column;align-items:stretch}.fa-head h2{font-size:1.35rem}}
+@media (max-width:820px){.fa-item{flex-direction:column;align-items:stretch}.fa-head h2{font-size:1.35rem}
+  .ficha-barra{flex-wrap:nowrap;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));font-size:.9rem;text-align:left}
+  .ficha-barra .fb-ico{font-size:1.3rem}
+  .ficha-barra button{padding:8px 12px;font-size:.8rem;white-space:nowrap}}
 
 /* vista previa de la importación */
 .imp-linea{font-size:.8rem;color:var(--mid);margin-top:5px}
